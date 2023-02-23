@@ -1,0 +1,157 @@
+\newcommand\markdownRendererJekyllDataBooleanPrototype[2]{#1}
+\newcommand\markdownRendererJekyllDataEmptyPrototype[1]{#1}
+\newcommand\markdownRendererJekyllDataNumberPrototype[2]{#1}
+\newcommand\markdownRendererJekyllDataStringPrototype[2]{#1}
+\newcommand\markdownRendererJekyllDataEnd[1]{#1}
+
+\RequirePackage[%
+	  contentBlocks,
+%	  debugExtensions,
+	  definitionLists,
+	  fancy_lists,
+	  fencedCode,
+	  hashEnumerators,
+	  inlineNotes,
+	  jekyllData,
+	  notes,
+	  pipeTables,
+	  rawAttribute,
+	  smartEllipses,
+	  strikeThrough,
+	  subscripts,
+	  superscripts,
+	  tableCaptions,
+	  taskLists,
+	  citations,
+	  tightLists=false,
+	  html,
+	  hybrid,
+	  relativeReferences=true,
+]{markdown}
+
+\makeatletter
+
+\ExplSyntaxOn
+
+\iow_new:N \l_letter_csv_ior
+\tl_new:N \l_letter_csv_header_tl
+\seq_new:N \l_letter_tmp_seq
+\tl_new:N \l_letter_tmp_tl
+
+\newcommand{\LoadTemplate}[1]{
+	\input{template-#1.tex}
+}
+
+\newcommand{\SetTemplatePreamble}[1]{%
+	\gdef\TemplatePreamble{#1}
+}
+\newcommand{\SetTemplateBegin}[1]{%
+	\gdef\TemplateBegin{#1}
+}
+\newcommand{\SetTemplateEnd}[1]{%
+	\gdef\TemplateEnd{#1}
+}
+
+\newcommand*\insertcsvdata[1]{\use:c {insertCSV#1}}
+
+\newcommand*{\processCSVletter}{
+	\tl_if_empty:NF \l_letter_csv_tl {
+		\ior_open:Nn \l_letter_csv_ior {\l_letter_csv_tl}
+		\ior_get:NN \l_letter_csv_ior \l_letter_csv_tmp_tl
+		\seq_set_split:NnV \l_letter_header_seq {;} \l_letter_csv_tmp_tl
+		\ior_str_map_inline:Nn  \l_letter_csv_ior {
+			\seq_set_split:Nnn \l_letter_tmp_seq {;} {##1}
+			\int_step_variable:nNn {\seq_count:N \l_letter_tmp_seq} \l_tmpa_int {
+				\cs_set:cpx {insertCSV\seq_item:Nn \l_letter_header_seq {\l_tmpa_int}} {\seq_item:Nn \l_letter_tmp_seq {\l_tmpa_int}}
+			}
+			\UseHook{markdownInput/begin}
+			\tl_if_empty:NF \l_letter_csv_content_tl
+				{\markdownInput{\l_letter_csv_content_tl}}
+			\UseHook{markdownInput/end}
+		}
+		\ior_close:N \l_letter_csv_ior
+	}
+}
+
+\keys_define:nn {Markdown/Template/jekyllData} {
+	unknown .code:n = {\exp_args:Nc \gdef {insert\l_keys_key_tl} {#1}},
+	letter-csv .tl_set:N = \l_letter_csv_tl,
+	letter-csv .initial:n = ,
+	letter-content .tl_set:N = \l_letter_csv_content_tl,
+	letter-content .initial:n=,
+}
+
+\tl_new:N \l__markdown_sequence_tl
+
+\markdownSetup{
+	rendererPrototypes = {
+		jekyllDataString = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
+		jekyllDataNumber = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
+		jekyllDataBoolean = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
+		jekyllDataEmpty = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = }},
+		jekyllDataSequenceBegin = {
+			\begingroup
+			\renewcommand*{\markdownRendererJekyllDataString}[2]{
+			\seq_if_exist:cF {g__ptxcd_#1_seq}  {\seq_new:c {g__ptxcd_#1_seq}}
+			\seq_gput_right:cn {g__ptxcd_#1_seq} {##2}
+		}},
+		jekyllDataSequenceEnd = {
+			\endgroup
+		}
+	}
+}
+
+\def\insertauthor{
+	\bool_set_false:N \l_tmpa_bool
+	\seq_map_inline:Nn \g__ptxcd_author_seq {
+		\bool_if:NTF \l_tmpa_bool {,\space} {\bool_set_true:N \l_tmpa_bool}
+		\tl_if_in:nnTF {##1} {=} {
+			\__ptxcd_author_afil:w ##1 \q_stop
+		} {##1}
+	}
+}
+
+
+\def\insertshortauthor{
+		\seq_map_inline:Nn \g__ptxcd_author_seq {
+			\keyval_parse:nn {\use:n } {\use_i:nn} {##1}
+		}
+}
+
+\cs_new:Npn	\__ptxcd_author_afil:w #1 = #2 \q_stop {
+	\tl_trim_spaces:n{#1}\thanks{\tl_trim_spaces:n {#2}}
+}
+
+\renewcommand\markdownRendererJekyllDataBegin{\endgroup\markdownMakeOther}
+
+\renewcommand\markdownRendererJekyllDataEnd{
+	\LoadTemplate{\inserttemplate}
+	\char_set_catcode_comment:N\%
+		\TemplatePreamble
+		\tl_if_empty:NT \l_letter_csv_tl  {
+			\AddToHook{markdownInput/end}{\TemplateEnd}
+			\AddToHook{markdownInput/begin}{\TemplateBegin}
+		}
+		\begin{document}
+		\UseHook{markdownInput/begin}
+		\begingroup
+		\char_set_catcode_other:N\%
+}
+
+\NewMirroredHookPair{markdownInput/begin}{markdownInput/end}
+
+\ExplSyntaxOff
+
+\markdownInputPlainTeX{\MarkDownInputFile}%
+\UseHook{markdownInput/end}%
+
+\markdownSetup{rendererPrototypes={
+		backslash = {\\},
+}}
+
+\AddToHook{markdownInput/end}{\TemplateEnd}
+\AddToHook{markdownInput/begin}{\TemplateBegin}
+
+\processCSVletter
+
+\end{document}

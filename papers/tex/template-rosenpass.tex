@@ -1,0 +1,402 @@
+\documentclass[english,abstract=true]{scrartcl}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{fontspec}
+
+%font fallback
+\directlua{luaotfload.add_fallback
+("codefallback",
+	{"NotoSansMono:mode=harf"}
+)}
+
+\ExplSyntaxOn
+\makeatletter
+\setmonofont{NotoSansMono}[Scale=.9]
+
+\setsansfont{Nunito}
+\renewcommand*{\familydefault}{\sfdefault}
+
+\usepackage{unicode-math}
+
+\hook_gput_code:nnn {cmd/markdownInput/before} {space-to-newline} {
+	\hook_gput_code:nnn {env/aligned/begin}{space-to-newline}{\def\ {\\}}
+	\hook_gput_code:nnn {env/align/begin}{space-to-newline}{\def\ {\\}}
+}
+
+\hook_gput_code:nnn {cmd/markdownInput/after} {space-to-newline} {
+	\hook_gremove_code:nn {env/aligned/begin} {space-to-newline}
+	\hook_gremove_code:nn {env/align/begin} {space-to-newline}
+}
+
+
+\usepackage{minted}
+
+\setminted{bgcolor=rosenpass-gray!20,breaklines}
+
+\usemintedstyle{../tex/rosenpass}
+
+\markdownSetup{
+	renderers={
+		inputVerbatim=\inputminted[breaklines]{text}{#1},
+		inputFencedCode = {
+			\if_predicate:w \tl_if_empty_p:n {#2}
+				\catcode`\#=6\relax
+				\inputminted{text}{#1}%
+				\catcode`\#=12\relax
+			\else:
+				\catcode`\#=6\relax
+				\inputminted{#2}{#1}%
+				\catcode`\#=12\relax
+			\fi:
+			\AddToHookNext{para/begin}{\para_omit_indent:}
+		},%
+		headingOne={\__ptxcd_split_link_heading:nn {section} {#1}},
+		headingTwo={\__ptxcd_split_link_heading:nn {subsection} {#1}},
+		headingThree={\__ptxcd_split_link_heading:nn {subsubsection} {#1}},
+		headingFour={\__ptxcd_split_link_heading:nn {paragraph} {#1}},
+		headingFive={\__ptxcd_split_link_heading:nn {subparagraph} {#1}},
+		ulEnd={\end{itemize} \AddToHookNext{para/begin}{\para_omit_indent:}},
+		olEnd={\end{enumerate} \AddToHookNext{para/begin}{\para_omit_indent:}},
+		image={
+				\tl_set:Nn \l_tmpa_tl {#2}
+				\regex_replace_once:nnN {\.[a-z]+\Z} {} \l_tmpa_tl
+				\exp_args:NnV \__ptxcd_image:nn {#1} \l_tmpa_tl}
+	    }
+}
+
+\cs_new:Nn \__ptxcd_split_link_heading:nn  {
+	\regex_split:nnNTF {\s*\cB\{\#(.+)\cE\}} {#2} \l_tmpa_seq {
+		\exp_args:Nnx \use:c {#1} {\seq_item:Nn \l_tmpa_seq {1}}
+		\label{\seq_item:Nn \l_tmpa_seq {2}}
+	} {
+		\use:c {#1} {#2}
+	}
+}
+
+\def\minted@opt@quote#1{
+	\if_predicate:w \str_if_eq_p:nn { #1 } { pseudorust }
+		tex/pseudorust-lexer.py:PseudoRustLexer~-x
+	\else:
+		\if_predicate:w \str_if_eq_p:nn { #1 } { cryptoverif }
+			tex/cryptoverif-lexer.py:CryptoVerifLexer~-x
+		\else:
+			#1
+		\fi:
+	\fi:
+}
+\ExplSyntaxOff
+
+\RedeclareSectionCommands[afterindent=false,runin=false,beforeskip=.5\baselineskip,afterskip=0pt,indent=0pt]{paragraph,subparagraph}
+
+\IfFileExists{gitHeadInfo.gin}{\providecommand*{\GI@githeadinfo@file}{gitHeadInfo.gin}}{}
+\RequirePackage{gitinfo2}
+
+\AddToHook{env/description/after}{
+	\AddToHookNext{para/begin}{\OmitIndent}
+}
+
+\AddToHook{env/itemize/after}{
+	\AddToHookNext{para/begin}{\OmitIndent}
+}
+
+\makeatother
+
+
+\usepackage{xcolor}
+
+\definecolor{rosenpass-pink}{RGB}{247, 4, 132}
+\definecolor{rosenpass-orange}{RGB}{255, 166, 48}
+\definecolor{rosenpass-gray}{RGB}{64, 63, 76}
+\definecolor{rosenpass-lightblue}{RGB}{211, 243, 238}
+\definecolor{rosenpass-blue}{RGB}{114, 161, 229}
+
+\usepackage{scrlayer-scrpage}
+\cfoot[]{}
+\ohead[]{\pagemark}
+
+\ExplSyntaxOn
+
+\ofoot[\__ptxcd_version_info:]{\__ptxcd_version_info:}
+\ifoot[\footnotesize\doclicenseText]{}
+
+\ModifyLayers[nonfloatpage]{scrheadings.head.oneside}
+\ModifyLayers[nonfloatpage]{scrheadings.foot.oneside}
+
+
+\box_new:N \g__ptxcd_labelitemi_box
+\hbox_gset:Nn \g__ptxcd_labelitemi_box {\raisebox{.15\baselineskip}{\tiny$\blacktriangleright$}}
+
+\cs_new:Nn \__ptxcd_version_info: {
+\bool_set_false:N \l_tmpa_bool
+\gitAbbrevHash{}~(\gitAuthorDate
+\clist_map_inline:Nn \gitTags {
+	\exp_args:Nx \str_if_eq:nnT {\jobname-release} {test-whitepaper}  {\bool_set_true:N \l_tmpa_bool\clist_map_break:}
+}
+\bool_if:NF \l_tmpa_bool {~--~draft}
+)
+}
+
+\renewcommand*{\labelitemi}{\box_use:N  \g__ptxcd_labelitemi_box}
+\ExplSyntaxOff
+
+\usepackage[hidelinks]{hyperref}
+\usepackage{babel}
+
+\RequirePackage[
+	datamodel=acmdatamodel,
+	style=numeric-comp, % use style=acmauthoryear for publications that require it
+    backref=true,
+    maxbibnames=999
+]{biblatex}
+
+\DeclareFieldFormat{url}{\url{#1}}
+
+\let\bibliofont\relax
+\addbibresource{references.bib}
+
+\renewcommand*{\titlepagestyle}{plain}
+
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+
+\makeatletter
+\disable@package@load{csquotes}{\newcommand*{\enquote}[1]{“##1”}}
+\makeatother
+\usepackage[
+type={CC},
+modifier={by-sa},
+version={4.0},
+]{doclicense}
+
+\ExplSyntaxOn
+\SetTemplatePreamble{
+	\hypersetup{pdftitle=\inserttitle,pdfauthor=The~Rosenpass~Project}
+	\title{\vspace*{-2.5cm}\includegraphics[width=4cm]{RosenPass-Logo}}
+	\author{\csname insertauthor\endcsname}
+	\subject{\csname insertsubject\endcsname}
+	\date{\vspace{-1cm}}
+}
+\ExplSyntaxOff
+
+%namepartpicturesetup
+\ExplSyntaxOn
+\int_new:N \l__ptxcd_namepart_int
+\fp_new:N \l__ptxcd_namepos_fp
+\def\namepartsep{1.4}
+\dim_new:N \l__ptxcd_namepart_sep_dim
+\dim_set:Nn \l__ptxcd_namepart_sep_dim  {7mm}
+
+\newcommand*{\namepart}[2][0]{
+	\int_set:Nn \l__ptxcd_namepart_int {\clist_count:n {#2}}
+	\begin{scope}[xshift=#1]
+	\fp_set:Nn \l__ptxcd_namepos_fp {\l__ptxcd_namepart_int / 2}
+	\keyval_parse:nnn {\__ptxcd_namepart_item:nn {}}{ \__ptxcd_namepart_item:nn } {#2}
+	\end{scope}
+}
+
+\newcommand*{\SingleNamePart}[4][0]{
+		\node[rounded~corners,fill=rosenpass-lightblue] (#2) at (#1,-.7) {\ttfamily#3};
+		\node[above] at (#2.north) {\footnotesize #4};
+}
+
+\cs_new:Nn \__ptxcd_namepart_item:nn {
+	\fp_sub:Nn \l__ptxcd_namepos_fp {1}
+	\node[rounded~corners,fill=rosenpass-lightblue] (#1) at (0,\fp_use:N \l__ptxcd_namepos_fp * \namepartsep) {\ttfamily#1};
+	\node[above] at (#1.north) {\footnotesize #2};
+}
+
+\newenvironment{namepartpicture}{\par\medskip\begin{tikzpicture}}{\end{tikzpicture}\par\medskip\csname @afterheading\endcsname\AddToHookNext{para/begin}{\para_omit_indent:}}
+
+\newcommand*{\namebraceleft}[2] {
+	\draw[decorate]([xshift=-\l__ptxcd_namepart_sep_dim]#2.south~west)--([xshift=-\l__ptxcd_namepart_sep_dim]#1.north~west) ;
+}
+
+\newcommand*{\namebraceright}[2]{
+	\draw[decorate]([xshift=\l__ptxcd_namepart_sep_dim]#1.north~east) --([xshift=\l__ptxcd_namepart_sep_dim]#2.south~east);
+}
+
+
+%captions
+\makeatletter
+\renewcommand{\scr@makemultilinecaption}[3]{
+\colorbox{rosenpass-gray}{
+	\parbox{\dim_eval:n {\linewidth-2\fboxsep}}{
+		{
+			\usekomafont{caption}
+			{\usekomafont{captionlabel}#2}
+			#3}
+		}
+	}
+}
+
+
+\newlength{\saved@textwidth}
+
+\keys_define:nn {ptxcd/setup-image} {
+	landscape .bool_set:N = \l__ptxcd_image_landscape_bool,
+	landscape .initial:n = false,
+	landcsape .default:n = true,
+	fullpage .bool_set:N  = \l__ptxcd_image_fullpage_bool,
+	fullpage .initial:n = false,
+	fullpage .default:n = true,
+	label .tl_set:N = \l__ptxcd_image_label_tl,
+	label .initial:n =,
+	width .dim_set:N = \l__ptxcd_image_width_dim,
+	width .initial:n = \c_zero_dim
+}
+
+\newcommand*{\setupimage}[1]{
+	\keys_set:nn {ptxcd/setup-image} {
+		#1
+	}
+}
+
+\RequirePackage{rotating}
+
+\newlength\RemainingPageSidewaysObjectWidth
+
+\def\@RemainingPageSidewaysObject#1{
+	\setlength{\RemainingPageSidewaysObjectWidth}{\dimexpr\pagegoal-\pagetotal-2\baselineskip}
+	\setlength{\saved@textwidth}{\textwidth}
+	\begin{lrbox}\rot@float@box
+	\begin{minipage}{\RemainingPageSidewaysObjectWidth}%
+	\def\@captype{#1}%
+}
+\def\end@RemainingPageSidewaysObject{
+	\end{minipage}\end{lrbox}%
+	\stepcounter{r@tfl@t}%
+	\rot@label{RF\ther@tfl@t}%
+	\rot@pageref{RF\ther@tfl@t}{\R@@page}%
+	\vfill
+	\vbox to \RemainingPageSidewaysObjectWidth {%
+		\setkeys{Grot}{units=360}%
+		 \if@rot@twoside
+		 \else
+		 \let\R@@page\rot@LR
+		 \fi
+		 \ifthenelse{\isodd{\R@@page}}{%
+		  \if@rot@twoside
+		  \rot@mess@toks\expandafter{\the\rot@mess@toks (right hand page)}%
+		  \fi
+		  \vfill
+		  \@@line{%
+		  \hskip\rotFPtop
+		  \rotatebox{90}{\box\rot@float@box}%
+		  \hskip\rotFPbot
+		  }%
+		  }{%
+		  \if@rot@twoside
+		  \rot@mess@toks\expandafter{\the\rot@mess@toks (left hand page)}%
+		  \fi
+		  \@@line{%
+		  \hskip\rotFPbot
+		  \rotatebox{-90}{\box\rot@float@box}%
+		  \hskip\rotFPtop
+		  }%
+		  \vfill
+		  }%
+		  \rot@message{\the\rot@mess@toks}
+	 }%
+}
+
+\newenvironment{RemainingPageSidewaysTable}{\@RemainingPageSidewaysObject{table}}{\end@RemainingPageSidewaysObject}
+\newenvironment{RemainingPageSidewaysFigure}{\@RemainingPageSidewaysObject{figure}}{\end@RemainingPageSidewaysObject}
+
+
+\cs_new:Nn \__ptxcd_image:nn  {
+	\bool_if:NTF \l__ptxcd_image_landscape_bool {
+	\setlength{\saved@textwidth}{\textwidth}
+	 \bool_if:NTF \l__ptxcd_image_fullpage_bool {
+		\begin{sidewaysfigure}
+		\begingroup
+	\let\par\relax
+	{\raisebox{-\height}{\includegraphics[height=\saved@textwidth]{#2}}}
+	\makebox[.3\linewidth][l]{\quad
+	\begin{turn}{-90}
+	\captionof{figure}{#1}
+	\tl_if_empty:NF \l__ptxcd_image_label_tl {\exp_args:NV \label \l__ptxcd_image_label_tl}
+	\end{turn}}
+	\endgroup
+	\AddToHookNext{shipout/after}{
+		\AddToHookNext{shipout/before}{\global\pdfpageattr\expandafter{\the\pdfpageattr/Rotate~90}}
+		\AddToHookNext{shipout/after}{\global\pdfpageattr\expandafter{\the\pdfpageattr/Rotate~0}}
+		}
+		\end{sidewaysfigure}
+		}{
+			\begin{RemainingPageSidewaysFigure}
+			\thispagestyle{empty}
+			\begingroup
+			\let\par\relax
+			\raisebox{-\height}{\includegraphics[height=\saved@textwidth]{#2}}\quad
+			\rlap{
+			\begin{turn}{-90}
+			\captionof{figure}{#1}\tl_if_empty:NF \l__ptxcd_image_label_tl {\exp_args:NV \label \l__ptxcd_image_label_tl}
+			\end{turn}}
+			\endgroup
+			\end{RemainingPageSidewaysFigure}
+		}
+	} {
+		\dim_compare:nNnT {\l__ptxcd_image_width_dim} = {\c_zero_dim} {\dim_set:Nn \l__ptxcd_image_width_dim {\linewidth}}
+		\captionof{figure}{#1\tl_if_empty:NF \l__ptxcd_image_label_tl {\exp_args:NV \label \l__ptxcd_image_label_tl}}\addvspace{1ex}\@afterheading
+		\centerline{\includegraphics[width=\dim_use:N \l__ptxcd_image_width_dim ]{#2}}
+	}
+	\bool_gset_false:N \l__ptxcd_image_landscape_bool
+	\bool_gset_false:N \l__ptxcd_image_fullpage_bool
+	\tl_clear:N  \l__ptxcd_image_label_tl
+	\dim_zero:N \l__ptxcd_image_width_dim
+}
+
+\setkomafont{caption}{\color{white}}
+\setkomafont{captionlabel}{}
+
+\renewcommand*{\@makecaption}[2]{
+	\bool_if:NTF \l__ptxcd_image_landscape_bool
+	{
+		\captionbox{
+		\parbox{\dim_eval:n {\saved@textwidth-2\fboxsep}}{
+		\centering
+		{
+			\usekomafont{caption}
+			{\usekomafont{captionlabel}#1\captionformat}
+			#2}
+			\par
+		}
+		}
+	}
+	{\captionbox{\parbox{\dim_eval:n {\linewidth-2\fboxsep}}{
+		\centering
+		{
+			\usekomafont{caption}
+			{\usekomafont{captionlabel}#1\captionformat}
+			#2}
+			\par
+		}
+	}
+}
+}
+\makeatother
+\ExplSyntaxOff
+% end of namepartpicturesetup
+
+\newcommand{\captionbox}[1]{{\setlength{\fboxsep}{.5ex}\colorbox{rosenpass-gray}{#1}}}
+
+\makeatletter
+\renewenvironment{abstract}{
+	\small
+	\begin{center}\normalfont\sectfont\nobreak\abstractname\@endparpenalty\@M\end{center}%
+}{
+	\par
+}
+\makeatother
+
+\SetTemplateBegin{
+	\maketitle
+	\begin{abstract}
+	\noindent\csname insertabstract\endcsname
+	\end{abstract}
+	\tableofcontents
+	\clearpage
+}
+
+\SetTemplateEnd{
+}

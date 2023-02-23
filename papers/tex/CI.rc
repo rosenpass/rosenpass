@@ -1,0 +1,11 @@
+ensure_path('TEXINPUTS','tex/', '.');
+ensure_path('LUAINPUTS','tex/', '.');
+
+@default_files=("*.md");
+@default_excluded_files = ("*_content.md", "README.md", "readme.md");
+$do_cd=1;
+$pdf_mode=4;
+
+$lualatex= 'lualatex --jobname=%R --shell-escape %O "\\def\\MarkDownInputFile{%S}\\input{markdown-wrapper.tex}"';
+
+$clean_ext='_markdown_%R _markdown_%R _minted-%R _minted-%R';
