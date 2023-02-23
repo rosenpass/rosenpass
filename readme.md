@@ -18,7 +18,7 @@ rp help
 rosenpass help
 ```
 
-Follow [quickstart instructions – TBD]() to get a VPN up and running.
+Follow [quickstart instructions](https://rosenpass.eu/#download) to get a VPN up and running.
 
 ## Software architecture
 
