@@ -292,7 +292,9 @@ main() {
   scriptdir="$(dirname "${script}")"
   verbose=0
   binary="$(
-    find "${scriptdir}"/target/{release,debug}/"${project_name}" -printf "%T@ %p\n" 2>/dev/null \
+    find "result/bin/rosenpass" \
+         "${scriptdir}"/target/{release,debug}/"${project_name}" \
+         "${PWD}/rosenpass" -printf "%T@ %p\n" 2>/dev/null \
       | sort -nr \
       | awk -v fallback="${project_name}" '
           NR == 1 { print($2) }
