@@ -1,0 +1,214 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+%\documentclass[10pt]{beamer}
+
+\usetheme[sectionpage=none] % TODO solve the arithmetic error problem later (on section pages)
+  {metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{verbatim}
+
+% strikethrough
+% - normalem: do not redefine emph to do underline
+\usepackage[normalem]{ulem}
+
+% bold math
+\usepackage{bm}
+
+\usepackage{xcolor,soul}
+\definecolor{lightblue}{rgb}{.90,.95,1}
+\definecolor{lightred}{rgb}{1,.80,.80}
+\definecolor{lightgreen}{rgb}{.80,1.,.80}
+%\definecolor{lightred}{red!40}
+\sethlcolor{lightblue}
+
+\renewcommand<>{\hl}[1]{\only#2{\beameroriginal{\hl}}{#1}}
+\usepackage[beamer]{hf-tikz}
+% https://tex.stackexchange.com/questions/41683/why-is-it-that-coloring-in-soul-in-beamer-is-not-visible
+\makeatletter
+\newcommand\SoulColor{%
+  \let\set@color\beamerorig@set@color
+  \let\reset@color\beamerorig@reset@color}
+  \makeatother
+  \SoulColor
+
+\setlength{\fboxsep}{0pt}
+\newcommand{\mathcolorbox}[2]{\colorbox{#1}{$\displaystyle #2$}}
+\newcommand{\ah}[1]{\colorbox{lightblue}{$\displaystyle #1$}}
+\newcommand{\bh}[1]{\colorbox{lightred}{$\displaystyle #1$}}
+\newcommand{\ch}[1]{\colorbox{lightgreen}{$\displaystyle #1$}}
+\newcommand{\hlfancy}[2]{\sethlcolor{#1}\hl{#2}}
+
+\setbeamercolor{frametitle}{parent=subtitle}
+% `title separator` is the one on the title page
+% `progress bar in head/foot` is the line on each frame
+\setbeamercolor{progress bar in head/foot}{bg=normal text.bg,fg=normal text.bg}
+
+\usepackage{appendixnumberbeamer}
+
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+\usepackage{fontawesome}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+%% tikzit
+%\usepackage{tikzit}
+%\input{blipp.tikzstyles}
+%\usetikzlibrary{trees}
+%\usetikzlibrary{tikzmark}
+%\usetikzlibrary{arrows.meta}
+
+\usepackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+
+\usepackage{stackengine}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{environ}
+\usepackage{array}
+\usepackage[
+  n,advantage,operators,sets,adversary,landau,
+  probability,
+  notions,logic,ff,mm,primitives,events,complexity,asymptotics
+  %keys
+  ]{cryptocode}
+\usetikzlibrary{positioning,shapes,arrows,matrix, calc,external,fit,decorations.pathreplacing,arrows.meta,patterns,tikzmark}
+
+
+\usepackage{mathtools}
+\usepackage{comment}
+\excludecomment{commentEnv}
+\usepackage{array}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+
+\def\makeuppercase#1{
+\expandafter\newcommand\csname cal#1\endcsname{\mathcal{#1}}
+\expandafter\newcommand\csname adv#1\endcsname{\mathcal{#1}}
+\expandafter\newcommand\csname frak#1\endcsname{\mathfrak{#1}}
+\expandafter\newcommand\csname bb#1\endcsname{\mathbb{#1}}
+\expandafter\newcommand\csname bf#1\endcsname{\textbf{#1}}
+}
+
+
+
+
+\def\makelowercase#1{
+\expandafter\newcommand\csname frak#1\endcsname{\mathfrak{#1}}
+\expandafter\newcommand\csname bf#1\endcsname{\textbf{#1}}
+}
+
+\newcounter{char}
+\setcounter{char}{1}
+
+\loop
+	\edef\letter{\alph{char}}
+	\edef\Letter{\Alph{char}}
+	\expandafter\makelowercase\letter
+	\expandafter\makeuppercase\Letter
+	\stepcounter{char}
+	\unless\ifnum\thechar>26
+\repeat
+
+
+\newcommand{\quotes}[1]{``#1''}
+\newcommand{\filename}[1]{\texttt{#1}}
+\newcommand{\cryptoverif}{Crypto\-Verif}
+\newcommand{\cv}{\cryptoverif}
+\newcommand{\bottom}{\ensuremath{\perp}}
+
+
+%\usepackage{pgfpages}
+%\setbeameroption{show notes on second screen=right} 
+
+\usepackage{multicol}
+\usepackage{qrcode}
+
+
+
+%% msc message diagrams
+%\usepackage{msc5}
+%\newcommand{\laction}[2]{$\begin{array}{c}\mbox{\textrm{#1}}\\#2\end{array}$}
+%\newcommand{\poormanshead}[1]{\textcolor{darkgray}{#1}}
+%\newcommand{\poormansline}[2]{\textcolor{gray}{\phantom{-- }\texttt{-- -- -- -- -- -- -- --\phantom{ --}}}\poormanshead{#1}\textcolor{gray}{\texttt{\phantom{-- }#2}}}
+
+
+\definecolor{light-gray}{gray}{0.5}
+% https://gamedev.stackexchange.com/questions/133078/what-colors-to-choose-for-colorblind-people
+\definecolor{keyOne}{rgb}{.9,.6,0} % orange
+\definecolor{keyTwo}{rgb}{.35,.7,.9} % sky blue
+\definecolor{keyThree}{rgb}{0,.6,.5} % bluish green
+\definecolor{keyFour}{rgb}{.8,.4,0} % vermilion
+%\definecolor{keyFour}{rgb}{.8,.6,.7} % reddish purple
+%\definecolor{keyFour}{rgb}{0,.45,.7} % blue
+
+
+\newcommand{\screenshotframe}[2]{%
+\begin{frame}{#1}
+  \vfill
+  \begin{center}
+    \includegraphics[width=.95\textwidth,height=.95\textheight,keepaspectratio]{#2}
+  \end{center}
+  \vfill
+\end{frame}
+}
+
+\usepackage{listings}
+\lstdefinelanguage{cryptoverif}
+{morekeywords={collision, const, crypto, define, defined, do, else, end, equation, equiv,
+event, event_abort, expand, find, forall, foreach, fun, get, implementation, in,
+if, inj, insert, length, let, letfun, max, maxlength, newOracle, orfind, otheruses,
+param, proba, public_vars, process, proof, query, return, secret, secret1, set, suchthat, success, simplify, then,
+table, time, type},
+otherkeywords={<-, <-R, &&},
+sensitive=true,
+morecomment=[s]{(*}{*)},
+morestring=[b]",
+}
+\lstdefinelanguage{cvoutput}
+{morekeywords={},
+otherkeywords={},
+sensitive=true,
+morecomment=[s]{(*}{*)},
+morestring=[b]",
+}
+\lstset{
+  language=cvoutput,
+  basicstyle=\ttfamily,
+  commentstyle=\color{black!55},
+  keywordstyle=\bfseries\color{green!40!black}
+}
+\lstset{
+  language=cryptoverif,
+  basicstyle=\ttfamily,
+  commentstyle=\color{black!55},
+  keywordstyle=\bfseries\color{green!40!black}
+}
+
+\title{%
+  Title
+}
+\subtitle{%
+  Subtitle
+}
+\date{March X, 2023}
+\author{\underline{Karolin Varner}, with Benjamin Lipp, Wanja Zaeske, Lisa Schmidt}
+\institute{%
+ Affiliation: You can probably comment this out
+}
+\titlegraphic{\hfill\includegraphics[height=2.5cm]{tex/RosenPass-Logo.pdf}}
+
+
+\begin{document}
+
+\maketitle
+
+\input{yrcs-talk-content}
+
+\end{document}
