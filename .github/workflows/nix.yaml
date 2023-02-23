@@ -1,0 +1,73 @@
+name: Nix Related Actions
+permissions:
+  contents: write
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build ${{ matrix.derivation }} on ${{ matrix.nix-system }}
+    runs-on:
+      - nix
+      - ${{ matrix.nix-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        nix-system:
+          - x86_64-linux
+          - aarch64-linux
+        derivation:
+          - rosenpass
+          - rosenpass-static
+          - rosenpass-oci-image
+          - rosenpass-static-oci-image
+          - proof-proverif
+          - whitepaper
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Generate gitHeadInfo.gin for the whitepaper
+        if: ${{ matrix.derivation == 'whitepaper' }}
+        run: ( cd papers && ./tex/gitinfo2.sh && git add gitHeadInfo.gin )
+      - name: Build ${{ matrix.derivation }}
+        run: |
+          # build the package
+          nix build .#packages.${{ matrix.nix-system }}.${{ matrix.derivation }} --print-build-logs
+
+          # copy over the results
+          if [[ -f $(readlink --canonicalize result ) ]]; then
+            mkdir -- ${{ matrix.derivation }}
+          fi
+          cp --recursive -- $(readlink --canonicalize -- result) ${{ matrix.derivation }}
+          chmod --recursive -- ug+rw ${{ matrix.derivation }}
+
+          # add version information
+          git rev-parse --abbrev-ref HEAD > ${{ matrix.derivation }}/git-version
+          git rev-parse HEAD > ${{ matrix.derivation }}/git-sha
+
+          # override the `rp` script to keep compatible with non-nix systems
+          [ -f ${{ matrix.derivation }}/bin/rp ] \
+            && cp --force rp ${{ matrix.derivation }}/bin/
+      - name: Upload build results
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.derivation }}@${{ matrix.nix-system }}
+          path: ${{ matrix.derivation }}
+      - name: Deploy PDF artifacts
+        if: ${{ matrix.derivation == 'whitepaper' && github.ref == 'refs/heads/main' }}
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: whitepaper
+          publish_branch: papers-pdf
+          force_orphan: true
+  checks:
+    name: Run Nix checks
+    runs-on: nixos
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Checks
+        run: nix flake check . --print-build-logs
