@@ -148,7 +148,7 @@ Rosenpass uses two types of ID variables. See Figure \ref{img:HashingTree} for h
 \end{scope}
 \end{namepartpicture}
 
-The first lower-case character indicates whether the variable is a session ID (`sid`) or a peer ID (`pid`). The final character indicates is the role using the characters `i`, `r`, `m`, or `t`, for `initiator`, `responder`, `mine`, or `theirs` respectively.
+The first lower-case character indicates whether the variable is a session ID (`sid`) or a peer ID (`pid`). The final character indicates the role using the characters `i`, `r`, `m`, or `t`, for `initiator`, `responder`, `mine`, or `theirs` respectively.
 
 ### Symmetric Keys
 
@@ -190,7 +190,7 @@ Since every tree node represents a sequence of `hash` calls, the node beneath `"
 hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryption")
 ```
 
-First, the protocol identifier `PROTOCOL` is applied, then the purpose identifier `"chaining key extract"` is applied to the protocol label, and finally `"hanshake encryption"` is applied to the purpose label.
+First, the protocol identifier `PROTOCOL` is applied, then the purpose identifier `"chaining key extract"` is applied to the protocol label, and finally `"handshake encryption"` is applied to the purpose label.
 
 To simplify notation of these long nested calls to hash, we allow use of the `hash` function with variadic parameters and introduce the shorthand `lhash` to wrap the usage of the `hash(0, PROTOCOL)` value:
 
