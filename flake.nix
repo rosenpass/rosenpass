@@ -21,7 +21,7 @@
         # unsuported best-effort
         "x86_64-darwin"
         "aarch64-darwin"
-        "x86_64-windows"
+        # "x86_64-windows"
       ]
         (system:
           let
