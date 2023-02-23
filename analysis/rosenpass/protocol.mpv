@@ -1,0 +1,81 @@
+#pragma once
+#include "crypto/kem.mpv"
+#include "rosenpass/handshake_state.mpv"
+
+type InitHello_t.
+fun InitHello(
+  SessionId, // sidi
+  kem_pk,    // epki
+  bits,      // sctr 
+  bits,      // pidiC
+  bits       // auth
+) : InitHello_t [data].
+
+#define INITHELLO_PRODUCE()       \
+  ck <- lprf1(CK_INIT, kem_pk2b(spkr)); /* IHI1 */ \
+  /* not handled here */                /* IHI2 */ \
+  /* not handled here */                /* IHI3 */ \
+  MIX2(sid2b(sidi), kem_pk2b(epki))     /* IHI4 */ \
+  ENCAPS_AND_MIX(sctr, spkr, sptr)      /* IHI5 */ \
+  ENCRYPT_AND_MIX(pidiC, pidi)          /* IHI6 */ \
+  MIX2(kem_pk2b(spki), k2b(psk))        /* IHI7 */ \
+  ENCRYPT_AND_MIX(auth, empty)          /* IHI8 */ \
+  ih <- InitHello(sidi, epki, sctr, pidiC, auth);
+
+#define INITHELLO_CONSUME()                       \
+  ck <- lprf1(CK_INIT, kem_pk2b(spkr)); /* IHR1 */ \
+  MIX2(sid2b(sidi), kem_pk2b(epki))     /* IHR4 */ \
+  DECAPS_AND_MIX(sskr, spkr, sctr)      /* IHR5 */ \
+  DECRYPT_AND_MIX(pid, pidiC)           /* IHR6 */ \
+  LOOKUP_SENDER(pid)                    /* IHR6 */ \
+  MIX2(kem_pk2b(spki), k2b(psk))        /* IHR7 */ \
+  DECRYPT_AND_MIX(DUMMY(empty), auth)
+
+type RespHello_t.
+fun RespHello(
+    SessionId, // sidr
+    SessionId, // sidi
+    bits,      // ecti
+    bits,      // scti
+    bits,      // biscuit
+    bits       // auth
+) : RespHello_t [data].
+
+#define RESPHELLO_PRODUCE()                   \
+  /* not handled here */           /* RHR1 */ \
+  MIX2(sid2b(sidr), sid2b(sidi))   /* RHR3 */ \
+  ENCAPS_AND_MIX(ecti, epki, epti) /* RHR4 */ \
+  ENCAPS_AND_MIX(scti, spki, spti) /* RHR5 */ \
+  STORE_BISCUIT(biscuit)           /* RHR6 */ \
+  ENCRYPT_AND_MIX(auth, empty)     /* RHR7 */ \
+  rh <- RespHello(sidr, sidi, ecti, scti, biscuit, auth);
+
+#define RESPHELLO_CONSUME()                                    \
+  let RespHello(sidr, sidi, ecti, scti, biscuit, auth) = rh in \
+  /* not handled here */               /* RHI2 */ \
+  MIX2(sid2b(sidr), sid2b(sidi))       /* RHI3 */ \
+  DECAPS_AND_MIX(eski, epki, ecti)     /* RHI4 */ \
+  DECAPS_AND_MIX(sski, spki, scti)     /* RHI5 */ \
+  MIX(biscuit)                         /* RHI6 */ \
+  DECRYPT_AND_MIX(DUMMY(empty), auth)  /* RHI7 */
+
+type InitConf_t.
+fun InitConf(
+    SessionId, // sidi
+    SessionId, // sidr
+    bits,      // biscuit
+    bits       // auth
+) : InitConf_t [data].
+
+#define INITCONF_PRODUCE()                  \
+  MIX2(sid2b(sidi), sid2b(sidr)) /* ICI3 */ \
+  ENCRYPT_AND_MIX(auth, empty)   /* ICI4 */ \
+  ic <- InitConf(sidi, sidr, biscuit, auth);
+
+#define INITCONF_CONSUME()                        \
+  let InitConf(sidi, sidr, biscuit, auth) = ic in \
+  LOAD_BISCUIT(biscuit_no, biscuit)   /* ICR1 */    \
+  ENCRYPT_AND_MIX(rh_auth, empty)     /* ICIR */    \
+  ck_rh <- ck;                        /* ---- */ /* TODO: Move into oracles.mpv */ \
+  MIX2(sid2b(sidi), sid2b(sidr))      /* ICR3 */    \
+  DECRYPT_AND_MIX(DUMMY(empty), auth) /* ICR4 */

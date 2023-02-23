@@ -1,0 +1,28 @@
+#pragma once
+#include "prelude/basic.mpv"
+#include "prelude/bits.mpv"
+#include "crypto/key.mpv"
+#include "crypto/setup.mpv"
+@module kem
+
+type kem_sk.
+type kem_pk.
+
+fun kem_pub(kem_sk) : kem_pk.
+fun kem_enc(kem_pk, key) : bits.
+fun kem_dec(kem_sk, bits) : key
+  reduc forall sk:kem_sk, shk:key;
+    kem_dec(sk, kem_enc(kem_pub(sk), shk)) = shk.
+
+fun kem_pk2b(kem_pk) : bits [typeConverter].
+
+const kem_sk0:kem_sk.
+letfun kem_pk0 = kem_pub(kem_sk0).
+
+#if FULL_MODEL
+fun kem_keyeq(bits, bits) : bool
+  reduc forall k:kem_pk, pt1:key, pt2:key;
+    kem_keyeq(kem_enc(k, pt1), kem_enc(k, pt2)) = true
+  otherwise forall k1:kem_pk, pt1:key, k2:kem_pk, pt2:key;
+    kem_keyeq(kem_enc(k1, pt1), kem_enc(k2, pt2)) = false.
+#endif

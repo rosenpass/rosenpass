@@ -1,0 +1,47 @@
+#pragma once
+#include "prelude/basic.mpv"
+#include "prelude/bits.mpv"
+#include "crypto/key.mpv"
+@module aead
+
+// TODO: Technically this models deterministic encryption;
+fun xaead_enc(key, bits, bits) : bits.
+fun xaead_dec(key, bits, bits) : bits
+  reduc forall k:key, pt:bits, ad:bits;
+    xaead_dec(k, xaead_enc(k, pt, ad), ad) = pt.
+
+#if SIMPLE_MODEL
+letfun aead_enc(k:key, pt:bits) = xaead_enc(k, pt, empty).
+letfun aead_dec(k:key, ct:bits) = xaead_dec(k, ct, empty).
+#endif
+
+#if FULL_MODEL
+fun xaead_ad(bits) : bits
+  reduc forall k:key, pt:bits, ad:bits;
+    xaead_ad(xaead_enc(k, pt, ad)) = ad.
+
+fun xaead_keyeq(bits, bits) : bool
+  reduc forall k:key, pt1:bits, ad1:bits, pt2:bits, ad2:bits;
+    xaead_keyeq(xaead_enc(k, pt1, ad1), xaead_enc(k, pt2, ad2)) = true
+  otherwise forall k1:key, pt1:bits, ad1:bits, k2:key, pt2:bits, ad2:bits;
+    xaead_keyeq(xaead_enc(k1, pt1, ad1), xaead_enc(k2, pt2, ad2)) = false.
+#endif
+
+#if FULL_MODEL
+fun aead_enc(key, bits) : bits.
+fun aead_dec(key, bits) : bits
+  reduc forall k:key, pt:bits;
+    aead_dec(k, aead_enc(k, pt)) = pt.
+
+// TODO: Alternative: Model using events (never invoke aead with nonces reused)
+// TODO: Model key commitment (key must be used for one purpose only)
+fun aead_key_reuse(bits, bits) : key 
+  reduc forall k:key, pt1:bits, pt2:bits;
+    aead_key_reuse(aead_enc(k, pt1), aead_enc(k, pt2)) = k.
+
+fun aead_keyeq(bits, bits) : bool
+  reduc forall k:key, pt1:bits, pt2:bits;
+    aead_keyeq(aead_enc(k, pt1), aead_enc(k, pt2)) = true
+  otherwise forall k1:key, pt1:bits, k2:key, pt2:bits;
+    aead_keyeq(aead_enc(k1, pt1), aead_enc(k2, pt2)) = false.
+#endif

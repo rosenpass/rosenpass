@@ -1,0 +1,192 @@
+#pragma once
+#include "prelude/basic.mpv"
+#include "prelude/bits.mpv"
+#include "crypto/key.mpv"
+#include "crypto/kem.mpv"
+#include "crypto/aead.mpv"
+#include "rosenpass/prf.mpv"
+
+type SessionId.
+const sid0:SessionId.
+letfun sid_new() =
+  new sid:SessionId;
+  sid.
+fun sid2b(SessionId) : bits [typeConverter].
+
+type Role.
+const ini_role:Role.
+const res_role:Role.
+
+type Handshake_t.
+fun Handshake(
+  Role,      // role
+  key,       // biscuit_key
+  kem_sk,    // sskm
+  kem_pk,    // spkm
+  key,       // psk
+  kem_pk,    // spkt
+  SessionId, // sidm (session id of mine)
+  SessionId, // sidt (session id of theirs)
+  key,       // ck
+  kem_sk,    // eski
+  kem_pk     // epki
+) : Handshake_t [data].
+
+#define decl_hs()     \
+  biscuit_key   <- key0;       \
+  sskm <- kem_sk0;    \
+  spkm <- kem_pk0;    \
+  psk  <- key0;       \
+  spkt <- kem_pk0;    \
+  sidm <- sid0;       \
+  sidt <- sid0;       \
+  ck   <- key0;       \
+  eski <- ccakem_sk0; \
+  epki <- ccakem_pk0
+
+#define HS_DECL_ARGS \
+  biscuit_key:key,            \
+  sskm:kem_sk,       \
+  spkm:kem_pk,       \
+  psk:key,           \
+  spkt:kem_pk,       \
+  sidm:SessionId,    \
+  sidt:SessionId,    \
+  ck:key,            \
+  eski:kem_sk,       \
+  epki:kem_pk
+#define HS_PASS_ARGS \
+  biscuit_key,         \
+  sskm,       \
+  spkm,       \
+  psk,        \
+  spkt,       \
+  sidm,       \
+  sidt,       \
+  ck,         \
+  eski,       \
+  epki
+
+#define hs Handshake(role, biscuit_key, sskm, spkm, psk, spkt, sidm, sidt, ck, eski, epki)
+
+#define is_ini role(hs) = ini_role.
+#define is_res role(hs) = res_role.
+
+// peer id
+
+#ifdef SIMPLE_MODEL
+fun peerid(kem_pk) : bits.
+#else
+letfun peerid(pk:kem_pk) =
+  k2b(lprf1(PEER_ID, kem_pk2b(pk))).
+#endif
+
+#define pidm peerid(spkm)
+#define pidt peerid(spkt)
+
+#define LOOKUP_SENDER(pid) \
+  ASSERT(pidt = (pid));
+
+// Handshake processing functions
+
+#ifdef SIMPLE_MODEL
+fun ck_mix(key, bits) : key.
+fun ck_hs_enc(key) : key.
+fun ck_osk(key) : key.
+#endif
+
+#ifdef SIMPLE_MODEL
+#define MIX(ikm) ck <- ck_mix(ck, ikm);
+#else
+#define MIX(ikm) ck <- prf(extract_key(MIX), ikm).
+#endif
+
+#define EXTRACT_KEY(l)     prf(ck, k2b(lprf1(CK_EXTRACT, l)));
+#define EXTRACT_KEY2(a, b) prf(ck, k2b(lprf2(CK_EXTRACT, a, b)));
+#define EXPORT_KEY(l)      EXTRACT_KEY2(USER, l)
+#define MIX2(a, b)         MIX(a) MIX(b)
+#define MIX3(a, b, c)      MIX(a) MIX2(b, c)
+
+#ifdef SIMPLE_MODEL
+#define hs_enc         ck_hs_enc(ck)
+#define osk ck_osk(ck)
+#else
+#define hs_enc         EXTRACT_KEY(HS_ENC)
+#define osk EXPORT_KEY(OSK)
+#endif
+
+(* PERFORMANCE: This leads to exponential expression tree sizes because
+  it updates the hash to contain itself twice: Once as part of the hash
+  chain and once through the AEAD cipher text.
+
+  As a fix, the hash of the AEAD cipher text is used itself to generate
+  the hash chain. This improves performance reducing runtime from ~60s to ~35.
+  Whether this is actually a good idea remains to be debated. *)
+#ifdef SIMPLE_MODEL
+#define ENCRYPT_AND_MIX(ct, pt) \
+  ct <- aead_enc(hs_enc, pt); \
+  MIX(pt)
+#define DECRYPT_AND_MIX(pt, ct) \
+  pt <- aead_dec(hs_enc, ct); \
+  MIX(pt)
+
+#else
+letfun ENCRYPT_AND_MIX(ct, pt) \
+  AEAD_ENC(ct, hs_enc, 0, pt, empty) \
+  MIX(ct)
+#define DECRYPT_AND_MIX(pt, ct) \
+  AEAD_DEC(pt, hs_enc, 0, ct, empty)
+  MIX(ct)
+
+#endif
+
+// TODO: Migrate kems to use binary ciphertexts directly
+#define ENCAPS_AND_MIX(ct, pk, shk) \
+  ct <- kem_enc(pk, shk);           \
+  MIX3(kem_pk2b(pk), ct, k2b(shk))
+#define DECAPS_AND_MIX(sk, pk, ct) \
+  DUMMY(shk) <- kem_dec(sk, ct);   \
+  MIX3(kem_pk2b(pk), ct, k2b(DUMMY(shk)))
+
+
+// biscuits
+
+/*
+Biscuit replay protection is handled differently
+in the model than in the specification; the specification
+uses a nonce counter; the model uses a biscuit id
+the adversary and stores a table of all used nonces.
+This technique is used because modeling state updates in proverif
+is possible but inefficient.
+*/
+
+type Biscuit_t.
+fun Biscuit(
+  bits, // pidi
+  Atom, // no
+  key   // ck
+) : Biscuit_t [data].
+
+fun Biscuit2b(Biscuit_t) : bitstring [typeConverter].
+
+#define BiscuitBits(pidi, no, ck) Biscuit2b(Biscuit(pidi, no, ck))
+
+#ifdef SIMPLE_MODEL
+fun biscuit_ad(kem_pk, SessionId, SessionId) : bits.
+#else
+letfun biscuit_ad(spkr:kem_pk, sidi:SessionId, sidr:SessionId) =
+  k2b(lprf3(BISCUIT_AD, kem_pk2b(spkr), sid2b(sidi), sid2b(sidr))).
+#endif
+
+#define STORE_BISCUIT(ct)                       \
+  ct <- xaead_enc(biscuit_key,                           \
+    /* pt */ BiscuitBits(pidi, biscuit_no, ck),         \
+    /* ad */ biscuit_ad(spkr, sidi, sidr));     \
+  MIX(ct)
+
+#define LOAD_BISCUIT(nonce, ct)                  \
+  let BiscuitBits(DUMMY(pid), nonce, ck) =       \
+    xaead_dec(biscuit_key, ct,                            \
+      /* ad */ biscuit_ad(spkr, sidi, sidr)) in  \
+  MIX(ct)                                        \
+  LOOKUP_SENDER(DUMMY(pid))

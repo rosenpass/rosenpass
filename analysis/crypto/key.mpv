@@ -1,0 +1,20 @@
+#pragma once
+@module key
+
+(*  The same type is used as key for all symmetric cryptography. *)
+(*  In practice this is a 256 bit random string. *)
+(*  The empty key is derived from 0:nat or empty:bits. *)
+(*  *)
+(*  A constructors for key are deliberately omitted to ensure *)
+(*  that keys must *always* be chosen usint `k <-R key`. *)
+
+(* TODO: Capture that key reuse is forbidden. *)
+#include "prelude/bits.mpv"
+#include "crypto/setup.mpv"
+
+type key.
+const key0:key.
+fun k2b(key) : bits [typeConverter].
+letfun key_new() =
+  new k:key;
+  k.

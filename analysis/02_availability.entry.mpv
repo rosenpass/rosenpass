@@ -1,0 +1,49 @@
+#define CHAINING_KEY_EVENTS 0
+#define MESSAGE_TRANSMISSION_EVENTS 1
+#define SESSION_START_EVENTS 1
+
+#include "config.mpv"
+#include "prelude/basic.mpv"
+#include "crypto/key.mpv"
+#include "crypto/kem.mpv"
+#include "rosenpass/oracles.mpv"
+
+let main = rosenpass_main.
+
+@lemma "non-interruptability: Adv cannot prevent a genuine InitHello message from being accepted"
+lemma ih:InitHello_t, psk:key, sski:kem_sk, sskr:kem_sk;
+  event(IHRjct(ih, psk, sskr, kem_pub(sski)))
+  && event(IHSent(ih, psk, sski, kem_pub(sskr))).
+
+@lemma "non-interruptability: Adv cannot prevent a genuine RespHello message from being accepted"
+lemma ih:InitHello_t, rh:RespHello_t, psk:key, sski:kem_sk, sskr:kem_sk;
+  event(RHRjct(rh, psk, sski, kem_pub(sskr)))
+  && event(IHSent(ih, psk, sski, kem_pub(sskr)))
+  && event(RHSent(ih, rh, psk, sskr, kem_pub(sski))).
+
+@lemma "non-interruptability: Adv cannot prevent a genuine InitConf message from being accepted"
+lemma ih:InitHello_t, rh:RespHello_t, ic:InitConf_t, psk:key, sski:kem_sk, sskr:kem_sk;
+  event(ICRjct(ic, psk, sskr, kem_pub(sski)))
+  && event(IHSent(ih, psk, sski, kem_pub(sskr)))
+  && event(RHSent(ih, rh, psk, sskr, kem_pub(sski)))
+  && event(ICSent(rh, ic, psk, sski, kem_pub(sskr))).
+
+@query "non-interruptability: Adv cannot use the same RespHello package to start a session twice"
+query rh:RespHello_t, ck1:key, ck2:key, t1:time, t2:time;
+  event(InitiatorSession(rh, ck1))@t1 && event(InitiatorSession(rh, ck1))@t2
+    ==> t1 = t2.
+
+@query "non-interruptability: Adv cannot use the same InitConf package to start a session twice"
+query ic:InitConf_t, ck1:key, ck2:key, t1:time, t2:time;
+  event(ResponderSession(ic, ck1))@t1 && event(ResponderSession(ic, ck1))@t2
+    ==> t1 = t2.
+
+@query "non-interruptability: Adv cannot start a responder session with the same key twice"
+query rh1:RespHello_t, rh2:RespHello_t, ck:key, t1:time, t2:time;
+  event(InitiatorSession(rh1, ck))@t1 && event(InitiatorSession(rh2, ck))@t2
+    ==> t1 = t2.
+
+@query "non-interruptability: Adv cannot start a responder session with the same key twice"
+query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
+  event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
+    ==> t1 = t2.

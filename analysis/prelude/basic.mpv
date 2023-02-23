@@ -1,0 +1,45 @@
+#pragma once
+#include "prelude/cpp.mpv"
+@module basic
+
+type Atom.
+letfun Atom_new =
+  new a:Atom;
+  a.
+
+type Unit.
+const unit:Atom.
+
+channel C.
+
+#define CODEIMPL private
+
+#define DUMMY(x) MCAT(MCAT(MCAT(dummy_, x), _), __LINE__)
+#define ASSERT(x) if x then DUMMY(assert) <- unit
+
+#define REP0(x)  0
+#define REP1(x)  (x)
+#define REP2(x)  (x) | (x)
+#define REP3(x)  REP2(x)  | (x)
+#define REP4(x)  REP3(x)  | (x)
+#define REP5(x)  REP4(x)  | (x)
+#define REP6(x)  REP5(x)  | (x)
+#define REP7(x)  REP6(x)  | (x)
+#define REP8(x)  REP7(x)  | (x)
+#define REP9(x)  REP8(x)  | (x)
+#define REP10(x) REP9(x)  | (x)
+#define REP11(x) REP10(x) | (x)
+#define REP12(x) REP11(x) | (x)
+#define REP13(x) REP12(x) | (x)
+#define REP14(x) REP13(x) | (x)
+#define REP15(x) REP14(x) | (x)
+#define REP16(x) REP15(x) | (x)
+#define REP17(x) REP16(x) | (x)
+#define REP18(x) REP17(x) | (x)
+#define REP19(x) REP18(x) | (x)
+#define REP20(x) REP19(x) | (x)
+#define REPdisable(x) REP0(x)
+#define REPunbounded(x) !(x)
+#define REP(n, x) CAT(REP, n)(x)
+
+#define NOP DUMMY(nop) <- unit

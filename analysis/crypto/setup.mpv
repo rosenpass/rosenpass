@@ -1,0 +1,15 @@
+#pragma once
+#include "prelude/basic.mpv"
+
+#define DECL_SETUP(T)  \
+  type T ## _prec.     \
+  type T ## _tmpl.     \
+  fun trusted_ ## T(T ## _prec) : T [private]. \
+  fun prepare_ ## T(T) : T ## _tmpl.     \
+  fun setup_ ## T(T  ## _tmpl) : T       \
+    reduc forall v:T;                    \
+      setup_ ## T(prepare_ ## T(v)) = v  \
+    [private].                           \
+  fun make_trusted_ ## T(T ## _prec) : T ## _tmpl \
+    reduc forall v:T ## _prec;           \
+      make_trusted_ ## T(v) = prepare_ ## T(trusted_ ## T(v)).

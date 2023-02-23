@@ -1,0 +1,11 @@
+#pragma once
+#include "prelude/basic.mpv"
+#include "crypto/key.mpv"
+#include "crypto/kem.mpv"
+
+#define SERVER_NEW(biscuit_key, sk, pk) \
+  biscuit_key <- key_new();             \
+  new sk:kem_sk;               \
+  pk <- kem_pub(sk);
+
+fun Server_id(kem_pk) : Atom.

@@ -1,0 +1,180 @@
+#define CHAINING_KEY_EVENTS 1
+#define MESSAGE_TRANSMISSION_EVENTS 0
+#define SESSION_START_EVENTS 0
+#define RANDOMIZED_CALL_IDS 0
+
+#include "config.mpv"
+#include "prelude/basic.mpv"
+#include "crypto/key.mpv"
+#include "crypto/kem.mpv"
+#include "rosenpass/oracles.mpv"
+
+let main = rosenpass_main.
+
+@lemma "state coherence, initiator: Initiator accepting a RespHello message implies they also generated the associated InitHello message"
+  lemma ini:key, ih:key, rh:key, any_psk:key, any_sski:kem_sk, any_spkr:kem_pk, any_sptr:key;
+    event(OskOresp_hello(ini, ih, rh))
+      ==> event(OskOinitiator(ini, any_psk, any_sski, any_spkr, any_sptr)).
+
+@lemma "state coherence, responder: Responder accepting an InitConf message implies they also generated the associated RespHello message"
+  lemma ini:key, rh:key, ic:key, any_psk:key, any_sskr:kem_sk, any_spki:kem_pk, any_epki:kem_pk, any_epti:key, any_spti:key;
+    event(OskOinit_conf(rh, ic))
+      ==> event(OskOinit_hello(ini, rh, any_psk, any_sskr, any_spki, any_epki, any_epti, any_spti)).
+
+@reachable "functionality: Key exchange can be achieved"
+  query ini:key, ih1:key, ih2:key, rh:key;
+    event(OskOresp_hello(ini, ih1, rh)) && event(OskOinit_conf(ih2, rh)).
+
+@lemma "secrecy: Adv can not learn shared secret key"
+  lemma kp:key_prec, skp:kem_sk_prec;
+    attacker(trusted_key(kp)).
+
+@lemma "secrecy: There is no way for an attacker to learn a trusted kem secret key"
+  lemma skp:kem_sk_prec;
+    attacker(trusted_kem_sk(skp)).
+
+@lemma "secrecy: The adversary can learn a trusted kem pk only by using the reveal oracle"
+  lemma skp:kem_sk_prec;
+    attacker(kem_pub(trusted_kem_sk(skp)))
+      ==> event(RevealPk(kem_pub(trusted_kem_sk(skp)))).
+
+@reachable "non-secrecy: The attacker can learn the value of a shared key" // (by using a malicious/non-trusted key)
+query k:key;
+  attacker(prepare_key(k)) && attacker(k).
+
+@reachable "non-secrecy: The attacker can learn the value of a kem secret key" // (by using a malicious/non-trusted key)
+  query sk:kem_sk;
+  attacker(prepare_kem_sk(sk)) && attacker(sk).
+
+// Demonstrates how to check that a key is malicious in a lemma
+
+@lemma "secrecy: Attacker knowledge of a shared key implies the key is not trusted"
+  lemma k:key, kp:key_prec;
+    attacker(prepare_key(k)) && attacker(k) ==> k <> trusted_key(kp).
+
+@lemma "secrecy: Attacker knowledge of a kem sk implies the key is not trusted"
+  lemma k:kem_sk, kp:kem_sk_prec;
+    attacker(prepare_kem_sk(k)) && attacker(k) ==> k <> trusted_kem_sk(kp).
+
+// Actual in-protocol secrecy queries
+
+@lemma "symmetric secrecy: Secure PSK is sufficient for ck secrecy after trusted InitHello transmission from initiator perspective"
+  lemma ck:key, Ppsk:key_prec, any_sski:kem_sk, any_spkr:kem_pk, any_sptr:key;
+    let secure_psk = trusted_key(Ppsk) in
+    event(OskOinitiator(ck, secure_psk, any_sski, any_spkr, any_sptr)) && attacker(ck).
+
+@lemma "asymmetric secrecy: Secure SSKR is sufficient for ck secrecy after trusted InitHello transmission from initiator perspective"
+  lemma ck:key, any_psk:key, any_sski:kem_sk, Psskr:kem_sk_prec, Psptr:seed_prec;
+    let secure_spkr = kem_pub(trusted_kem_sk(Psskr)) in
+    let secure_sptr = rng_key(trusted_seed(Psptr)) in // to account for a captured RNG 
+    event(OskOinitiator(ck, any_psk, any_sski, secure_spkr, secure_sptr)) && attacker(ck).
+
+@lemma "symmetric secrecy: Secure PSK is sufficient for ck secrecy after trusted RespHello transmission from responder perspective"
+  lemma ck_ini:key, ck:key, Ppsk:key_prec, any_sskr:kem_sk, any_spki:kem_pk, any_epki:kem_pk, any_epti:key, any_spti:key;
+    let secure_psk = trusted_key(Ppsk) in
+    attacker(ck)
+    && event(OskOinit_hello(ck_ini, ck, secure_psk, any_sskr, any_spki, any_epki, any_epti, any_spti)).
+
+@lemma "asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted InitHello transmission from responder perspective"
+  lemma ck_ini:key, ck:key, any_psk:key, any_sskr:kem_sk, PSsski:kem_sk_prec, any_epki:kem_pk, any_epti:key, PSspti:seed_prec;
+    let secure_spki = kem_pub(trusted_kem_sk(PSsski)) in
+    let secure_spti = rng_key(trusted_seed(PSspti)) in /* Accounting for captured RNG */
+    attacker(ck)
+    && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti)).
+
+@lemma "forward, asymmetric secrecy: Secure ESKI is sufficient for ck secrecy after trusted InitHello transmission from responder perspective"
+  lemma ck_ini:key, ck:key, any_psk:key, any_sskr:kem_sk, any_spki:kem_pk, Peski:kem_sk_prec, Pepti:seed_prec, any_spti:key;
+    let secure_epki = kem_pub(trusted_kem_sk(Peski)) in
+    let secure_epti = rng_key(trusted_seed(Pepti)) in /* Accounting for captured RNG */
+    attacker(ck)
+    && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, any_spki, secure_epki, secure_epti, any_spti)).
+
+// TODO: Do not mention OskOinitiator
+@lemma "symmetric secrecy: Secure PSK is sufficient for ck secrecy after trusted InitConf transmission from initiator perspective"
+  // (Follows directly from the same property on Oinitiator)
+  lemma ini:key, ih:key, rh:key, Ppsk:key_prec, any_sski:kem_sk, any_spkr:kem_pk, any_sptr:key;
+    let secure_psk = trusted_key(Ppsk) in
+    attacker(rh)
+    && event(OskOinitiator(ini, secure_psk, any_sski, any_spkr, any_sptr))
+    && event(OskOresp_hello(ini, ih, rh)).
+
+// TODO: Do not mention OskOinitiator
+@lemma "asymmetric secrecy: Secure SSKR is sufficient for ck secrecy after trusted RespHello transmission from initiator perspective"
+  // (Follows directly from the same property on Oinitiator)
+  lemma ini:key, ih:key, rh:key, any_psk:key, any_sski:kem_sk, Psskr:kem_sk_prec, Psptr:seed_prec;
+    let secure_spkr = kem_pub(trusted_kem_sk(Psskr)) in
+    let secure_sptr = rng_key(trusted_seed(Psptr)) in // to account for a captured RNG 
+    attacker(rh)
+    && event(OskOinitiator(ini, any_psk, any_sski, secure_spkr, secure_sptr))
+    && event(OskOresp_hello(ini, ih, rh)).
+
+@lemma "passive asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted RespHello transmission from initiator perspective"
+  // (Follows directly from the same property on Oinitiator)
+  lemma ini:key, ih:key, rh:key, any_psk:key, any_psk2:key, Psski:kem_sk_prec,
+        any_sskr:kem_sk, any_spki:kem_pk, any_epki:kem_pk, any_spkr:kem_pk,
+        any_sptr:key, any_epti:key, Pspti:seed_prec;
+    let secure_sski = trusted_kem_sk(Psski) in
+    let secure_spti = rng_key(trusted_seed(Pspti)) in // to account for a captured RNG 
+    // That spki must be must bee derived from secure_sski follows from the same chaining key
+    // being put out, since spki is mixed into the chaining key. Specifying it speeds up the
+    // validation though. TODO: Turn this into a lemma?
+    // TODO: Do we event need SPKI in the initiator event?
+#if SIMPLE_MODEL
+    let ih_spki = kem_pub(secure_sski) in
+#else
+    let ih_spki = any_spki in
+#endif
+    attacker(rh)
+    && event(OskOinitiator(ini, any_psk, secure_sski, any_spkr, any_sptr))
+    && event(OskOinit_hello(ini, ih, any_psk2, any_sskr, ih_spki, any_epki, any_epti, secure_spti))
+    && event(OskOresp_hello(ini, ih, rh)).
+
+@lemma "forward asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted RespHello transmission from initiator perspective"
+  // (Follows directly from the same property on Oinitiator)
+  lemma ini:key, ih:key, rh:key, any_psk:key, any_psk2:key, Peski:kem_sk_prec,
+        any_sskr:kem_sk, any_sski:kem_sk, any_spki:kem_pk, any_epki:kem_pk, any_spkr:kem_pk,
+        any_sptr:key, Pepti:seed_prec, any_spti:key;
+    let secure_epki = kem_pub(trusted_kem_sk(Peski)) in
+    let secure_epti = rng_key(trusted_seed(Pepti)) in // to account for a captured RNG 
+    attacker(rh)
+    && event(OskOinitiator(ini, any_psk, any_sski, any_spkr, any_sptr))
+    && event(OskOinit_hello(ini, ih, any_psk2, any_sskr, any_spki, secure_epki, secure_epti, any_spti))
+    && event(OskOresp_hello(ini, ih, rh)).
+
+// TODO: Add continuity queries: InitConf acceptance implies that there was a InitHello acceptance and so on
+
+@lemma "symmetric secrecy: Secure PSK is sufficient for ck secrecy after trusted InitConf acceptance from responder perspective"
+  lemma ini:key, rh:key, ic:key, Ppsk:key_prec, any_sskr:kem_sk, any_spki:kem_pk, any_epki:kem_pk, any_epti:key, any_spti:key;
+    let secure_psk = trusted_key(Ppsk) in
+    attacker(ic)
+    && event(OskOinit_hello(ini, rh, secure_psk, any_sskr, any_spki, any_epki, any_epti, any_spti))
+    && event(OskOinit_conf(rh, ic)).
+
+@lemma "asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after InitConf acceptance from responder perspective"
+  lemma ini:key, rh:key, ic:key, any_psk:key, any_sskr:kem_sk, PSsski:kem_sk_prec, any_epki:kem_pk, any_epti:key, PSspti:seed_prec;
+    let secure_spki = kem_pub(trusted_kem_sk(PSsski)) in
+    let secure_spti = rng_key(trusted_seed(PSspti)) in /* Accounting for captured RNG */
+    attacker(ic)
+    && event(OskOinit_hello(ini, rh, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti))
+    && event(OskOinit_conf(rh, ic)).
+
+@lemma "forward, asymmetric secrecy: Secure ESKI is sufficient for ck secrecy after InitConf acceptance from responder perspective"
+  lemma ini:key, rh:key, ic:key, any_psk:key, any_sskr:kem_sk, any_spki:kem_pk, Peski:kem_sk_prec, Pepti:seed_prec, any_spti:key;
+    let secure_epki = kem_pub(trusted_kem_sk(Peski)) in
+    let secure_epti = rng_key(trusted_seed(Pepti)) in /* Accounting for captured RNG */
+    attacker(ic)
+    && event(OskOinit_hello(ini, rh, any_psk, any_sskr, any_spki, secure_epki, secure_epti, any_spti))
+    && event(OskOinit_conf(rh, ic)).
+
+@lemma "passive asymmetric secrecy: Secure SSKR is sufficient for ck secrecy after InitConf acceptance from responder perspective"
+  lemma ini:key, rh:key, ic:key, any_psk1:key, any_psk2:key, any_sski:kem_sk, any_sskr:kem_sk,
+  any_spki:kem_pk, any_epki:kem_pk, Psskr:kem_sk_prec, Psptr:seed_prec, any_epti:key, any_spti:key;
+    let secure_spkr = kem_pub(trusted_kem_sk(Psskr)) in
+    let secure_sptr = rng_key(trusted_seed(Psptr)) in /* Accounting for captured RNG */
+    attacker(ic)
+    && event(OskOinitiator(ini, any_psk1, any_sski, secure_spkr, secure_sptr))
+    && event(OskOinit_hello(ini, rh, any_psk2, any_sskr, any_spki, any_epki, any_epti, any_spti))
+    && event(OskOinit_conf(rh, ic)).
+
+// TODO: Anonymity queries (under which circumstances can adv identify the participants?)
+// TODO: Model CPAKEM, etc

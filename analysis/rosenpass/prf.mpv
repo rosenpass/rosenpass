@@ -1,0 +1,32 @@
+#pragma once
+#include "prelude/bits.mpv"
+#include "crypto/key.mpv"
+
+@module prfs
+
+(* Labels, as specified in the paper *)
+fun prf(key, bits) : key.
+
+const PROTOCOL:bits.
+
+const MAC:bits.
+const COOKIE:bits.
+const PEER_ID:bits.
+const BISCUIT_AD:bits.
+const CK_INIT:bits.
+const CK_EXTRACT:bits.
+
+const MIX:bits.
+const USER:bits.
+const HS_ENC:bits.
+const INI_ENC:bits.
+const RES_ENC:bits.
+
+const OSK:bits.
+
+letfun prf2(k:key, a:bits, b:bits) = prf(prf(k, a), b).
+
+letfun lprf0(lbl:bits) = prf2(key0, PROTOCOL, lbl).
+letfun lprf1(lbl:bits, a:bits) = prf(lprf0(lbl), a).
+letfun lprf2(lbl:bits, a:bits, b:bits) = prf(lprf1(lbl, a), b).
+letfun lprf3(lbl:bits, a:bits, b:bits, c:bits) = prf(lprf2(lbl, a, b), c).
