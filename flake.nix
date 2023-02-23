@@ -148,6 +148,42 @@
           packages = self.packages.${system};
         in
         {
+          #
+          ### Whitepaper ###
+          #
+          packages.whitepaper =
+            let
+              pkgs = import inputs.nixpkgs-unstable {
+                inherit system;
+              };
+              tlsetup = (pkgs.texlive.combine {
+                inherit (pkgs.texlive) scheme-basic acmart amsfonts ccicons
+                  csquotes csvsimple doclicense fancyvrb fontspec gobble
+                  koma-script ifmtarg latexmk lm markdown mathtools minted noto
+                  nunito pgf soul soulutf8 unicode-math lualatex-math
+                  gitinfo2 eso-pic biblatex biblatex-trad biblatex-software
+                  xkeyval xurl xifthen biber;
+              });
+            in
+            pkgs.stdenvNoCC.mkDerivation {
+              name = "whitepaper";
+              src = ./papers;
+              nativeBuildInputs = with pkgs; [
+                ncurses # tput
+                python3Packages.pygments
+                tlsetup # custom tex live scheme
+                which
+              ];
+              buildPhase = ''
+                export HOME=$(mktemp -d)
+                export OSFONTDIR="$(kpsewhich --var-value TEXMF)/fonts/{opentype/public/nunito,truetype/google/noto}"
+                latexmk -r tex/CI.rc
+              '';
+              installPhase = ''
+                mkdir -p $out
+                mv *.pdf readme.md $out/
+              '';
+            };
 
 
           #
