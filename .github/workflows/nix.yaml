@@ -57,6 +57,18 @@ jobs:
         with:
           name: ${{ matrix.derivation }}@${{ matrix.nix-system }}
           path: ${{ matrix.derivation }}
+      - name: Prepare Release
+        if: startsWith(github.ref, 'refs/tags/') && contains(matrix.derivation, 'static')
+        run: cp $(readlink --canonicalize -- result)/${{ matrix.derivation }} ./${{ matrix.derivation }}-${{ matrix.nix-system }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') && contains(matrix.derivation, 'static')
+        with:
+          files: |
+            ${{ matrix.derivation }}-${{ matrix.nix-system }}
+            rp
+            LICENSE-MIT
+            LICENSE-APACHE
       - name: Deploy PDF artifacts
         if: ${{ matrix.derivation == 'whitepaper' && github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v3
