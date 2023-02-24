@@ -5,6 +5,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
 
 jobs:
   build:
@@ -58,7 +59,7 @@ jobs:
           path: ${{ matrix.derivation }}-${{ matrix.nix-system }}
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: github.ref_type == 'tag' && startsWith( github.ref_name, 'v') && contains(matrix.derivation, 'static')
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && contains(matrix.derivation, 'static')
         with:
           files: |
             ${{ matrix.derivation }}-${{ matrix.nix-system }}
