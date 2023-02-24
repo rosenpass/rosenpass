@@ -222,6 +222,7 @@
             nativeBuildInputs = with pkgs; [
               cargo-release
               clippy
+              nodePackages.prettier
               rustfmt
               packages.proverif-patched
             ];
@@ -241,7 +242,11 @@
             # '';
             nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
               { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''
-              nixpkgs-fmt --check ${./.} > $out
+              nixpkgs-fmt --check ${./.} && touch $out
+            '';
+            prettier-check = pkgs.runCommand "check-with-prettier"
+              { nativeBuildInputs = [ pkgs.nodePackages.prettier ]; } ''
+              cd ${./.} && prettier --check . && touch $out
             '';
           };
         }))

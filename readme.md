@@ -24,7 +24,7 @@ Follow [quickstart instructions](https://rosenpass.eu/#start) to get a VPN up an
 
 The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs] and libsodium[^libsodium]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
 
-As with any application a small risk of critical security issues (such as buffer overflows, remote code execution)  exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
+As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
 
 The [`rp`](./rp) tool written in bash makes it easy to create a VPN using WireGuard and Rosenpass.
 
@@ -36,8 +36,8 @@ and Rosenpass private keys, takes control of the interface and works with exactl
 rp allocates two UDP ports; if port N is specified for rosenpass, it will allocate port N+1 for WireGuard.
 
 Like WireGuard, Rosenpass does not enforce any separation between clients and servers.
-If you do not specify the `listen` option, Rosenpass and WireGuard will choose random ports; this is *client mode*.
-If you do not specify `endpoint`, Rosenpass will not try to connect to the peer and instead wait for connections from peers. This is *server mode*.
+If you do not specify the `listen` option, Rosenpass and WireGuard will choose random ports; this is _client mode_.
+If you do not specify `endpoint`, Rosenpass will not try to connect to the peer and instead wait for connections from peers. This is _server mode_.
 You may specify both. Leaving out both is not forbidden but also not very useful.
 
 ## Security analysis
@@ -55,6 +55,8 @@ The analysis is implemented according to modern software engineering principles:
 The code uses a variety of optimizations to speed up analysis such as using secret functions to model trusted/malicious setup. We split the model into two separate entry points which can be analyzed in parallel. Each is much faster than both models combined.
 A wrapper script provides instant feedback about which queries execute as expected in color: A red cross if a query fails and a green check if it succeeds.
 
+[^liboqs]: https://openquantumsafe.org/liboqs/
+[^libsodium]: https://doc.libsodium.org/
 [^wg]: https://www.wireguard.com/
 [^pqwg]: https://eprint.iacr.org/2020/379
 [^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeates the purpose of a key exchange protocol

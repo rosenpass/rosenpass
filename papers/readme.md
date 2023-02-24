@@ -16,10 +16,10 @@ You can build the PDF files from Markdown using `latexmk`. Simply run
 latexmk -r tex/CI.rc
 ```
 
-inside `papers/`.  The PDF files will be located directly in `papers/`.
+inside `papers/`. The PDF files will be located directly in `papers/`.
 
 ## Add version info within the template-rosenpass files
 
 The version info is using gitinfo2. To use the setup one has to run the `papers/tex/gitinfo2.sh` script. In local copies it's also possible to add this as a post-checkout or post-commit hook to keep it automatically up to date.
 
-The version information in the footer automatically includes a “draft”. This can be removed by tagging a release version using `\jobname-release`, e.h. `whitepaper-release`  for the `whitepaper.md` file.
+The version information in the footer automatically includes a “draft”. This can be removed by tagging a release version using `\jobname-release`, e.h. `whitepaper-release` for the `whitepaper.md` file.
