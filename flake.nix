@@ -110,10 +110,9 @@
                   '' else "";
 
                 meta = with pkgs.lib; {
-                  description = "Post-quantum crypto frontend for WireGuard";
+                  inherit (cargoToml.package) description homepage;
                   license = with licenses; [ mit asl20 ];
                   maintainers = [ maintainers.wucke13 ];
-                  homepage = "https://rosenpass.eu/";
                   platforms = platforms.all;
                 };
               };
