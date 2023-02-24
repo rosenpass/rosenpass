@@ -48,8 +48,10 @@ jobs:
           git rev-parse HEAD > ${{ matrix.derivation }}/git-sha
 
           # override the `rp` script to keep compatible with non-nix systems
-          [ -f ${{ matrix.derivation }}/bin/rp ] \
-            && cp --force rp ${{ matrix.derivation }}/bin/
+          if [[ -f ${{ matrix.derivation }}/bin/rp ]]
+          then
+            cp --force rp ${{ matrix.derivation }}/bin/
+          fi
       - name: Upload build results
         uses: actions/upload-artifact@v3
         with:
