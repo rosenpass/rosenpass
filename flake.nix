@@ -21,7 +21,7 @@
         # unsuported best-effort
         "x86_64-darwin"
         "aarch64-darwin"
-        "x86_64-windows"
+        # "x86_64-windows"
       ]
         (system:
           let
@@ -64,56 +64,59 @@
             ];
             # a function to generate a nix derivation for rosenpass against any
             # given set of nixpkgs
-            rpDerivation = p: let
-              isStatic = p.stdenv.hostPlatform.isStatic;
-            in p.rustPlatform.buildRustPackage {
-              # metadata and source
-              pname = cargoToml.package.name;
-              version = cargoToml.package.version;
-              inherit src;
-              cargoLock = {
-                lockFile = src + "/Cargo.lock";
+            rpDerivation = p:
+              let
+                isStatic = p.stdenv.hostPlatform.isStatic;
+              in
+              p.rustPlatform.buildRustPackage {
+                # metadata and source
+                pname = cargoToml.package.name;
+                version = cargoToml.package.version;
+                inherit src;
+                cargoLock = {
+                  lockFile = src + "/Cargo.lock";
+                };
+
+                nativeBuildInputs = with pkgs; [
+                  cmake # for oqs build in the oqs-sys crate
+                  makeWrapper # for the rp shellscript
+                  pkg-config # let libsodium-sys-stable find libsodium
+                  removeReferencesTo
+                  rustPlatform.bindgenHook # for C-bindings in the crypto libs
+                ];
+                buildInputs = with p; [ bash libsodium ];
+
+                # otherwise pkg-config tries to link non-existent dynamic libs
+                PKG_CONFIG_ALL_STATIC = true;
+
+                # nix defaults to building for aarch64 _without_ the armv8-a
+                # crypto extensions, but liboqs depens on these
+                preBuild =
+                  if system == "aarch64-linux" then ''
+                    NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
+                  '' else "";
+
+                preInstall = ''
+                  install -D rp $out/bin/rp
+                  wrapProgram $out/bin/rp --prefix PATH : "${ rpBinPath p }"
+                '';
+
+                # nix progated the *.dev outputs of buildInputs for static
+                # builds, but that is non-sense for an executables only package
+                postFixup =
+                  if isStatic then ''
+                    remove-references-to -t ${p.bash.dev} -t ${p.libsodium.dev} \
+                      $out/nix-support/propagated-build-inputs
+                  '' else "";
+
+                meta = with pkgs.lib; {
+                  description = "Post-quantum crypto frontend for WireGuard";
+                  license = with licenses; [ mit asl20 ];
+                  maintainers = [ maintainers.wucke13 ];
+                  homepage = "https://rosenpass.eu/";
+                  platforms = platforms.all;
+                };
               };
-
-              nativeBuildInputs = with pkgs; [
-                cmake # for oqs build in the oqs-sys crate
-                makeWrapper # for the rp shellscript
-                pkg-config # let libsodium-sys-stable find libsodium
-                removeReferencesTo
-                rustPlatform.bindgenHook # for C-bindings in the crypto libs
-              ];
-              buildInputs = with p; [ bash libsodium ];
-
-              # otherwise pkg-config tries to link non-existent dynamic libs
-              PKG_CONFIG_ALL_STATIC = true;
-
-              # nix defaults to building for aarch64 _without_ the armv8-a
-              # crypto extensions, but liboqs depens on these
-              preBuild =
-                if system == "aarch64-linux" then ''
-                  NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
-                '' else "";
-
-              preInstall = ''
-                install -D rp $out/bin/rp
-                wrapProgram $out/bin/rp --prefix PATH : "${ rpBinPath p }"
-              '';
-
-              # nix progated the *.dev outputs of buildInputs for static
-              # builds, but that is non-sense for an executables only package
-              postFixup = if isStatic then ''
-                remove-references-to -t ${p.bash.dev} -t ${p.libsodium.dev} \
-                  $out/nix-support/propagated-build-inputs
-              '' else "";
-
-              meta = with pkgs.lib; {
-                description = "Post-quantum crypto frontend for WireGuard";
-                license = with licenses; [ mit asl20 ];
-                maintainers = [ maintainers.wucke13 ];
-                homepage = "https://rosenpass.eu/";
-                platforms = platforms.all;
-              };
-            };
             # a function to generate a docker image based of rosenpass
             rosenpassOCI = name: pkgs.dockerTools.buildImage rec {
               inherit name;
