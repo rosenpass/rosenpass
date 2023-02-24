@@ -58,4 +58,8 @@ A wrapper script provides instant feedback about which queries execute as expect
 [^wg]: https://www.wireguard.com/
 [^pqwg]: https://eprint.iacr.org/2020/379
 [^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeates the purpose of a key exchange protocol
-[^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.html
+[^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.htmlA
+
+# Supported by
+
+Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
