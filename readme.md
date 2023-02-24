@@ -1,5 +1,10 @@
 # Rosenpass README
 
+![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
+![QC](https://github.com/rosenpass/rosenpass/actions/workflows/qc.yaml/badge.svg)
+![crates.io](https://img.shields.io/crates/v/rosenpass.svg)
+![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/cargo/rosenpass)
+
 This repository contains
 
 1. A description of the [Rosenpass protocol](https://github.com/rosenpass/rosenpass/raw/papers-pdf/whitepaper.pdf)
@@ -9,9 +14,7 @@ This repository contains
 
 ## Getting started
 
-[how to install nix]
-[how to build with nix]
-[how to build without nix]
+First, [install rosenpass](#Getting-Rosenpass). Then, check out the help funtions of `rp` & `rosenpass`:
 
 ```sh
 rp help
@@ -61,6 +64,12 @@ A wrapper script provides instant feedback about which queries execute as expect
 [^pqwg]: https://eprint.iacr.org/2020/379
 [^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeates the purpose of a key exchange protocol
 [^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.htmlA
+
+# Getting Rosenpass
+
+Rosenpass is packaged for more and more distros, maybe also for the distro of your choice?
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 
 # Supported by
 
