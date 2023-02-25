@@ -5,7 +5,6 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ["v*"]
 
 jobs:
   build:
@@ -57,14 +56,6 @@ jobs:
         with:
           name: ${{ matrix.derivation }}-${{ matrix.nix-system }}
           path: ${{ matrix.derivation }}-${{ matrix.nix-system }}
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v') && contains(matrix.derivation, 'static')
-        with:
-          files: |
-            ${{ matrix.derivation }}-${{ matrix.nix-system }}
-            LICENSE-MIT
-            LICENSE-APACHE
       - name: Deploy PDF artifacts
         if: ${{ matrix.derivation == 'whitepaper' && github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v3

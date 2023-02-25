@@ -1,0 +1,26 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    name: Build ${{ matrix.derivation }} on ${{ matrix.nix-system }}
+    runs-on:
+      - nix
+      - ${{ matrix.nix-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        nix-system:
+          - x86_64-linux
+          # - aarch64-linux
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build release-package for ${{ matrix.nix-system }}
+        run: nix build .#release-package --print-build-logs
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            result/*
