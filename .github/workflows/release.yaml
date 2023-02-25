@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    name: Build ${{ matrix.derivation }} on ${{ matrix.nix-system }}
+    name: Release for ${{ matrix.nix-system }}
     runs-on:
       - nix
       - ${{ matrix.nix-system }}
@@ -24,5 +24,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
+          draft: ${{ contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: |
             result/*
