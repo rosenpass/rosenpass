@@ -132,6 +132,29 @@
               default = rosenpass;
               rosenpass = rpDerivation pkgs;
               rosenpass-oci-image = rosenpassOCI "rosenpass";
+
+              # derivation for the release
+              release-package =
+                let
+                  version = cargoToml.package.version;
+                  package =
+                    if pkgs.hostPlatform.isLinux then
+                      packages.rosenpass-static
+                    else packages.rosenpass;
+                  oci-image =
+                    if pkgs.hostPlatform.isLinux then
+                      packages.rosenpass-static-oci-image
+                    else packages.rosenpass-oci-image;
+                in
+                pkgs.runCommandNoCC "lace-result" { }
+                  ''
+                    mkdir {bin,$out}
+                    cp ${./.}/rp bin/
+                    tar -cvf $out/rosenpass-${system}-${version}.tar bin/rp \
+                      -C ${package} bin/rosenpass
+                    cp ${oci-image} \
+                      $out/rosenpass-oci-image-${system}-${version}.tar.gz
+                  '';
             } // (if pkgs.stdenv.isLinux then rec {
               rosenpass-static = rpDerivation pkgs.pkgsStatic;
               rosenpass-static-oci-image = rosenpassOCI "rosenpass-static";
