@@ -130,7 +130,7 @@
 \bool_set_false:N \l_tmpa_bool
 \gitAbbrevHash{}~(\gitAuthorDate
 \clist_map_inline:Nn \gitTags {
-	\exp_args:Nx \str_if_eq:nnT {\jobname-release} {test-whitepaper}  {\bool_set_true:N \l_tmpa_bool\clist_map_break:}
+	\exp_args:Nx \str_if_eq:nnT {\jobname-release} {whitepaper-release}  {\bool_set_true:N \l_tmpa_bool\clist_map_break:}
 }
 \bool_if:NF \l_tmpa_bool {~--~draft}
 )
