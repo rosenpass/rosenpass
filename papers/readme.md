@@ -23,3 +23,7 @@ inside `papers/`. The PDF files will be located directly in `papers/`.
 The version info is using gitinfo2. To use the setup one has to run the `papers/tex/gitinfo2.sh` script. In local copies it's also possible to add this as a post-checkout or post-commit hook to keep it automatically up to date.
 
 The version information in the footer automatically includes a “draft”. This can be removed by tagging a release version using `\jobname-release`, e.h. `whitepaper-release` for the `whitepaper.md` file.
+
+## Licensing of assets
+
+The text files and graphics in this folder (i.e. whitepaper.md, the SVG, PDF, and PNG files in the graphics/ folder) are released under the CC BY-SA 4.0 license.
