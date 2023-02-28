@@ -66,9 +66,27 @@
             # given set of nixpkgs
             rpDerivation = p:
               let
-                isStatic = p.stdenv.hostPlatform.isStatic;
+                # whether we want to build a statically linked binary
+                isStatic = p.targetPlatform.isStatic;
+
+                # the rust target of `p`
+                target = p.rust.toRustTargetSpec p.targetPlatform;
+
+                # convert a string to shout case
+                shout = string: builtins.replaceStrings ["-"] ["_"] (pkgs.lib.toUpper string);
+
+                # suitable Rust toolchain
+                toolchain = with inputs.fenix.packages.${system}; combine [
+                  stable.cargo
+                  stable.rustc
+                  targets.${target}.stable.rust-std
+                ];
+                myRustPlatform = p.makeRustPlatform {
+                  cargo = toolchain;
+                  rustc = toolchain;
+                };
               in
-              p.rustPlatform.buildRustPackage {
+              myRustPlatform.buildRustPackage {
                 # metadata and source
                 pname = cargoToml.package.name;
                 version = cargoToml.package.version;
@@ -83,11 +101,16 @@
                   pkg-config # let libsodium-sys-stable find libsodium
                   removeReferencesTo
                   rustPlatform.bindgenHook # for C-bindings in the crypto libs
+                  pkgs.stdenv.cc # for Rust proc macro linking we need a non-cross compiler
                 ];
                 buildInputs = with p; [ bash libsodium ];
 
                 # otherwise pkg-config tries to link non-existent dynamic libs
                 PKG_CONFIG_ALL_STATIC = true;
+
+                CARGO_BUILD_TARGET = target;
+                # for final linking, a cross compiler needs to be used
+                "CARGO_TARGET_${shout target}_LINKER" = "${pkgs.stdenv.cc.targetPrefix}ld";
 
                 # nix defaults to building for aarch64 _without_ the armv8-a
                 # crypto extensions, but liboqs depens on these
