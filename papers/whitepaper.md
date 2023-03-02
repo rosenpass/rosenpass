@@ -7,13 +7,13 @@ author:
 - Wanja Zaeske
 - Lisa Schmidt = {Scientific Illustrator – \\url{mullana.de}}
 abstract: |
-       Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, WireGuard (WG) [@wg] uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for some other application. The Rosenpass protocol builds on “Post-quantum WireGuard” (PQWG) [@pqwg] and improves it by using a cookie mechanism to provide security against state disruption attacks.
+       Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, WireGuard (WG) [@wg] uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for another application. The Rosenpass protocol builds on “Post-quantum WireGuard” (PQWG) [@pqwg] and improves it by using a cookie mechanism to provide security against state disruption attacks.
 
        The WireGuard implementation enjoys great trust from the cryptography community and has excellent performance characteristics. To preserve these features, the Rosenpass application runs side-by-side with WireGuard and supplies a new post-quantum-secure pre-shared key (PSK) every two minutes. WireGuard itself still performs the pre-quantum-secure key exchange and transfers any transport data with no involvement from Rosenpass at all.
 
        The Rosenpass project consists of a protocol description, an implementation written in Rust, and a symbolic analysis of the protocol’s security using ProVerif [@proverif]. We are working on a cryptographic security proof using CryptoVerif [@cryptoverif].
 
-       This document is a guide to engineers and researchers implementing the protocol; a scientific paper discussing the security properties of Rosenpass is work in progress.
+       This document is a guide for engineers and researchers implementing the protocol; a scientific paper discussing the security properties of Rosenpass is work in progress.
 ---
 
 \enlargethispage{5mm}
@@ -49,7 +49,7 @@ Forward secrecy refers to secrecy of past sessions in case all static keys are l
 
 ## Security against State Disruption Attacks {#statedis}
 
-Both WG and PQWG are vulnerable to state disruption attacks; they rely on a timestamp to protect against replay of the first protocol message. An attacker who can tamper with the local time of the protocol initiator can inhibit future handshakes [@statedis], rendering the initiator’s static keypair practically useless. Due to the use of the insecure NTP protocol, real-world deployments are vulnerable to this attack [@statedis_cve]. Lacking a reliable way to detect retransmission, we remove the replay protection mechanism and store the responder state in an encrypted cookie called “the biscuit” instead. Since the responder does not store any session-dependent state until the initiator is interactively authenticated, there is no state to disrupt in an attack.
+Both WG and PQWG are vulnerable to state disruption attacks; they rely on a timestamp to protect against the replay of the first protocol message. An attacker who can tamper with the local time of the protocol initiator can inhibit future handshakes [@statedis], rendering the initiator’s static keypair practically useless. Due to the use of the insecure NTP protocol, real-world deployments are vulnerable to this attack [@statedis_cve]. Lacking a reliable way to detect retransmission, we remove the replay protection mechanism and store the responder state in an encrypted cookie called “the biscuit” instead. Since the responder does not store any session-dependent states until the initiator is interactively authenticated, there is no state to disrupt in an attack.
 
 Note that while Rosenpass is secure against state disruption, using it does not protect WireGuard against the attack. Therefore, the hybrid Rosenpass/WireGuard setup recommended for deployment is still vulnerable.
 
@@ -169,7 +169,7 @@ Rosenpass uses a cryptographic hash function for multiple purposes:
 * Computing the cookie to guard against denial of service attacks. This is a feature adopted from WireGuard, but not yet included in the implementation of Rosenpass.
 * Computing the peer ID
 * Key derivation during and after the handshake
-* Computing the additional data for the biscuit encryption, to prove some privacy for its contents
+* Computing the additional data for the biscuit encryption, to provide some privacy for its contents
 
 Using one hash function for multiple purposes can cause real-world security issues and even key recovery attacks [@oraclecloning]. We choose a tree-based domain separation scheme based on a keyed hash function – the previously introduced primitive `hash` – to make sure all our hash function calls can be seen as distinct.
 
@@ -237,7 +237,7 @@ For each peer, the server stores:
 The initiator stores the following local state for each ongoing handshake:
 
 * A reference to the peer structure
-* A state indicator to keep track of the message expected from the responder next
+* A state indicator to keep track of the next message expected from the responder
 * `sidi` – Initiator session ID
 * `sidr` – Responder session ID
 * `ck` – The chaining key
@@ -430,7 +430,7 @@ ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This i
 
 ## Dealing with Packet Loss
 
-The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
+The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as an acknowledgement of receiving InitConf and terminates its retransmission.
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
 
