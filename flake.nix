@@ -133,6 +133,8 @@
               rosenpass = rpDerivation pkgs;
               rosenpass-oci-image = rosenpassOCI "rosenpass";
 
+              rosenpass-static = rpDerivation pkgs.pkgsStatic;
+
               # derivation for the release
               release-package =
                 let
@@ -140,7 +142,7 @@
                   package =
                     if pkgs.hostPlatform.isLinux then
                       packages.rosenpass-static
-                    else packages.rosenpass;
+                    else packages.rosenpass-static;
                   oci-image =
                     if pkgs.hostPlatform.isLinux then
                       packages.rosenpass-static-oci-image
@@ -156,7 +158,6 @@
                       $out/rosenpass-oci-image-${system}-${version}.tar.gz
                   '';
             } // (if pkgs.stdenv.isLinux then rec {
-              rosenpass-static = rpDerivation pkgs.pkgsStatic;
               rosenpass-static-oci-image = rosenpassOCI "rosenpass-static";
             } else { });
           }
