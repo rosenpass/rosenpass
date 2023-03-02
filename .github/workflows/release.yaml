@@ -12,13 +12,32 @@ jobs:
       - nix
       - ${{ matrix.nix-system }}
     strategy:
-      fail-fast: false
       matrix:
         nix-system:
           - x86_64-linux
           # - aarch64-linux
     steps:
       - uses: actions/checkout@v3
+      - name: Build release-package for ${{ matrix.nix-system }}
+        run: nix build .#release-package --print-build-logs
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: ${{ contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          files: |
+            result/*
+
+          
+  release-darwin:
+    name: Release for ${{ matrix.nix-system }}
+    runs-on:
+      - macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build release-package for ${{ matrix.nix-system }}
         run: nix build .#release-package --print-build-logs
       - name: Release
