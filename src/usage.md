@@ -35,11 +35,11 @@ COMMANDS
       You must either specify the outfile or wireguard output option.
 
       endpoint <ip>[:<port>]
-        Specifies the address where the peer can be reached. This will be automatically updated after the first sucessfull
+        Specifies the address where the peer can be reached. This will be automatically updated after the first successful
         key exchange with the peer. If this is unspecified, the peer must initiate the connection.
 
       preshared-key <file-path>
-        You may specifie a pre-shared key which will be mixied into the final secret.
+        You may specify a pre-shared key which will be mixed into the final secret.
 
       outfile <file-path>
         You may specify a file to write the exchanged keys to. If this option is specified, {0} will
