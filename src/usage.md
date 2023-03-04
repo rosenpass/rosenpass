@@ -11,9 +11,6 @@ DESCRIPTION
   These keys can then be passed to various services such as wireguard or other vpn services
   as pre-shared-keys to achieve security against attackers with quantum computers.
 
-  This is a research project and quantum computers are not thought to become practical in less than ten years.
-  If you are not specifically tasked with developing post-quantum secure systems, you probably do not need this tool.
-
 COMMANDS
   
   keygen private-key <file-path> public-key <file-path>
