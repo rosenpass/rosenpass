@@ -91,53 +91,72 @@ $\texttt{shk} = \texttt{KEM.Decaps}(\texttt{sk}, \texttt{ct})$
 
 \end{frame}
 
+
+
 \begin{frame}{Minimal key exchange using KEMs}
-\begin{tikzpicture}
-    \draw (-3,0) -- (-3,-5) (3,0) -- (3,-5);
-    \node at (-3,.3) {Initiator};
-    \node at (3,.3) {Responder};
-    \draw[<-] (-3,-1) -- node[midway,above] {pk} (3,-1);
-    \draw[->] (-3,-3) -- node[midway,above] {ct} (3,-3);
-    \draw[<-] (-3,-4) -- node[midway,above] {(ack)} (3,-4);
+\begin{tikzpicture}[shorten > = 1pt,shorten < = 1pt]
+	\draw (-3,0) node[above](initiator){Initiator\strut} -- coordinate[pos=.2](pk-y) coordinate[pos=.6](ct-y)coordinate[pos=.8](ack-y)+(0,-5);
+	\draw (3,0) node[above](responder){Responder}-- +(0,-5);
+
+	\draw[<-](pk-y-|initiator) -- node[above]{pk} (pk-y-|responder);
+	\draw[->](ct-y-|initiator) -- node[above] {ct} (ct-y-|responder);
+	\draw[<-](ack-y-|initiator) -- node[above] {(ack)} (ack-y-|responder);
 \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Three encapsulations: Achieving mutual authentication \& forward secrecy}
+\tikzset{shorten > = 1pt,shorten < = 1pt}
 \begin{columns}
 
 \begin{column}{.30\textwidth}
 \begin{tikzpicture}
-    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
-    \node at (-1,.1) {Initiator};
-    \node at (1,.1) {Responder};
-    \draw[<-] (-1,-1) -- node[midway,above] {spkr} (1,-1);
-    \draw[->] (-1,-3) -- node[midway,above] {sctr} (1,-3);
-    \draw[<-] (-1,-3.8) -- node[midway,above] {(ack)} (1,-3.8);
+	 \draw (-1,0) node[above](initiator){Initiator\strut} --
+		coordinate[pos=.2](spkr-y)
+		coordinate[pos=.6](sctr-y)
+		coordinate[pos=.76](ack-y)+(0,-5);
+	  \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+
+
+		\draw[<-](spkr-y-|initiator) -- node[above]{spkr} (spkr-y-|responder);
+		\draw[->](sctr-y-|initiator) -- node[above] {sctr} (sctr-y-|responder);
+		\draw[<-](ack-y-|initiator) -- node[above] {(ack)} (ack-y-|responder);
+
 \end{tikzpicture}
 Responder Auth
 \end{column}
 
 \begin{column}{.30\textwidth}
 \begin{tikzpicture}
-    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
-    \node at (-1,.1) {Initiator};
-    \node at (1,.1) {Responder};
-    \draw[->] (-1,-1) -- node[midway,above] {spki} (1,-1);
-    \draw[->] (-1,-3) -- node[midway,above] {H(spki)} (1,-3);
-    \draw[<-] (-1,-3.8) -- node[midway,above] {scti} (1,-3.8);
-    \draw[->] (-1,-4.6) -- node[midway,above] {(ack)} (1,-4.6);
+	 \draw (-1,0) node[above](initiator){Initiator\strut} --
+		coordinate[pos=.2](spki-y)
+		coordinate[pos=.6](Hspki-y)
+		coordinate[pos=.76] (scti-y)
+		coordinate[pos=.92](ack-y)+(0,-5);
+	 \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+
+	 \draw[->](spki-y-|initiator) -- node[above]{spki} (spki-y-|responder);
+	 \draw[->](Hspki-y-|initiator) -- node[above] {H(spki)} (Hspki-y-|responder);
+
+	  \draw[<-](scti-y-|initiator) -- node[above]{scti} (scti-y-|responder);
+
+	 \draw[->](ack-y-|initiator) -- node[above] {(ack)} (ack-y-|responder);
+
 \end{tikzpicture}
 Initiator Auth
 \end{column}
 
 \begin{column}{.30\textwidth}
 \begin{tikzpicture}
-    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
-    \node at (-1,.1) {Initiator};
-    \node at (1,.1) {Responder};
-    \draw[->] (-1,-3) -- node[midway,above] {epki} (1,-3);
-    \draw[<-] (-1,-3.8) -- node[midway,above] {ecti} (1,-3.8);
-    \draw[->] (-1,-4.6) -- node[midway,above] {(ack)} (1,-4.6);
+	 \draw (-1,0) node[above](initiator){Initiator\strut} --
+		coordinate[pos=.6](epki-y)
+		coordinate[pos=.76] (ecti-y)
+		coordinate[pos=.92](ack-y)+(0,-5);
+	 \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+
+	 \draw[->](epki-y-|initiator) -- node[above]{epki} (epki-y-|responder);
+	 \draw[<-](ecti-y-|initiator) -- node[above]{ecti} (ecti-y-|responder);
+	 \draw[->](ack-y-|initiator) -- node[above] {(ack)} (ack-y-|responder);
+
 \end{tikzpicture}
 Forward secrecy
 \end{column}
@@ -147,16 +166,20 @@ Forward secrecy
 
 \begin{frame}{Combining the three encapsulations in one protocol}
 
-\begin{tikzpicture}
-    \draw (-3,0) -- (-3,-5) (3,0) -- (3,-5);
-    \node at (-3,.1) {Initiator};
-    \node at (3,.1) {Responder};
-    \draw[->] (-3,-1) -- node[midway,above] {spki} (3,-1);
-    \draw[<-] (-3,-1.8) -- node[midway,above] {spkr} (3,-1.8);
+\begin{tikzpicture}[shorten > = 1pt,shorten < = 1pt]
+	\draw (-3,0) node[above](initiator){Initiator\strut} -- coordinate[pos=.2](spki-y)
+	coordinate[pos=.35](spkr-y)
+	coordinate[pos=.6](epki-y)
+	coordinate[pos=.75](scti-y)
+	coordinate[pos=.9](ack-y)+(0,-5);
+	\draw (3,0) node[above](responder){Responder}-- +(0,-5);
 
-    \draw[->] (-3,-3) -- node[midway,above] {epki, sctr, H(spki)} (3,-3);
-    \draw[<-] (-3,-3.8) -- node[midway,above] {scti,ecti} (3,-3.8);
-    \draw[->] (-3,-4.6) -- node[midway,above] {(ack)} (3,-4.6);
+	 \draw[->](spki-y-|initiator) -- node[above] {spki} (spki-y-|responder);
+	 \draw[<-](spkr-y-|initiator) -- node[above] {spkr} (spkr-y-|responder);
+	 \draw[->](epki-y-|initiator) -- node[above] {epki, sctr, H(spki)} (epki-y-|responder);
+	 \draw[<-](scti-y-|initiator) -- node[above] {scti,ecti} (scti-y-|responder);
+	  \draw[->](ack-y-|initiator) -- node[above] {(ack)} (ack-y-|responder);
+
 \end{tikzpicture}
 
   Note that the initiator is not authenticated until they send `(ack)`.
