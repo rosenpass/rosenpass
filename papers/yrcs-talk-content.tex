@@ -2,8 +2,8 @@
 \begin{itemize}
   \item Problem statement: Post-quantum WireGuard % 4m
   \item Post-quantum WireGuard\footnote{
-      Andreas Hülsing, Kai-Chun Ning, Peter Schwabe, Florian Weber, and Philip R. Zimmermann. “Post-quantum WireGuard”. In: 42nd IEEE Symposium on Security and Privacy, SP 2021, San Francisco, CA, USA, 24-27 May 2021. Full version: https://eprint.iacr.org/2020/379
-    }: How to build an interactive key exchange from KEMs % 8m
+	  Andreas Hülsing, Kai-Chun Ning, Peter Schwabe, Florian Weber, and Philip R. Zimmermann. “Post-quantum WireGuard”. In: 42nd IEEE Symposium on Security and Privacy, SP 2021, San Francisco, CA, USA, 24-27 May 2021. Full version: https://eprint.iacr.org/2020/379
+	}: How to build an interactive key exchange from KEMs % 8m
   \item Attack we found: State Disruption Attacks %12m
   \item Real-World Concerns % 3m
   \item Biscuits as a defense against State Disruption Attacks
@@ -12,12 +12,12 @@
 
 \begin{frame}{What needs to be done to deploy Post-Quantum WireGuard}
 \begin{itemize}
-    \item Updating the WireGuard protocol to support post-quantum security
-    \item Updating the (post quantum) WireGuard protocol to be secure against state disruption attacks
-    \item Reference implementation of the Rosenpass protocol in Rust
-    \item A way to create hybrid post-quantum secure WireGuard VPNs
-    \item Stand-alone key exchange app
-    \item A Sci-Comm project teaching people about post-quantum security
+	\item Updating the WireGuard protocol to support post-quantum security
+	\item Updating the (post quantum) WireGuard protocol to be secure against state disruption attacks
+	\item Reference implementation of the Rosenpass protocol in Rust
+	\item A way to create hybrid post-quantum secure WireGuard VPNs
+	\item Stand-alone key exchange app
+	\item A Sci-Comm project teaching people about post-quantum security
 \end{itemize}
 \end{frame}
 
@@ -244,35 +244,35 @@ Forward secrecy
 
 \begin{frame}{Biscuits}
   \begin{itemize}
-    \item Assumptions such as a monotonic counter are perilous in the real world
-    \item Giving the adversary access to state is dangerous
-    \item In noise protocols the handshake state is very small (32-64 bytes)
-    \item Sending the state to the protocol peer is a viable course of action!
-    \item Formalization of State Disruption Attacks covers many attacks of this style
+	\item Assumptions such as a monotonic counter are perilous in the real world
+	\item Giving the adversary access to state is dangerous
+	\item In noise protocols the handshake state is very small (32-64 bytes)
+	\item Sending the state to the protocol peer is a viable course of action!
+	\item Formalization of State Disruption Attacks covers many attacks of this style
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Security proof of rosenpass}
   \begin{itemize}
-    \item CryptoVerif in progress (Benjamin Lipp)
-    \item Really fast symbolic analysis using ProVerif
+	\item CryptoVerif in progress (Benjamin Lipp)
+	\item Really fast symbolic analysis using ProVerif
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Deployment}
   \begin{itemize}
-    \item Rust implementation in userspace
-    \item Integrates with WireGuard through the PSK feature to provide Hybrid security
+	\item Rust implementation in userspace
+	\item Integrates with WireGuard through the PSK feature to provide Hybrid security
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Final statements}
   \begin{itemize}
-    \item Post-quantum crypto can be deployed now
-    \item There are real complexities in protocol design
-    \item DoS-Resistance needs formalization work
-    \item Availability needs love and attention from cryptographers
-    \item Try it out! https://rosenpass.eu/
+	\item Post-quantum crypto can be deployed now
+	\item There are real complexities in protocol design
+	\item DoS-Resistance needs formalization work
+	\item Availability needs love and attention from cryptographers
+	\item Try it out! \url{https://rosenpass.eu/}
   \end{itemize}
 \end{frame}
 
@@ -297,4 +297,4 @@ Forward secrecy
 %    * No state
 %    * Provably avoids state disruption
 %    * State machine WG/PQWG: ini
-%* 
+%*
