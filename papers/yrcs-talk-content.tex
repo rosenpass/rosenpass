@@ -1,10 +1,277 @@
-\begin{frame}{Slide Title}
-
+\begin{frame}{Structure of the talk}
 \begin{itemize}
-    \item one
-    \item two
-    \item three
-    \item four
+  \item Problem statement: Post-quantum WireGuard % 4m
+  \item Post-quantum WireGuard\footnote{
+      Andreas Hülsing, Kai-Chun Ning, Peter Schwabe, Florian Weber, and Philip R. Zimmermann. “Post-quantum WireGuard”. In: 42nd IEEE Symposium on Security and Privacy, SP 2021, San Francisco, CA, USA, 24-27 May 2021. Full version: https://eprint.iacr.org/2020/379
+    }: How to build an interactive key exchange from KEMs % 8m
+  \item Attack we found: State Disruption Attacks %12m
+  \item Real-World Concerns % 3m
+  \item Biscuits as a defense against State Disruption Attacks
 \end{itemize}
 \end{frame}
 
+\begin{frame}{What needs to be done to deploy Post-Quantum WireGuard}
+\begin{itemize}
+    \item Updating the WireGuard protocol to support post-quantum security
+    \item Updating the (post quantum) WireGuard protocol to be secure against state disruption attacks
+    \item Reference implementation of the Rosenpass protocol in Rust
+    \item A way to create hybrid post-quantum secure WireGuard VPNs
+    \item Stand-alone key exchange app
+    \item A Sci-Comm project teaching people about post-quantum security
+\end{itemize}
+\end{frame}
+
+\begin{frame}{WireGuard\footnote{Jason A. Donenfeld. “WireGuard: Next Generation Kernel Network Tunnel”. In: 24th Annual Network and Distributed System Security Symposium, NDSS 2017, San Diego, California, USA, February 26 - March 1, 2017. Whitepaper: https: //www.wireguard.com/papers/wireguard.pdf.}}
+\begin{itemize}
+  \item VPN protocol in the linux kernel
+  \item Based on Noise IKpsk1 from the Noise Protocol Framework\footnote{Trevor Perrin. The Noise Protocol Framework. 2016. url: http://noiseprotocol.org/noise.pdf}
+  \item Small, fast, open source crypto
+\end{itemize}
+\end{frame}
+
+\begin{frame}{WireGuard/Noise IKpsk security properties}
+\begin{itemize}
+  \itemtick Session-key secrecy
+  \itemtick Forward-secrecy
+  \itemtick Mutual authentication
+  \itemtick Session-key Uniqueness
+  \itemtick Identity Hiding
+  \itemtick (DoS Mitigation – First packet is authenticated\footnote{Based on the unrealistic assumption of a monotonic counter – We found a practical attack})
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Security of Rosenpass}
+\begin{columns}
+
+\begin{column}{.30\textwidth}
+WireGuard
+\begin{itemize}
+  \itemtick Session-key secrecy
+  \itemtick Forward-secrecy
+  \itemtick Mutual authentication
+  \itemtick Session-key Uniqueness
+  \itemtick Identity Hiding
+  \itemtick (DoS Mitigation)
+\end{itemize}
+\end{column}
+
+\begin{column}{.30\textwidth}
+Post-Quantum WireGuard
+\begin{itemize}
+  \itemfail Identity Hiding \footnote{Based on a Identity Hiding/ANON-CCA security of McEliece; unclear whether that holds.}
+  \itemfail DoS Mitigation \footnote{PQWG provides DoS mitigation under the assumption of a secret PSK, which quite frankly is cheating.}
+\end{itemize}
+\end{column}
+
+\begin{column}{.30\textwidth}
+Rosenpass
+\begin{itemize}
+  \itemtick DoS Mitigation
+  \itemtick Hybrid Post-Quantum security\footnote{In deployments using WireGuard + Rosenpass; Rosenpass on its own provides post-quantum security.}
+\end{itemize}
+\end{column}
+
+\end{columns}
+\end{frame}
+
+\begin{frame}{Building post-quantum WireGuard: NIKE vs KEM}
+
+
+  NIKE:
+
+$(\texttt{sk}_1, \texttt{pk}_1) \leftarrow \texttt{NIKE.KeyGen}$ \\
+$(\texttt{sk}_2, \texttt{pk}_2) \leftarrow \texttt{NIKE.KeyGen}$ \\
+$\texttt{NIKE.SharedKey}(\texttt{sk}_1, \texttt{pk}_2) = \texttt{NIKE.SharedKey}(\texttt{sk}_2, \texttt{pk}_1)$
+
+  KEM:
+
+$(\texttt{sk}, \texttt{pk}) \leftarrow \texttt{KEM.KeyGen}$ \\
+$(\texttt{shk}, \texttt{ct}) \leftarrow \texttt{KEM.Encaps}(\texttt{pk})$ \\
+$\texttt{shk} = \texttt{KEM.Decaps}(\texttt{sk}, \texttt{ct})$
+
+\end{frame}
+
+\begin{frame}{Minimal key exchange using KEMs}
+\begin{tikzpicture}
+    \draw (-3,0) -- (-3,-5) (3,0) -- (3,-5);
+    \node at (-3,.3) {Initiator};
+    \node at (3,.3) {Responder};
+    \draw[<-] (-3,-1) -- node[midway,above] {pk} (3,-1);
+    \draw[->] (-3,-3) -- node[midway,above] {ct} (3,-3);
+    \draw[<-] (-3,-4) -- node[midway,above] {(ack)} (3,-4);
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Three encapsulations: Achieving mutual authentication \& forward secrecy}
+\begin{columns}
+
+\begin{column}{.30\textwidth}
+\begin{tikzpicture}
+    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
+    \node at (-1,.1) {Initiator};
+    \node at (1,.1) {Responder};
+    \draw[<-] (-1,-1) -- node[midway,above] {spkr} (1,-1);
+    \draw[->] (-1,-3) -- node[midway,above] {sctr} (1,-3);
+    \draw[<-] (-1,-3.8) -- node[midway,above] {(ack)} (1,-3.8);
+\end{tikzpicture}
+Responder Auth
+\end{column}
+
+\begin{column}{.30\textwidth}
+\begin{tikzpicture}
+    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
+    \node at (-1,.1) {Initiator};
+    \node at (1,.1) {Responder};
+    \draw[->] (-1,-1) -- node[midway,above] {spki} (1,-1);
+    \draw[->] (-1,-3) -- node[midway,above] {H(spki)} (1,-3);
+    \draw[<-] (-1,-3.8) -- node[midway,above] {scti} (1,-3.8);
+    \draw[->] (-1,-4.6) -- node[midway,above] {(ack)} (1,-4.6);
+\end{tikzpicture}
+Initiator Auth
+\end{column}
+
+\begin{column}{.30\textwidth}
+\begin{tikzpicture}
+    \draw (-1,0) -- (-1,-5) (1,0) -- (1,-5);
+    \node at (-1,.1) {Initiator};
+    \node at (1,.1) {Responder};
+    \draw[->] (-1,-3) -- node[midway,above] {epki} (1,-3);
+    \draw[<-] (-1,-3.8) -- node[midway,above] {ecti} (1,-3.8);
+    \draw[->] (-1,-4.6) -- node[midway,above] {(ack)} (1,-4.6);
+\end{tikzpicture}
+Forward secrecy
+\end{column}
+
+\end{columns}
+\end{frame}
+
+\begin{frame}{Combining the three encapsulations in one protocol}
+
+\begin{tikzpicture}
+    \draw (-3,0) -- (-3,-5) (3,0) -- (3,-5);
+    \node at (-3,.1) {Initiator};
+    \node at (3,.1) {Responder};
+    \draw[->] (-3,-1) -- node[midway,above] {spki} (3,-1);
+    \draw[<-] (-3,-1.8) -- node[midway,above] {spkr} (3,-1.8);
+
+    \draw[->] (-3,-3) -- node[midway,above] {epki, sctr, H(spki)} (3,-3);
+    \draw[<-] (-3,-3.8) -- node[midway,above] {scti,ecti} (3,-3.8);
+    \draw[->] (-3,-4.6) -- node[midway,above] {(ack)} (3,-4.6);
+\end{tikzpicture}
+
+  Note that the initiator is not authenticated until they send `(ack)`.
+
+\end{frame}
+
+\begin{frame}{In Rosenpasss specifically}
+  \includegraphics[height=.80\textheight]{graphics/rosenpass-wp-key-exchange-protocol.pdf}
+\end{frame}
+
+\begin{frame}{In Rosenpasss specifically}
+  \includegraphics[height=.80\textheight]{graphics/rosenpass-wp-message-types.pdf}
+\end{frame}
+
+\begin{frame}{State Disruption Attacks}
+\begin{itemize}
+  \item Use the fact that the initiator is not authenticated until their last message
+  \item Send faux initiations, overwriting – and thus erasing – the responder's handshake state
+  \item Erasing the state aborts protocol execution
+  \item PQWG argues: The first package is authenticated using the PSK, therefor sending faux initiations works
+  \item Attacker could replay a legitimate message, but…
+\end{itemize}
+\end{frame}
+
+\begin{frame}{State Disruption Attacks on authenticated initial package}
+\begin{itemize}
+  \item In Classic WireGuard the initial message (InitHello) is authenticated through static-static Diffie-Hellman
+  \item Replay protection uses monotonic counter
+  \item WireGuard stores the time of the last initiator $t_i$
+  \item When WireGuard receives legitimate initiaton with timestamp $t$, it stores that time $t_i \leftarrow t$a
+  \item All InitHello messages with a stale timestamp ($t \le t_i$) get rejected
+\end{itemize}
+\end{frame}
+
+\begin{frame}{CVE-2021-46873 – Attacking WireGuard through NTP}
+\begin{itemize}
+  \item The replay protection in classic WireGuard assumes a monotonic counter
+  \item But the system time is attacker controlled because NTP is insecure
+  \item This generates a kill packet that can be used to render WireGuard keys useless
+  \item Attack is possible in the real world!
+\end{itemize}
+\end{frame}
+
+\begin{frame}{State disruption in Post-Quantum WireGuard}
+\begin{itemize}
+  \item This mechanism needs an authenticated InitHello message
+  \item Post-Quantum WireGuard relies on the $\texttt{psk}$ to provide InitHello authentication
+  \item PQWG sets $\texttt{psk} = H(\texttt{spki} \oplus \texttt{spkr})$ to achieve a secret psk.a
+  \item Relying on private public keys is absurd
+  \item[$\Rightarrow$] With InitHello effectively unauthenticated, attacker can just generate their own kill packet
+\end{itemize}
+  Solution: Store the responder state in a biscuit (cookie), so there is no state to override.
+\end{frame}
+
+\begin{frame}{Biscuits in the protocol flow}
+  \includegraphics[height=.80\textheight]{graphics/rosenpass-wp-key-exchange-protocol.pdf}
+\end{frame}
+
+\begin{frame}{Biscuits in the messages}
+  \includegraphics[height=.80\textheight]{graphics/rosenpass-wp-message-types.pdf}
+\end{frame}
+
+\begin{frame}{Biscuits}
+  \begin{itemize}
+    \item Assumptions such as a monotonic counter are perilous in the real world
+    \item Giving the adversary access to state is dangerous
+    \item In noise protocols the handshake state is very small (32-64 bytes)
+    \item Sending the state to the protocol peer is a viable course of action!
+    \item Formalization of State Disruption Attacks covers many attacks of this style
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Security proof of rosenpass}
+  \begin{itemize}
+    \item CryptoVerif in progress (Benjamin Lipp)
+    \item Really fast symbolic analysis using ProVerif
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Deployment}
+  \begin{itemize}
+    \item Rust implementation in userspace
+    \item Integrates with WireGuard through the PSK feature to provide Hybrid security
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Final statements}
+  \begin{itemize}
+    \item Post-quantum crypto can be deployed now
+    \item There are real complexities in protocol design
+    \item DoS-Resistance needs formalization work
+    \item Availability needs love and attention from cryptographers
+    \item Try it out! https://rosenpass.eu/
+  \end{itemize}
+\end{frame}
+
+%* Problem introduction
+%    * Post-quantum-secure authenticated key exchange
+%    * Interactive key exchange
+%    * No DH
+%    * But with KEMs
+%        * KEM is non interactive
+%        * Gives you secrecy
+%        * One-sided auth
+%* PQWG
+%    * Doing one key encapsulation in both directions
+%    * Adding an ephemeral one for forward secrecy
+%* State interruption attack
+%    * Assumption of monotonic counter is not realistic/broken/…
+%    * static keys become essentially useless
+%    * Leads to state disruption
+%    * Case: WG ohne replay protection (motivation for monotonic counter)
+%    * Case: WG mit replay protection
+%* Biscuits
+%    * No state
+%    * Provably avoids state disruption
+%    * State machine WG/PQWG: ini
+%* 
