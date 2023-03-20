@@ -6,10 +6,10 @@
 	  Andreas Hülsing, Kai-Chun Ning, Peter Schwabe, Florian Weber, and Philip R. Zimmermann. “Post-quantum WireGuard”. In: 42nd IEEE Symposium on Security and Privacy, SP 2021, San Francisco, CA, USA, 24-27 May 2021. Full version: https://eprint.iacr.org/2020/379
 	}: How to build an interactive key exchange from KEMs
   \item Contribution: State Disruption Attacks \& cookies as a defense
-  \item Contribution: New hashing \& domain separation scheme
   \item Contribution: Symbolic analysis of the Rosenpass protocol
-  \item Contribution: Reference implementation – Securing WireGuard in practice
   \item Contribution: Noise-like specification
+  \item Contribution: New hashing \& domain separation scheme
+  \item Contribution: Reference implementation – Securing WireGuard in practice
 \end{itemize}
 \end{frame}
 
@@ -110,10 +110,6 @@ Forward secrecy
 \end{itemize}
 \end{frame}
 
-\begin{frame}{New Hashing/Domain separation scheme}
-  \includegraphics[height=.9\textheight]{graphics/rosenpass-wp-hashing-tree.pdf}
-\end{frame}
-
 \begin{frame}{Security analysis of rosenpass}
   \begin{itemize}
 	\item CryptoVerif in progress
@@ -127,10 +123,15 @@ Forward secrecy
   \includegraphics[height=.9\textheight]{assets/2023-03-20-symbolic-analysis-screenshot.png}
 \end{frame}
 
-\begin{frame}{Reference implementation in rust, deploying post-quantum-secure WireGuard}
-  \includegraphics[height=.9\textheight]{assets/2023-03-20-rg-tutorial-screenshot.png}
-\end{frame}
 
 \begin{frame}{Noise-like specification (easier for engineers)}
   \includegraphics[height=.9\textheight]{graphics/rosenpass-wp-message-handling-code.pdf}
+\end{frame}
+
+\begin{frame}{New Hashing/Domain separation scheme}
+  \includegraphics[height=.9\textheight]{graphics/rosenpass-wp-hashing-tree.pdf}
+\end{frame}
+
+\begin{frame}{Reference implementation in rust, deploying post-quantum-secure WireGuard}
+  \includegraphics[height=.9\textheight]{assets/2023-03-20-rg-tutorial-screenshot.png}
 \end{frame}
