@@ -23,7 +23,7 @@
 		coordinate[pos=.2](spkr-y)
 		coordinate[pos=.6](sctr-y)
 		coordinate[pos=.76](ack-y)+(0,-5);
-	  \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+	  \draw (1,0) node[above](responder){Responder\strut}-- +(0,-5);
 
 
 		\draw[<-](spkr-y-|initiator) -- node[above]{spkr} (spkr-y-|responder);
@@ -41,7 +41,7 @@ Responder Auth
 		coordinate[pos=.6](Hspki-y)
 		coordinate[pos=.76] (scti-y)
 		coordinate[pos=.92](ack-y)+(0,-5);
-	 \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+	 \draw (1,0) node[above](responder){Responder\strut}-- +(0,-5);
 
 	 \draw[->](spki-y-|initiator) -- node[above]{spki} (spki-y-|responder);
 	 \draw[->](Hspki-y-|initiator) -- node[above] {H(spki)} (Hspki-y-|responder);
@@ -60,7 +60,7 @@ Initiator Auth
 		coordinate[pos=.6](epki-y)
 		coordinate[pos=.76] (ecti-y)
 		coordinate[pos=.92](ack-y)+(0,-5);
-	 \draw (1,0) node[above](responder){Responder}-- +(0,-5);
+	 \draw (1,0) node[above](responder){Responder\strut}-- +(0,-5);
 
 	 \draw[->](epki-y-|initiator) -- node[above]{epki} (epki-y-|responder);
 	 \draw[<-](ecti-y-|initiator) -- node[above]{ecti} (ecti-y-|responder);
@@ -81,7 +81,7 @@ Forward secrecy
 	coordinate[pos=.6](epki-y)
 	coordinate[pos=.75](scti-y)
 	coordinate[pos=.9](ack-y)+(0,-5);
-	\draw (3,0) node[above](responder){Responder}-- +(0,-5);
+	\draw (3,0) node[above](responder){Responder\strut}-- +(0,-5);
 
 	 \draw[->](spki-y-|initiator) -- node[above] {spki} (spki-y-|responder);
 	 \draw[<-](spkr-y-|initiator) -- node[above] {spkr} (spkr-y-|responder);
