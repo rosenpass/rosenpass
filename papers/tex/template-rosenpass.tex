@@ -171,7 +171,12 @@ version={4.0},
 \ExplSyntaxOn
 \SetTemplatePreamble{
 	\hypersetup{pdftitle=\inserttitle,pdfauthor=The~Rosenpass~Project}
-	\title{\vspace*{-2.5cm}\includegraphics[width=4cm]{RosenPass-Logo}}
+	\exp_args:NV\tl_if_eq:nnTF \inserttitle{Rosenpass} {
+		\title{\vspace*{-2.5cm}\includegraphics[width=4cm]{RosenPass-Logo}}
+	} {
+		\titlehead{\centerline{\includegraphics[width=4cm]{RosenPass-Logo}}}
+		\title{\inserttitle}
+	}
 	\author{\csname insertauthor\endcsname}
 	\subject{\csname insertsubject\endcsname}
 	\date{\vspace{-1cm}}
@@ -374,29 +379,28 @@ version={4.0},
 	}
 }
 }
-\makeatother
-\ExplSyntaxOff
+
 % end of namepartpicturesetup
 
 \newcommand{\captionbox}[1]{{\setlength{\fboxsep}{.5ex}\colorbox{rosenpass-gray}{#1}}}
 
-\makeatletter
 \renewenvironment{abstract}{
 	\small
 	\begin{center}\normalfont\sectfont\nobreak\abstractname\@endparpenalty\@M\end{center}%
 }{
 	\par
 }
-\makeatother
+
 
 \SetTemplateBegin{
 	\maketitle
 	\begin{abstract}
 	\noindent\csname insertabstract\endcsname
 	\end{abstract}
-	\tableofcontents
+	\bool_if:NT \g__ptxcd_tableofcontents_bool \tableofcontents
 	\clearpage
 }
+\makeatother
+\ExplSyntaxOff
 
-\SetTemplateEnd{
-}
+\SetTemplateEnd{}
