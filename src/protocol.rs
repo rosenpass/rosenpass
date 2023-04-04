@@ -432,6 +432,7 @@ impl CryptoServer {
         (0..self.biscuit_keys.len()).map(BiscuitKeyPtr)
     }
 
+    #[rustfmt::skip]
     pub fn pidm(&self) -> Result<PeerId> {
         Ok(Public::new(
             lprf::peerid()?
@@ -491,7 +492,7 @@ impl CryptoServer {
     /// handshake phase
     pub fn unregister_session_if_vacant(&mut self, id: SessionId, peer: PeerPtr) {
         match (peer.session().get(self), peer.hs().get(self)) {
-            (Some(ses), _) if ses.sidm == id => {}   /* nop */
+            (Some(ses), _) if ses.sidm == id => {}    /* nop */
             (_, Some(hs)) if hs.core.sidi == id => {} /* nop */
             _ => self.unregister_session(id),
         };
@@ -561,6 +562,7 @@ impl Peer {
         }
     }
 
+    #[rustfmt::skip]
     pub fn pidt(&self) -> Result<PeerId> {
         Ok(Public::new(
             lprf::peerid()?
@@ -1358,6 +1360,7 @@ impl CryptoServer {
 impl CryptoServer {
     /// Implementation of the cryptographic protocol using the already
     /// established primitives
+    #[rustfmt::skip]
     pub fn handle_initiation(
         &mut self,
         peer: PeerPtr,
@@ -1388,6 +1391,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
+    #[rustfmt::skip]
     pub fn handle_init_hello(
         &mut self,
         ih: InitHello<&[u8]>,
@@ -1431,6 +1435,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
+    #[rustfmt::skip]
     pub fn handle_resp_hello(
         &mut self,
         rh: RespHello<&[u8]>,
@@ -1512,6 +1517,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
+    #[rustfmt::skip]
     pub fn handle_init_conf(
         &mut self,
         ic: InitConf<&[u8]>,
