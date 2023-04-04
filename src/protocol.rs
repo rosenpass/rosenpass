@@ -1,16 +1,22 @@
+//! Module containing the cryptographic protocol implementation
+//!
 //! # Overview
 //!
-//! The most important types in this module probably are [PollResult] & [Server].
-//! Once a [Server] was created, the server is provided with new messages via
-//! the [Server::handle_msg] method. The [Server::poll] method can be used to
-//! let the server work, which will eventually yield a [PollResult]. Said
-//! [PollResult] contains prescriptive activities to be carried out.
+//! The most important types in this module probably are [PollResult]
+//! & [CryptoServer]. Once a [CryptoServer] is created, the server is
+//! provided with new messages via the [CyptoServer::handle_msg] method.
+//! The [CryptoServer::poll] method can be used to let the server work, which
+//! will eventually yield a [PollResult]. Said [PollResult] contains
+//! prescriptive activities to be carried out. [CryptoServer::osk] can than
+//! be used to extract the shared key for two peers, once a key-exchange was
+//! succesfull.
 //!
 //! TODO explain briefly the role of epki
 //!
 //! # Example Handshake
 //!
-//! TODO finish doctest example
+//! This example illustrates a minimal setup for a key-exchange between two
+//! [CryptoServer].
 //!
 //! ```
 //! use rosenpass::{
@@ -39,12 +45,23 @@
 //! a.add_peer(Some(psk.clone()), peer_b_pk).unwrap();
 //! b.add_peer(Some(psk), peer_a_pk).unwrap();
 //!
-//! // let them talk
+//! // declare buffers for message exchange
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
-//! let sz = a.initiate_handshake(PeerPtr(0), &mut *a_buf).unwrap();
-//! //let (a_key, b_key) = handle(a, &mut a_buf, sz, b, &mut b_buf).unwrap();
-//! //assert_eq!(a_key.unwrap().secret(), b_key.unwrap().secret(),
-//! //    "the key exchanged failed to establish a shared secret");
+//!
+//! // let a initiate a handshake
+//! let length = a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice());
+//!
+//! // let b respond to a and a respond to b, in two rounds
+//! for _ in 0..2 {
+//!    b.handle_msg(&a_buf[..], &mut b_buf[..]);
+//!    a.handle_msg(&b_buf[..], &mut a_buf[..]);
+//! }
+//!
+//! // all done! Extract the shared keys and ensure they are identical
+//! let a_key = a.osk(PeerPtr(0));
+//! let b_key = b.osk(PeerPtr(0));
+//! assert_eq!(a_key.unwrap().secret(), b_key.unwrap().secret(),
+//!     "the key exchanged failed to establish a shared secret");
 //! # Ok(())
 //! # }
 //! ```
@@ -138,7 +155,17 @@ pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
 
 pub type PeerNo = usize;
 
-/// Implementation of the actual cryptographic server
+/// Implementation of the cryptographic protocol
+///
+/// The scope of this is:
+///
+/// - logical protocol flow
+/// - timeout handling
+/// - key exchange
+///
+/// Not in scope of this struct:
+///
+/// - handling of external IO (like sockets etc.)
 #[derive(Debug)]
 pub struct CryptoServer {
     pub timebase: Timebase,
@@ -1347,6 +1374,9 @@ impl HandshakeState {
 }
 
 impl CryptoServer {
+    /// Get the shared key that was established with given peer
+    ///
+    /// Fail if no session is available with the peer
     pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
         let session = peer
             .session()
