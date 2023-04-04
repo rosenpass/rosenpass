@@ -4,8 +4,8 @@ use rosenpass::{
     attempt,
     coloring::{Public, Secret},
     multimatch,
-    pqkem::{SKEM, KEM},
-    protocol::{SPk, SSk, MsgBuf, PeerPtr, Server as CryptoServer, SymKey, Timing},
+    pqkem::{KEM, SKEM},
+    protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     sodium::sodium_init,
     util::{b64_reader, b64_writer, fmt_b64},
 };

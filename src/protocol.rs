@@ -15,7 +15,7 @@
 //! ```
 //! use rosenpass::{
 //!     pqkem::{SKEM, KEM},
-//!     protocol::{SSk, SPk, MsgBuf, PeerPtr, Server, SymKey},
+//!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> Result<(), rosenpass::RosenpassError> {
 //!
@@ -32,8 +32,8 @@
 //!
 //! // initialize server and a pre-shared key
 //! let psk = SymKey::random();
-//! let mut a = Server::new(peer_a_sk, peer_a_pk.clone());
-//! let mut b = Server::new(peer_b_sk, peer_b_pk.clone());
+//! let mut a = CryptoServer::new(peer_a_sk, peer_a_pk.clone());
+//! let mut b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 //!
 //! // introduce peers to each other
 //! a.add_peer(Some(psk.clone()), peer_b_pk).unwrap();
@@ -140,7 +140,7 @@ pub type PeerNo = usize;
 
 /// Implementation of the actual cryptographic server
 #[derive(Debug)]
-pub struct Server {
+pub struct CryptoServer {
     pub timebase: Timebase,
 
     // Server Crypto
@@ -292,11 +292,11 @@ enum Lifecycle {
 /// Implemented for information (secret and public) that has an expire date
 trait Mortal {
     /// Time of creation, when [Lifecycle::Void] -> [Lifecycle::Young]
-    fn created_at(&self, srv: &Server) -> Option<Timing>;
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing>;
     /// The time where [Lifecycle::Young] -> [Lifecycle::Retired]
-    fn retire_at(&self, srv: &Server) -> Option<Timing>;
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing>;
     /// The time where [Lifecycle::Retired] -> [Lifecycle::Dead]
-    fn die_at(&self, srv: &Server) -> Option<Timing>;
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing>;
 }
 
 // BUSINESS LOGIC DATA STRUCTURES ////////////////
@@ -318,11 +318,11 @@ pub struct SessionPtr(pub usize);
 pub struct BiscuitKeyPtr(pub usize);
 
 impl PeerPtr {
-    pub fn get<'a>(&self, srv: &'a Server) -> &'a Peer {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a Peer {
         &srv.peers[self.0]
     }
 
-    pub fn get_mut<'a>(&self, srv: &'a mut Server) -> &'a mut Peer {
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut Peer {
         &mut srv.peers[self.0]
     }
 
@@ -336,11 +336,11 @@ impl PeerPtr {
 }
 
 impl IniHsPtr {
-    pub fn get<'a>(&self, srv: &'a Server) -> &'a Option<InitiatorHandshake> {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a Option<InitiatorHandshake> {
         &srv.peers[self.0].handshake
     }
 
-    pub fn get_mut<'a>(&self, srv: &'a mut Server) -> &'a mut Option<InitiatorHandshake> {
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut Option<InitiatorHandshake> {
         &mut srv.peers[self.0].handshake
     }
 
@@ -350,7 +350,7 @@ impl IniHsPtr {
 
     pub fn insert<'a>(
         &self,
-        srv: &'a mut Server,
+        srv: &'a mut CryptoServer,
         hs: InitiatorHandshake,
     ) -> Result<&'a mut InitiatorHandshake> {
         srv.register_session(hs.core.sidi, self.peer())?;
@@ -359,7 +359,7 @@ impl IniHsPtr {
         Ok(self.peer().get_mut(srv).handshake.insert(hs))
     }
 
-    pub fn take(&self, srv: &mut Server) -> Option<InitiatorHandshake> {
+    pub fn take(&self, srv: &mut CryptoServer) -> Option<InitiatorHandshake> {
         let r = self.peer().get_mut(srv).handshake.take();
         if let Some(ref stale) = r {
             srv.unregister_session_if_vacant(stale.core.sidi, self.peer());
@@ -369,11 +369,11 @@ impl IniHsPtr {
 }
 
 impl SessionPtr {
-    pub fn get<'a>(&self, srv: &'a Server) -> &'a Option<Session> {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a Option<Session> {
         &srv.peers[self.0].session
     }
 
-    pub fn get_mut<'a>(&self, srv: &'a mut Server) -> &'a mut Option<Session> {
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut Option<Session> {
         &mut srv.peers[self.0].session
     }
 
@@ -381,13 +381,13 @@ impl SessionPtr {
         PeerPtr(self.0)
     }
 
-    pub fn insert<'a>(&self, srv: &'a mut Server, ses: Session) -> Result<&'a mut Session> {
+    pub fn insert<'a>(&self, srv: &'a mut CryptoServer, ses: Session) -> Result<&'a mut Session> {
         self.take(srv);
         srv.register_session(ses.sidm, self.peer())?;
         Ok(self.peer().get_mut(srv).session.insert(ses))
     }
 
-    pub fn take(&self, srv: &mut Server) -> Option<Session> {
+    pub fn take(&self, srv: &mut CryptoServer) -> Option<Session> {
         let r = self.peer().get_mut(srv).session.take();
         if let Some(ref stale) = r {
             srv.unregister_session_if_vacant(stale.sidm, self.peer());
@@ -397,23 +397,23 @@ impl SessionPtr {
 }
 
 impl BiscuitKeyPtr {
-    pub fn get<'a>(&self, srv: &'a Server) -> &'a BiscuitKey {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a BiscuitKey {
         &srv.biscuit_keys[self.0]
     }
 
-    pub fn get_mut<'a>(&self, srv: &'a mut Server) -> &'a mut BiscuitKey {
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut BiscuitKey {
         &mut srv.biscuit_keys[self.0]
     }
 }
 
 // DATABASE //////////////////////////////////////
 
-impl Server {
+impl CryptoServer {
     /// Initiate a new [Server] based on a secret key (`sk`) and a public key
     /// (`pk`)
-    pub fn new(sk: SSk, pk: SPk) -> Server {
+    pub fn new(sk: SSk, pk: SPk) -> CryptoServer {
         let tb = Timebase::default();
-        Server {
+        CryptoServer {
             sskm: sk,
             spkm: pk,
 
@@ -614,35 +614,35 @@ impl BiscuitKey {
 // LIFECYCLE MANAGEMENT //////////////////////////
 
 impl Mortal for IniHsPtr {
-    fn created_at(&self, srv: &Server) -> Option<Timing> {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.get(srv).as_ref().map(|hs| hs.created_at)
     }
 
-    fn retire_at(&self, srv: &Server) -> Option<Timing> {
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.die_at(srv)
     }
 
-    fn die_at(&self, srv: &Server) -> Option<Timing> {
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + REJECT_AFTER_TIME)
     }
 }
 
 impl Mortal for SessionPtr {
-    fn created_at(&self, srv: &Server) -> Option<Timing> {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.get(srv).as_ref().map(|p| p.created_at)
     }
 
-    fn retire_at(&self, srv: &Server) -> Option<Timing> {
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + REKEY_AFTER_TIME)
     }
 
-    fn die_at(&self, srv: &Server) -> Option<Timing> {
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + REJECT_AFTER_TIME)
     }
 }
 
 impl Mortal for BiscuitKeyPtr {
-    fn created_at(&self, srv: &Server) -> Option<Timing> {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         let t = self.get(srv).created_at;
         if t < 0.0 {
             None
@@ -651,11 +651,11 @@ impl Mortal for BiscuitKeyPtr {
         }
     }
 
-    fn retire_at(&self, srv: &Server) -> Option<Timing> {
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + BISCUIT_EPOCH)
     }
 
-    fn die_at(&self, srv: &Server) -> Option<Timing> {
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.retire_at(srv).map(|t| t + BISCUIT_EPOCH)
     }
 }
@@ -663,21 +663,21 @@ impl Mortal for BiscuitKeyPtr {
 /// Trait extension to the [Mortal] Trait, that enables nicer access to timing
 /// information
 trait MortalExt: Mortal {
-    fn life_left(&self, srv: &Server) -> Option<Timing>;
-    fn youth_left(&self, srv: &Server) -> Option<Timing>;
-    fn lifecycle(&self, srv: &Server) -> Lifecycle;
+    fn life_left(&self, srv: &CryptoServer) -> Option<Timing>;
+    fn youth_left(&self, srv: &CryptoServer) -> Option<Timing>;
+    fn lifecycle(&self, srv: &CryptoServer) -> Lifecycle;
 }
 
 impl<T: Mortal> MortalExt for T {
-    fn life_left(&self, srv: &Server) -> Option<Timing> {
+    fn life_left(&self, srv: &CryptoServer) -> Option<Timing> {
         self.die_at(srv).map(|t| t - srv.timebase.now())
     }
 
-    fn youth_left(&self, srv: &Server) -> Option<Timing> {
+    fn youth_left(&self, srv: &CryptoServer) -> Option<Timing> {
         self.retire_at(srv).map(|t| t - srv.timebase.now())
     }
 
-    fn lifecycle(&self, srv: &Server) -> Lifecycle {
+    fn lifecycle(&self, srv: &CryptoServer) -> Lifecycle {
         match (self.youth_left(srv), self.life_left(srv)) {
             (_, Some(t)) if has_happened(t, 0.0) => Lifecycle::Dead,
             (Some(t), _) if has_happened(t, 0.0) => Lifecycle::Retired,
@@ -689,7 +689,7 @@ impl<T: Mortal> MortalExt for T {
 
 // MESSAGE HANDLING //////////////////////////////
 
-impl Server {
+impl CryptoServer {
     /// Initiate a new handshake, put it to the `tx_buf` __and__ to the
     /// retransmission storage
     // NOTE retransmission? yes if initiator, no if responder
@@ -711,7 +711,7 @@ pub struct HandleMsgResult {
     pub resp: Option<usize>,
 }
 
-impl Server {
+impl CryptoServer {
     /// Repsond to an incoming message
     ///
     /// # Overview
@@ -929,11 +929,11 @@ impl PollResult {
         }
     }
 
-    pub fn poll_child<P: Pollable>(&self, srv: &mut Server, p: &P) -> Result<PollResult> {
+    pub fn poll_child<P: Pollable>(&self, srv: &mut CryptoServer, p: &P) -> Result<PollResult> {
         self.try_fold_with(|| p.poll(srv))
     }
 
-    pub fn poll_children<P, I>(&self, srv: &mut Server, iter: I) -> Result<PollResult>
+    pub fn poll_children<P, I>(&self, srv: &mut CryptoServer, iter: I) -> Result<PollResult>
     where
         P: Pollable,
         I: Iterator<Item = P>,
@@ -999,10 +999,10 @@ pub fn void_poll<T, F: FnOnce() -> T>(f: F) -> impl FnOnce() -> PollResult {
 }
 
 pub trait Pollable {
-    fn poll(&self, srv: &mut Server) -> Result<PollResult>;
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult>;
 }
 
-impl Server {
+impl CryptoServer {
     /// Implements something like [Pollable::poll] for the server, with a
     /// notable difference: since `self` already is the server, the signature
     /// has to be different; `self` must be a `&mut` and already is a borrow to
@@ -1020,7 +1020,7 @@ impl Server {
 }
 
 impl Pollable for BiscuitKeyPtr {
-    fn poll(&self, srv: &mut Server) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
         begin_poll()
             .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale biscuits
             .ok()
@@ -1028,7 +1028,7 @@ impl Pollable for BiscuitKeyPtr {
 }
 
 impl Pollable for PeerPtr {
-    fn poll(&self, srv: &mut Server) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
         let (ses, hs) = (self.session(), self.hs());
         begin_poll()
             .sched(hs.life_left(srv), void_poll(|| hs.take(srv))) // Silently erase old handshakes
@@ -1056,7 +1056,7 @@ impl Pollable for PeerPtr {
 }
 
 impl Pollable for IniHsPtr {
-    fn poll(&self, srv: &mut Server) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
         begin_poll().try_sched(self.retransmission_in(srv), || {
             // Registering retransmission even if app does not retransmit.
             // This explicitly permits applications to ignore the event.
@@ -1068,14 +1068,14 @@ impl Pollable for IniHsPtr {
 
 // MESSAGE RETRANSMISSION ////////////////////////
 
-impl Server {
+impl CryptoServer {
     pub fn retransmit_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
         peer.hs().apply_retransmission(self, tx_buf)
     }
 }
 
 impl IniHsPtr {
-    pub fn store_msg_for_retransmission(&self, srv: &mut Server, msg: &[u8]) -> Result<()> {
+    pub fn store_msg_for_retransmission(&self, srv: &mut CryptoServer, msg: &[u8]) -> Result<()> {
         let ih = self
             .get_mut(srv)
             .as_mut()
@@ -1087,7 +1087,7 @@ impl IniHsPtr {
         Ok(())
     }
 
-    pub fn apply_retransmission(&self, srv: &mut Server, tx_buf: &mut [u8]) -> Result<usize> {
+    pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> Result<usize> {
         let ih = self
             .get_mut(srv)
             .as_mut()
@@ -1096,7 +1096,7 @@ impl IniHsPtr {
         Ok(ih.tx_len)
     }
 
-    pub fn register_retransmission(&self, srv: &mut Server) -> Result<()> {
+    pub fn register_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
         let tb = srv.timebase.clone();
         let ih = self
             .get_mut(srv)
@@ -1116,7 +1116,7 @@ impl IniHsPtr {
         Ok(())
     }
 
-    pub fn retransmission_in(&self, srv: &mut Server) -> Option<Timing> {
+    pub fn retransmission_in(&self, srv: &mut CryptoServer) -> Option<Timing> {
         self.get(srv)
             .as_ref()
             .map(|hs| hs.tx_retry_at - srv.timebase.now())
@@ -1130,7 +1130,7 @@ where
     M: LenseView,
 {
     /// Calculate the message authentication code (`mac`)
-    pub fn seal(&mut self, peer: PeerPtr, srv: &Server) -> Result<()> {
+    pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         let mac = lprf::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(self.until_mac())?;
@@ -1145,14 +1145,14 @@ where
     M: LenseView,
 {
     /// Check the message authentication code
-    pub fn check_seal(&self, srv: &Server) -> Result<bool> {
+    pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
         Ok(sodium_memcmp(self.mac(), &expected.into_value()[..16]))
     }
 }
 
 impl InitiatorHandshake {
-    pub fn zero_with_timestamp(srv: &Server) -> Self {
+    pub fn zero_with_timestamp(srv: &CryptoServer) -> Self {
         InitiatorHandshake {
             created_at: srv.timebase.now(),
             next: HandshakeStateMachine::RespHello,
@@ -1227,7 +1227,7 @@ impl HandshakeState {
 
     pub fn store_biscuit(
         &mut self,
-        srv: &mut Server,
+        srv: &mut CryptoServer,
         peer: PeerPtr,
         biscuit_ct: &mut [u8],
     ) -> Result<&mut Self> {
@@ -1270,7 +1270,7 @@ impl HandshakeState {
     /// Takes an encrypted biscuit and tries to decrypt the contained
     /// information
     pub fn load_biscuit(
-        srv: &Server,
+        srv: &CryptoServer,
         biscuit_ct: &[u8],
         sidi: SessionId,
         sidr: SessionId,
@@ -1321,7 +1321,7 @@ impl HandshakeState {
         Ok((peer, no, hs))
     }
 
-    pub fn enter_live(self, srv: &Server, role: HandshakeRole) -> Result<Session> {
+    pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole) -> Result<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
         let tki = ck.mix(&lprf::ini_enc()?)?.into_secret();
         let tkr = ck.mix(&lprf::res_enc()?)?.into_secret();
@@ -1344,7 +1344,7 @@ impl HandshakeState {
     }
 }
 
-impl Server {
+impl CryptoServer {
     pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
         let session = peer
             .session()
@@ -1355,7 +1355,7 @@ impl Server {
     }
 }
 
-impl Server {
+impl CryptoServer {
     /// Implementation of the cryptographic protocol using the already
     /// established primitives
     pub fn handle_initiation(
