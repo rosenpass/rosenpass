@@ -1,3 +1,5 @@
+//! Helper functions and macros
+
 use base64::{
     display::Base64Display as B64Display, read::DecoderReader as B64Reader,
     write::EncoderWriter as B64Writer,
@@ -17,8 +19,8 @@ pub fn xor_into(a: &mut [u8], b: &[u8]) {
     }
 }
 
+/// Concatenate two byte arrays
 // TODO: Zeroize result?
-/** Concatenate two byte arrays */
 #[macro_export]
 macro_rules! cat {
     ($len:expr; $($toks:expr),+) => {{
@@ -40,9 +42,10 @@ pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: 
     dst.borrow_mut().copy_from_slice(src.borrow());
 }
 
-pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, to: &mut T) {
+/// Copy from `src` to `dst`. If `src` and `dst` are not of equal length, copy as many bytes as possible.
+pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
     let src = src.borrow();
-    let dst = to.borrow_mut();
+    let dst = dst.borrow_mut();
     let len = min(src.len(), dst.len());
     dst[..len].copy_from_slice(&src[..len]);
 }

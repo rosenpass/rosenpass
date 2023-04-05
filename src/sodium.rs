@@ -1,3 +1,5 @@
+//! Bindings and helpers for accessing libsodium functions
+
 use crate::util::*;
 use anyhow::{ensure, Result};
 use libsodium_sys as libsodium;

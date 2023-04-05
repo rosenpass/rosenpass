@@ -1,3 +1,4 @@
+//! Implementation of the tree-like structure used for the label derivation in [labeled_prf](crate::labeled_prf)
 use {
     crate::{
         coloring::Secret,

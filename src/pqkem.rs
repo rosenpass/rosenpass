@@ -1,5 +1,6 @@
-//! This module contains Traits and implementations for Key Encapsulation
-//! Mechanisms (KEM). KEMs are the interface provided by almost all post-quantum
+//! Traits and implementations for Key Encapsulation Mechanisms (KEMs)
+//!
+//! KEMs are the interface provided by almost all post-quantum
 //! secure key exchange mechanisms.
 //!
 //! Conceptually KEMs are akin to public-key encryption, but instead of encrypting
@@ -7,7 +8,7 @@
 //!
 //! encapsulation.
 //! The [KEM] Trait describes the basic API offered by a Key Encapsulation
-//! Mechanism. Two implementations for it are provided, [SKEM] and [EKEM].
+//! Mechanism. Two implementations for it are provided, [StaticKEM] and [EphemeralKEM].
 
 use crate::{RosenpassError, RosenpassMaybeError};
 
