@@ -4,7 +4,7 @@ use rosenpass::{
     attempt,
     coloring::{Public, Secret},
     multimatch,
-    pqkem::{KEM, SKEM},
+    pqkem::{StaticKEM, KEM},
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     sodium::sodium_init,
     util::{b64_reader, b64_writer, fmt_b64},
@@ -313,7 +313,7 @@ pub fn cmd_keygen(mut args: ArgsWalker) -> Result<()> {
     // Cmd
     let (mut ssk, mut spk) = (SSk::random(), SPk::random());
     unsafe {
-        SKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
+        StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
         ssk.store_secret(sf.unwrap())?;
         spk.store_secret(pf.unwrap())?;
     }

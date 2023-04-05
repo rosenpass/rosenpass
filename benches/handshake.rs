@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rosenpass::{
-    pqkem::{CCAKEM, KEM},
+    pqkem::{EphemeralKEM, CCAKEM},
     protocol::{CcaPk, CcaSk, CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SymKey},
     sodium::sodium_init,
 };

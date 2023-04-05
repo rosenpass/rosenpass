@@ -50,7 +50,7 @@ pub trait KEM {
 /// Classic McEliece is chosen because of its high security margin and its small
 /// ciphertexts. The public keys are humongous, but (being static keys) the are never transmitted over
 /// the wire so this is not a big problem.
-pub struct SKEM;
+pub struct StaticKEM;
 
 /// # Safety
 ///
@@ -65,7 +65,7 @@ pub struct SKEM;
 /// to only check that the buffers are big enough, allowing them to be even
 /// bigger. However, from a correctness point of view it does not make sense to
 /// allow bigger buffers.
-impl KEM for SKEM {
+impl KEM for StaticKEM {
     const SK_LEN: usize = oqs_sys::kem::OQS_KEM_classic_mceliece_460896_length_secret_key as usize;
     const PK_LEN: usize = oqs_sys::kem::OQS_KEM_classic_mceliece_460896_length_public_key as usize;
     const CT_LEN: usize = oqs_sys::kem::OQS_KEM_classic_mceliece_460896_length_ciphertext as usize;
@@ -119,7 +119,7 @@ impl KEM for SKEM {
 /// wireguard paper claimed that CPA security would be sufficient. Nonetheless we choose kyber
 /// which provides CCA security since there are no publicly vetted KEMs out there which provide
 /// only CPA security.
-pub struct EKEM;
+pub struct EphemeralKEM;
 
 /// # Safety
 ///
@@ -134,7 +134,7 @@ pub struct EKEM;
 /// to only check that the buffers are big enough, allowing them to be even
 /// bigger. However, from a correctness point of view it does not make sense to
 /// allow bigger buffers.
-impl KEM for EKEM {
+impl KEM for EphemeralKEM {
     const SK_LEN: usize = oqs_sys::kem::OQS_KEM_kyber_512_length_secret_key as usize;
     const PK_LEN: usize = oqs_sys::kem::OQS_KEM_kyber_512_length_public_key as usize;
     const CT_LEN: usize = oqs_sys::kem::OQS_KEM_kyber_512_length_ciphertext as usize;

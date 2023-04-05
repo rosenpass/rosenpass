@@ -20,7 +20,7 @@
 //!
 //! ```
 //! use rosenpass::{
-//!     pqkem::{SKEM, KEM},
+//!     pqkem::{StaticKEM, KEM},
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> Result<(), rosenpass::RosenpassError> {
@@ -30,11 +30,11 @@
 //!
 //! // initialize public and private key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
-//! SKEM::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
+//! StaticKEM::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
 //!
 //! // ... and for peer b
 //! let (mut peer_b_sk, mut peer_b_pk) = (SSk::zero(), SPk::zero());
-//! SKEM::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
+//! StaticKEM::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
 //!
 //! // initialize server and a pre-shared key
 //! let psk = SymKey::random();
@@ -137,10 +137,10 @@ pub fn has_happened(ev: Timing, now: Timing) -> bool {
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 
-pub type SPk = Secret<{ SKEM::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
-pub type SSk = Secret<{ SKEM::SK_LEN }>;
-pub type EPk = Public<{ EKEM::PK_LEN }>;
-pub type ESk = Secret<{ EKEM::SK_LEN }>;
+pub type SPk = Secret<{ StaticKEM::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
+pub type SSk = Secret<{ StaticKEM::SK_LEN }>;
+pub type EPk = Public<{ EphemeralKEM::PK_LEN }>;
+pub type ESk = Secret<{ EphemeralKEM::SK_LEN }>;
 
 pub type SymKey = Secret<KEY_SIZE>;
 pub type SymHash = Public<KEY_SIZE>;
@@ -1401,10 +1401,10 @@ impl CryptoServer {
         hs.core.init(peer.get(self).spkt.secret())?;        // IHI1
         hs.core.sidi.randomize();                           // IHI2
         ih.sidi_mut().copy_from_slice(&hs.core.sidi.value);
-        EKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?; // IHI3
+        EphemeralKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?; // IHI3
         ih.epki_mut().copy_from_slice(&hs.epki.value);
         hs.core.mix(ih.sidi())?.mix(ih.epki())?;            // IHI4
-        hs.core.encaps_and_mix::<SKEM, { SKEM::SHK_LEN }>(  // IHI5
+        hs.core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(  // IHI5
             ih.sctr_mut(),
             peer.get(self).spkt.secret(),
         )?;
@@ -1433,7 +1433,7 @@ impl CryptoServer {
 
         core.init(self.spkm.secret())?;                    // IHR1
         core.mix(ih.sidi())?.mix(ih.epki())?;              // IHR4
-        core.decaps_and_mix::<SKEM, { SKEM::SHK_LEN }>(    // IHR5
+        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(    // IHR5
             self.sskm.secret(),
             self.spkm.secret(),
             ih.sctr(),
@@ -1453,9 +1453,9 @@ impl CryptoServer {
         rh.sidi_mut().copy_from_slice(core.sidi.as_ref());
         rh.sidr_mut().copy_from_slice(core.sidr.as_ref());
         core.mix(rh.sidr())?.mix(rh.sidi())?;              // RHR3
-        core.encaps_and_mix::<EKEM, { EKEM::SHK_LEN }>(    // RHR4
+        core.encaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(    // RHR4
             rh.ecti_mut(), ih.epki())?;
-        core.encaps_and_mix::<SKEM, { SKEM::SHK_LEN }>(    // RHR5
+        core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(    // RHR5
             rh.scti_mut(),
             peer.get(self).spkt.secret(),
         )?;
@@ -1513,12 +1513,12 @@ impl CryptoServer {
         //       to save us from the repetitive secret unwrapping
 
         core.mix(rh.sidr())?.mix(rh.sidi())?;             // RHI3
-        core.decaps_and_mix::<EKEM, { EKEM::SHK_LEN }>(   // RHI4
+        core.decaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(   // RHI4
             hs!().eski.secret(),
             &*hs!().epki,
             rh.ecti(),
         )?;
-        core.decaps_and_mix::<SKEM, { SKEM::SHK_LEN }>(   // RHI5
+        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(   // RHI5
             self.sskm.secret(),
             self.spkm.secret(),
             rh.scti(),
