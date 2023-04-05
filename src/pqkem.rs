@@ -143,8 +143,7 @@ impl KEM for EphemeralKEM {
         RosenpassError::check_buffer_size(sk.len(), Self::SK_LEN)?;
         RosenpassError::check_buffer_size(pk.len(), Self::PK_LEN)?;
         unsafe {
-            oqs_sys::kem::OQS_KEM_kyber_512_keypair(pk.as_mut_ptr(), sk.as_mut_ptr())
-                .to_rg_error()
+            oqs_sys::kem::OQS_KEM_kyber_512_keypair(pk.as_mut_ptr(), sk.as_mut_ptr()).to_rg_error()
         }
     }
     fn encaps(shk: &mut [u8], ct: &mut [u8], pk: &[u8]) -> Result<(), RosenpassError> {
@@ -152,12 +151,8 @@ impl KEM for EphemeralKEM {
         RosenpassError::check_buffer_size(ct.len(), Self::CT_LEN)?;
         RosenpassError::check_buffer_size(pk.len(), Self::PK_LEN)?;
         unsafe {
-            oqs_sys::kem::OQS_KEM_kyber_512_encaps(
-                ct.as_mut_ptr(),
-                shk.as_mut_ptr(),
-                pk.as_ptr(),
-            )
-            .to_rg_error()
+            oqs_sys::kem::OQS_KEM_kyber_512_encaps(ct.as_mut_ptr(), shk.as_mut_ptr(), pk.as_ptr())
+                .to_rg_error()
         }
     }
     fn decaps(shk: &mut [u8], sk: &[u8], ct: &[u8]) -> Result<(), RosenpassError> {
@@ -165,12 +160,8 @@ impl KEM for EphemeralKEM {
         RosenpassError::check_buffer_size(sk.len(), Self::SK_LEN)?;
         RosenpassError::check_buffer_size(ct.len(), Self::CT_LEN)?;
         unsafe {
-            oqs_sys::kem::OQS_KEM_kyber_512_decaps(
-                shk.as_mut_ptr(),
-                ct.as_ptr(),
-                sk.as_ptr(),
-            )
-            .to_rg_error()
+            oqs_sys::kem::OQS_KEM_kyber_512_decaps(shk.as_mut_ptr(), ct.as_ptr(), sk.as_ptr())
+                .to_rg_error()
         }
     }
 }

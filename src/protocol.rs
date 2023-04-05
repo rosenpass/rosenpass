@@ -1390,7 +1390,6 @@ impl CryptoServer {
 impl CryptoServer {
     /// Implementation of the cryptographic protocol using the already
     /// established primitives
-    #[rustfmt::skip]
     pub fn handle_initiation(
         &mut self,
         peer: PeerPtr,
@@ -1398,30 +1397,45 @@ impl CryptoServer {
     ) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
 
-        hs.core.init(peer.get(self).spkt.secret())?;        // IHI1
-        hs.core.sidi.randomize();                           // IHI2
+        // IHI1
+        hs.core.init(peer.get(self).spkt.secret())?;
+
+        // IHI2
+        hs.core.sidi.randomize();
         ih.sidi_mut().copy_from_slice(&hs.core.sidi.value);
-        EphemeralKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?; // IHI3
+
+        // IHI3
+        EphemeralKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         ih.epki_mut().copy_from_slice(&hs.epki.value);
-        hs.core.mix(ih.sidi())?.mix(ih.epki())?;            // IHI4
-        hs.core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(  // IHI5
-            ih.sctr_mut(),
-            peer.get(self).spkt.secret(),
-        )?;
-        hs.core                                             // IHI6
+
+        // IHI4
+        hs.core.mix(ih.sidi())?.mix(ih.epki())?;
+
+        // IHI5
+        hs.core
+            .encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+                ih.sctr_mut(),
+                peer.get(self).spkt.secret(),
+            )?;
+
+        // IHI6
+        hs.core
             .encrypt_and_mix(ih.pidic_mut(), self.pidm()?.as_ref())?;
-        hs.core                                             // IHI7
+
+        // IHI7
+        hs.core
             .mix(self.spkm.secret())?
             .mix(peer.get(self).psk.secret())?;
-        hs.core.encrypt_and_mix(ih.auth_mut(), &NOTHING)?;  // IHI8
 
-        // Update the handshake hash last (not changing any state on prior error)
+        // IHI8
+        hs.core.encrypt_and_mix(ih.auth_mut(), &NOTHING)?;
+
+        // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
 
         Ok(peer)
     }
 
-    #[rustfmt::skip]
     pub fn handle_init_hello(
         &mut self,
         ih: InitHello<&[u8]>,
@@ -1431,47 +1445,67 @@ impl CryptoServer {
 
         core.sidi = SessionId::from_slice(ih.sidi());
 
-        core.init(self.spkm.secret())?;                    // IHR1
-        core.mix(ih.sidi())?.mix(ih.epki())?;              // IHR4
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(    // IHR5
+        // IHR1
+        core.init(self.spkm.secret())?;
+
+        // IHR4
+        core.mix(ih.sidi())?.mix(ih.epki())?;
+
+        // IHR5
+        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             ih.sctr(),
         )?;
 
-        let peer = {                                       // IHR6
+        // IHR6
+        let peer = {
             let mut peerid = PeerId::zero();
             core.decrypt_and_mix(&mut *peerid, ih.pidic())?;
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
         };
-        core.mix(peer.get(self).spkt.secret())?            // IHR7
-            .mix(peer.get(self).psk.secret())?;
-        core.decrypt_and_mix(&mut [0u8; 0], ih.auth())?;   // IHR8
 
-        core.sidr.randomize();                             // RHR1
+        // IHR7
+        core.mix(peer.get(self).spkt.secret())?
+            .mix(peer.get(self).psk.secret())?;
+
+        // IHR8
+        core.decrypt_and_mix(&mut [0u8; 0], ih.auth())?;
+
+        // RHR1
+        core.sidr.randomize();
         rh.sidi_mut().copy_from_slice(core.sidi.as_ref());
         rh.sidr_mut().copy_from_slice(core.sidr.as_ref());
-        core.mix(rh.sidr())?.mix(rh.sidi())?;              // RHR3
-        core.encaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(    // RHR4
-            rh.ecti_mut(), ih.epki())?;
-        core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(    // RHR5
+
+        // RHR3
+        core.mix(rh.sidr())?.mix(rh.sidi())?;
+
+        // RHR4
+        core.encaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
+
+        // RHR5
+        core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
             rh.scti_mut(),
             peer.get(self).spkt.secret(),
         )?;
-        core.store_biscuit(self, peer, rh.biscuit_mut())?; // RHR6
-        core.encrypt_and_mix(rh.auth_mut(), &NOTHING)?;    // RHR7
+
+        // RHR6
+        core.store_biscuit(self, peer, rh.biscuit_mut())?;
+
+        // RHR7
+        core.encrypt_and_mix(rh.auth_mut(), &NOTHING)?;
 
         Ok(peer)
     }
 
-    #[rustfmt::skip]
     pub fn handle_resp_hello(
         &mut self,
         rh: RespHello<&[u8]>,
         mut ic: InitConf<&mut [u8]>,
     ) -> Result<PeerPtr> {
-        let peer = self // RHI2
+        // RHI2
+        let peer = self
             .lookup_handshake(SessionId::from_slice(rh.sidi()))
             .with_context(|| {
                 format!(
@@ -1512,19 +1546,28 @@ impl CryptoServer {
         // TODO: decaps_and_mix should take Secret<> directly
         //       to save us from the repetitive secret unwrapping
 
-        core.mix(rh.sidr())?.mix(rh.sidi())?;             // RHI3
-        core.decaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(   // RHI4
+        // RHI3
+        core.mix(rh.sidr())?.mix(rh.sidi())?;
+
+        // RHI4
+        core.decaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(
             hs!().eski.secret(),
             &*hs!().epki,
             rh.ecti(),
         )?;
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(   // RHI5
+
+        // RHI5
+        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             rh.scti(),
         )?;
-        core.mix(rh.biscuit())?;                         // RHI6
-        core.decrypt_and_mix(&mut [0u8; 0], rh.auth())?; // RHI7
+
+        // RHI6
+        core.mix(rh.biscuit())?;
+
+        // RHI7
+        core.decrypt_and_mix(&mut [0u8; 0], rh.auth())?;
 
         // TODO: We should just authenticate the entire network package up to the auth
         // tag as a pattern instead of mixing in fields separately
@@ -1532,14 +1575,19 @@ impl CryptoServer {
         ic.sidi_mut().copy_from_slice(rh.sidi());
         ic.sidr_mut().copy_from_slice(rh.sidr());
 
-        core.mix(ic.sidi())?.mix(ic.sidr())?;           // ICI3
+        // ICI3
+        core.mix(ic.sidi())?.mix(ic.sidr())?;
         ic.biscuit_mut().copy_from_slice(rh.biscuit());
-        core.encrypt_and_mix(ic.auth_mut(), &NOTHING)?; // ICI4
+
+        // ICI4
+        core.encrypt_and_mix(ic.auth_mut(), &NOTHING)?;
 
         // Split() – We move the secrets into the session; we do not
         // delete the InitiatorHandshake, just clear it's secrets because
         // we still need it for InitConf message retransmission to function.
-        peer.session()                                 // ICI7
+
+        // ICI7
+        peer.session()
             .insert(self, core.enter_live(self, HandshakeRole::Initiator)?)?;
         hs_mut!().core.erase();
         hs_mut!().next = HandshakeStateMachine::RespConf;
@@ -1547,26 +1595,36 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    #[rustfmt::skip]
     pub fn handle_init_conf(
         &mut self,
         ic: InitConf<&[u8]>,
         mut rc: EmptyData<&mut [u8]>,
     ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
-        let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(   // ICR1
+        // ICR1
+        let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
             self,
             ic.biscuit(),
             SessionId::from_slice(ic.sidi()),
             SessionId::from_slice(ic.sidr()),
         )?;
-        core.encrypt_and_mix(&mut [0u8; AEAD_TAG_LEN], &NOTHING)?; // ICR2
-        core.mix(ic.sidi())?.mix(ic.sidr())?;                      // ICR3
-        core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;           // ICR4
 
-        if sodium_bigint_cmp(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 { // ICR5
-            peer.get_mut(self).biscuit_used = biscuit_no;          // ICR6
-            peer.session()                                         // ICR7
+        // ICR2
+        core.encrypt_and_mix(&mut [0u8; AEAD_TAG_LEN], &NOTHING)?;
+
+        // ICR3
+        core.mix(ic.sidi())?.mix(ic.sidr())?;
+
+        // ICR4
+        core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
+
+        // ICR5
+        if sodium_bigint_cmp(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+            // ICR6
+            peer.get_mut(self).biscuit_used = biscuit_no;
+
+            // ICR7
+            peer.session()
                 .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
         }
 

@@ -3,6 +3,7 @@ pub mod util;
 #[macro_use]
 pub mod sodium;
 pub mod coloring;
+#[rustfmt::skip]
 pub mod labeled_prf;
 pub mod msgs;
 pub mod pqkem;

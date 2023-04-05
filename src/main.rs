@@ -440,12 +440,7 @@ pub fn cmd_exchange(mut args: ArgsWalker) -> Result<()> {
 }
 
 impl AppServer {
-    pub fn new<A: ToSocketAddrs>(
-        sk: SSk,
-        pk: SPk,
-        addr: A,
-        verbosity: Verbosity,
-    ) -> Result<Self> {
+    pub fn new<A: ToSocketAddrs>(sk: SSk, pk: SPk, addr: A, verbosity: Verbosity) -> Result<Self> {
         Ok(Self {
             crypt: CryptoServer::new(sk, pk),
             sock: UdpSocket::bind(addr)?,
