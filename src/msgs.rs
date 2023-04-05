@@ -1,9 +1,8 @@
-//! # Messages
+//! Data structures representing the messages going over the wire
 //!
-//! This module contains data structures that help in the
-//! serialization/deserialization (ser/de) of messages. Thats kind of a lie,
-//! since no actual ser/de happens. Instead, the structures offer views into
-//! mutable byte slices (`&mut [u8]`), allowing to modify the fields of an
+//! This module contains de-/serialization of the protocol's messages. Thats kind
+//! of a lie, since no actual ser/de happens. Instead, the structures offer views
+//! into mutable byte slices (`&mut [u8]`), allowing to modify the fields of an
 //! always serialized instance of the data in question. This is closely related
 //! to the concept of lenses in function programming; more on that here:
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)

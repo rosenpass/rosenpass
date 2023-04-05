@@ -1,3 +1,6 @@
+//! Pseudo Random Functions (PRFs) with a tree-like label scheme which
+//! ensures their uniqueness
+
 use {
     crate::{prftree::PrfTree, sodium::KEY_SIZE},
     anyhow::Result,

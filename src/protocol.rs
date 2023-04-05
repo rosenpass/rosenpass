@@ -4,7 +4,7 @@
 //!
 //! The most important types in this module probably are [PollResult]
 //! & [CryptoServer]. Once a [CryptoServer] is created, the server is
-//! provided with new messages via the [CyptoServer::handle_msg] method.
+//! provided with new messages via the [CryptoServer::handle_msg] method.
 //! The [CryptoServer::poll] method can be used to let the server work, which
 //! will eventually yield a [PollResult]. Said [PollResult] contains
 //! prescriptive activities to be carried out. [CryptoServer::osk] can than
@@ -328,19 +328,19 @@ trait Mortal {
 
 // BUSINESS LOGIC DATA STRUCTURES ////////////////
 
-/// Valid index to [Server::peers]
+/// Valid index to [CryptoServer::peers]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct PeerPtr(pub usize);
 
-/// Valid index to [Server::peers]
+/// Valid index to [CryptoServer::peers]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct IniHsPtr(pub usize);
 
-/// Valid index to [Server::peers]
+/// Valid index to [CryptoServer::peers]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SessionPtr(pub usize);
 
-/// Valid index to [Server::biscuit_keys]
+/// Valid index to [CryptoServer::biscuit_keys]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BiscuitKeyPtr(pub usize);
 
@@ -436,7 +436,7 @@ impl BiscuitKeyPtr {
 // DATABASE //////////////////////////////////////
 
 impl CryptoServer {
-    /// Initiate a new [Server] based on a secret key (`sk`) and a public key
+    /// Initiate a new [CryptoServer] based on a secret key (`sk`) and a public key
     /// (`pk`)
     pub fn new(sk: SSk, pk: SPk) -> CryptoServer {
         let tb = Timebase::default();

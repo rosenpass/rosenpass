@@ -1,7 +1,10 @@
-//! This module contains various types for dealing with secrets
+//! Types types for dealing with (secret-) values
 //!
-//! These types use type level coloring to make accidential leackage of secrets extra hard.
-//!
+//! These types use type level coloring to make accidential leackage of secrets extra hard. Both [Secret] and [Public] own their data, but the memory backing
+//! [Secret] is special:
+//! - as it is heap allocated, we can actively zeroize the memory before freeing it.
+//! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
+//! - the memory is mlocked, e.g. it is never swapped
 
 use crate::{
     sodium::{rng, zeroize},
