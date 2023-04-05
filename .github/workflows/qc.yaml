@@ -12,15 +12,23 @@ jobs:
   prettier:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actionsx/prettier@v2
         with:
           args: --check .
 
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   cargo-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/cache@v3
         with:
           path: |
@@ -31,17 +39,27 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: rustup component add clippy
-      - name: Install xmllint
+      - name: Install libsodium
         run: sudo apt-get install -y libsodium-dev
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
 
-  cargo-audit:
+  cargo-doc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/audit-check@v1
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: rustup component add clippy
+      - name: Install libsodium
+        run: sudo apt-get install -y libsodium-dev
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --document-private-items
