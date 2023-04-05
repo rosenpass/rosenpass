@@ -244,9 +244,9 @@ data_lense! { InitHello :=
     /// Randomly generated connection id
     sidi: 4,
     /// Kyber 512 Ephemeral Public Key
-    epki: EKEM::PK_LEN,
+    epki: EphemeralKEM::PK_LEN,
     /// Classic McEliece Ciphertext
-    sctr: SKEM::CT_LEN,
+    sctr: StaticKEM::CT_LEN,
     /// Encryped: 16 byte hash of McEliece initiator static key
     pidic: sodium::AEAD_TAG_LEN + 32,
     /// Encrypted TAI64N Time Stamp (against replay attacks)
@@ -259,9 +259,9 @@ data_lense! { RespHello :=
     /// Copied from InitHello
     sidi: 4,
     /// Kyber 512 Ephemeral Ciphertext
-    ecti: EKEM::CT_LEN,
+    ecti: EphemeralKEM::CT_LEN,
     /// Classic McEliece Ciphertext
-    scti: SKEM::CT_LEN,
+    scti: StaticKEM::CT_LEN,
     /// Empty encrypted message (just an auth tag)
     auth: sodium::AEAD_TAG_LEN,
     /// Responders handshake state in encrypted form

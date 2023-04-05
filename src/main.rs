@@ -4,8 +4,8 @@ use rosenpass::{
     attempt,
     coloring::{Public, Secret},
     multimatch,
-    pqkem::{SKEM, KEM},
-    protocol::{SPk, SSk, MsgBuf, PeerPtr, Server as CryptoServer, SymKey, Timing},
+    pqkem::{StaticKEM, KEM},
+    protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     sodium::sodium_init,
     util::{b64_reader, b64_writer, fmt_b64},
 };
@@ -313,7 +313,7 @@ pub fn cmd_keygen(mut args: ArgsWalker) -> Result<()> {
     // Cmd
     let (mut ssk, mut spk) = (SSk::random(), SPk::random());
     unsafe {
-        SKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
+        StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
         ssk.store_secret(sf.unwrap())?;
         spk.store_secret(pf.unwrap())?;
     }
@@ -440,12 +440,7 @@ pub fn cmd_exchange(mut args: ArgsWalker) -> Result<()> {
 }
 
 impl AppServer {
-    pub fn new<A: ToSocketAddrs>(
-        sk: SSk,
-        pk: SPk,
-        addr: A,
-        verbosity: Verbosity,
-    ) -> Result<Self> {
+    pub fn new<A: ToSocketAddrs>(sk: SSk, pk: SPk, addr: A, verbosity: Verbosity) -> Result<Self> {
         Ok(Self {
             crypt: CryptoServer::new(sk, pk),
             sock: UdpSocket::bind(addr)?,

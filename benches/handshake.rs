@@ -1,17 +1,17 @@
 use anyhow::Result;
 use rosenpass::{
-    pqkem::{CCAKEM, KEM},
-    protocol::{CcaPk, CcaSk, HandleMsgResult, MsgBuf, PeerPtr, Server, SymKey},
+    pqkem::{EphemeralKEM, CCAKEM},
+    protocol::{CcaPk, CcaSk, CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SymKey},
     sodium::sodium_init,
 };
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn handle(
-    tx: &mut Server,
+    tx: &mut CryptoServer,
     msgb: &mut MsgBuf,
     msgl: usize,
-    rx: &mut Server,
+    rx: &mut CryptoServer,
     resb: &mut MsgBuf,
 ) -> Result<(Option<SymKey>, Option<SymKey>)> {
     let HandleMsgResult {
@@ -30,7 +30,7 @@ fn handle(
     Ok((txk, rxk.or(xch)))
 }
 
-fn hs(ini: &mut Server, res: &mut Server) -> Result<()> {
+fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
     let (mut inib, mut resb) = (MsgBuf::zero(), MsgBuf::zero());
     let sz = ini.initiate_handshake(PeerPtr(0), &mut *inib)?;
     let (kini, kres) = handle(ini, &mut inib, sz, res, &mut resb)?;
@@ -44,10 +44,13 @@ fn keygen() -> Result<(CcaSk, CcaPk)> {
     Ok((sk, pk))
 }
 
-fn make_server_pair() -> Result<(Server, Server)> {
+fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
     let psk = SymKey::random();
     let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
-    let (mut a, mut b) = (Server::new(ska, pka.clone()), Server::new(skb, pkb.clone()));
+    let (mut a, mut b) = (
+        CryptoServer::new(ska, pka.clone()),
+        CryptoServer::new(skb, pkb.clone()),
+    );
     a.add_peer(Some(psk.clone()), pkb)?;
     b.add_peer(Some(psk), pka)?;
     Ok((a, b))

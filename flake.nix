@@ -257,12 +257,10 @@
 
 
           checks = {
-            # Blocked by https://github.com/rust-lang/rustfmt/issues/4306
-            # @dakoraa wants a coding style suitable for her accessible coding setup
-            # cargo-fmt = pkgs.runCommand "check-cargo-fmt"
-            #  { inherit (devShells.default) nativeBuildInputs buildInputs; } ''
-            #  cargo fmt --manifest-path=${src}/Cargo.toml --check > $out
-            # '';
+            cargo-fmt = pkgs.runCommand "check-cargo-fmt"
+              { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
+              cargo fmt --manifest-path=${./.}/Cargo.toml --check > $out
+            '';
             nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
               { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''
               nixpkgs-fmt --check ${./.} && touch $out
@@ -272,6 +270,8 @@
               cd ${./.} && prettier --check . && touch $out
             '';
           };
+
+          formatter = pkgs.nixpkgs-fmt;
         }))
     ];
 }
