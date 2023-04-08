@@ -100,15 +100,6 @@ impl Timebase {
     }
 }
 
-#[macro_export]
-macro_rules! multimatch {
-    ($val:expr) => {{ () }};
-    ($val:expr, $($p:pat => $thn:expr),*) => {{
-        let v = $val;
-        ($(if let $p = v { Some($thn) } else { None }),*)
-    }};
-}
-
 pub fn mutating<T, F>(mut v: T, f: F) -> T
 where
     F: Fn(&mut T),

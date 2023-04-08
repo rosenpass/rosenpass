@@ -741,7 +741,7 @@ pub struct HandleMsgResult {
 }
 
 impl CryptoServer {
-    /// Repsond to an incoming message
+    /// Respond to an incoming message
     ///
     /// # Overview
     ///

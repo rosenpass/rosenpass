@@ -3,7 +3,6 @@ use log::{error, info};
 use rosenpass::{
     attempt,
     coloring::{Public, Secret},
-    multimatch,
     pqkem::{StaticKEM, KEM},
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     sodium::sodium_init,
@@ -509,6 +508,10 @@ impl AppServer {
 
     pub fn event_loop(&mut self) -> Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
+
+        /// if socket address for peer is known, call closure
+        /// assumes that closure leaves a message in `tx`
+        /// assumes that closure returns the length of message in bytes
         macro_rules! tx_maybe_with {
             ($peer:expr, $fn:expr) => {
                 attempt!({
@@ -536,22 +539,36 @@ impl AppServer {
                 DeleteKey(peer) => self.output_key(peer, Stale, &SymKey::random())?,
 
                 ReceivedMessage(len, addr) => {
-                    multimatch!(self.crypt.handle_msg(&rx[..len], &mut *tx),
-                        Err(ref e) =>
-                            self.verbose().then(||
-                                info!("error processing incoming message from {:?}: {:?} {}", addr, e, e.backtrace())),
-
-                        Ok(HandleMsgResult { resp: Some(len), .. }) => {
-                            self.sock.send_to(&tx[0..len], addr)?
-                        },
-
-                        Ok(HandleMsgResult { exchanged_with: Some(p), .. }) => {
-                            let ap = AppPeerPtr::lift(p);
-                            ap.get_app_mut(self).tx_addr = Some(addr);
-                            // TODO: Maybe we should rather call the key "rosenpass output"?
-                            self.output_key(ap, Exchanged, &self.crypt.osk(p)?)?;
+                    match self.crypt.handle_msg(&rx[..len], &mut *tx) {
+                        Err(ref e) => {
+                            self.verbose().then(|| {
+                                info!(
+                                    "error processing incoming message from {:?}: {:?} {}",
+                                    addr,
+                                    e,
+                                    e.backtrace()
+                                );
+                            });
                         }
-                    );
+
+                        Ok(HandleMsgResult {
+                            resp,
+                            exchanged_with,
+                            ..
+                        }) => {
+                            if let Some(len) = resp {
+                                self.sock.send_to(&tx[0..len], addr)?;
+                            }
+
+                            if let Some(p) = exchanged_with {
+                                let ap = AppPeerPtr::lift(p);
+                                ap.get_app_mut(self).tx_addr = Some(addr);
+
+                                // TODO: Maybe we should rather call the key "rosenpass output"?
+                                self.output_key(ap, Exchanged, &self.crypt.osk(p)?)?;
+                            }
+                        }
+                    }
                 }
             };
         }
