@@ -62,6 +62,7 @@
               gawk
               wireguard-tools
             ];
+
             # a function to generate a nix derivation for rosenpass against any
             # given set of nixpkgs
             rpDerivation = p:
@@ -88,6 +89,11 @@
 
                 # otherwise pkg-config tries to link non-existent dynamic libs
                 PKG_CONFIG_ALL_STATIC = true;
+
+                # liboqs requires quite a lot of stack memory, thus we adjust
+                # the default stack size picked for new threads (which is used
+                # by `cargo test`) to be _big enough_
+                RUST_MIN_STACK = 8 * 1024 * 1024; # 8 MiB
 
                 # nix defaults to building for aarch64 _without_ the armv8-a
                 # crypto extensions, but liboqs depens on these
@@ -241,6 +247,7 @@
           #
           devShells.default = pkgs.mkShell {
             inherit (packages.proof-proverif) CRYPTOVERIF_LIB;
+            inherit (packages.rosenpass) RUST_MIN_STACK;
             inputsFrom = [ packages.default ];
             nativeBuildInputs = with pkgs; [
               cargo-release
@@ -252,6 +259,7 @@
           };
           devShells.coverage = pkgs.mkShell {
             inputsFrom = [ packages.default ];
+            inherit (packages.rosenpass) RUST_MIN_STACK;
             nativeBuildInputs = with pkgs; [ inputs.fenix.packages.${system}.complete.toolchain cargo-llvm-cov ];
           };
 

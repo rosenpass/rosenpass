@@ -775,6 +775,8 @@ impl CryptoServer {
         let mut len = 0;
         let mut exchanged = false;
 
+        ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
+
         let peer = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
@@ -1691,5 +1693,34 @@ impl CryptoServer {
         hs.take(self);
 
         Ok(hs.peer())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn init_crypto_server() -> CryptoServer {
+        // always init libsodium before anything
+        crate::sodium::sodium_init().unwrap();
+
+        // initialize public and private key for the crypto server
+        let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
+        StaticKEM::keygen(sk.secret_mut(), pk.secret_mut()).expect("unable to generate keys");
+
+        CryptoServer::new(sk, pk)
+    }
+
+    /// The determination of the message type relies on reading the first byte of the message. Only
+    /// after that the length of the message is checked against the specified message type. This
+    /// test ensures that nothing breaks in the case of an empty message.
+    #[test]
+    #[should_panic = "called `Result::unwrap()` on an `Err` value: received empty message, ignoring it"]
+    fn handle_empty_message() {
+        let mut crypt = init_crypto_server();
+        let empty_rx_buf = [0u8; 0];
+        let mut tx_buf = [0u8; 0];
+
+        crypt.handle_msg(&empty_rx_buf, &mut tx_buf).unwrap();
     }
 }
