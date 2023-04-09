@@ -90,6 +90,7 @@ pub const RTX_BUFFER_SIZE: usize = max_usize(
 );
 
 /// A type for time, e.g. for backoff before re-tries
+// TODO replace by core::time::Duration
 pub type Timing = f64;
 
 /// Before Common Era (or more practically: Definitely so old it needs refreshing)
@@ -209,6 +210,7 @@ pub struct Peer {
     pub session: Option<Session>,
     pub handshake: Option<InitiatorHandshake>,
     pub initiation_requested: bool,
+    pub th: TransmissionHandler,
 }
 
 impl Peer {
@@ -220,6 +222,7 @@ impl Peer {
             session: None,
             initiation_requested: false,
             handshake: None,
+            th: TransmissionHandler::default(),
         }
     }
 }
@@ -278,6 +281,36 @@ pub struct InitiatorHandshake {
     pub tx_count: usize,
     pub tx_len: usize,
     pub tx_buf: MsgBuf,
+}
+
+#[derive(Debug)]
+pub struct TransmissionHandler {
+    // when to attempt the first transmission
+    tx_at: Timing,
+
+    // average interval between transmission and subsequent retransmissions
+    tx_interval: Timing,
+
+    // how often to attemp (re-) transmission
+    tx_count: u8,
+
+    // length of message in `tx_buf`
+    tx_len: usize,
+
+    // buffer for the message
+    tx_buf: MsgBuf,
+}
+
+impl Default for TransmissionHandler {
+    fn default() -> Self {
+        Self {
+            tx_at: 0.0,
+            tx_interval: 1.0,
+            tx_count: 0,
+            tx_len: 0,
+            tx_buf: Public::zero(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -460,10 +493,10 @@ impl CryptoServer {
     }
 
     #[rustfmt::skip]
-    pub fn pidm(&self) -> Result<PeerId> {
+    pub fn pidm(spkm: &[u8]) -> Result<PeerId> {
         Ok(Public::new(
             lprf::peerid()?
-                .mix(self.spkm.secret())?
+                .mix(spkm)?
                 .into_value()))
     }
 
@@ -484,6 +517,7 @@ impl CryptoServer {
             session: None,
             handshake: None,
             initiation_requested: false,
+            th: TransmissionHandler::default(),
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -586,6 +620,7 @@ impl Peer {
             session: None,
             handshake: None,
             initiation_requested: false,
+            th: TransmissionHandler::default(),
         }
     }
 
@@ -725,7 +760,15 @@ impl CryptoServer {
     // TODO remove unecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
     pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
-        let mut msg = tx_buf.envelope::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
+        let mut msg = tx_buf.envelope::<InitHello<()>>()?;
+        // Envelope::<InitHello>::default(); // TODO
+        // let mut msg = peer
+        //     .get_mut(self)
+        //     .th
+        //     .tx_buf
+        //     .as_mut_slice()
+        //     .envelope::<InitHello<()>>()?;
+
         self.handle_initiation(peer, msg.payload_mut().init_hello()?)?;
         let len = self.seal_and_commit_msg(peer, MsgType::InitHello, msg)?;
         peer.hs()
@@ -781,7 +824,6 @@ impl CryptoServer {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
-
                 let mut msg_out = tx_buf.envelope::<RespHello<&mut [u8]>>()?;
                 let peer = self.handle_init_hello(
                     msg_in.payload().init_hello()?,
@@ -916,6 +958,9 @@ pub enum PollResult {
     DeleteKey(PeerPtr),
     SendInitiation(PeerPtr),
     SendRetransmission(PeerPtr),
+    // Transmit(PeerPtr),
+    // /// implicitly respond to peerptr with msg in scratch_buf
+    // Respond
 }
 
 impl Default for PollResult {
@@ -1394,13 +1439,18 @@ impl CryptoServer {
     /// established primitives
     pub fn handle_initiation(
         &mut self,
-        peer: PeerPtr,
-        mut ih: InitHello<&mut [u8]>,
+        peer_ptr: PeerPtr,
+        _ih: InitHello<&mut [u8]>,
     ) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
+        let peer = &mut self.peers[peer_ptr.0];
+        let mut tx_buf = peer.th.tx_buf;
+        let mut msg = tx_buf.as_mut_slice().envelope::<InitHello<()>>()?;
+        peer.th.tx_len = msg.all_bytes().len();
+        let mut ih = msg.payload_mut().init_hello()?;
 
         // IHI1
-        hs.core.init(peer.get(self).spkt.secret())?;
+        hs.core.init(peer.spkt.secret())?;
 
         // IHI2
         hs.core.sidi.randomize();
@@ -1417,25 +1467,23 @@ impl CryptoServer {
         hs.core
             .encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
                 ih.sctr_mut(),
-                peer.get(self).spkt.secret(),
+                peer.spkt.secret(),
             )?;
 
         // IHI6
         hs.core
-            .encrypt_and_mix(ih.pidic_mut(), self.pidm()?.as_ref())?;
+            .encrypt_and_mix(ih.pidic_mut(), Self::pidm(self.spkm.secret())?.as_ref())?;
 
         // IHI7
-        hs.core
-            .mix(self.spkm.secret())?
-            .mix(peer.get(self).psk.secret())?;
+        hs.core.mix(self.spkm.secret())?.mix(peer.psk.secret())?;
 
         // IHI8
         hs.core.encrypt_and_mix(ih.auth_mut(), &NOTHING)?;
 
         // Update the handshake hash last (not changing any state on prior error
-        peer.hs().insert(self, hs)?;
+        peer.handshake.insert(hs);
 
-        Ok(peer)
+        Ok(peer_ptr)
     }
 
     pub fn handle_init_hello(
@@ -1474,6 +1522,8 @@ impl CryptoServer {
 
         // IHR8
         core.decrypt_and_mix(&mut [0u8; 0], ih.auth())?;
+
+        // TODO access this peers transmission_handler, bind it as `rh`
 
         // RHR1
         core.sidr.randomize();
