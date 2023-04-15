@@ -28,7 +28,7 @@
 //! // always init libsodium before anything
 //! rosenpass::sodium::sodium_init().unwrap();
 //!
-//! // initialize public and private key for peer a ...
+//! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
 //! StaticKEM::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
 //!
@@ -249,16 +249,11 @@ impl HandshakeRole {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum HandshakeStateMachine {
+    #[default]
     RespHello,
     RespConf,
-}
-
-impl Default for HandshakeStateMachine {
-    fn default() -> Self {
-        HandshakeStateMachine::RespHello
-    }
 }
 
 #[derive(Debug)]
@@ -1704,7 +1699,7 @@ mod test {
         // always init libsodium before anything
         crate::sodium::sodium_init().unwrap();
 
-        // initialize public and private key for the crypto server
+        // initialize secret and public key for the crypto server
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
         StaticKEM::keygen(sk.secret_mut(), pk.secret_mut()).expect("unable to generate keys");
 

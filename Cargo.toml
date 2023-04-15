@@ -16,7 +16,6 @@ harness = false
 [dependencies]
 anyhow = { version = "1.0.52", features = ["backtrace"] }
 base64 = "0.13.0"
-clap = { version = "3.0.0", features = ["yaml"] }
 static_assertions = "1.1.0"
 memoffset = "0.6.5"
 libsodium-sys-stable = { version = "1.19.26", features = ["use-pkg-config"] }
@@ -26,6 +25,10 @@ thiserror = "1.0.38"
 paste = "1.0.11"
 log = { version = "0.4.17", optional = true }
 env_logger = { version = "0.10.0", optional = true }
+serde = { version = "1.0.160", features = ["derive"] }
+toml = "0.7.3"
+clap = { version = "4.2.1", features = ["derive"] }
+mio = { version = "0.8.6", features = ["net", "os-poll"] }
 
 [build-dependencies]
 anyhow = "1.0.70"

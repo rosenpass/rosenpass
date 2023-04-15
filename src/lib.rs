@@ -5,6 +5,9 @@ pub mod sodium;
 pub mod coloring;
 #[rustfmt::skip]
 pub mod labeled_prf;
+pub mod app_server;
+pub mod cli;
+pub mod config;
 pub mod msgs;
 pub mod pqkem;
 pub mod prftree;

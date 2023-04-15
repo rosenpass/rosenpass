@@ -1,0 +1,18 @@
+public_key = "peer-b-public-key"
+secret_key = "peer-b-secret-key"
+listen = ["[::]:10002"]
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "peer-a-public-key"
+endpoint = "localhost:10001"
+key_out = "peer-b-rp-out-key"
+# exchange_command = [
+#     "wg",
+#     "set",
+#     "wg0",
+#     "peer",
+#     "<PEER_ID>",
+#     "preshared-key",
+#     "/dev/stdin",
+# ]
