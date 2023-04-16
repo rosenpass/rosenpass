@@ -61,6 +61,7 @@
             # source files relevant for rust
             src = pkgs.lib.sourceByRegex ./. [
               "Cargo\\.(toml|lock)"
+              "build.rs"
               "(src|benches)(/.*\\.(rs|md))?"
               "rp"
             ];
@@ -111,6 +112,7 @@
                   nativeBuildInputs = with pkgs; [
                     p.stdenv.cc
                     cmake # for oqs build in the oqs-sys crate
+                    mandoc # for the built-in manual
                     makeWrapper # for the rp shellscript
                     pkg-config # let libsodium-sys-stable find libsodium
                     removeReferencesTo

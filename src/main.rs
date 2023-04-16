@@ -287,7 +287,13 @@ pub fn rosenpass_main() -> Result<()> {
 
 /// Print the usage information
 pub fn cmd_help() -> Result<()> {
-    eprint!(include_str!("usage.md"), env!("CARGO_BIN_NAME"));
+    let man_cmd = Command::new("man").args(["1", "rosenpass"]).status();
+    if man_cmd.is_ok() && man_cmd.unwrap().success() {
+        return Ok(());
+    }
+
+    // Print the compiled manual
+    eprint!(include_str!(env!("ROSENPASS_MAN")));
     Ok(())
 }
 
