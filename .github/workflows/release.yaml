@@ -16,7 +16,8 @@ jobs:
       matrix:
         nix-system:
           - x86_64-linux
-          # - aarch64-linux
+          - i686-linux
+          - aarch64-linux
     steps:
       - uses: actions/checkout@v3
       - name: Build release-package for ${{ matrix.nix-system }}

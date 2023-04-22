@@ -3,6 +3,10 @@
     nixpkgs-unstable.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
 
+    # for quicker rust builds
+    naersk.url = "github:nix-community/naersk";
+    naersk.inputs.nixpkgs.follows = "nixpkgs";
+
     # for rust nightly with llvm-tools-preview
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
@@ -16,6 +20,7 @@
       #
       (flake-utils.lib.eachSystem [
         "x86_64-linux"
+        "i686-linux"
         "aarch64-linux"
 
         # unsuported best-effort
@@ -25,6 +30,8 @@
       ]
         (system:
           let
+            lib = nixpkgs.lib;
+
             # normal nixpkgs
             pkgs = import nixpkgs {
               inherit system;
@@ -47,14 +54,17 @@
                 )
               ];
             };
+
             # parsed Cargo.toml
             cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+
             # source files relevant for rust
             src = pkgs.lib.sourceByRegex ./. [
               "Cargo\\.(toml|lock)"
               "(src|benches)(/.*\\.(rs|md))?"
               "rp"
             ];
+
             # builds a bin path for all dependencies for the `rp` shellscript
             rpBinPath = p: with p; lib.makeBinPath [
               coreutils
@@ -67,61 +77,107 @@
             # given set of nixpkgs
             rpDerivation = p:
               let
-                isStatic = p.stdenv.hostPlatform.isStatic;
-              in
-              p.rustPlatform.buildRustPackage {
-                # metadata and source
-                pname = cargoToml.package.name;
-                version = cargoToml.package.version;
-                inherit src;
-                cargoLock = {
-                  lockFile = src + "/Cargo.lock";
-                };
+                # whether we want to build a statically linked binary
+                isStatic = p.targetPlatform.isStatic;
 
-                nativeBuildInputs = with pkgs; [
-                  cmake # for oqs build in the oqs-sys crate
-                  makeWrapper # for the rp shellscript
-                  pkg-config # let libsodium-sys-stable find libsodium
-                  removeReferencesTo
-                  rustPlatform.bindgenHook # for C-bindings in the crypto libs
+                # the rust target of `p`
+                target = p.rust.toRustTargetSpec p.targetPlatform;
+
+                # convert a string to shout case
+                shout = string: builtins.replaceStrings [ "-" ] [ "_" ] (pkgs.lib.toUpper string);
+
+                # suitable Rust toolchain
+                toolchain = with inputs.fenix.packages.${system}; combine [
+                  stable.cargo
+                  stable.rustc
+                  targets.${target}.stable.rust-std
                 ];
-                buildInputs = with p; [ bash libsodium ];
 
+                # naersk with a custom toolchain
+                naersk = pkgs.callPackage inputs.naersk {
+                  cargo = toolchain;
+                  rustc = toolchain;
+                };
+              in
+              naersk.buildPackage
+                {
+                  # metadata and source
+                  name = cargoToml.package.name;
+                  version = cargoToml.package.version;
+                  inherit src;
+
+                  doCheck = true;
+
+                  nativeBuildInputs = with pkgs; [
+                    p.stdenv.cc
+                    cmake # for oqs build in the oqs-sys crate
+                    makeWrapper # for the rp shellscript
+                    pkg-config # let libsodium-sys-stable find libsodium
+                    removeReferencesTo
+                    rustPlatform.bindgenHook # for C-bindings in the crypto libs
+                  ];
+                  buildInputs = with p; [ bash libsodium ];
+
+                  override = x: {
+                    preBuild =
+                      # nix defaults to building for aarch64 _without_ the armv8-a crypto
+                      # extensions, but liboqs depens on these
+                      (lib.optionalString (system == "aarch64-linux") ''
+                        NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
+                      ''
+                      );
+
+                    # fortify is only compatible with dynamic linking
+                    hardeningDisable = lib.optional isStatic "fortify";
+                  };
+
+                  overrideMain = x: {
+                    # CMake detects that it was served a _foreign_ target dir, thus we have to
+                    # convice it a little
+                    # TODO this still re-builds liboqs in the second step, which is wasteful
+                    preBuild = x.preBuild + ''
+                      find -name CMakeCache.txt -exec sed s_/dummy-src/_/source/_g --in-place {} \;
+                    '' + (lib.optionalString isStatic ''
+                      NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -lc"
+                    '')
+                    ;
+
+                    preInstall = ''
+                      install -D ${./rp} $out/bin/rp
+                      wrapProgram $out/bin/rp --prefix PATH : "${ rpBinPath p }"
+                    '';
+                  };
+
+                  # liboqs requires quite a lot of stack memory, thus we adjust
+                  # the default stack size picked for new threads (which is used
+                  # by `cargo test`) to be _big enough_
+                  RUST_MIN_STACK = 8 * 1024 * 1024; # 8 MiB
+
+                  # We want to build for a specific target...
+                  CARGO_BUILD_TARGET = target;
+
+                  # ... which might require a non-default linker:
+                  "CARGO_TARGET_${shout target}_LINKER" =
+                    let
+                      inherit (p.stdenv) cc;
+                    in
+                    "${cc}/bin/${cc.targetPrefix}cc";
+
+                  meta = with pkgs.lib;
+                    {
+                      inherit (cargoToml.package) description homepage;
+                      license = with licenses; [ mit asl20 ];
+                      maintainers = [ maintainers.wucke13 ];
+                      platforms = platforms.all;
+                    };
+                } // (lib.mkIf isStatic {
                 # otherwise pkg-config tries to link non-existent dynamic libs
+                # documented here: https://docs.rs/pkg-config/latest/pkg_config/
                 PKG_CONFIG_ALL_STATIC = true;
 
-                # liboqs requires quite a lot of stack memory, thus we adjust
-                # the default stack size picked for new threads (which is used
-                # by `cargo test`) to be _big enough_
-                RUST_MIN_STACK = 8 * 1024 * 1024; # 8 MiB
-
-                # nix defaults to building for aarch64 _without_ the armv8-a
-                # crypto extensions, but liboqs depens on these
-                preBuild =
-                  if system == "aarch64-linux" then ''
-                    NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
-                  '' else "";
-
-                preInstall = ''
-                  install -D rp $out/bin/rp
-                  wrapProgram $out/bin/rp --prefix PATH : "${ rpBinPath p }"
-                '';
-
-                # nix progated the *.dev outputs of buildInputs for static
-                # builds, but that is non-sense for an executables only package
-                postFixup =
-                  if isStatic then ''
-                    remove-references-to -t ${p.bash.dev} -t ${p.libsodium.dev} \
-                      $out/nix-support/propagated-build-inputs
-                  '' else "";
-
-                meta = with pkgs.lib; {
-                  inherit (cargoToml.package) description homepage;
-                  license = with licenses; [ mit asl20 ];
-                  maintainers = [ maintainers.wucke13 ];
-                  platforms = platforms.all;
-                };
-              };
+                # tell rust to build everything statically linked
+                CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+              });
             # a function to generate a docker image based of rosenpass
             rosenpassOCI = name: pkgs.dockerTools.buildImage rec {
               inherit name;
