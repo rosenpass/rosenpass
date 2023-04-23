@@ -20,10 +20,10 @@
       #
       (flake-utils.lib.eachSystem [
         "x86_64-linux"
-        "i686-linux"
         "aarch64-linux"
 
         # unsuported best-effort
+        "i686-linux"
         "x86_64-darwin"
         "aarch64-darwin"
         # "x86_64-windows"
