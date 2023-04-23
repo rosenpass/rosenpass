@@ -1,4 +1,4 @@
-name: Nix Related Actions
+name: Nix
 permissions:
   contents: write
 on:
@@ -17,7 +17,8 @@ jobs:
       matrix:
         nix-system:
           - x86_64-linux
-          # - aarch64-linux
+          - i686-linux
+          - aarch64-linux
         derivation:
           - rosenpass
           - rosenpass-static
@@ -25,6 +26,19 @@ jobs:
           - rosenpass-static-oci-image
           - proof-proverif
           - whitepaper
+        exclude:
+          # these do not exist
+          - nix-system: i686-linux
+            derivation: proof-proverif
+          - nix-system: i686-linux
+            derivation: whitepaper
+
+          # these fail currently
+          # TODO enable once https://github.com/open-quantum-safe/liboqs-rust/issues/202 is fixed
+          - nix-system: i686-linux
+            derivation: rosenpass-static
+          - nix-system: i686-linux
+            derivation: rosenpass-static-oci-image
 
     steps:
       - uses: actions/checkout@v3
