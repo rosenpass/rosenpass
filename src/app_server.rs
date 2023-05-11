@@ -13,6 +13,7 @@ use std::net::Ipv6Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
+use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -42,7 +43,7 @@ fn ipv6_any_binding() -> SocketAddr {
 pub struct AppPeer {
     pub outfile: Option<PathBuf>,
     pub outwg: Option<WireguardOut>, // TODO make this a generic command
-    pub tx_addr: Option<SocketAddr>,
+    pub endpoint: Option<Endpoint>,
 }
 
 #[derive(Default, Debug)]
@@ -68,8 +69,32 @@ pub struct AppServer {
     pub all_sockets_drained: bool,
 }
 
-/// Index based pointer to a Peer
+/// A socket pointer is an index assigned to a socket;
+/// right now the index is just the sockets index in AppServer::sockets.
+///
+/// Holding this as a reference instead of an &mut UdpSocket is useful
+/// to deal with the borrow checker, because otherwise we could not refer
+/// to a socket and another member of AppServer at the same time.
 #[derive(Debug)]
+pub struct SocketPtr(pub usize);
+
+impl SocketPtr {
+    pub fn get<'a>(&self, srv: &'a AppServer) -> &'a mio::net::UdpSocket {
+        &srv.sockets[self.0]
+    }
+
+    pub fn get_mut<'a>(&self, srv: &'a mut AppServer) -> &'a mut mio::net::UdpSocket {
+        &mut srv.sockets[self.0]
+    }
+
+    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
+        self.get(srv).send_to(&buf, addr)?;
+        Ok(())
+    }
+}
+
+/// Index based pointer to a Peer
+#[derive(Debug, Copy, Clone)]
 pub struct AppPeerPtr(pub usize);
 
 impl AppPeerPtr {
@@ -97,13 +122,91 @@ pub enum AppPollResult {
     DeleteKey(AppPeerPtr),
     SendInitiation(AppPeerPtr),
     SendRetransmission(AppPeerPtr),
-    ReceivedMessage(usize, SocketAddr),
+    ReceivedMessage(usize, Endpoint),
 }
 
 #[derive(Debug)]
 pub enum KeyOutputReason {
     Exchanged,
     Stale,
+}
+
+/// Represents a communication partner rosenpass may be sending packets to
+///
+/// Generally at the start of Rosenpass either no address or a Hostname is known;
+/// later when we actually start to receive RespHello packages, we know the specific Address
+/// and socket to use with a peer
+#[derive(Debug)]
+pub enum Endpoint {
+    /// Rosenpass supports multiple sockets, so we include the information
+    /// which socket an address can be reached on. This probably does not
+    /// make much of a difference in most setups where two sockets are just
+    /// used to enable dual stack operation; it does make a difference in
+    /// more complex use cases.
+    ///
+    /// For instance it enables using multiple interfaces with overlapping
+    /// ip spaces, such as listening on a private IP network and a public IP
+    /// at the same time. It also would reply on the same port RespHello was
+    /// sent to when listening on multiple ports on the same interface. This
+    /// may be required for some arcane firewall setups.
+    SocketBoundAddress {
+        /// The socket the address can be reached under; this is generally
+        /// determined when we actually receive an RespHello message
+        socket: SocketPtr,
+        /// Just the address
+        addr: SocketAddr,
+    },
+    // A host name or IP address; storing the hostname here instead of an
+    // ip address makes sure that we look up the host name whenever we try
+    // to make a connection; this may be beneficial in some setups where a host-name
+    // at first can not be resolved but becomes resolvable later.
+    Host(HostIdentification),
+}
+
+impl Endpoint {
+    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+        use Endpoint::*;
+        match self {
+            SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
+            Host(host) => host.send_scouting(srv, buf),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct HostIdentification {
+    addresses: Vec<SocketAddr>,
+}
+
+impl HostIdentification {
+    pub fn new(hostname: String) -> anyhow::Result<Self> {
+        let addresses = ToSocketAddrs::to_socket_addrs(&hostname)?.collect();
+        Ok(Self { addresses })
+    }
+
+    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+        for addr in &self.addresses {
+            for (sock_no, sock) in srv.sockets.iter().enumerate() {
+                let res = sock.send_to(buf, *addr);
+                let err = match res {
+                    Ok(_) => return Ok(()),
+                    Err(e) => e,
+                };
+
+                // TODO: replace this by
+                // e.kind() == io::ErrorKind::NetworkUnreachable
+                // once https://github.com/rust-lang/rust/issues/86442 lands
+                let ignore = err
+                    .to_string()
+                    .starts_with("Address family not supported by protocol");
+                if !ignore {
+                    warn!("Socket #{} refusing to send to {}: ", sock_no, addr);
+                }
+            }
+        }
+
+        bail!("Unable to send message: All sockets returned errors.")
+    }
 }
 
 impl AppServer {
@@ -218,14 +321,19 @@ impl AppServer {
         pk: SPk,
         outfile: Option<PathBuf>,
         outwg: Option<WireguardOut>,
-        tx_addr: Option<SocketAddr>,
+        hostname: Option<String>,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
         assert!(pn == self.peers.len());
+        let endpoint = hostname
+            .map(|n| -> anyhow::Result<Endpoint> {
+                Ok(Endpoint::Host(HostIdentification::new(n)?))
+            })
+            .transpose()?;
         self.peers.push(AppPeer {
             outfile,
             outwg,
-            tx_addr,
+            endpoint,
         });
         Ok(AppPeerPtr(pn))
     }
@@ -275,10 +383,11 @@ impl AppServer {
         macro_rules! tx_maybe_with {
             ($peer:expr, $fn:expr) => {
                 attempt!({
-                    let p = $peer.get_app(self);
-                    if let Some(addr) = p.tx_addr {
+                    let p = $peer;
+                    if p.get_app(self).endpoint.is_some() {
                         let len = $fn()?;
-                        self.try_send(&tx[..len], addr)?;
+                        let ep: &Endpoint = p.get_app(self).endpoint.as_ref().unwrap();
+                        ep.send(self, &tx[..len])?;
                     }
                     Ok(())
                 })
@@ -298,13 +407,13 @@ impl AppServer {
                     .retransmit_handshake(peer.lower(), &mut *tx))?,
                 DeleteKey(peer) => self.output_key(peer, Stale, &SymKey::random())?,
 
-                ReceivedMessage(len, addr) => {
+                ReceivedMessage(len, endpoint) => {
                     match self.crypt.handle_msg(&rx[..len], &mut *tx) {
                         Err(ref e) => {
                             self.verbose().then(|| {
                                 info!(
                                     "error processing incoming message from {:?}: {:?} {}",
-                                    addr,
+                                    endpoint,
                                     e,
                                     e.backtrace()
                                 );
@@ -317,12 +426,12 @@ impl AppServer {
                             ..
                         }) => {
                             if let Some(len) = resp {
-                                self.try_send(&tx[0..len], addr)?;
+                                endpoint.send(self, &tx[0..len])?;
                             }
 
                             if let Some(p) = exchanged_with {
                                 let ap = AppPeerPtr::lift(p);
-                                ap.get_app_mut(self).tx_addr = Some(addr);
+                                ap.get_app_mut(self).endpoint = Some(endpoint);
 
                                 // TODO: Maybe we should rather call the key "rosenpass output"?
                                 self.output_key(ap, Exchanged, &self.crypt.osk(p)?)?;
@@ -415,7 +524,7 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         timeout: Timing,
-    ) -> anyhow::Result<Option<(usize, SocketAddr)>> {
+    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
         let timeout = Duration::from_secs_f64(timeout);
 
         // if there is no time to wait on IO, well, then, lets not waste any time!
@@ -446,12 +555,18 @@ impl AppServer {
         }
 
         let mut would_block_count = 0;
-        for socket in &mut self.sockets {
+        for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
             match socket.recv_from(buf) {
-                Ok(x) => {
+                Ok((n, addr)) => {
                     // at least one socket was not drained...
                     self.all_sockets_drained = false;
-                    return Ok(Some(x));
+                    return Ok(Some((
+                        n,
+                        Endpoint::SocketBoundAddress {
+                            socket: SocketPtr(sock_no),
+                            addr,
+                        },
+                    )));
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
                     would_block_count += 1;
@@ -465,31 +580,5 @@ impl AppServer {
         self.all_sockets_drained = would_block_count == self.sockets.len();
 
         Ok(None)
-    }
-
-    /// Try to send a message
-    ///
-    /// Every available socket is tried once
-    // TODO cache what socket worked last time
-    // TODO cache what socket we received from last time for that addr
-    pub fn try_send(&mut self, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
-        for socket in &self.sockets {
-            return match socket.send_to(&buf, addr) {
-                Ok(_) => Ok(()),
-
-                // TODO replace this by
-                // Err(e) if e.kind() == io::ErrorKind::NetworkUnreachable => continue,
-                // once https://github.com/rust-lang/rust/issues/86442 lands
-                Err(e)
-                    if e.to_string()
-                        .starts_with("Address family not supported by protocol") =>
-                {
-                    continue
-                }
-                Err(e) => Err(e.into()),
-            };
-        }
-
-        bail!("none of our sockets matched the address family {}", addr);
     }
 }

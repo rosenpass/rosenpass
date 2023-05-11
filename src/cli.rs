@@ -1,6 +1,5 @@
 use anyhow::{bail, ensure};
 use clap::Parser;
-use std::net::ToSocketAddrs;
 use std::path::{Path, PathBuf};
 
 use crate::app_server::AppServer;
@@ -229,20 +228,13 @@ impl Cli {
         )?);
 
         for cfg_peer in config.peers {
-            let endpoint = cfg_peer
-                .endpoint
-                .as_ref()
-                .map(ToSocketAddrs::to_socket_addrs)
-                .transpose()?
-                .and_then(|mut i| i.next());
-
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
                 cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
                 None, // TODO remove this argument
-                endpoint,
+                cfg_peer.endpoint.clone(),
             )?;
         }
 
