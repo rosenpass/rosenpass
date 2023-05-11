@@ -141,9 +141,9 @@ genkey() {
     umask 077
     mkdir -p $(enquote "${skdir}")
     wg genkey > $(enquote "${skdir}"/wgsk)
-    $(enquote "${binary}") keygen \\
-      private-key $(enquote "${skdir}"/pqsk) \\
-      public-key  $(enquote "${skdir}"/pqpk)"
+    $(enquote "${binary}") gen-keys \\
+      -s $(enquote "${skdir}"/pqsk) \\
+      -p  $(enquote "${skdir}"/pqpk)"
 }
 
 pubkey() {
@@ -225,7 +225,7 @@ exchange() {
     frag_append "verbose"
   fi
 
-  frag_append_esc "    private-key $(enquote "${skdir}/pqsk")"
+  frag_append_esc "    secret-key $(enquote "${skdir}/pqsk")"
   frag_append_esc "    public-key  $(enquote "${skdir}/pqpk")"
 
   if test -n "${lport}"; then
