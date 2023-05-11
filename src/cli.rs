@@ -36,7 +36,7 @@ pub enum Cli {
      * guidance on the CLI usage.
      */
     Exchange {
-        /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>] [verbose]
+        /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>]... [verbose]
         #[clap(value_name = "OWN_CONFIG")]
         first_arg: String,
 
