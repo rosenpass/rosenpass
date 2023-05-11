@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use anyhow::Result;
-use log::{error, info};
+use log::{error, info, warn};
 use mio::Interest;
 use mio::Token;
 
@@ -24,6 +24,19 @@ use crate::{
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     util::{b64_writer, fmt_b64},
 };
+
+const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
+
+fn ipv4_any_binding() -> SocketAddr {
+    // addr, port
+    SocketAddr::V4(SocketAddrV4::new(IPV4_ANY_ADDR, 0))
+}
+
+fn ipv6_any_binding() -> SocketAddr {
+    // addr, port, flowinfo, scope_id
+    SocketAddr::V6(SocketAddrV6::new(IPV6_ANY_ADDR, 0, 0, 0))
+}
 
 #[derive(Default, Debug)]
 pub struct AppPeer {
@@ -109,30 +122,70 @@ impl AppServer {
             addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
         let mut sockets = maybe_sockets?;
 
-        // if there is no socket, just listen to anything
+        // When no socket is specified, rosenpass should open one port on all
+        // available interfaces best-effort. Here are the cases how this can possibly go:
+        //
+        // Some operating systems (such as linux [^linux] and freebsd [^freebsd])
+        // using IPv6 sockets to handle IPv4 connections; on these systems
+        // binding to the `[::]:0` address will typically open a dual-stack
+        // socket. Some other systems such as openbsd [^openbsd] do not support this feature.
+        //
+        // Dual-stack systems provide a flag to enable or disable this
+        // behavior – the IPV6_V6ONLY flag. Openbsd supports this flag
+        // read-only. MIO[^mio] provides a way to read this flag but not
+        // to write it.
+        //
+        // - One dual-stack IPv6 socket, if the operating supports dual-stack sockets and
+        //   correctly reports this
+        // - One IPv6 socket and one IPv4 socket if the operating does not support dual stack
+        //   sockets or disables them by default assuming this is also correctly reported
+        // - One IPv6 socket and no IPv4 socket if IPv6 socket is not dual-stack and opening
+        //   the IPv6 socket fails
+        // - One IPv4 socket and no IPv6 socket if opening the IPv6 socket fails
+        // - One dual-stack IPv6 socket and a redundant IPv4 socket if dual-stack sockets are
+        //   supported but the operating system does not correctly report this (specifically,
+        //   if the only_v6() call raises an errror)
+        // - Rosenpass exits if no socket could be opened
+        //
+        // [^freebsd]: https://man.freebsd.org/cgi/man.cgi?query=ip6&sektion=4&manpath=FreeBSD+6.0-RELEASE
+        // [^openbsd]: https://man.openbsd.org/ip6.4
+        // [^linux]: https://man7.org/linux/man-pages/man7/ipv6.7.html
+        // [^mio]: https://docs.rs/mio/0.8.6/mio/net/struct.UdpSocket.html#method.only_v6
         if sockets.is_empty() {
-            // port 0 means the OS can pick any free port
-            let port = 0;
-
-            let ipv4_any = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
-
-            let ipv6_any = SocketAddr::V6(SocketAddrV6::new(
-                Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0),
-                port,
-                0,
-                0,
-            ));
-
-            // bind to IPv4
-            sockets.push(mio::net::UdpSocket::bind(ipv4_any)?);
-
-            // and try to bind to IPv6, just in case
-            match mio::net::UdpSocket::bind(ipv6_any) {
-                Ok(socket) => sockets.push(socket),
-                Err(e) if e.kind() == ErrorKind::AddrInUse => { /* shrugs, seems to be a IPv4/IPv6 dual stack OS */
-                }
-                Err(e) => return Err(e.into()),
+            macro_rules! try_register_socket {
+                ($title:expr, $binding:expr) => {{
+                    let r = mio::net::UdpSocket::bind($binding);
+                    match r {
+                        Ok(sock) => {
+                            sockets.push(sock);
+                            Some(sockets.len() - 1)
+                        }
+                        Err(e) => {
+                            warn!("Could not bind to {} socket: {}", $title, e);
+                            None
+                        }
+                    }
+                }};
             }
+
+            let v6 = try_register_socket!("IPv6", ipv6_any_binding());
+
+            let need_v4 = match v6.map(|no| sockets[no].only_v6()) {
+                Some(Ok(v)) => v,
+                None => true,
+                Some(Err(e)) => {
+                    warn!("Unable to detect whether the IPv6 socket supports dual-stack operation: {}", e);
+                    true
+                }
+            };
+
+            if need_v4 {
+                try_register_socket!("IPv4", ipv4_any_binding());
+            }
+        }
+
+        if sockets.is_empty() {
+            bail!("No sockets to listen on!")
         }
 
         // register all sockets to mio
