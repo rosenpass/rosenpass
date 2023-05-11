@@ -216,9 +216,6 @@ impl Cli {
     }
 
     fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
-        // dump config
-        eprintln!("{config:#?}");
-
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
