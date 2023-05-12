@@ -18,6 +18,7 @@ use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use std::slice;
 use std::time::Duration;
 
 use crate::util::fopen_w;
@@ -44,7 +45,16 @@ fn ipv6_any_binding() -> SocketAddr {
 pub struct AppPeer {
     pub outfile: Option<PathBuf>,
     pub outwg: Option<WireguardOut>, // TODO make this a generic command
-    pub endpoint: Option<Endpoint>,
+    pub initial_endpoint: Option<Endpoint>,
+    pub current_endpoint: Option<Endpoint>,
+}
+
+impl AppPeer {
+    pub fn endpoint(&self) -> Option<&Endpoint> {
+        self.current_endpoint
+            .as_ref()
+            .or(self.initial_endpoint.as_ref())
+    }
 }
 
 #[derive(Default, Debug)]
@@ -165,11 +175,55 @@ pub enum Endpoint {
 }
 
 impl Endpoint {
+    /// Start discovery from some addresses
+    pub fn discovery_from_addresses(addresses: Vec<SocketAddr>) -> Self {
+        Endpoint::Discovery(HostPathDiscoveryEndpoint::from_addresses(addresses))
+    }
+
+    /// Start endpoint discovery from a hostname
+    pub fn discovery_from_hostname(hostname: String) -> anyhow::Result<Self> {
+        let host = HostPathDiscoveryEndpoint::lookup(hostname)?;
+        Ok(Endpoint::Discovery(host))
+    }
+
+    // Restart discovery; joining two sources of (potential) addresses
+    //
+    // This is used when the connection to an endpoint is lost in order
+    // to include the addresses specified on the command line and the
+    // address last used in the discovery process
+    pub fn discovery_from_multiple_sources(
+        a: Option<&Endpoint>,
+        b: Option<&Endpoint>,
+    ) -> Option<Self> {
+        let sources = match (a, b) {
+            (Some(e), None) | (None, Some(e)) => e.addresses().iter().chain(&[]),
+            (Some(e1), Some(e2)) => e1.addresses().iter().chain(e2.addresses()),
+            (None, None) => return None,
+        };
+        let lower_size_bound = sources.size_hint().0;
+        let mut dedup = std::collections::HashSet::with_capacity(lower_size_bound);
+        let mut addrs = Vec::with_capacity(lower_size_bound);
+        for a in sources {
+            if dedup.insert(a) {
+                addrs.push(*a);
+            }
+        }
+        Some(Self::discovery_from_addresses(addrs))
+    }
+
     pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         use Endpoint::*;
         match self {
             SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
             Discovery(host) => host.send_scouting(srv, buf),
+        }
+    }
+
+    fn addresses(&self) -> &[SocketAddr] {
+        use Endpoint::*;
+        match self {
+            SocketBoundAddress { addr, .. } => slice::from_ref(addr),
+            Discovery(host) => host.addresses(),
         }
     }
 }
@@ -207,12 +261,24 @@ pub struct HostPathDiscoveryEndpoint {
 }
 
 impl HostPathDiscoveryEndpoint {
+    pub fn from_addresses(addresses: Vec<SocketAddr>) -> Self {
+        let scouting_state = Cell::new((0, 0));
+        Self {
+            addresses,
+            scouting_state,
+        }
+    }
+
     /// Lookup a hostname
     pub fn lookup(hostname: String) -> anyhow::Result<Self> {
         Ok(Self {
             addresses: ToSocketAddrs::to_socket_addrs(&hostname)?.collect(),
             scouting_state: Cell::new((0, 0)),
         })
+    }
+
+    pub fn addresses(&self) -> &Vec<SocketAddr> {
+        &self.addresses
     }
 
     fn insert_next_scout_offset(&self, srv: &AppServer, addr_no: usize, sock_no: usize) {
@@ -384,15 +450,15 @@ impl AppServer {
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
         assert!(pn == self.peers.len());
-        let endpoint = hostname
-            .map(|n| -> anyhow::Result<Endpoint> {
-                Ok(Endpoint::Discovery(HostPathDiscoveryEndpoint::lookup(n)?))
-            })
+        let initial_endpoint = hostname
+            .map(Endpoint::discovery_from_hostname)
             .transpose()?;
+        let current_endpoint = None;
         self.peers.push(AppPeer {
             outfile,
             outwg,
-            endpoint,
+            initial_endpoint,
+            current_endpoint,
         });
         Ok(AppPeerPtr(pn))
     }
@@ -443,9 +509,9 @@ impl AppServer {
             ($peer:expr, $fn:expr) => {
                 attempt!({
                     let p = $peer;
-                    if p.get_app(self).endpoint.is_some() {
+                    if p.get_app(self).endpoint().is_some() {
                         let len = $fn()?;
-                        let ep: &Endpoint = p.get_app(self).endpoint.as_ref().unwrap();
+                        let ep: &Endpoint = p.get_app(self).endpoint().unwrap();
                         ep.send(self, &tx[..len])?;
                     }
                     Ok(())
@@ -464,7 +530,19 @@ impl AppServer {
                 SendRetransmission(peer) => tx_maybe_with!(peer, || self
                     .crypt
                     .retransmit_handshake(peer.lower(), &mut *tx))?,
-                DeleteKey(peer) => self.output_key(peer, Stale, &SymKey::random())?,
+                DeleteKey(peer) => {
+                    self.output_key(peer, Stale, &SymKey::random())?;
+
+                    // There was a loss of connection apparently; restart host discovery
+                    // starting from the last used address but including all the initially
+                    // specified addresses
+                    // TODO: We could do this preemptively, before any connection loss actually occurs.
+                    let p = peer.get_app_mut(self);
+                    p.current_endpoint = Endpoint::discovery_from_multiple_sources(
+                        p.current_endpoint.as_ref(),
+                        p.initial_endpoint.as_ref(),
+                    );
+                }
 
                 ReceivedMessage(len, endpoint) => {
                     match self.crypt.handle_msg(&rx[..len], &mut *tx) {
@@ -490,7 +568,7 @@ impl AppServer {
 
                             if let Some(p) = exchanged_with {
                                 let ap = AppPeerPtr::lift(p);
-                                ap.get_app_mut(self).endpoint = Some(endpoint);
+                                ap.get_app_mut(self).current_endpoint = Some(endpoint);
 
                                 // TODO: Maybe we should rather call the key "rosenpass output"?
                                 self.output_key(ap, Exchanged, &self.crypt.osk(p)?)?;
