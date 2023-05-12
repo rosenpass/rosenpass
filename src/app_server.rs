@@ -5,6 +5,7 @@ use log::{error, info, warn};
 use mio::Interest;
 use mio::Token;
 
+use std::cell::Cell;
 use std::io::Write;
 
 use std::io::ErrorKind;
@@ -160,7 +161,7 @@ pub enum Endpoint {
     // ip address makes sure that we look up the host name whenever we try
     // to make a connection; this may be beneficial in some setups where a host-name
     // at first can not be resolved but becomes resolvable later.
-    Host(HostIdentification),
+    Discovery(HostPathDiscoveryEndpoint),
 }
 
 impl Endpoint {
@@ -168,28 +169,86 @@ impl Endpoint {
         use Endpoint::*;
         match self {
             SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
-            Host(host) => host.send_scouting(srv, buf),
+            Discovery(host) => host.send_scouting(srv, buf),
         }
     }
 }
 
+/// Handles host-path discovery
+///
+/// When rosenpass is started, we either know no peer address
+/// or we know a hostname. How to contact this hostname may not
+/// be entirely clear for two reasons:
+///
+/// 1. We have multiple sockets; only a subset of those may be able to contact the host
+/// 2. DNS resolution can return multiple addresses
+///
+/// We could just use the first working socket and the first address returned, but this
+/// may be error prone: Some of the sockets may appear to be able to contact the host,
+/// but the packets will be dropped. Some of the addresses may appear to be reachable
+/// but the packets could be lost.
+///
+/// In contrast to TCP, UDP has no mechanism to ensure packets actually arrive.
+///
+/// To robustly handle host path discovery, we try each socket-ip-combination in a round
+/// robin fashion; the struct stores the offset of the last used combination internally and
+/// and will continue with the next combination on every call.
+///
+/// Retransmission handling will continue normally; i.e. increasing the distance between
+/// retransmissions on every retransmission, until it is long enough to bore a human. Therefor
+/// it is important to avoid having a large number of sockets drop packets not just for efficiency
+/// but to avoid latency issues too.
+///
+// TODO: We might consider adjusting the retransmission handling to account for host-path discovery
 #[derive(Debug)]
-pub struct HostIdentification {
+pub struct HostPathDiscoveryEndpoint {
+    scouting_state: Cell<(usize, usize)>, // addr_off, sock_off
     addresses: Vec<SocketAddr>,
 }
 
-impl HostIdentification {
-    pub fn new(hostname: String) -> anyhow::Result<Self> {
-        let addresses = ToSocketAddrs::to_socket_addrs(&hostname)?.collect();
-        Ok(Self { addresses })
+impl HostPathDiscoveryEndpoint {
+    /// Lookup a hostname
+    pub fn lookup(hostname: String) -> anyhow::Result<Self> {
+        Ok(Self {
+            addresses: ToSocketAddrs::to_socket_addrs(&hostname)?.collect(),
+            scouting_state: Cell::new((0, 0)),
+        })
     }
 
+    fn insert_next_scout_offset(&self, srv: &AppServer, addr_no: usize, sock_no: usize) {
+        self.scouting_state.set((
+            (addr_no + 1) % self.addresses.len(),
+            (sock_no + 1) % srv.sockets.len(),
+        ));
+    }
+
+    /// Attempt to reach the host
+    ///
+    /// Will round-robin-try different socket-ip-combinations on each call.
     pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
-        for addr in &self.addresses {
-            for (sock_no, sock) in srv.sockets.iter().enumerate() {
+        let (addr_off, sock_off) = self.scouting_state.get();
+
+        let mut addrs = (&self.addresses)
+            .iter()
+            .enumerate()
+            .cycle()
+            .skip(addr_off)
+            .take(self.addresses.len());
+        let mut sockets = (&srv.sockets)
+            .iter()
+            .enumerate()
+            .cycle()
+            .skip(sock_off)
+            .take(srv.sockets.len());
+
+        for (addr_no, addr) in addrs.by_ref() {
+            for (sock_no, sock) in sockets.by_ref() {
                 let res = sock.send_to(buf, *addr);
                 let err = match res {
-                    Ok(_) => return Ok(()),
+                    Ok(_) => {
+                        self.insert_next_scout_offset(srv, addr_no, sock_no);
+                        return Ok(());
+                    }
                     Err(e) => e,
                 };
 
@@ -327,7 +386,7 @@ impl AppServer {
         assert!(pn == self.peers.len());
         let endpoint = hostname
             .map(|n| -> anyhow::Result<Endpoint> {
-                Ok(Endpoint::Host(HostIdentification::new(n)?))
+                Ok(Endpoint::Discovery(HostPathDiscoveryEndpoint::lookup(n)?))
             })
             .transpose()?;
         self.peers.push(AppPeer {
