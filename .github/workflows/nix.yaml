@@ -18,7 +18,7 @@ jobs:
         nix-system:
           - x86_64-linux
           - i686-linux
-          - aarch64-linux
+          #- aarch64-linux -- Broken; see https://github.com/rosenpass/rosenpass/issues/62
         derivation:
           - rosenpass
           - rosenpass-static
