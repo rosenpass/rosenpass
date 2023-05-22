@@ -62,4 +62,7 @@ jobs:
       - run: rustup component add clippy
       - name: Install libsodium
         run: sudo apt-get install -y libsodium-dev
-      - run: RUSTDOCFLAGS="-D warnings" cargo doc --document-private-items
+      # `--no-deps` used as a workaround for a rust compiler bug. See:
+      # - https://github.com/rosenpass/rosenpass/issues/62
+      # - https://github.com/rust-lang/rust/issues/108378
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
