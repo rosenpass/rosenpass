@@ -62,18 +62,19 @@ macro_rules! attempt {
     };
 }
 
-const B64TYPE: base64::Config = base64::STANDARD;
+use base64::engine::general_purpose::GeneralPurpose as Base64Engine;
+const B64ENGINE : Base64Engine = base64::engine::general_purpose::STANDARD;
 
-pub fn fmt_b64<'a>(payload: &'a [u8]) -> B64Display<'a> {
-    B64Display::<'a>::with_config(payload, B64TYPE)
+pub fn fmt_b64<'a>(payload: &'a [u8]) -> B64Display<'a, 'static, Base64Engine> {
+    B64Display::<'a, 'static>::new(payload, &B64ENGINE)
 }
 
-pub fn b64_writer<W: Write>(w: W) -> B64Writer<W> {
-    B64Writer::new(w, B64TYPE)
+pub fn b64_writer<W: Write>(w: W) -> B64Writer<'static, Base64Engine, W> {
+    B64Writer::new(w, &B64ENGINE)
 }
 
-pub fn b64_reader<R: Read>(r: &mut R) -> B64Reader<'_, R> {
-    B64Reader::new(r, B64TYPE)
+pub fn b64_reader<R: Read>(r: R) -> B64Reader<'static, Base64Engine, R> {
+    B64Reader::new(r, &B64ENGINE)
 }
 
 // TODO remove this once std::cmp::max becomes const
