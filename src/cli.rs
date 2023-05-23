@@ -2,6 +2,7 @@ use anyhow::{bail, ensure};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
+use crate::app_server;
 use crate::app_server::AppServer;
 use crate::util::{LoadValue, LoadValueB64};
 use crate::{
@@ -233,7 +234,11 @@ impl Cli {
                 cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
-                None, // TODO remove this argument
+                cfg_peer.wg.map(|cfg| app_server::WireguardOut {
+                    dev: cfg.device,
+                    pk: cfg.peer,
+                    extra_params: cfg.extra_params,
+                }),
                 cfg_peer.endpoint.clone(),
             )?;
         }

@@ -53,9 +53,9 @@ pub struct RosenpassPeer {
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireGuard {
-    device: String,
-    peer: String,
-    extra_params: Vec<String>,
+    pub device: String,
+    pub peer: String,
+    pub extra_params: Vec<String>,
 }
 
 impl Rosenpass {
