@@ -325,7 +325,7 @@
           checks = {
             cargo-fmt = pkgs.runCommand "check-cargo-fmt"
               { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
-              cargo fmt --manifest-path=${./.}/Cargo.toml --check > $out
+              cargo fmt --manifest-path=${./.}/Cargo.toml --check && touch $out
             '';
             nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
               { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''
