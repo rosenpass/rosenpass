@@ -104,7 +104,8 @@ pub const UNENDING: Timing = 3600.0 * 8.0;
 
 // From the wireguard paper; rekey every two minutes,
 // discard the key if no rekey is achieved within three
-pub const REKEY_AFTER_TIME: Timing = 120.0;
+pub const REKEY_AFTER_TIME_RESPONDER: Timing = 120.0;
+pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
 pub const REJECT_AFTER_TIME: Timing = 180.0;
 
 // Seconds until the biscuit key is changed; we issue biscuits
@@ -234,7 +235,7 @@ pub struct HandshakeState {
     pub ck: SecretPrfTreeBranch,
 }
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
 pub enum HandshakeRole {
     Initiator,
     Responder,
@@ -281,6 +282,7 @@ pub struct Session {
     pub created_at: Timing,
     pub sidm: SessionId,
     pub sidt: SessionId,
+    pub handshake_role: HandshakeRole,
     // Crypto
     pub ck: SecretPrfTreeBranch,
     /// Key for Transmission ("transmission key mine")
@@ -599,6 +601,7 @@ impl Session {
             created_at: 0.0,
             sidm: SessionId::zero(),
             sidt: SessionId::zero(),
+            handshake_role: HandshakeRole::Initiator,
             ck: SecretPrfTree::zero().dup(),
             txkm: SymKey::zero(),
             txkt: SymKey::zero(),
@@ -657,7 +660,20 @@ impl Mortal for SessionPtr {
     }
 
     fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
-        self.created_at(srv).map(|t| t + REKEY_AFTER_TIME)
+        // If we were the initiator, wait an extra ten seconds to avoid
+        // both parties starting the handshake at the same time. In most situations
+        // this should provide ample time for the other party to perform a
+        // complete handshake before this peer starts another handshake.
+        // This also has the peers going back and forth taking the initiator role
+        // and responder role.
+        use HandshakeRole::*;
+        self.get(srv).as_ref().map(|p| {
+            let wait = match p.handshake_role {
+                Initiator => REKEY_AFTER_TIME_INITIATOR,
+                Responder => REKEY_AFTER_TIME_RESPONDER,
+            };
+            p.created_at + wait
+        })
     }
 
     fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
@@ -1361,6 +1377,7 @@ impl HandshakeState {
             created_at,
             sidm: mysid,
             sidt: peersid,
+            handshake_role: role,
             ck,
             txkm: ktx,
             txkt: krx,
@@ -1623,9 +1640,30 @@ impl CryptoServer {
             // ICR7
             peer.session()
                 .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
+            // TODO: This should be part of the protocol specification.
+            // Abort any ongoing handshake from initiator role
+            peer.hs().take(self);
         }
 
         // TODO: Implementing RP should be possible without touching the live session stuff
+        // TODO: I fear that this may lead to race conditions; the acknowledgement may be
+        //       sent on a different session than the incoming packet. This should be mitigated
+        //       by the deliberate backoff in SessionPtr::retire_at as in practice only one
+        //       handshake should be going on at a time.
+        //       I think it may not be possible to formulate the protocol in such a way that
+        //       we can be sure that the other party possesses a matching key; maybe we should
+        //       study mathematically whether this even is possible.
+        //       WireGuard solves this by just having multiple sessions so even if there is a
+        //       race condition leading to two concurrent active sessions, data can still be sent.
+        //       It would be nice if Rosenpass could do the same, but in order for that to work,
+        //       WireGuard would have to have support for multiple PSKs (with a timeout) and
+        //       WireGuard; to identify which PSK was used, wireguard would have to do a linear
+        //       search with the responder trying each available PSK.
+        //       In practice, the best thing to do might be to send regular pings to confirm that
+        //       the key is still the same, which adds a bit of overhead.
+        //       Another option would be to monitor WireGuard for failing handshakes and trigger
+        //       a Rosenpass handshake in case a key mismatch due to a race condition is the reason
+        //       for the failing handshake.
 
         // Send ack – Implementing sending the empty acknowledgement here
         // instead of a generic PeerPtr::send(&Server, Option<&[u8]>) -> Either<EmptyData, Data>
