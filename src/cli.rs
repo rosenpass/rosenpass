@@ -35,19 +35,19 @@ pub enum Cli {
      * guidance on the CLI usage.
      */
     Exchange {
-        /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>]... [verbose]
+        /// public-key \<PATH> secret-key \<PATH> \[listen \<ADDR>:\<PORT>]... \[verbose]
         #[clap(value_name = "OWN_CONFIG")]
         first_arg: String,
 
-        /// peer public-key <PATH> [ENDPOINT] [PSK] [OUTFILE] [WG]
+        /// peer public-key \<PATH> \[ENDPOINT] \[PSK] \[OUTFILE] \[WG]
         ///
-        /// ENDPOINT := [endpoint <HOST/IP>:<PORT>]
+        /// ENDPOINT := \[endpoint \<HOST/IP>:\<PORT>]
         ///
-        /// PSK := [preshared-key <PATH>]
+        /// PSK := \[preshared-key \<PATH>]
         ///
-        /// OUTFILE := [outfile <PATH>]
+        /// OUTFILE := \[outfile \<PATH>]
         ///
-        /// WG := [wireguard <WIREGUARD_DEV> <WIREGUARD_PEER> [WIREGUARD_EXTRA_ARGS]...]
+        /// WG := \[wireguard \<WIREGUARD_DEV> \<WIREGUARD_PEER> \[WIREGUARD_EXTRA_ARGS]...]
         #[clap(value_names = [
 "peer", "public-key", "<PATH>", "[ENDPOINT]" ,"[PSK]", "[OUTFILE]", "[WG]"            
         ])]
