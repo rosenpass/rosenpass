@@ -43,6 +43,12 @@ dbg() {
   echo >&2 "$@"
 }
 
+
+add_warning_tag() {
+  # https://stackoverflow.com/questions/3618078/pipe-only-stderr-through-a-filter
+  ("$@" 3>&1 1>&2 2>&3 3>&- | sed 's@^@WARNING: @') 3>&1 1>&2 2>&3 3>&-
+}
+
 # Cleanup subsystem (sigterm)
 
 cleanup_init() {
@@ -314,7 +320,7 @@ main() {
   project_name="rosenpass"
   verbose=0
   scriptdir="$(dirname "${script}")"
-  gitdir="$(git -C "${scriptdir}" rev-parse --show-toplevel 2>/dev/null)" || true
+  gitdir="$(add_warning_tag git -C "${scriptdir}" rev-parse --show-toplevel)" || true
   nixdir="$(readlink -f result/bin/rp | grep -Pio '^/nix/store/[^/]+(?=/bin/[^/]+)')" || true
   binary="$(find_rosenpass_binary)"
 
