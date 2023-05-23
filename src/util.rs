@@ -63,7 +63,7 @@ macro_rules! attempt {
 }
 
 use base64::engine::general_purpose::GeneralPurpose as Base64Engine;
-const B64ENGINE : Base64Engine = base64::engine::general_purpose::STANDARD;
+const B64ENGINE: Base64Engine = base64::engine::general_purpose::STANDARD;
 
 pub fn fmt_b64<'a>(payload: &'a [u8]) -> B64Display<'a, 'static, Base64Engine> {
     B64Display::<'a, 'static>::new(payload, &B64ENGINE)
