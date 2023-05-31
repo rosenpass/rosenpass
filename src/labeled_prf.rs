@@ -10,7 +10,7 @@ pub fn protocol() -> Result<PrfTree> {
     PrfTree::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
 }
 
-// TODO Use labels that can serve as idents
+// TODO Use labels that can serve as identifiers
 macro_rules! prflabel {
     ($base:ident, $name:ident, $($lbl:expr),* ) => {
         pub fn $name() -> Result<PrfTree> {

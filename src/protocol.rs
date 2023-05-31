@@ -9,7 +9,7 @@
 //! will eventually yield a [PollResult]. Said [PollResult] contains
 //! prescriptive activities to be carried out. [CryptoServer::osk] can than
 //! be used to extract the shared key for two peers, once a key-exchange was
-//! succesfull.
+//! successful.
 //!
 //! TODO explain briefly the role of epki
 //!
@@ -115,7 +115,7 @@ pub const BISCUIT_EPOCH: Timing = 300.0;
 
 // Retransmission pub constants; will retransmit for up to _ABORT ms; starting with a delay of
 // _DELAY_BEG ms and increasing the delay exponentially by a factor of
-// _DELAY_GROWTH up to _DELAY_END. An .secretadditional jitter factor of ±_DELAY_JITTER
+// _DELAY_GROWTH up to _DELAY_END. An additional jitter factor of ±_DELAY_JITTER
 // is added.
 pub const RETRANSMIT_ABORT: Timing = 120.0;
 pub const RETRANSMIT_DELAY_GROWTH: Timing = 2.0;
@@ -188,7 +188,7 @@ pub struct CryptoServer {
 /// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
 /// the responder doesn't store state. Instead the state is stored in a
 /// Biscuit, that is encrypted using the [BiscuitKey] which is only known to
-/// the Respnder. Thus secrecy of the Responder state is not violated, still
+/// the Responder. Thus secrecy of the Responder state is not violated, still
 /// the responder can avoid storing this state.
 #[derive(Debug)]
 pub struct BiscuitKey {
@@ -287,24 +287,24 @@ pub struct Session {
     pub ck: SecretPrfTreeBranch,
     /// Key for Transmission ("transmission key mine")
     pub txkm: SymKey,
-    /// Key for Receival ("transmission key theirs")
+    /// Key for Reception ("transmission key theirs")
     pub txkt: SymKey,
     /// Nonce for Transmission ("transmission nonce mine")
     pub txnm: u64,
-    /// Nonce for Receival ("transmission nonce theirs")
+    /// Nonce for Reception ("transmission nonce theirs")
     pub txnt: u64,
 }
 
 /// Lifecycle of a Secret
 ///
-/// The order implies the readiness for usage of a secret, the highes/biggest
+/// The order implies the readiness for usage of a secret, the highest/biggest
 /// variant ([Lifecycle::Young]) is the most preferable one in a class of
 /// equal-role secrets.
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum Lifecycle {
     /// Not even generated
     Void = 0,
-    /// Secret must be zeroized, disposal adviced
+    /// Secret must be zeroed, disposal advised
     Dead,
     /// Soon to be dead: the secret might be used for receiving
     /// data, but must not be used for future sending
@@ -495,7 +495,7 @@ impl CryptoServer {
         Ok(PeerPtr(peerno))
     }
 
-    /// Register a new session (during a sucesfull handshake, persisting longer
+    /// Register a new session (during a successful handshake, persisting longer
     /// than the handshake). Might return an error on session id collision
     pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> Result<()> {
         match self.index.entry(IndexKey::Sid(id)) {
@@ -614,7 +614,7 @@ impl Session {
 // BISCUIT KEY ///////////////////////////////////
 
 /// Biscuit Keys are always randomized, so that even if through a bug some
-/// secrete is encrypted with an unitialized [BiscuitKey], nobody instead of
+/// secrete is encrypted with an initialized [BiscuitKey], nobody instead of
 /// everybody may read the secret.
 impl BiscuitKey {
     // new creates a random value, that might be counterintuitive for a Default
@@ -733,7 +733,7 @@ impl CryptoServer {
     /// Initiate a new handshake, put it to the `tx_buf` __and__ to the
     /// retransmission storage
     // NOTE retransmission? yes if initiator, no if responder
-    // TODO remove unecessary copying between global tx_buf and per-peer buf
+    // TODO remove unnecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
     pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
         let mut msg = tx_buf.envelope::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
@@ -758,7 +758,7 @@ impl CryptoServer {
     ///
     /// The response is only dependent on the incoming message, thus this
     /// function is called regardless of whether the the the calling context is
-    /// an iniator, a responder or both. The flow of is as follows:
+    /// an initiator, a responder or both. The flow of is as follows:
     ///
     /// 1. check incoming message for valid [MsgType]
     /// 2. check that the seal is intact, e.g. that the message is
@@ -768,11 +768,11 @@ impl CryptoServer {
     /// 4. if the protocol foresees a response to this message, generate one
     /// 5. seal the response with cryptographic authentication
     /// 6. if the response is a ResponseHello, store the sealed response for
-    ///    further retransmision
-    /// 7. return some peerpointer if the exchange completed with this message
+    ///    further retransmission
+    /// 7. return some peer pointer if the exchange completed with this message
     /// 8. return the length of the response generated
     ///
-    /// This is the sequence of a succesful handshake:
+    /// This is the sequence of a successful handshake:
     ///
     /// | time | Initiator   | direction | Responder   |
     /// | ---  | ---:        | :---:     | :---        |
@@ -782,7 +782,7 @@ impl CryptoServer {
     /// | t3   |             | <-        | `EmptyData` |
     pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
         let seal_broken = "Message seal broken!";
-        // lengt of the response. We assume no response, so None for now
+        // length of the response. We assume no response, so None for now
         let mut len = 0;
         let mut exchanged = false;
 
@@ -1296,7 +1296,7 @@ impl HandshakeState {
         sodium_bigint_inc(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
-        // TODO: This is premature optimiaztion. Remove!
+        // TODO: This is premature optimization. Remove!
         let bk = srv.active_biscuit_key();
         let mut n = XAEADNonce::random();
         n[0] &= 0b0111_1111;
@@ -1320,7 +1320,7 @@ impl HandshakeState {
         // The first bit of the biscuit indicates which biscuit key was used
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
 
-        // Calculate addtional data fields
+        // Calculate additional data fields
         let ad = lprf::biscuit_ad()?
             .mix(srv.spkm.secret())?
             .mix(sidi.as_slice())?
@@ -1648,7 +1648,7 @@ impl CryptoServer {
         // TODO: Implementing RP should be possible without touching the live session stuff
         // TODO: I fear that this may lead to race conditions; the acknowledgement may be
         //       sent on a different session than the incoming packet. This should be mitigated
-        //       by the deliberate backoff in SessionPtr::retire_at as in practice only one
+        //       by the deliberate back off in SessionPtr::retire_at as in practice only one
         //       handshake should be going on at a time.
         //       I think it may not be possible to formulate the protocol in such a way that
         //       we can be sure that the other party possesses a matching key; maybe we should
@@ -1673,7 +1673,7 @@ impl CryptoServer {
             .session()
             .get_mut(self)
             .as_mut()
-            .context("Cannot send acknoledgement. No session.")?;
+            .context("Cannot send acknowledgement. No session.")?;
         rc.sid_mut().copy_from_slice(&ses.sidt.value);
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised

@@ -353,13 +353,13 @@ impl AppServer {
         // When no socket is specified, rosenpass should open one port on all
         // available interfaces best-effort. Here are the cases how this can possibly go:
         //
-        // Some operating systems (such as linux [^linux] and freebsd [^freebsd])
+        // Some operating systems (such as Linux [^linux] and FreeBSD [^freebsd])
         // using IPv6 sockets to handle IPv4 connections; on these systems
         // binding to the `[::]:0` address will typically open a dual-stack
-        // socket. Some other systems such as openbsd [^openbsd] do not support this feature.
+        // socket. Some other systems such as OpenBSD [^openbsd] do not support this feature.
         //
         // Dual-stack systems provide a flag to enable or disable this
-        // behavior – the IPV6_V6ONLY flag. Openbsd supports this flag
+        // behavior – the IPV6_V6ONLY flag. OpenBSD supports this flag
         // read-only. MIO[^mio] provides a way to read this flag but not
         // to write it.
         //
@@ -372,7 +372,7 @@ impl AppServer {
         // - One IPv4 socket and no IPv6 socket if opening the IPv6 socket fails
         // - One dual-stack IPv6 socket and a redundant IPv4 socket if dual-stack sockets are
         //   supported but the operating system does not correctly report this (specifically,
-        //   if the only_v6() call raises an errror)
+        //   if the only_v6() call raises an error)
         // - Rosenpass exits if no socket could be opened
         //
         // [^freebsd]: https://man.freebsd.org/cgi/man.cgi?query=ip6&sektion=4&manpath=FreeBSD+6.0-RELEASE
@@ -423,7 +423,7 @@ impl AppServer {
                 .register(socket, Token(i), Interest::READABLE)?;
         }
 
-        // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for linux
+        // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
 
         Ok(Self {
             crypt: CryptoServer::new(sk, pk),
@@ -490,7 +490,7 @@ impl AppServer {
                 err.backtrace()
             );
             if tries_left > 0 {
-                error!("reinitializing networking in {sleep}! {tries_left} tries left.");
+                error!("re-initializing networking in {sleep}! {tries_left} tries left.");
                 std::thread::sleep(self.crypt.timebase.dur(sleep));
                 continue;
             }
@@ -612,7 +612,7 @@ impl AppServer {
             };
 
             // this is intentionally writing to stdout instead of stderr, because
-            // it is meant to allow external detection of a succesful key-exchange
+            // it is meant to allow external detection of a successful key-exchange
             println!(
                 "output-key peer {} key-file {of:?} {why}",
                 fmt_b64(&*peerid)
@@ -669,7 +669,7 @@ impl AppServer {
             return Ok(None);
         }
 
-        // NOTE when using mio::Poll, there are some finickies (taken from
+        // NOTE when using mio::Poll, there are some particularities (taken from
         // https://docs.rs/mio/latest/mio/struct.Poll.html):
         //
         // - poll() might return readiness, even if nothing is ready
@@ -677,7 +677,7 @@ impl AppServer {
         // - after receiving readiness for a source, it must be drained until a WouldBlock
         //   is received
         //
-        // This would ususally require us to maintain the drainage status of each socket;
+        // This would usually require us to maintain the drainage status of each socket;
         // a socket would only become drained when it returned WouldBlock and only
         // non-drained when receiving a readiness event from mio for it. Then, only the
         // ready sockets should be worked on, ideally without requiring an O(n) search
@@ -708,7 +708,7 @@ impl AppServer {
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
                     would_block_count += 1;
                 }
-                // TODO if one socket continuesly returns an error, then we never poll, thus we never wait for a timeout, thus we have a spin-lock
+                // TODO if one socket continuously returns an error, then we never poll, thus we never wait for a timeout, thus we have a spin-lock
                 Err(e) => return Err(e.into()),
             }
         }
