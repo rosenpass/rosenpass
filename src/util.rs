@@ -200,7 +200,7 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
         // in practice this is likely not a problem because the stack likely
         // will be overwritten by something else soon but this is not exactly
         // guaranteed. It would be possible to remedy this, but since the secret
-        // data will linger in the linux page cache anyways with the current
+        // data will linger in the Linux page cache anyways with the current
         // implementation, going to great length to erase the secret here is
         // not worth it right now.
         b64_reader(&mut fopen_r(p)?)

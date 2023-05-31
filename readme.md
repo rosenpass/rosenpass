@@ -14,14 +14,14 @@ This repository contains
 
 ## Getting started
 
-First, [install rosenpass](#Getting-Rosenpass). Then, check out the help funtions of `rp` & `rosenpass`:
+First, [install rosenpass](#Getting-Rosenpass). Then, check out the help functions of `rp` & `rosenpass`:
 
 ```sh
 rp help
 rosenpass help
 ```
 
-Follow [quickstart instructions](https://rosenpass.eu/#start) to get a VPN up and running.
+Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up and running.
 
 ## Software architecture
 
@@ -54,7 +54,7 @@ We are working on a cryptographic proof of security, but we already provide a sy
 (manual) $ ./analyze.sh
 ```
 
-The analysis is implemented according to modern software engineering principles: Using the C preprocessor, we where able to split the analysis into multiple files and uses some metaprogramming to avoid repetition.
+The analysis is implemented according to modern software engineering principles: Using the C preprocessor, we where able to split the analysis into multiple files and uses some meta programming to avoid repetition.
 The code uses a variety of optimizations to speed up analysis such as using secret functions to model trusted/malicious setup. We split the model into two separate entry points which can be analyzed in parallel. Each is much faster than both models combined.
 A wrapper script provides instant feedback about which queries execute as expected in color: A red cross if a query fails and a green check if it succeeds.
 
@@ -62,12 +62,12 @@ A wrapper script provides instant feedback about which queries execute as expect
 [^libsodium]: https://doc.libsodium.org/
 [^wg]: https://www.wireguard.com/
 [^pqwg]: https://eprint.iacr.org/2020/379
-[^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeates the purpose of a key exchange protocol
+[^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeats the purpose of a key exchange protocol
 [^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.htmlA
 
 # Getting Rosenpass
 
-Rosenpass is packaged for more and more distros, maybe also for the distro of your choice?
+Rosenpass is packaged for more and more distributions, maybe also for the distribution of your choice?
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 

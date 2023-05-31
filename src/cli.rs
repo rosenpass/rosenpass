@@ -63,7 +63,7 @@ pub enum Cli {
     GenConfig {
         config_file: PathBuf,
 
-        /// Forecefully overwrite existing config file
+        /// Forcefully overwrite existing config file
         #[clap(short, long)]
         force: bool,
     },
@@ -84,7 +84,7 @@ pub enum Cli {
         #[clap(short, long)]
         secret_key: Option<PathBuf>,
 
-        /// Forecefully overwrite public- & secret-key file
+        /// Forcefully overwrite public- & secret-key file
         #[clap(short, long)]
         force: bool,
     },
