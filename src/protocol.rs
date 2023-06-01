@@ -304,7 +304,7 @@ pub struct Session {
 enum Lifecycle {
     /// Not even generated
     Void = 0,
-    /// Secret must be zeroed, disposal advised
+    /// Secret must be zeroized, disposal advised
     Dead,
     /// Soon to be dead: the secret might be used for receiving
     /// data, but must not be used for future sending
