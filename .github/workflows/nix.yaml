@@ -2,87 +2,248 @@ name: Nix
 permissions:
   contents: write
 on:
-  pull_request:
+  pull_request: null
   push:
-    branches: [main]
-
+    branches:
+      - main
 jobs:
-  build:
-    name: Build ${{ matrix.derivation }} on ${{ matrix.nix-system }}
+  x86_64-darwin---release-package:
+    name: Build x86_64-darwin.release-package
     runs-on:
-      - nix
-      - ${{ matrix.nix-system }}
-    strategy:
-      fail-fast: false
-      matrix:
-        nix-system:
-          - x86_64-linux
-          - i686-linux
-          #- aarch64-linux -- Broken; see https://github.com/rosenpass/rosenpass/issues/62
-        derivation:
-          - rosenpass
-          - rosenpass-static
-          - rosenpass-oci-image
-          - rosenpass-static-oci-image
-          - proof-proverif
-          - whitepaper
-        exclude:
-          # these do not exist
-          - nix-system: i686-linux
-            derivation: proof-proverif
-          - nix-system: i686-linux
-            derivation: whitepaper
-
-          # these fail currently
-          # TODO enable once https://github.com/open-quantum-safe/liboqs-rust/issues/202 is fixed
-          - nix-system: i686-linux
-            derivation: rosenpass-static
-          - nix-system: i686-linux
-            derivation: rosenpass-static-oci-image
-
+      - macos-latest
+    needs:
+      - x86_64-darwin---rosenpass
+      - x86_64-darwin---rosenpass-oci-image
     steps:
       - uses: actions/checkout@v3
-      - name: Generate gitHeadInfo.gin for the whitepaper
-        if: ${{ matrix.derivation == 'whitepaper' }}
-        run: ( cd papers && ./tex/gitinfo2.sh && git add gitHeadInfo.gin )
-      - name: Build ${{ matrix.derivation }}@${{ matrix.nix-system }}
-        run: |
-          # build the package
-          nix build .#packages.${{ matrix.nix-system }}.${{ matrix.derivation }} --print-build-logs
-
-          # copy over the results
-          if [[ -f $(readlink --canonicalize result ) ]]; then
-            mkdir -- ${{ matrix.derivation }}-${{ matrix.nix-system }}
-          fi
-          cp --recursive -- $(readlink --canonicalize result) ${{ matrix.derivation }}-${{ matrix.nix-system }}
-          chmod --recursive ug+rw -- ${{ matrix.derivation }}-${{ matrix.nix-system }}
-
-          # add version information
-          git rev-parse --abbrev-ref HEAD > ${{ matrix.derivation }}-${{ matrix.nix-system }}/git-version
-          git rev-parse HEAD > ${{ matrix.derivation }}-${{ matrix.nix-system }}/git-sha
-
-          # override the `rp` script to keep compatible with non-nix systems
-          if [[ -f ${{ matrix.derivation }}-${{ matrix.nix-system }}/bin/rp ]]; then
-            cp --force -- rp ${{ matrix.derivation }}-${{ matrix.nix-system }}/bin/
-          fi
-      - name: Upload build results
-        uses: actions/upload-artifact@v3
+      - uses: cachix/install-nix-action@v21
         with:
-          name: ${{ matrix.derivation }}-${{ matrix.nix-system }}
-          path: ${{ matrix.derivation }}-${{ matrix.nix-system }}
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-darwin.release-package --print-build-logs
+  x86_64-darwin---rosenpass:
+    name: Build x86_64-darwin.rosenpass
+    runs-on:
+      - macos-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-darwin.rosenpass --print-build-logs
+  x86_64-darwin---rosenpass-oci-image:
+    name: Build x86_64-darwin.rosenpass-oci-image
+    runs-on:
+      - macos-latest
+    needs:
+      - x86_64-darwin---rosenpass
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-darwin.rosenpass-oci-image --print-build-logs
+  x86_64-darwin---check:
+    name: Run Nix checks on x86_64-darwin
+    runs-on:
+      - macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Check
+        run: nix flake check . --print-build-logs
+  x86_64-linux---proof-proverif:
+    name: Build x86_64-linux.proof-proverif
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - x86_64-linux---proverif-patched
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.proof-proverif --print-build-logs
+  x86_64-linux---proverif-patched:
+    name: Build x86_64-linux.proverif-patched
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.proverif-patched --print-build-logs
+  x86_64-linux---release-package:
+    name: Build x86_64-linux.release-package
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - x86_64-linux---rosenpass
+      - x86_64-linux---rosenpass-oci-image
+      - x86_64-linux---rosenpass-static
+      - x86_64-linux---rosenpass-static-oci-image
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.release-package --print-build-logs
+  x86_64-linux---rosenpass:
+    name: Build x86_64-linux.rosenpass
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.rosenpass --print-build-logs
+  x86_64-linux---rosenpass-oci-image:
+    name: Build x86_64-linux.rosenpass-oci-image
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - x86_64-linux---rosenpass
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.rosenpass-oci-image --print-build-logs
+  x86_64-linux---rosenpass-static:
+    name: Build x86_64-linux.rosenpass-static
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.rosenpass-static --print-build-logs
+  x86_64-linux---rosenpass-static-oci-image:
+    name: Build x86_64-linux.rosenpass-static-oci-image
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - x86_64-linux---rosenpass-static
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.rosenpass-static-oci-image --print-build-logs
+  x86_64-linux---whitepaper:
+    name: Build x86_64-linux.whitepaper
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
+  x86_64-linux---check:
+    name: Run Nix checks on x86_64-linux
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Check
+        run: nix flake check . --print-build-logs
+  x86_64-linux---whitepaper-upload:
+    name: Upload whitepaper x86_64-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Git add git sha and commit
+        run: cd papers && ./tex/gitinfo2.sh && git add gitHeadInfo.gin
+      - name: Build
+        run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
       - name: Deploy PDF artifacts
-        if: ${{ matrix.derivation == 'whitepaper' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ${{ matrix.derivation }}-${{ matrix.nix-system }}
+          publish_dir: result/
           publish_branch: papers-pdf
           force_orphan: true
-  checks:
-    name: Run Nix checks
-    runs-on: nixos
-    needs: build
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run Checks
-        run: nix flake check . --print-build-logs
