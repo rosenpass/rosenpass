@@ -274,6 +274,7 @@ jobs:
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v21
@@ -288,7 +289,6 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
       - name: Deploy PDF artifacts
-        if: ${{ github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

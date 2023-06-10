@@ -161,6 +161,7 @@ let system = "x86_64-linux"
 $cachix_workflow.jobs = ($cachix_workflow.jobs | insert $"($system)---whitepaper-upload" {
   name: $"Upload whitepaper ($system)",
   "runs-on": ($systems_map | get $system),
+  "if": "${{ github.ref == 'refs/heads/main' }}",
   steps: ($runner_setup | append [
     {
       name: "Git add git sha and commit",
@@ -172,7 +173,6 @@ $cachix_workflow.jobs = ($cachix_workflow.jobs | insert $"($system)---whitepaper
     }
     {
       name: "Deploy PDF artifacts",
-      "if": "${{ github.ref == 'refs/heads/main' }}",
       uses: "peaceiris/actions-gh-pages@v3",
       with: {
         github_token: "${{ secrets.GITHUB_TOKEN }}",
