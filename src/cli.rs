@@ -29,29 +29,29 @@ pub enum Cli {
     ///
     /// The configuration is read from the command line. The `peer` token
     /// always separates multiple peers, e. g. if the token `peer` appears
-    /// in the WIREGUARD_EXTRA_ARGS it terminates is not put into the
-    /// WireGuard arguments but instead a new peer is created.
+    /// in the WIREGUARD_EXTRA_ARGS it is not put into the WireGuard arguments
+    /// but instead a new peer is created.
     /* Explanation: `first_arg` and `rest_of_args` are combined into one
      * `Vec<String>`. They are only used to trick clap into displaying some
      * guidance on the CLI usage.
      */
+    #[allow(rustdoc::broken_intra_doc_links)]
+    #[allow(rustdoc::invalid_html_tags)]
     Exchange {
-        /// public-key \<PATH> secret-key \<PATH> \[listen \<ADDR>:\<PORT>]... \[verbose]
+        /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>]... [verbose]
         #[clap(value_name = "OWN_CONFIG")]
         first_arg: String,
 
-        /// peer public-key \<PATH> \[ENDPOINT] \[PSK] \[OUTFILE] \[WG]
+        /// peer public-key <PATH> [ENDPOINT] [PSK] [OUTFILE] [WG]
         ///
-        /// ENDPOINT := \[endpoint \<HOST/IP>:\<PORT>]
+        /// ENDPOINT := endpoint <HOST/IP>:<PORT>
         ///
-        /// PSK := \[preshared-key \<PATH>]
+        /// PSK := preshared-key <PATH>
         ///
-        /// OUTFILE := \[outfile \<PATH>]
+        /// OUTFILE := outfile <PATH>
         ///
-        /// WG := \[wireguard \<WIREGUARD_DEV> \<WIREGUARD_PEER> \[WIREGUARD_EXTRA_ARGS]...]
-        #[clap(value_names = [
-"peer", "public-key", "<PATH>", "[ENDPOINT]" ,"[PSK]", "[OUTFILE]", "[WG]"            
-        ])]
+        /// WG := wireguard <WIREGUARD_DEV> <WIREGUARD_PEER> [WIREGUARD_EXTRA_ARGS]...
+        #[clap(value_name = "PEERS")]
         rest_of_args: Vec<String>,
 
         /// Save the parsed configuration to a file before starting the daemon
