@@ -6,6 +6,27 @@ on:
     tags:
       - v*
 jobs:
+  i686-linux---release:
+    name: Build release artifacts for i686-linux
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build release
+        run: nix build .#release-package --print-build-logs
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: ${{ contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          files: result/*
   x86_64-darwin---release:
     name: Build release artifacts for x86_64-darwin
     runs-on:

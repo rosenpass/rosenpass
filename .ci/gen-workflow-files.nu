@@ -9,8 +9,7 @@ let systems_map = {
   # aarch64-darwin
   # aarch64-linux
   
-  # TODO this one can be enabled once a oqs-sys with liboqs 0.8 is released, this can be enabled
-  # i686-linux: ubuntu-latest,
+  i686-linux: ubuntu-latest,
   x86_64-darwin: macos-latest,
   x86_64-linux: ubuntu-latest
 }
@@ -71,6 +70,16 @@ for system in ($targets | columns) {
   # add jobs for all derivations
   let derivations = ($targets | get $system)
   for derivation in $derivations {
+
+    if ($system == "i686-linux") and ($derivation | str contains "static") {
+      log info $"skipping ($system).($derivation), due to liboqs 0.8 not present in oqs-sys"
+      continue
+    }
+
+    if ($system == "i686-linux") and ($derivation | str contains "release-package") {
+      log info $"skipping ($system).($derivation), due to liboqs 0.8 not present in oqs-sys"
+      continue
+    }
 
     # skip the default derivation, its an alias of the rosenpass derivation
     if ($derivation == "default") {
