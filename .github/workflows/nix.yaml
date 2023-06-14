@@ -7,6 +7,23 @@ on:
     branches:
       - main
 jobs:
+  i686-linux---default:
+    name: Build i686-linux.default
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - i686-linux---rosenpass
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.i686-linux.default --print-build-logs
   i686-linux---rosenpass:
     name: Build i686-linux.rosenpass
     runs-on:
@@ -55,6 +72,23 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
         run: nix flake check . --print-build-logs
+  x86_64-darwin---default:
+    name: Build x86_64-darwin.default
+    runs-on:
+      - macos-latest
+    needs:
+      - x86_64-darwin---rosenpass
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-darwin.default --print-build-logs
   x86_64-darwin---release-package:
     name: Build x86_64-darwin.release-package
     runs-on:
@@ -121,6 +155,23 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
         run: nix flake check . --print-build-logs
+  x86_64-linux---default:
+    name: Build x86_64-linux.default
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - x86_64-linux---rosenpass
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.default --print-build-logs
   x86_64-linux---proof-proverif:
     name: Build x86_64-linux.proof-proverif
     runs-on:
@@ -159,8 +210,6 @@ jobs:
     runs-on:
       - ubuntu-latest
     needs:
-      - x86_64-linux---rosenpass
-      - x86_64-linux---rosenpass-oci-image
       - x86_64-linux---rosenpass-static
       - x86_64-linux---rosenpass-static-oci-image
     steps:
