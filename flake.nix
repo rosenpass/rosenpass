@@ -1,6 +1,5 @@
 {
   inputs = {
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
 
     # for quicker rust builds
@@ -250,14 +249,11 @@
           #
           packages.whitepaper =
             let
-              pkgs = import inputs.nixpkgs-unstable {
-                inherit system;
-              };
               tlsetup = (pkgs.texlive.combine {
                 inherit (pkgs.texlive) scheme-basic acmart amsfonts ccicons
                   csquotes csvsimple doclicense fancyvrb fontspec gobble
                   koma-script ifmtarg latexmk lm markdown mathtools minted noto
-                  nunito pgf soul soulutf8 unicode-math lualatex-math
+                  nunito pgf soul unicode-math lualatex-math paralist
                   gitinfo2 eso-pic biblatex biblatex-trad biblatex-software
                   xkeyval xurl xifthen biber;
               });
