@@ -182,6 +182,12 @@ impl Rosenpass {
             state = match (state, arg.as_str(), &mut current_peer) {
                 (Own, "public-key", None) => OwnPublicKey,
                 (Own, "secret-key", None) => OwnSecretKey,
+                (Own, "private-key", None) => {
+                    log::warn!(
+                        "the private-key argument is deprecated, please use secret-key instead"
+                    );
+                    OwnSecretKey
+                }
                 (Own, "listen", None) => OwnListen,
                 (Own, "verbose", None) => {
                     config.verbosity = Verbosity::Verbose;

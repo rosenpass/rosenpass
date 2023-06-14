@@ -99,6 +99,12 @@
                   cargo = toolchain;
                   rustc = toolchain;
                 };
+
+                # used to trick the build.rs into believing that CMake was ran **again**
+                fakecmake = pkgs.writeScriptBin "cmake" ''
+                  #! ${pkgs.stdenv.shell} -e
+                  true
+                '';
               in
               naersk.buildPackage
                 {
@@ -134,15 +140,17 @@
                   };
 
                   overrideMain = x: {
-                    # CMake detects that it was served a _foreign_ target dir, thus we have to
-                    # convice it a little
-                    # TODO this still re-builds liboqs in the second step, which is wasteful
-                    preBuild = x.preBuild + ''
-                      find -name CMakeCache.txt -exec sed s_/dummy-src/_/source/_g --in-place {} \;
-                    '' + (lib.optionalString isStatic ''
+                    # CMake detects that it was served a _foreign_ target dir, and CMake
+                    # would be executed again upon the second build step of naersk.
+                    # By adding our specially optimized CMake version, we reduce the cost
+                    # of recompilation by 99 % while, while avoiding any CMake errors.
+                    nativeBuildInputs = [ (lib.hiPrio fakecmake) ] ++ x.nativeBuildInputs;
+
+                    # make sure that libc is linked, under musl this is not the case per
+                    # default
+                    preBuild = (lib.optionalString isStatic ''
                       NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -lc"
-                    '')
-                    ;
+                    '');
 
                     preInstall = ''
                       install -D ${./rp} $out/bin/rp
