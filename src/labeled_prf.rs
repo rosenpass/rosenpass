@@ -2,8 +2,8 @@
 //! ensures their uniqueness
 
 use {
+    crate::Result,
     crate::{prftree::PrfTree, sodium::KEY_SIZE},
-    anyhow::Result,
 };
 
 pub fn protocol() -> Result<PrfTree> {
@@ -21,12 +21,12 @@ macro_rules! prflabel {
     }
 }
 
-prflabel!(protocol, mac,        "mac");
-prflabel!(protocol, cookie,     "cookie");
-prflabel!(protocol, peerid,     "peer id");
+prflabel!(protocol, mac, "mac");
+prflabel!(protocol, cookie, "cookie");
+prflabel!(protocol, peerid, "peer id");
 prflabel!(protocol, biscuit_ad, "biscuit additional data");
-prflabel!(protocol, ckinit,     "chaining key init");
-prflabel!(protocol, _ckextract,  "chaining key extract");
+prflabel!(protocol, ckinit, "chaining key init");
+prflabel!(protocol, _ckextract, "chaining key extract");
 
 macro_rules! prflabel_leaf {
     ($base:ident, $name:ident, $($lbl:expr),* ) => {
@@ -38,10 +38,10 @@ macro_rules! prflabel_leaf {
     }
 }
 
-prflabel_leaf!(_ckextract, mix,        "mix");
-prflabel_leaf!(_ckextract, hs_enc,     "handshake encryption");
-prflabel_leaf!(_ckextract, ini_enc,    "initiator handshake encryption");
-prflabel_leaf!(_ckextract, res_enc,    "responder handshake encryption");
+prflabel_leaf!(_ckextract, mix, "mix");
+prflabel_leaf!(_ckextract, hs_enc, "handshake encryption");
+prflabel_leaf!(_ckextract, ini_enc, "initiator handshake encryption");
+prflabel_leaf!(_ckextract, res_enc, "responder handshake encryption");
 
 prflabel!(_ckextract, _user, "user");
 prflabel!(_user, _rp, "rosenpass.eu");

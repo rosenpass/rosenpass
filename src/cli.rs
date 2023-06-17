@@ -1,7 +1,3 @@
-use anyhow::{bail, ensure};
-use clap::Parser;
-use std::path::{Path, PathBuf};
-
 use crate::app_server;
 use crate::app_server::AppServer;
 use crate::util::{LoadValue, LoadValueB64};
@@ -10,7 +6,12 @@ use crate::{
     coloring::Secret,
     pqkem::{StaticKEM, KEM},
     protocol::{SPk, SSk, SymKey},
+    Result,
+    RosenpassError,
 };
+use clap::Parser;
+use log::error;
+use std::path::{Path, PathBuf};
 
 use super::config;
 
@@ -98,7 +99,7 @@ pub enum Cli {
 }
 
 impl Cli {
-    pub fn run() -> anyhow::Result<()> {
+    pub fn run() -> Result<()> {
         let cli = Self::parse();
 
         use Cli::*;
@@ -109,10 +110,10 @@ impl Cli {
                     .status();
             }
             GenConfig { config_file, force } => {
-                ensure!(
-                    force || !config_file.exists(),
-                    "config file {config_file:?} already exists"
-                );
+                if !force && config_file.exists() {
+                    error!("config file {config_file:?} already exists");
+                    return Err(RosenpassError::RuntimeError);
+                }
 
                 config::Rosenpass::example_config().store(config_file)?;
             }
@@ -126,35 +127,34 @@ impl Cli {
                 // figure out where the key file is specified, in the config file or directly as flag?
                 let (pkf, skf) = match (config_file, public_key, secret_key) {
                     (Some(config_file), _, _) => {
-                        ensure!(
-                            config_file.exists(),
-                            "config file {config_file:?} does not exist"
-                        );
+                        if !config_file.exists() {
+                            error!("config file {config_file:?} does not exist");
+                            return Err(RosenpassError::RuntimeError);
+                        }
 
                         let config = config::Rosenpass::load(config_file)?;
 
                         (config.public_key, config.secret_key)
                     }
                     (_, Some(pkf), Some(skf)) => (pkf, skf),
-                    _ => {
-                        bail!("either a config-file or both public-key and secret-key file are required")
-                    }
+                    _ => return Err(RosenpassError::ConfigError(
+                        "either a config-file or both public-key and secret-key file are required"
+                            .into(),
+                    )),
                 };
 
                 // check that we are not overriding something unintentionally
-                let mut problems = vec![];
+                let mut problems = false;
                 if !force && pkf.is_file() {
-                    problems.push(format!(
-                        "public-key file {pkf:?} exist, refusing to overwrite it"
-                    ));
+                    problems = true;
+                    error!("public-key file {pkf:?} exist, refusing to overwrite it");
                 }
                 if !force && skf.is_file() {
-                    problems.push(format!(
-                        "secret-key file {skf:?} exist, refusing to overwrite it"
-                    ));
+                    problems = true;
+                    error!("secret-key file {skf:?} exist, refusing to overwrite it");
                 }
-                if !problems.is_empty() {
-                    bail!(problems.join("\n"));
+                if problems {
+                    return Err(RosenpassError::RuntimeError);
                 }
 
                 // generate the keys and store them in files
@@ -169,10 +169,10 @@ impl Cli {
             }
 
             ExchangeConfig { config_file } => {
-                ensure!(
-                    config_file.exists(),
-                    "config file '{config_file:?}' does not exist"
-                );
+                if !config_file.exists() {
+                    error!("config file '{config_file:?}' does not exist");
+                    return Err(RosenpassError::RuntimeError);
+                }
 
                 let config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
@@ -215,7 +215,7 @@ impl Cli {
         Ok(())
     }
 
-    fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
+    fn event_loop(config: config::Rosenpass) -> Result<()> {
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -248,11 +248,11 @@ impl Cli {
 }
 
 trait StoreSecret {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
+    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()>;
 }
 
 impl<const N: usize> StoreSecret for Secret<N> {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         std::fs::write(path, self.secret())?;
         Ok(())
     }

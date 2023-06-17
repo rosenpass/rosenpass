@@ -1,9 +1,9 @@
 //! Helper functions and macros
-use anyhow::{ensure, Context, Result};
 use base64::{
     display::Base64Display as B64Display, read::DecoderReader as B64Reader,
     write::EncoderWriter as B64Writer,
 };
+use log::error;
 use std::{
     borrow::{Borrow, BorrowMut},
     cmp::min,
@@ -13,7 +13,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::coloring::{Public, Secret};
+use crate::{
+    coloring::{Public, Secret},
+    Result,
+};
 
 #[inline]
 pub fn xor_into(a: &mut [u8], b: &[u8]) {
@@ -58,7 +61,7 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
 #[macro_export]
 macro_rules! attempt {
     ($block:expr) => {
-        (|| -> ::anyhow::Result<_> { $block })()
+        (|| -> crate::Result<_> { $block })()
     };
 }
 
@@ -150,8 +153,12 @@ impl<R: Read> ReadExactToEnd for R {
     fn read_exact_to_end(&mut self, buf: &mut [u8]) -> Result<()> {
         let mut dummy = [0u8; 8];
         self.read_exact(buf)?;
-        ensure!(self.read(&mut dummy)? == 0, "File too long!");
-        Ok(())
+        if self.read(&mut dummy)? != 0 {
+            error!("File too long!");
+            Err(crate::RosenpassError::RuntimeError)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -185,9 +192,10 @@ impl<const N: usize> LoadValue for Secret<N> {
     fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut v = Self::random();
         let p = path.as_ref();
-        fopen_r(p)?
-            .read_exact_to_end(v.secret_mut())
-            .with_context(|| format!("Could not load file {p:?}"))?;
+        fopen_r(p)?.read_exact_to_end(v.secret_mut()).map_err(|e| {
+            error!("Could not load file {p:?}");
+            e
+        })?;
         Ok(v)
     }
 }
@@ -205,7 +213,10 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
         // not worth it right now.
         b64_reader(&mut fopen_r(p)?)
             .read_exact(v.secret_mut())
-            .with_context(|| format!("Could not load base64 file {p:?}"))?;
+            .map_err(|e| {
+                error!("Could not load base64 file {p:?}");
+                e
+            })?;
         Ok(v)
     }
 }

@@ -1,10 +1,8 @@
 //! Implementation of the tree-like structure used for the label derivation in [labeled_prf](crate::labeled_prf)
-use {
-    crate::{
-        coloring::Secret,
-        sodium::{hmac, hmac_into, KEY_SIZE},
-    },
-    anyhow::Result,
+use crate::{
+    coloring::Secret,
+    sodium::{hmac, hmac_into, KEY_SIZE},
+    Result,
 };
 
 // TODO Use a proper Dec interface

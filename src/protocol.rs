@@ -66,6 +66,8 @@
 //! # }
 //! ```
 
+use log::{trace, warn};
+
 use crate::{
     coloring::*,
     labeled_prf as lprf,
@@ -74,8 +76,8 @@ use crate::{
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
     sodium::*,
     util::*,
+    Result, RosenpassError,
 };
-use anyhow::{bail, ensure, Context, Result};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
@@ -485,10 +487,8 @@ impl CryptoServer {
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
         match self.index.entry(IndexKey::Peer(peerid)) {
-            Occupied(_) => bail!(
-                "Cannot insert peer with id {:?}; peer with this id already registered.",
-                peerid
-            ),
+            // TODO improve type handling, use PeerPtr
+            Occupied(_) => return Err(RosenpassError::PeerIdAlreadyTaken(peerid)),
             Vacant(e) => e.insert(peerno),
         };
         self.peers.push(peer);
@@ -500,7 +500,7 @@ impl CryptoServer {
     pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> Result<()> {
         match self.index.entry(IndexKey::Sid(id)) {
             Occupied(p) if PeerPtr(*p.get()) == peer => {} // Already registered
-            Occupied(_) => bail!("Cannot insert session with id {:?}; id is in use.", id),
+            Occupied(_) => return Err(RosenpassError::SessionIdAlreadyTaken(id)),
             Vacant(e) => {
                 e.insert(peer.0);
             }
@@ -522,8 +522,11 @@ impl CryptoServer {
         };
     }
 
-    pub fn find_peer(&self, id: PeerId) -> Option<PeerPtr> {
-        self.index.get(&IndexKey::Peer(id)).map(|no| PeerPtr(*no))
+    pub fn find_peer(&self, id: PeerId) -> Result<PeerPtr> {
+        self.index
+            .get(&IndexKey::Peer(id))
+            .map(|no| PeerPtr(*no))
+            .ok_or_else(|| RosenpassError::NoSuchPeerId(id))
     }
 
     // lookup_session in whitepaper
@@ -781,17 +784,21 @@ impl CryptoServer {
     /// | t2   | `InitConf`  | ->        |             |
     /// | t3   |             | <-        | `EmptyData` |
     pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
-        let seal_broken = "Message seal broken!";
         // length of the response. We assume no response, so None for now
         let mut len = 0;
         let mut exchanged = false;
 
-        ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
+        if rx_buf.is_empty() {
+            trace!("received empty message, ignoring it");
+            return Err(RosenpassError::EmptyMessage);
+        }
 
         let peer = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                if msg_in.check_seal(self)? {
+                    return Err(RosenpassError::SealBroken);
+                }
 
                 let mut msg_out = tx_buf.envelope::<RespHello<&mut [u8]>>()?;
                 let peer = self.handle_init_hello(
@@ -803,7 +810,9 @@ impl CryptoServer {
             }
             Ok(MsgType::RespHello) => {
                 let msg_in = rx_buf.envelope::<RespHello<&[u8]>>()?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                if msg_in.check_seal(self)? {
+                    return Err(RosenpassError::SealBroken);
+                }
 
                 let mut msg_out = tx_buf.envelope::<InitConf<&mut [u8]>>()?;
                 let peer = self.handle_resp_hello(
@@ -818,7 +827,9 @@ impl CryptoServer {
             }
             Ok(MsgType::InitConf) => {
                 let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                if msg_in.check_seal(self)? {
+                    return Err(RosenpassError::SealBroken);
+                }
 
                 let mut msg_out = tx_buf.envelope::<EmptyData<&mut [u8]>>()?;
                 let peer = self.handle_init_conf(
@@ -831,15 +842,23 @@ impl CryptoServer {
             }
             Ok(MsgType::EmptyData) => {
                 let msg_in = rx_buf.envelope::<EmptyData<&[u8]>>()?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                if msg_in.check_seal(self)? {
+                    return Err(RosenpassError::SealBroken);
+                }
 
                 self.handle_resp_conf(msg_in.payload().empty_data()?)?
             }
-            Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
-            Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
-            Err(_) => {
-                bail!("CookieReply handling not implemented!")
+            Ok(MsgType::DataMsg) => {
+                return Err(RosenpassError::NotImplemented(
+                    "DataMsg handling not implemented!",
+                ))
             }
+            Ok(MsgType::CookieReply) => {
+                return Err(RosenpassError::NotImplemented(
+                    "CookieReply handling not implemented!",
+                ))
+            }
+            Err(e) => return Err(e),
         };
 
         Ok(HandleMsgResult {
@@ -1118,10 +1137,10 @@ impl CryptoServer {
 
 impl IniHsPtr {
     pub fn store_msg_for_retransmission(&self, srv: &mut CryptoServer, msg: &[u8]) -> Result<()> {
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+        let ih = self.get_mut(srv).as_mut().ok_or_else(|| {
+            warn!("No current handshake for peer {:?}", self.peer());
+            RosenpassError::NoCurrentHs(self.peer())
+        })?;
         cpy_min(msg, &mut *ih.tx_buf);
         ih.tx_count = 0;
         ih.tx_len = msg.len();
@@ -1130,20 +1149,20 @@ impl IniHsPtr {
     }
 
     pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> Result<usize> {
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+        let ih = self.get_mut(srv).as_mut().ok_or_else(|| {
+            warn!("No current handshake for peer {:?}", self.peer());
+            RosenpassError::NoCurrentHs(self.peer())
+        })?;
         cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
         Ok(ih.tx_len)
     }
 
     pub fn register_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
         let tb = srv.timebase.clone();
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+        let ih = self.get_mut(srv).as_mut().ok_or_else(|| {
+            warn!("No current handshake for peer {:?}", self.peer());
+            RosenpassError::NoCurrentHs(self.peer())
+        })?;
         // Base delay, exponential increase, ±50% jitter
         ih.tx_retry_at = tb.now()
             + RETRANSMIT_DELAY_BEGIN
@@ -1347,18 +1366,16 @@ impl HandshakeState {
         hs.mix(biscuit_ct)?;
 
         // Look up the associated peer
-        let peer = srv
-            .find_peer(pid) // TODO: FindPeer should return a Result<()>
-            .with_context(|| format!("Could not decode biscuit for peer {pid:?}: No such peer."))?;
+        let peer = srv.find_peer(pid)?;
 
         // Defense against replay attacks; implementations may accept
         // the most recent biscuit no again (bn = peer.bn_{prev}) which
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
-        ensure!(
-            sodium_bigint_cmp(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
-            "Rejecting biscuit: Outdated biscuit number"
-        );
+        if sodium_bigint_cmp(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0 {
+            warn!("Rejecting biscuit: Outdated biscuit number");
+            return Err(RosenpassError::InvalidBiscuitNo);
+        }
 
         Ok((peer, no, hs))
     }
@@ -1392,11 +1409,10 @@ impl CryptoServer {
     ///
     /// Fail if no session is available with the peer
     pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
-        let session = peer
-            .session()
-            .get(self)
-            .as_ref()
-            .with_context(|| format!("No current session for peer {:?}", peer))?;
+        let session = peer.session().get(self).as_ref().ok_or_else(|| {
+            warn!("No current session for peer {peer:?}");
+            RosenpassError::NoSuchPeer(peer)
+        })?;
         Ok(session.ck.mix(&lprf::osk()?)?.into_secret())
     }
 }
@@ -1476,8 +1492,7 @@ impl CryptoServer {
         let peer = {
             let mut peerid = PeerId::zero();
             core.decrypt_and_mix(&mut *peerid, ih.pidic())?;
-            self.find_peer(peerid)
-                .with_context(|| format!("No such peer {peerid:?}."))?
+            self.find_peer(peerid)?
         };
 
         // IHR7
@@ -1519,13 +1534,12 @@ impl CryptoServer {
         mut ic: InitConf<&mut [u8]>,
     ) -> Result<PeerPtr> {
         // RHI2
+        let sid = SessionId::from_slice(rh.sidi());
         let peer = self
-            .lookup_handshake(SessionId::from_slice(rh.sidi()))
-            .with_context(|| {
-                format!(
-                    "Got RespHello packet for non-existent session {:?}",
-                    rh.sidi()
-                )
+            .lookup_handshake(sid)
+            .ok_or_else(|| {
+                warn!("Got RespHello packet for non-existent session {sid:?}");
+                RosenpassError::NoSuchSessionId(sid)
             })?
             .peer();
 
@@ -1546,13 +1560,14 @@ impl CryptoServer {
         let exp = hs!().next;
         let got = HandshakeStateMachine::RespHello;
 
-        ensure!(
-            exp == got,
-            "Unexpected package in session {:?}. Expected {:?}, got {:?}.",
-            SessionId::from_slice(rh.sidi()),
-            exp,
-            got
-        );
+        if exp != got {
+            warn!("Unexpected package in session {sid:?}. Expected {exp:?}, got {got:?}.",);
+            return Err(RosenpassError::UnexpectedMessage {
+                session: sid,
+                expected: Some(exp),
+                got: Some(got),
+            });
+        }
 
         let mut core = hs!().core.clone();
         core.sidr.copy_from_slice(rh.sidr());
@@ -1669,11 +1684,10 @@ impl CryptoServer {
         // instead of a generic PeerPtr::send(&Server, Option<&[u8]>) -> Either<EmptyData, Data>
         // because data transmission is a stub currently. This software is supposed to be used
         // as a key exchange service feeding a PSK into some classical (i.e. non post quantum)
-        let ses = peer
-            .session()
-            .get_mut(self)
-            .as_mut()
-            .context("Cannot send acknowledgement. No session.")?;
+        let ses = peer.session().get_mut(self).as_mut().ok_or_else(|| {
+            warn!("Cannot send acknowledgement. No session.");
+            RosenpassError::NoSession
+        })?;
         rc.sid_mut().copy_from_slice(&ses.sidt.value);
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
@@ -1687,30 +1701,39 @@ impl CryptoServer {
 
     pub fn handle_resp_conf(&mut self, rc: EmptyData<&[u8]>) -> Result<PeerPtr> {
         let sid = SessionId::from_slice(rc.sid());
-        let hs = self
-            .lookup_handshake(sid)
-            .with_context(|| format!("Got RespConf packet for non-existent session {sid:?}"))?;
+        let hs = self.lookup_handshake(sid).ok_or_else(|| {
+            warn!("Got RespConf packet for non-existent session {sid:?}");
+            RosenpassError::InvalidSessionId(sid)
+        })?;
         let ses = hs.peer().session();
 
         let exp = hs.get(self).as_ref().map(|h| h.next);
         let got = Some(HandshakeStateMachine::RespConf);
-        ensure!(
-            exp == got,
-            "Unexpected package in session {:?}. Expected {:?}, got {:?}.",
-            sid,
-            exp,
-            got
-        );
+
+        if exp != got {
+            warn!("Unexpected package in session {sid:?}. Expected {exp:?}, got {got:?}.",);
+            return Err(RosenpassError::UnexpectedMessage {
+                session: sid,
+                expected: exp,
+                got,
+            });
+        }
 
         // Validate the message
         {
-            let s = ses.get_mut(self).as_mut().with_context(|| {
-                format!("Cannot validate EmptyData message. Missing encryption session for {sid:?}")
+            // TODO get rid of as_mut necessity
+            let s = ses.get_mut(self).as_mut().ok_or_else(|| {
+                warn!("Cannot validate EmptyData message. Missing encryption session for {sid:?}");
+                RosenpassError::NoSuchSessionId(sid)
             })?;
             // the unwrap can not fail, because the slice returned by ctr() is
             // guaranteed to have the correct size
             let n = u64::from_le_bytes(rc.ctr().try_into().unwrap());
-            ensure!(n >= s.txnt, "Stale nonce");
+
+            if n < s.txnt {
+                trace!("Stale nonce");
+                return Err(RosenpassError::StaleNonce);
+            }
             s.txnt = n;
             aead_dec_into(
                 // pt, k, n, ad, ct

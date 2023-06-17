@@ -1,6 +1,3 @@
-use anyhow::bail;
-
-use anyhow::Result;
 use log::{error, info, warn};
 use mio::Interest;
 use mio::Token;
@@ -22,10 +19,12 @@ use std::slice;
 use std::time::Duration;
 
 use crate::util::fopen_w;
+use crate::RosenpassError;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
     util::{b64_writer, fmt_b64},
+    Result,
 };
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
@@ -98,7 +97,7 @@ impl SocketPtr {
         &mut srv.sockets[self.0]
     }
 
-    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
+    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> Result<()> {
         self.get(srv).send_to(&buf, addr)?;
         Ok(())
     }
@@ -181,7 +180,7 @@ impl Endpoint {
     }
 
     /// Start endpoint discovery from a hostname
-    pub fn discovery_from_hostname(hostname: String) -> anyhow::Result<Self> {
+    pub fn discovery_from_hostname(hostname: String) -> Result<Self> {
         let host = HostPathDiscoveryEndpoint::lookup(hostname)?;
         Ok(Endpoint::Discovery(host))
     }
@@ -211,7 +210,7 @@ impl Endpoint {
         Some(Self::discovery_from_addresses(addrs))
     }
 
-    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> Result<()> {
         use Endpoint::*;
         match self {
             SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
@@ -270,7 +269,7 @@ impl HostPathDiscoveryEndpoint {
     }
 
     /// Lookup a hostname
-    pub fn lookup(hostname: String) -> anyhow::Result<Self> {
+    pub fn lookup(hostname: String) -> Result<Self> {
         Ok(Self {
             addresses: ToSocketAddrs::to_socket_addrs(&hostname)?.collect(),
             scouting_state: Cell::new((0, 0)),
@@ -291,7 +290,7 @@ impl HostPathDiscoveryEndpoint {
     /// Attempt to reach the host
     ///
     /// Will round-robin-try different socket-ip-combinations on each call.
-    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> Result<()> {
         let (addr_off, sock_off) = self.scouting_state.get();
 
         let mut addrs = (&self.addresses)
@@ -330,23 +329,19 @@ impl HostPathDiscoveryEndpoint {
             }
         }
 
-        bail!("Unable to send message: All sockets returned errors.")
+        error!("Unable to send message: All sockets returned errors.");
+        return Err(RosenpassError::RuntimeError);
     }
 }
 
 impl AppServer {
-    pub fn new(
-        sk: SSk,
-        pk: SPk,
-        addrs: Vec<SocketAddr>,
-        verbosity: Verbosity,
-    ) -> anyhow::Result<Self> {
+    pub fn new(sk: SSk, pk: SPk, addrs: Vec<SocketAddr>, verbosity: Verbosity) -> Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(8);
 
         // bind each SocketAddr to a socket
-        let maybe_sockets: Result<Vec<_>, _> =
+        let maybe_sockets: std::result::Result<Vec<_>, std::io::Error> =
             addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
         let mut sockets = maybe_sockets?;
 
@@ -413,7 +408,8 @@ impl AppServer {
         }
 
         if sockets.is_empty() {
-            bail!("No sockets to listen on!")
+            error!("No sockets to listen on!");
+            return Err(RosenpassError::RuntimeError);
         }
 
         // register all sockets to mio
@@ -447,7 +443,7 @@ impl AppServer {
         outfile: Option<PathBuf>,
         outwg: Option<WireguardOut>,
         hostname: Option<String>,
-    ) -> anyhow::Result<AppPeerPtr> {
+    ) -> Result<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
         assert!(pn == self.peers.len());
         let initial_endpoint = hostname
@@ -463,7 +459,7 @@ impl AppServer {
         Ok(AppPeerPtr(pn))
     }
 
-    pub fn listen_loop(&mut self) -> anyhow::Result<()> {
+    pub fn listen_loop(&mut self) -> Result<()> {
         const INIT_SLEEP: f64 = 0.01;
         const MAX_FAILURES: i32 = 10;
         let mut failure_cnt = 0;
@@ -484,10 +480,11 @@ impl AppServer {
             let sleep = INIT_SLEEP * 2.0f64.powf(f64::from(failure_cnt - 1));
             let tries_left = MAX_FAILURES - (failure_cnt - 1);
             error!(
-                "unexpected error after processing {} messages: {:?} {}",
+                "unexpected error after processing {} messages: {:?}",
                 msgs_processed,
                 err,
-                err.backtrace()
+                // TODO do we need backtraces?
+                // err.backtrace()
             );
             if tries_left > 0 {
                 error!("re-initializing networking in {sleep}! {tries_left} tries left.");
@@ -495,11 +492,12 @@ impl AppServer {
                 continue;
             }
 
-            bail!("too many network failures");
+            error!("too many network failures");
+            return Err(RosenpassError::RuntimeError);
         }
     }
 
-    pub fn event_loop(&mut self) -> anyhow::Result<()> {
+    pub fn event_loop(&mut self) -> Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
 
         /// if socket address for peer is known, call closure
@@ -548,11 +546,9 @@ impl AppServer {
                     match self.crypt.handle_msg(&rx[..len], &mut *tx) {
                         Err(ref e) => {
                             self.verbose().then(|| {
-                                info!(
-                                    "error processing incoming message from {:?}: {:?} {}",
-                                    endpoint,
-                                    e,
-                                    e.backtrace()
+                                error!(
+                                    "error processing incoming message from {:?}: {:?}",
+                                    endpoint, e
                                 );
                             });
                         }
@@ -580,12 +576,7 @@ impl AppServer {
         }
     }
 
-    pub fn output_key(
-        &self,
-        peer: AppPeerPtr,
-        why: KeyOutputReason,
-        key: &SymKey,
-    ) -> anyhow::Result<()> {
+    pub fn output_key(&self, peer: AppPeerPtr, why: KeyOutputReason, key: &SymKey) -> Result<()> {
         let peerid = peer.lower().get(&self.crypt).pidt()?;
         let ap = peer.get_app(self);
 
@@ -636,7 +627,7 @@ impl AppServer {
         Ok(())
     }
 
-    pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
+    pub fn poll(&mut self, rx_buf: &mut [u8]) -> Result<AppPollResult> {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
         loop {
@@ -661,7 +652,7 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         timeout: Timing,
-    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
+    ) -> Result<Option<(usize, Endpoint)>> {
         let timeout = Duration::from_secs_f64(timeout);
 
         // if there is no time to wait on IO, well, then, lets not waste any time!

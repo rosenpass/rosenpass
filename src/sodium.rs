@@ -1,7 +1,6 @@
 //! Bindings and helpers for accessing libsodium functions
 
-use crate::util::*;
-use anyhow::{ensure, Result};
+use crate::{util::*, Result, RosenpassError};
 use libsodium_sys as libsodium;
 use log::trace;
 use static_assertions::const_assert_eq;
@@ -26,9 +25,11 @@ const_assert_eq!(KEY_SIZE, libsodium::crypto_generichash_BYTES as usize);
 
 macro_rules! sodium_call {
     ($name:ident, $($args:expr),*) => { attempt!({
-        ensure!(unsafe{libsodium::$name($($args),*)} > -1,
-            "Error in libsodium's {}.", stringify!($name));
-        Ok(())
+        if unsafe{libsodium::$name($($args),*)} > -1 {
+            Ok(())
+        }else{
+            Err(RosenpassError::LibsodiumError(concat!("Error in libsodium's {}.", stringify!($name))))
+        }
     })};
     ($name:ident) => { sodium_call!($name, ) };
 }
@@ -251,7 +252,12 @@ pub fn mac16(key: &[u8], data: &[u8]) -> Result<[u8; 16]> {
 pub fn hmac_into(out: &mut [u8], key: &[u8], data: &[u8]) -> Result<()> {
     // Not bothering with padding; the implementation
     // uses appropriately sized keys.
-    ensure!(key.len() == KEY_SIZE);
+    if key.len() != KEY_SIZE {
+        return Err(crate::RosenpassError::BufferSizeMismatch {
+            required_size: KEY_SIZE,
+            actual_size: key.len(),
+        });
+    }
 
     const IPAD: [u8; KEY_SIZE] = [0x36u8; KEY_SIZE];
     let mut temp_key = [0u8; KEY_SIZE];
