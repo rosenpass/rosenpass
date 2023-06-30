@@ -312,6 +312,7 @@
             inherit (packages.rosenpass) RUST_MIN_STACK;
             inputsFrom = [ packages.default ];
             nativeBuildInputs = with pkgs; [
+              cmake # override the fakecmake from the main step above
               cargo-release
               clippy
               nodePackages.prettier
