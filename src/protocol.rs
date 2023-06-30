@@ -1771,7 +1771,7 @@ mod test {
     /// after that the length of the message is checked against the specified message type. This
     /// test ensures that nothing breaks in the case of an empty message.
     #[test]
-    #[should_panic = "called `Result::unwrap()` on an `Err` value: received empty message, ignoring it"]
+    #[should_panic = "EmptyMessage"]
     fn handle_empty_message() {
         let mut crypt = init_crypto_server();
         let empty_rx_buf = [0u8; 0];
