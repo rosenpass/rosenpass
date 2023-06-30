@@ -33,7 +33,7 @@ let systems_map = {
   # aarch64-linux
   
   i686-linux: ubuntu-latest,
-  x86_64-darwin: macos-latest,
+  x86_64-darwin: macos-13,
   x86_64-linux: ubuntu-latest
 }
 
@@ -64,7 +64,7 @@ let runner_setup = [
     uses: "actions/checkout@v3"
   }
   {
-    uses: "cachix/install-nix-action@v21",
+    uses: "cachix/install-nix-action@v22",
     with: { nix_path: "nixpkgs=channel:nixos-unstable" }
   }
   {
