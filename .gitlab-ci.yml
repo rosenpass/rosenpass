@@ -1,0 +1,17 @@
+# TODO use CI_JOB_TOKEN once https://gitlab.com/groups/gitlab-org/-/epics/6310 is fixed
+pull-from-gh:
+  only: ["schedules"]
+  variables:
+    REMOTE: "https://github.com/rosenpass/rosenpass.git"
+    LOCAL: " git@gitlab.com:rosenpass/rosenpass.git"
+    GIT_STRATEGY: none
+  before_script:
+    - mkdir ~/.ssh/
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - echo "$REPO_SSH_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 --recursive ~/.ssh/
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "CI"
+  script:
+    - git clone --mirror $REMOTE rosenpass
+    - cd rosenpass && git push --mirror $LOCAL
