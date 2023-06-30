@@ -66,3 +66,43 @@ jobs:
       # - https://github.com/rosenpass/rosenpass/issues/62
       # - https://github.com/rust-lang/rust/issues/108378
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
+
+  cargo-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install libsodium
+        run: sudo apt-get install -y libsodium-dev
+      - run: cargo test
+
+  cargo-test-nix-devshell-x86_64-linux:
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix develop --command cargo test
