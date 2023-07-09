@@ -323,7 +323,11 @@
           devShells.coverage = pkgs.mkShell {
             inputsFrom = [ packages.default ];
             inherit (packages.rosenpass) RUST_MIN_STACK;
-            nativeBuildInputs = with pkgs; [ inputs.fenix.packages.${system}.complete.toolchain cargo-llvm-cov ];
+            nativeBuildInputs = with pkgs; [
+              cmake # override the fakecmake from the main step above
+              inputs.fenix.packages.${system}.complete.toolchain
+              cargo-llvm-cov
+            ];
           };
 
 
