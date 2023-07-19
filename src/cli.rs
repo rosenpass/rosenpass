@@ -104,9 +104,13 @@ impl Cli {
         use Cli::*;
         match cli {
             Man => {
-                let _man_cmd = std::process::Command::new("man")
+                let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
                     .status();
+
+                if !(man_cmd.is_ok() && man_cmd.unwrap().success()) {
+                    println!(include_str!(env!("ROSENPASS_MAN")));
+                }
             }
             GenConfig { config_file, force } => {
                 ensure!(
