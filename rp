@@ -197,7 +197,7 @@ exchange() {
         lip="${listen%:*}";
         lport="${listen/*:/}";
         if [[ "$lip" = "$lport" ]]; then
-          lip="[0::0]"
+          lip="[::]"
         fi
         shift;;
       -h | -help | --help | help) usage; return 0;;
