@@ -71,6 +71,34 @@ Rosenpass is packaged for more and more distributions, maybe also for the distri
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 
+## Compile it yourself
+
+You can also compile Rosenpass yourself. This gives you the advantage of ensuring that you use Rosenpass as you find the source code in Git.
+
+1. Install the dependencies. Under Debian, you can do this with the following command: `sudo apt-get --yes install libsodium-dev libclang-dev cmake pkg-config git build-essential`
+2. If you want to use Rosenpass with WireGuard, install WireGuard. On Debian, you can do this with the following command: `sudo apt-get --yes install wireguard`
+3. Install Rust >= 1.64.0 (as of 07.2023). For this you can use [Rustup](https://rustup.rs/), for example.
+4. Clone the Git Repository: `git clone https://github.com/rosenpass/rosenpass.git`
+5. Change to the Rosenpass directory: `cd rosenpass`
+6. Switch to the version you want to install. Without switching, you will install and compile the dev version: `git checkout v0.1.1`
+7. Compile Rosenpass: `cargo build --release` This may take a while.
+8. Install Rosenpass: `sudo install target/release/rosenpass /usr/local/bin`
+9. If you want the Rosenpass helper `rp`, install it with: `sudo install rp /usr/local/bin`
+
+That's it. You have now downloaded, compiled and installed Rosenpass.
+
+## Installation via binary files
+
+If Rosenpass is not yet in your distribution, you can see if you can download it manually.
+
+1. Download the desired version for your operating system from the [release](https://github.com/rosenpass/rosenpass/releases/).
+2. Unzip the file. On Linux you can use tar for this: `tar xf rosenpass-x86_64-linux-0.1.1.tar`
+3. Install Rosenpass: `sudo install bin/rosenpass /usr/local/bin`
+4. If you want the Rosenpass helper `rp`, install it with: `sudo install bin/rp /usr/local/bin`
+5. Delete the downloaded files: `rm -r rosenpass-x86_64-linux-0.1.1.tar bin/`
+
+That's it. You have now downloaded and installed Rosenpass.
+
 # Supported by
 
 Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
