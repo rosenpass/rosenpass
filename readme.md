@@ -71,6 +71,13 @@ Rosenpass is packaged for more and more distributions, maybe also for the distri
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 
+# Mirrors
+
+Don't want to use GitHub or only have an IPv6 connection? Rosenpass has set up two mirrors for this:
+
+- [NotABug](https://notabug.org/rosenpass/rosenpass)
+- [GitLab](https://gitlab.com/rosenpass/rosenpass/)
+
 # Supported by
 
 Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
