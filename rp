@@ -209,15 +209,41 @@ exchange() {
     fatal "Needs at least one peer specified"
   fi
 
-  frag "
-    # Create the Wireguard interface
-    ip link add dev $(enquote "${dev}") type wireguard || true"
+  # os dependent setup
+  case $OSTYPE in
+    linux-*) # could be linux-gnu or linux-musl
+      frag "
+        # Create the WireGuard interface
+        ip link add dev $(enquote "${dev}") type wireguard || true"
 
-  cleanup "
-    ip link del dev $(enquote "${dev}") || true"
+      cleanup "
+        ip link del dev $(enquote "${dev}") || true"
 
-  frag "
-    ip link set dev $(enquote "${dev}") up"
+      frag "
+        ip link set dev $(enquote "${dev}") up"
+      ;;
+
+    freebsd)
+      frag "
+        # load the WireGuard kernel module
+        kldload -n if_wg || fatal 'Cannot load if_wg kernel module'"
+
+      frag "
+        # Create the WireGuard interface
+        ifconfig wg create name $(enquote "${dev}") || true"
+
+      cleanup "
+        ifconfig $(enquote "${dev}") destroy || true"
+
+      frag "
+        ifconfig $(enquote "${dev}") up"
+      ;;
+
+    *)
+      fatal "Your system $OSTYPE is not yet supported. We are happy to receive patches to address this :)"
+      ;;
+
+  esac
 
   frag "
     # Deploy the classic wireguard private key
