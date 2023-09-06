@@ -524,9 +524,11 @@ impl AppServer {
             use AppPollResult::*;
             use KeyOutputReason::*;
             match self.poll(&mut *rx)? {
+                #[allow(clippy::redundant_closure_call)]
                 SendInitiation(peer) => tx_maybe_with!(peer, || self
                     .crypt
                     .initiate_handshake(peer.lower(), &mut *tx))?,
+                #[allow(clippy::redundant_closure_call)]
                 SendRetransmission(peer) => tx_maybe_with!(peer, || self
                     .crypt
                     .retransmit_handshake(peer.lower(), &mut *tx))?,
