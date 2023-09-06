@@ -99,7 +99,7 @@ impl SocketPtr {
     }
 
     pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
-        self.get(srv).send_to(&buf, addr)?;
+        self.get(srv).send_to(buf, addr)?;
         Ok(())
     }
 }
@@ -294,13 +294,13 @@ impl HostPathDiscoveryEndpoint {
     pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         let (addr_off, sock_off) = self.scouting_state.get();
 
-        let mut addrs = (&self.addresses)
+        let mut addrs = (self.addresses)
             .iter()
             .enumerate()
             .cycle()
             .skip(addr_off)
             .take(self.addresses.len());
-        let mut sockets = (&srv.sockets)
+        let mut sockets = (srv.sockets)
             .iter()
             .enumerate()
             .cycle()
