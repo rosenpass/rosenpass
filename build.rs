@@ -21,13 +21,13 @@ fn generate_man() -> String {
     // This function is purposely stupid and redundant
 
     let man = render_man("mandoc", "./doc/rosenpass.1");
-    if man.is_ok() {
-        return man.unwrap();
+    if let Ok(man) = man {
+        return man;
     }
 
     let man = render_man("groff", "./doc/rosenpass.1");
-    if man.is_ok() {
-        return man.unwrap();
+    if let Ok(man) = man {
+        return man;
     }
 
     // TODO: Link to online manual here
