@@ -59,6 +59,10 @@ listening on the provided IP and port combination, allowing connections from
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
+In this example, we will assume that the server has an interface bound to
+192.168.0.1, that accepts incoming connections on port 9999/UDP for Rosenpass
+and port 10000/UDP for WireGuard.
+.Pp
 To create a VPN connection, start by generating secret keys on both hosts.
 .Bd -literal -offset indent
 rp genkey server.rosenpass-secret
