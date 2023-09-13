@@ -95,6 +95,9 @@ pub enum Cli {
     /// Show the rosenpass manpage
     // TODO make this the default, but only after the manpage has been adjusted once the CLI stabilizes
     Man,
+
+    /// Show the current version
+    Version,
 }
 
 impl Cli {
@@ -112,6 +115,11 @@ impl Cli {
                     println!(include_str!(env!("ROSENPASS_MAN")));
                 }
             }
+
+            Version => {
+                println!("Rosenpass version {}", env!("CARGO_PKG_VERSION"));
+            }
+
             GenConfig { config_file, force } => {
                 ensure!(
                     force || !config_file.exists(),
