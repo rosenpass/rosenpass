@@ -166,10 +166,8 @@ impl Cli {
                 let mut spk = crate::protocol::SPk::random();
                 StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
 
-                unsafe {
-                    ssk.store_secret(skf)?;
-                    spk.store_secret(pkf)?;
-                }
+                ssk.store_secret(skf)?;
+                spk.store_secret(pkf)?;
             }
 
             ExchangeConfig { config_file } => {
@@ -252,11 +250,11 @@ impl Cli {
 }
 
 trait StoreSecret {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
 }
 
 impl<const N: usize> StoreSecret for Secret<N> {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         std::fs::write(path, self.secret())?;
         Ok(())
     }
