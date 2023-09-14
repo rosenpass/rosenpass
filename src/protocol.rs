@@ -1739,7 +1739,11 @@ mod test {
 
         // initialize secret and public key for the crypto server
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKEM::keygen(sk.secret_mut(), pk.secret_mut()).expect("unable to generate keys");
+
+        // Guranteed to have 16MB of stack size
+        stacker::grow(8 * 1024 * 1024, || {
+            StaticKEM::keygen(sk.secret_mut(), pk.secret_mut()).expect("unable to generate keys");
+        });
 
         CryptoServer::new(sk, pk)
     }
