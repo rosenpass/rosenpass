@@ -29,7 +29,33 @@ enum Commands {
     Exchange {},
 }
 
+impl Rp {
+    fn run(self) {
+        use Commands::*;
+
+        match self.command {
+            Genkey { private_keys_dir } => {
+                println!("Generating key pair in {:?}", private_keys_dir);
+            }
+            Pubkey {
+                private_keys_dir,
+                public_keys_dir,
+            } => {
+                println!(
+                    "Generating public key in {:?} from private key in {:?}",
+                    public_keys_dir, private_keys_dir
+                );
+            }
+            Exchange {} => {
+                println!("Exchanging keys");
+            }
+        }
+    }
+}
+
+
+
 fn main() {
-    let rp = Rp::parse();
+    let rp = Rp::parse().run();
     println!("{:?}", rp);
 }

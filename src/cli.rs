@@ -98,11 +98,9 @@ pub enum Cli {
 }
 
 impl Cli {
-    pub fn run() -> anyhow::Result<()> {
-        let cli = Self::parse();
-
+    pub fn run(self) -> anyhow::Result<()> {
         use Cli::*;
-        match cli {
+        match self {
             Man => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
