@@ -162,9 +162,9 @@ impl Cli {
                 // generate the keys and store them in files
                 let mut ssk = crate::protocol::SSk::random();
                 let mut spk = crate::protocol::SPk::random();
+                StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
 
                 unsafe {
-                    StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
                     ssk.store_secret(skf)?;
                     spk.store_secret(pkf)?;
                 }
