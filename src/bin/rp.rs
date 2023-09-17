@@ -1,4 +1,11 @@
-use std::{path::PathBuf, process::Command, fs::{self, File}};
+use log::error;
+use rosenpass::{cli::Cli, sodium::sodium_init};
+use std::process::exit;
+use std::{
+    fs::{self, OpenOptions},
+    os::unix::fs::OpenOptionsExt,
+};
+use std::{path::PathBuf, process::Command};
 
 use anyhow::bail;
 use clap::{Parser, Subcommand};
@@ -7,9 +14,7 @@ use clap::{Parser, Subcommand};
 #[command(author, version, about, long_about)]
 #[command(propagate_version = true)]
 struct Rp {
-    #[arg(short, long)]
-    explain: bool,
-
+    // TODO: Use this option to configure the verbosity of the logger
     #[arg(short, long)]
     verbose: bool,
 
@@ -38,13 +43,38 @@ impl Rp {
             Genkey { private_keys_dir } => {
                 match private_keys_dir.try_exists() {
                     Ok(false) => {
-                        println!("Generating key pair in {:?}", private_keys_dir);
-                        let _ = fs::create_dir_all(&private_keys_dir).or_else(|e| {
+                        fs::create_dir_all(&private_keys_dir).or_else(|e| {
                             bail!("Error creating directory {:?}: {}", private_keys_dir, e)
-                        });
-                        let wg_key = File::create(private_keys_dir.join("wgsk"))?;
-                        let wireguard_keygen = Command::new("wg").args(["genkey"]).stdout(wg_key).output()?;
-                        println!("{wireguard_keygen:?}");
+                        })?;
+
+                        let mut options = OpenOptions::new();
+                        options.write(true).create(true);
+
+                        if cfg!(unix) {
+                            options.mode(0o700);
+                        }
+
+                        let wg_key = options.open(private_keys_dir.join("wgsk"))?;
+                        let output = Command::new("wg")
+                            .args(["genkey"])
+                            .stdout(wg_key)
+                            .output()?;
+                        println!("{:?}", output);
+                        match sodium_init().and_then(|()| {
+                            let cli = Cli::GenKeys {
+                                config_file: None,
+                                public_key: Some(private_keys_dir.join("pqsk")),
+                                secret_key: Some(private_keys_dir.join("pqpk")),
+                                force: false,
+                            };
+                            cli.run()
+                        }) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error!("{e}");
+                                exit(1);
+                            }
+                        }
                     }
                     Ok(true) => bail!("PRIVATE_KEYS_DIR {:?} already exists", private_keys_dir),
                     Err(e) => bail!("Error checking for directory {:?}: {}", private_keys_dir, e),
@@ -70,6 +100,7 @@ impl Rp {
 }
 
 fn main() {
+    env_logger::init();
     let rp = Rp::parse().run();
     println!("{:?}", rp);
 }
