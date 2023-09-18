@@ -172,11 +172,11 @@ trait StoreValue {
 }
 
 trait StoreSecret {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()>;
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()>;
 }
 
 impl<T: StoreValue> StoreSecret for T {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         self.store(path)
     }
 }
@@ -211,7 +211,7 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
 }
 
 impl<const N: usize> StoreSecret for Secret<N> {
-    unsafe fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         std::fs::write(path, self.secret())?;
         Ok(())
     }
