@@ -18,6 +18,7 @@ pub struct Args {
     #[arg(required = true)]
     pub dir: PathBuf,
 
+    /// Force create keys
     #[arg(short, long)]
     pub force: bool,
 }

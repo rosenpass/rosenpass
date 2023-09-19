@@ -26,24 +26,9 @@ pub struct Args {
     // Listening address
     #[arg(short, long)]
     pub listen: SocketAddr,
-    //     #[arg(long, requires_all = ["endpoint", "persistent_keepalive", "allowed_ips"])]
-    //     pub peer: Option<Vec<PathBuf>>,
-
-    //     #[arg(short, long)]
-    //     pub endpoint: Option<Vec<SocketAddr>>,
-
-    //     #[arg(short, long)]
-    //     pub persistent_keepalive: Option<Vec<usize>>,
-
-    //     #[arg(short, long)]
-    //     pub allowed_ips: Option<Vec<IpCidr>>,
 }
 
 pub fn execute(args: Args, level: LevelFilter) -> miette::Result<()> {
-    // wg command
-    // wg set {dev} private-key {dir}/wgsk listen-port {listen.port}
-    // create and turn up wireguard interface then setup wg keys
-
     let device = format!("{}0", args.dev);
     let sk_dir = args.dir;
 
