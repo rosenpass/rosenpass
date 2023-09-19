@@ -1,4 +1,4 @@
-use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 use clap::Parser;
 use miette::IntoDiagnostic;
@@ -37,18 +37,11 @@ pub fn execute(args: Args) -> miette::Result<()> {
     log::info!("generating keys");
 
     log::debug!("generating wireguard secret keys");
-    // TODO: find some other way to do this without a subprocess
-    let wgsk = Command::new("wg")
-        .arg("genkey")
-        .output()
-        .into_diagnostic()?;
 
-    if !wgsk.status.success() {
-        miette::bail!("Unable to create wg secret keys");
-    }
+    let wgsk = wireguard_keys::Privkey::generate();
 
     log::debug!("writing wireguard secret keys to file");
-    utils::write_to_file(dir.as_path().join("wgsk"), &wgsk.stdout)?;
+    utils::write_to_file(dir.as_path().join("wgsk"), &wgsk.to_string().as_bytes())?;
 
     log::debug!("generating rosenpass secret key");
     let mut ssk = SSk::random();

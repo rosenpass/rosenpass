@@ -23,15 +23,15 @@ where
         .into_diagnostic()?)
 }
 
-pub fn read_from_file<P>(path: P) -> miette::Result<Vec<u8>>
+pub fn read_from_file<P>(path: P) -> miette::Result<[u8; 32]>
 where
     P: AsRef<Path>,
 {
-    let mut buf = Vec::new();
+    let mut buf = [0; 32];
 
     File::open(path)
         .into_diagnostic()?
-        .read_to_end(&mut buf)
+        .read_exact(&mut buf)
         .into_diagnostic()?;
 
     Ok(buf)
