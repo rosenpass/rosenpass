@@ -1,0 +1,17 @@
+[package]
+name = "rp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.71"
+rosenpass = { version = "*", path = "../" }
+clap = "4.4.3"
+clap-verbosity-flag = "2.0.1"
+env_logger = "0.10.0"
+log = "0.4.20"
+miette = { version = "5.10.0", features = ["fancy"] }
+wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs", rev = "a281dca8b2cdbf90aeaa3c73f6a08ab58b9be2a0" }
+ctrlc = "3.4.1"
