@@ -25,6 +25,8 @@ pub struct Rosenpass {
 
     #[serde(skip)]
     pub config_file_path: PathBuf,
+
+    pub control_socket: Option<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,6 +135,7 @@ impl Rosenpass {
             verbosity: Verbosity::Quiet,
             peers: vec![],
             config_file_path: PathBuf::new(),
+            control_socket: None,
         }
     }
 

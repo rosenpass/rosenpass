@@ -228,6 +228,7 @@ impl Cli {
             pk,
             config.listen,
             config.verbosity,
+            config.control_socket.as_ref(),
         )?);
 
         for cfg_peer in config.peers {

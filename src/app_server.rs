@@ -1,6 +1,8 @@
 use anyhow::bail;
 
 use anyhow::Result;
+use log::debug;
+use log::trace;
 use log::{error, info, warn};
 use mio::Interest;
 use mio::Token;
@@ -15,6 +17,7 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
 use std::net::ToSocketAddrs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -30,6 +33,7 @@ use crate::{
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
+const CONTROL_SOCKET_TOKEN: mio::Token = mio::Token(usize::MAX);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
@@ -78,6 +82,9 @@ pub struct AppServer {
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
+
+    /// Optional control socket to change the configuration of a running rosenpassd
+    pub maybe_control_socket: Option<mio::net::UnixDatagram>,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -335,11 +342,13 @@ impl HostPathDiscoveryEndpoint {
 }
 
 impl AppServer {
-    pub fn new(
+    pub fn new<P: AsRef<Path> + core::fmt::Debug>(
+        // TODO @wucke13 check if requiring Debug breaks important types that otherwise fulfill AsRef<Path>
         sk: SSk,
         pk: SPk,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
+        uds: Option<P>,
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
@@ -417,13 +426,31 @@ impl AppServer {
         }
 
         // register all sockets to mio
+        debug!("registering all UDP sockets to mio");
         for (i, socket) in sockets.iter_mut().enumerate() {
+            trace!("registering {socket:?}");
             mio_poll
                 .registry()
                 .register(socket, Token(i), Interest::READABLE)?;
         }
 
+        let mut maybe_control_socket = uds
+            .map(|p| {
+                debug!("binding control socket {p:?}");
+                mio::net::UnixDatagram::bind(p)
+            })
+            .transpose()?;
+        if let Some(control_socket) = &mut maybe_control_socket {
+            debug!("registering control socket to mio");
+            mio_poll.registry().register(
+                control_socket,
+                CONTROL_SOCKET_TOKEN,
+                Interest::READABLE,
+            )?;
+        }
+
         // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
+        debug!("finalizing AppServer creation");
 
         Ok(Self {
             crypt: CryptoServer::new(sk, pk),
@@ -433,6 +460,7 @@ impl AppServer {
             events,
             mio_poll,
             all_sockets_drained: false,
+            maybe_control_socket,
         })
     }
 
@@ -638,6 +666,7 @@ impl AppServer {
         Ok(())
     }
 
+    // Polls the crypto servers state machine for new actions
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
@@ -654,7 +683,7 @@ impl AppServer {
         }
     }
 
-    /// Tries to receive a new message
+    /// Tries to receive a new control socket command or incoming message
     ///
     /// - might wait for an duration up to `timeout`
     /// - returns immediately if an error occurs
@@ -693,6 +722,27 @@ impl AppServer {
             self.mio_poll.poll(&mut self.events, Some(timeout))?;
         }
 
+        trace!("checking for new command on control socket");
+        // control socket always has priority
+        if let Some(control_socket) = &mut self.maybe_control_socket {
+            let mut buf = [0u8; 16];
+
+            match control_socket.recv(&mut buf) {
+                Ok(size) => {
+                    // TODO handle command
+                    // to send something here, use the following shell snippet:
+                    //
+                    // printf '\x7\' | nc -NuU rosenpassd.sock
+                    log::debug!("buf received {:?}", &buf[0..size]);
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    trace!("no new commands on control socket")
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        // then normal traffic is processed
         let mut would_block_count = 0;
         for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
             match socket.recv_from(buf) {
