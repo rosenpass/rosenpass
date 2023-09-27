@@ -622,7 +622,7 @@ impl AppServer {
         }
 
         if let Some(owg) = ap.outwg.as_ref() {
-            let child = Command::new("wg")
+            let mut child = Command::new("wg")
                 .arg("set")
                 .arg(&owg.dev)
                 .arg("peer")
@@ -632,7 +632,8 @@ impl AppServer {
                 .stdin(Stdio::piped())
                 .args(&owg.extra_params)
                 .spawn()?;
-            b64_writer(child.stdin.unwrap()).write_all(key.secret())?;
+            b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
+            child.wait()?;
         }
 
         Ok(())
