@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use anyhow::Result;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
 
@@ -633,7 +633,13 @@ impl AppServer {
                 .args(&owg.extra_params)
                 .spawn()?;
             b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
-            child.wait()?;
+            let status = child.wait()?;
+
+            if status.success() {
+                debug!("successfully passed psk to wg");
+            } else {
+                error!("could not pass psk to wg {:?}", status);
+            }
         }
 
         Ok(())
