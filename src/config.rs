@@ -55,6 +55,8 @@ pub struct RosenpassPeer {
 pub struct WireGuard {
     pub device: String,
     pub peer: String,
+
+    #[serde(default)]
     pub extra_params: Vec<String>,
 }
 
