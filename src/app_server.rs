@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 use std::slice;
+use std::thread;
 use std::time::Duration;
 
 use crate::util::fopen_w;
@@ -633,13 +634,21 @@ impl AppServer {
                 .args(&owg.extra_params)
                 .spawn()?;
             b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
-            let status = child.wait()?;
 
-            if status.success() {
-                debug!("successfully passed psk to wg");
-            } else {
-                error!("could not pass psk to wg {:?}", status);
-            }
+            thread::spawn(move || {
+                let status = child.wait();
+
+                if status.is_ok() {
+                    let status = status.unwrap();
+                    if status.success() {
+                        debug!("successfully passed psk to wg")
+                    } else {
+                        error!("could not pass psk to wg {:?}", status)
+                    }
+                } else {
+                    error!("wait failed: {:?}", status)
+                }
+            });
         }
 
         Ok(())
