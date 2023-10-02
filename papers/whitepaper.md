@@ -208,6 +208,26 @@ hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryp
        = lhash("chaining key extract", "handshake encryption")
 ```
 
+## Protocol roles
+
+There are two handshake roles:
+
+- The initiator
+- The responder
+
+The initiator acts as a stateful client, directing the handshake process. The responder acts as a stateless server reacting to the initiator's messages while keeping no local state until the handshake is complete. Instead, the responder pushes their variables into an encrypted session cookie.
+
+The number of concurrent responder-role handshakes with another client is unlimited to account for the possibility of an imposter trying to execute a handshake: Before completion of said handshake, there is no way to figure out which peer is an imposter and which peer is a legitimate client; any attempt to do so might lead to to a state-disruption attack -- denial of service on the protocol level.
+
+There is no mechanism to negotiate which of the peers acts as initiator and responder, instead two parties may be processing separate handshakes in client role and in responder role at the same time.
+
+Implementations must account for this possibility by aborting any ongoing initiator-role handshake upon accepting an InitConf package. Implementations should also use different back-off periods depending on whether the handshake was completed in initiator role or in responder role. The following values are used in the rust reference implementation:
+
+- Initiator rekey interval: 130s
+- Responder rekey interval: 120s
+
+In practice these delays cause participants to take turns acting as initiator and acting as responder since the ten seconds difference is usually enough for the handshake with switched roles to complete before the old initiator's rekey timer goes to zero.
+
 ## Server State
 
 ### Global
@@ -434,8 +454,19 @@ The initiator deals with packet loss by storing the messages it sends to the res
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
 
-\printbibliography
-
 \setupimage{landscape,fullpage,label=img:HandlingCode}
 ![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
 
+\printbibliography
+
+# Version history
+
+## Version 2 -- XXXX-XX-XX
+
+During the implementation of go-rosenpass, Steffen Vogel found a number of problems ([issue #68](https://github.com/rosenpass/rosenpass/issues/68)) with the whitepaper. Version two of the document primarily addresses these issues:
+
+- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake"
+
+## Version 1.0.0 -- 2023-03-04
+
+Initial release.
