@@ -467,6 +467,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 
 - Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake"
 - Explicitly erase `eski` (forward secrecy). This is a minor security fix: Before this change the specification left erasing the secret key to the implementation. The reference implementation did erase `eski` but only after receiving the responder confirmation package (EmptyData at the time) instructing the initiator to stop retransmission of the InitConf package. With this change, `eski` is erased before transmission of the InitConf package.
+- Add detailed information about when in the handshake process security properties are achieved.
 
 ## Protocol version 1 -- 2023-03-04
 
