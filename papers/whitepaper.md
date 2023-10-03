@@ -33,6 +33,7 @@ abstract: |
 Rosenpass inherits most security properties from Post-Quantum WireGuard (PQWG). The security properties mentioned here are covered by the symbolic analysis in the Rosenpass repository. 
 
 ## Secrecy
+
 Three key encapsulations using the keypairs `sski`/`spki`, `sskr`/`spkr`, and `eski`/`epki` provide secrecy (see Section \ref{variables} for an introduction of the variables). Their respective ciphertexts are called `scti`, `sctr`, and `ectr` and the resulting keys are called `spti`, `sptr`, `epti`. A single secure encapsulation is sufficient to provide secrecy. We use two different KEMs (Key Encapsulation Mechanisms; see section \ref{skem}): Kyber and Classic McEliece.
 
 ## Authenticity
@@ -92,7 +93,7 @@ XAEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### SKEM {#skem}
 
-“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896 [@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
+“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896 (NIST Round 4 Submission; [@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
 
 ```pseudorust
 SKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -101,7 +102,7 @@ SKEM::dec(secret_key, ciphertext) -> shared_key
 
 ### EKEM
 
-Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
+Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber] (NIST Round 3 submission), which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
 ```pseudorust
 EKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -503,13 +504,29 @@ RETRANSMIT_DELAY_JITTER = 0.5
 
 During the implementation of go-rosenpass, Steffen Vogel found a number of problems ([issue #68](https://github.com/rosenpass/rosenpass/issues/68)) with the whitepaper. Version two of the document primarily addresses these issues:
 
-- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake".
+### Features
+
+- Use NIST Round 4 Submission of Classic McEliece
+
+### Security issues
+
 - Explicitly erase `eski` (forward secrecy). This is a minor security fix: Before this change the specification left erasing the secret key to the implementation. The reference implementation did erase `eski` but only after receiving the responder confirmation package (EmptyData at the time) instructing the initiator to stop retransmission of the InitConf package. With this change, `eski` is erased before transmission of the InitConf package.
+
+### Bug fixes
+
+- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake".
+
+### Clarifications
+
 - Add detailed information about when in the handshake process security properties are achieved.
 - Extra section with a list of timers used.
-- Fix a typo where the old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
 - Rename the session id/session lookup table from `index` to `sessions`
-- Fix a typo where the biscuit no was asserted to be smaller or equal to the peer's biscuit used variable, where it should have been bigger or equal to
+- Indicate which version of Classic McEliece and Kyber is used
+
+### Mistakes/Inconsistencies
+
+- Old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
+- Biscuit number was asserted to be smaller or equal to the peer's biscuit used variable, where it should have been bigger or equal to
 - Fix a typo "key chaining extract" -> "chaining key extract"; "key chaining init" -> "chaining key init"
 
 ## Protocol version 1 -- 2023-03-04
