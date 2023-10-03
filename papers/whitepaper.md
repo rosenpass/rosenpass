@@ -246,7 +246,7 @@ The server needs to store the following variables:
 Not mandated per se, but required in practice:
 
 * `peers` – A lookup table mapping the peer ID to the internal peer structure
-* `index` – A lookup table mapping the session ID to the ongoing initiator handshake or live session
+* `sessions` – A lookup table mapping the session ID to the ongoing initiator handshake or live session
 
 ### Peer
 
@@ -508,6 +508,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 - Add detailed information about when in the handshake process security properties are achieved.
 - Extra section with a list of timers used.
 - Fix a typo where the old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
+- Rename the session id/session lookup table from `index` to `sessions`
 
 ## Protocol version 1 -- 2023-03-04
 
