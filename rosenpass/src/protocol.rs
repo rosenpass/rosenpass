@@ -1254,7 +1254,7 @@ impl HandshakeState {
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::encaps(shk.secret_mut(), ct, pk)?;
-        self.mix(pk)?.mix(shk.secret())?.mix(ct)
+        self.mix(pk)?.mix(ct)?.mix(shk.secret())
     }
 
     pub fn decaps_and_mix<T: KEM, const SHK_LEN: usize>(
@@ -1265,7 +1265,7 @@ impl HandshakeState {
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::decaps(shk.secret_mut(), sk, ct)?;
-        self.mix(pk)?.mix(shk.secret())?.mix(ct)
+        self.mix(pk)?.mix(ct)?.mix(shk.secret())
     }
 
     pub fn store_biscuit(
