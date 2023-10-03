@@ -461,12 +461,12 @@ The responder does not need to do anything special to handle RespHello retransmi
 
 # Version history
 
-## Version 2 -- XXXX-XX-XX
+## Protocol version 2 -- XXXX-XX-XX
 
 During the implementation of go-rosenpass, Steffen Vogel found a number of problems ([issue #68](https://github.com/rosenpass/rosenpass/issues/68)) with the whitepaper. Version two of the document primarily addresses these issues:
 
 - Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake"
 
-## Version 1.0.0 -- 2023-03-04
+## Protocol version 1 -- 2023-03-04
 
 Initial release.
