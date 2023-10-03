@@ -6,8 +6,10 @@ use {
     anyhow::Result,
 };
 
+const PROTOCOL : &str = "rosenpass 1 rosenpass.eu aead=chachapoly1305 hash=blake2s ekem=kyber512 skem=mceliece460896 xaead=xchachapoly1305";
+
 pub fn protocol() -> Result<PrfTree> {
-    PrfTree::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
+    PrfTree::zero().mix(PROTOCOL.as_bytes())
 }
 
 // TODO Use labels that can serve as identifiers
