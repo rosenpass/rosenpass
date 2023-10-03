@@ -42,8 +42,8 @@ macro_rules! prflabel_leaf {
 
 prflabel_leaf!(_ckextract, mix,        "mix");
 prflabel_leaf!(_ckextract, hs_enc,     "handshake encryption");
-prflabel_leaf!(_ckextract, ini_enc,    "initiator handshake encryption");
-prflabel_leaf!(_ckextract, res_enc,    "responder handshake encryption");
+prflabel_leaf!(_ckextract, ini_enc,    "initiator session encryption");
+prflabel_leaf!(_ckextract, res_enc,    "responder session encryption");
 
 prflabel!(_ckextract, _user, "user");
 prflabel!(_user, _rp, "rosenpass.eu");
