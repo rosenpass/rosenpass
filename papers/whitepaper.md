@@ -83,7 +83,7 @@ hash(key, data) -> key
 
 ### AEAD
 
-Authenticated encryption with additional data for use with sequential nonces. We use ChaCha20Poly1305 [@rfc_chachapoly] in the implementation.
+Authenticated encryption with additional data for use with sequential nonces. We use ChaCha20-Poly1305 [@rfc_chachapoly] in the implementation.
 
 ```pseudorust
 AEAD::enc(key, nonce, plaintext, additional_data) -> ciphertext
@@ -92,7 +92,7 @@ AEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### XAEAD
 
-Authenticated encryption with additional data for use with random nonces. We use XChaCha20Poly1305 [@draft_xchachapoly] in the implementation, a construction also used by WireGuard.
+Authenticated encryption with additional data for use with random nonces. We use XChaCha20-Poly1305 [@draft_xchachapoly] in the implementation, a construction also used by WireGuard.
 
 
 ```pseudorust
@@ -111,7 +111,7 @@ SKEM::dec(secret_key, ciphertext) -> shared_key
 
 ### EKEM
 
-Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber] (NIST Round 3 submission), which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
+Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber] (NIST Round 3 Submission), which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
 ```pseudorust
 EKEM::enc(public_key) -> (ciphertext, shared_key)
