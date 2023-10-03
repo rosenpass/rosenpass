@@ -510,6 +510,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 - Fix a typo where the old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
 - Rename the session id/session lookup table from `index` to `sessions`
 - Fix a typo where the biscuit no was asserted to be smaller or equal to the peer's biscuit used variable, where it should have been bigger or equal to
+- Fix a typo "key chaining extract" -> "chaining key extract"; "key chaining init" -> "chaining key init"
 
 ## Protocol version 1 -- 2023-03-04
 
