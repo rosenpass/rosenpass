@@ -228,6 +228,10 @@ Implementations must account for this possibility by aborting any ongoing initia
 
 In practice these delays cause participants to take turns acting as initiator and acting as responder since the ten seconds difference is usually enough for the handshake with switched roles to complete before the old initiator's rekey timer goes to zero.
 
+## Endianess
+
+All numeric values are in little-endian format unless otherwise noted.
+
 ## Server State
 
 ### Global
