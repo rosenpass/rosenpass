@@ -276,7 +276,7 @@ The responder stores no state. While the responder has access to all of the abov
 
 The biscuit is encrypted with the `XAEAD` primitive and a randomly chosen nonce. The values `sidi` and `sidr` are transmitted publicly as part of InitConf, so they do not need to be present in the biscuit, but they are added to the biscuit's additional data to make sure the correct values are transmitted as part of InitConf.
 
-The `biscuit_key` used to encrypt biscuits should be rotated every two minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated.
+The `biscuit_key` used to encrypt biscuits should be rotated frequently. The reference implementation uses a rotation interval of five minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated.
 
 ### Live Session State
 
