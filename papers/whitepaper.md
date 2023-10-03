@@ -507,6 +507,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 - Explicitly erase `eski` (forward secrecy). This is a minor security fix: Before this change the specification left erasing the secret key to the implementation. The reference implementation did erase `eski` but only after receiving the responder confirmation package (EmptyData at the time) instructing the initiator to stop retransmission of the InitConf package. With this change, `eski` is erased before transmission of the InitConf package.
 - Add detailed information about when in the handshake process security properties are achieved.
 - Extra section with a list of timers used.
+- Fix a typo where the old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
 
 ## Protocol version 1 -- 2023-03-04
 
