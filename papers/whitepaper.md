@@ -63,13 +63,13 @@ Note that while Rosenpass is secure against state disruption, using it does not 
 
 The following cryptographic building blocks are used:
 
-\begin{description}
-    \item[Hashing, Key Derivation] HMAC-BLAKE2s [@rfc_blake2]
-    \item[Encryption with sequential nonce (AEAD)] ChaCha20-Poly1305 [@rfc_chachapoly]
-    \item[Encryption with random nonce (XAEAD)] XChaCha20Poly1305 [@draft_xchachapoly]
-    \item[Key encapsulation with static keys (SKEM)] Classic McEliece 460896 (NIST Round 4 Submission) [@mceliece]
-    \item[Key encapsulation with ephemeral keys (EKEM)] Kyber-512 (NIST Round 3 Submission) [@kyber]
-\end{description}
+| Use   | Scheme | Version | Purpose |
+| ---   | --- | --- | --- |
+| hash  | HMAC-BLAKE2s[@rfc_blake2] | | Hashing, key derivation | 
+| AEAD  | ChaCha20-Poly1305[@rfc_chachapoly] | | Encryption with sequential nonce |
+| XAEAD | XChaCha20-Poly1305[@draft_xchachapoly] | | Encryption with random nonce |
+| SKEM  | Classic McEliece 460896[@mceliece] | NIST Round 4 Submission | Key encapsulation with static keys | 
+| EKEM  | Kyber-512[@kyber] | NIST Round 3 Submission (most recent) | Key encapsulation with ephemeral (random) keys |
 
 All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
