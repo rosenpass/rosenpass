@@ -61,8 +61,17 @@ Note that while Rosenpass is secure against state disruption, using it does not 
 
 ## Cryptographic Building Blocks
 
-All symmetric keys and hash values used in Rosenpass are 32 bytes long.
+The following cryptographic building blocks are used:
 
+\begin{description}
+    \item[Hashing, Key Derivation] HMAC-BLAKE2s [@rfc_blake2]
+    \item[Encryption with sequential nonce (AEAD)] ChaCha20-Poly1305 [@rfc_chachapoly]
+    \item[Encryption with random nonce (XAEAD)] XChaCha20Poly1305 [@draft_xchachapoly]
+    \item[Key encapsulation with static keys (SKEM)] Classic McEliece 460896 (NIST Round 4 Submission) [@mceliece]
+    \item[Key encapsulation with ephemeral keys (EKEM)] Kyber-512 (NIST Round 3 Submission) [@kyber]
+\end{description}
+
+All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 ### Hash
 
@@ -522,6 +531,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 - Extra section with a list of timers used.
 - Rename the session id/session lookup table from `index` to `sessions`
 - Indicate which version of Classic McEliece and Kyber is used
+- Add a chart with the cryptographic building blocks used
 
 ### Mistakes/Inconsistencies
 
