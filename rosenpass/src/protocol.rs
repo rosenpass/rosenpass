@@ -1604,6 +1604,10 @@ impl CryptoServer {
         // ICI7
         peer.session()
             .insert(self, core.enter_live(self, HandshakeRole::Initiator)?)?;
+
+        // RHI8
+        hs_mut!().eski.zeroize();
+
         hs_mut!().core.erase();
         hs_mut!().next = HandshakeStateMachine::RespConf;
 
