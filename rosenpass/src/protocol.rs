@@ -103,7 +103,7 @@ pub const BCE: Timing = -3600.0 * 24.0 * 356.0 * 10_000.0;
 // regarding unexpectedly large numbers in system APIs as this is < i16::MAX
 pub const UNENDING: Timing = 3600.0 * 8.0;
 
-// From the wireguard paper; rekey every two minutes,
+// Rekey every two minutes,
 // discard the key if no rekey is achieved within three
 pub const REKEY_AFTER_TIME_RESPONDER: Timing = 120.0;
 pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;

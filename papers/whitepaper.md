@@ -458,6 +458,40 @@ The initiator deals with packet loss by storing the messages it sends to the res
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
 
+## Timers
+
+The Rosenpass protocol uses various timer-triggered events during its operation. This section provides a listing of the timers used and gives the values used in the reference implementation. Other implementations may choose different values.
+
+### Rekeying
+
+Period after which the previous responder starts a new handshake in initiator role; period after which the previous initiator starts a new handshake in initiator role again; period after which a peer rejects an existing shared key.
+
+```pseudorust
+REKEY_AFTER_TIME_RESPONDER = 120s
+REKEY_AFTER_TIME_INITIATOR = 130s
+REJECT_AFTER_TIME = 180s
+```
+
+### Biscuits
+
+Period after which the biscuit key is rotated.
+
+```pseudorust
+BISCUIT_EPOCH = 300s
+```
+
+### Retransmission
+
+Delay after which all retransmission attempts are aborted; exponential backoff factor for retransmission delay; initial (minimum) retransmission delay; final (maximum) retransmission delay; retransmission jitter/variance factor.
+
+```pseudorust
+RETRANSMIT_ABORT        = 120s
+RETRANSMIT_DELAY_GROWTH = 2
+RETRANSMIT_DELAY_BEGIN  = 500ms
+RETRANSMIT_DELAY_END    = 10s
+RETRANSMIT_DELAY_JITTER = 0.5
+```
+
 \setupimage{landscape,fullpage,label=img:HandlingCode}
 ![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
 
@@ -469,9 +503,10 @@ The responder does not need to do anything special to handle RespHello retransmi
 
 During the implementation of go-rosenpass, Steffen Vogel found a number of problems ([issue #68](https://github.com/rosenpass/rosenpass/issues/68)) with the whitepaper. Version two of the document primarily addresses these issues:
 
-- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake"
+- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake".
 - Explicitly erase `eski` (forward secrecy). This is a minor security fix: Before this change the specification left erasing the secret key to the implementation. The reference implementation did erase `eski` but only after receiving the responder confirmation package (EmptyData at the time) instructing the initiator to stop retransmission of the InitConf package. With this change, `eski` is erased before transmission of the InitConf package.
 - Add detailed information about when in the handshake process security properties are achieved.
+- Extra section with a list of timers used.
 
 ## Protocol version 1 -- 2023-03-04
 
