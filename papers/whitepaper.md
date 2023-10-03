@@ -406,7 +406,7 @@ fn load_biscuit(nct) {
     let pt : Biscuit = XAEAD::dec(k, n, ct, ad);
     // Find the peer and apply retransmission protection
     lookup_peer(pt.peerid);
-    assert(pt.biscuit_no <= peer.biscuit_used);
+    assert(pt.biscuit_no >= peer.biscuit_used);
 
     // Restore the chaining key
     ck ← pt.ck;
@@ -509,6 +509,7 @@ During the implementation of go-rosenpass, Steffen Vogel found a number of probl
 - Extra section with a list of timers used.
 - Fix a typo where the old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
 - Rename the session id/session lookup table from `index` to `sessions`
+- Fix a typo where the biscuit no was asserted to be smaller or equal to the peer's biscuit used variable, where it should have been bigger or equal to
 
 ## Protocol version 1 -- 2023-03-04
 
