@@ -638,8 +638,7 @@ impl AppServer {
             thread::spawn(move || {
                 let status = child.wait();
 
-                if status.is_ok() {
-                    let status = status.unwrap();
+                if let Ok(status) = status {
                     if status.success() {
                         debug!("successfully passed psk to wg")
                     } else {
