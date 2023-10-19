@@ -12,13 +12,13 @@
 .Sh DESCRIPTION
 .Nm
 performs cryptographic key exchanges that are secure against quantum-computers
-and outputs the keys.
-These keys can then be passed to various services such as wireguard or other
-vpn services as pre-shared-keys to achieve security against attackers with
+and then outputs the keys.
+These keys can then be passed to various services, such as wireguard or other
+vpn services, as pre-shared-keys to achieve security against attackers with
 quantum computers.
 .Pp
 This is a research project and quantum computers are not thought to become
-practical in less than ten years.
+practical in fewer than ten years.
 If you are not specifically tasked with developing post-quantum secure systems,
 you probably do not need this tool.
 .Ss COMMANDS
@@ -31,7 +31,7 @@ file secret!
 Start a process to exchange keys with the specified peers.
 You should specify at least one peer.
 .Pp
-It's
+Its
 .Ar OPTIONS
 are as follows:
 .Bl -tag -width Ds
@@ -39,7 +39,7 @@ are as follows:
 Instructs
 .Nm
 to listen on the specified interface and port.
-By default
+By default,
 .Nm
 will listen on all interfaces and select a random port.
 .It Ar verbose
