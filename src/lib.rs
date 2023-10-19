@@ -8,6 +8,7 @@ pub mod labeled_prf;
 pub mod app_server;
 pub mod cli;
 pub mod config;
+pub mod control_commands;
 pub mod msgs;
 pub mod pqkem;
 pub mod prftree;
@@ -26,6 +27,9 @@ pub enum RosenpassError {
     },
     #[error("invalid message type")]
     InvalidMessageType(u8),
+
+    #[error("invalid command type")]
+    InvalidCommandType(u8),
 }
 
 impl RosenpassError {
