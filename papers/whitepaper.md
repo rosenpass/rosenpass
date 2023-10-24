@@ -428,6 +428,54 @@ The responder code handling InitConf needs to deal with the biscuits and package
 
 ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This is not handled in `load_biscuit()` itself because there is the case that `biscuit_no = biscuit_used` which needs to be dealt with for retransmission handling.
 
+### Denial of Service Mitigation and Cookies
+
+Rosenpass derives its cookie-based DoS mitigation technique from Wireguard [INSERT REFERENCE HERE]. When the client is under load, it may choose to not process further handshake messages, but instead to respond with a cookie reply message (see Fig. 2- Rosenpass Message Types). 
+
+The sender of the exchange then uses this cookie in order to resend the message and have it accepted the following time by the reciever. 
+
+#### Cookie Reply Message
+
+The cookie reply message consists of the `sid` of the client under load, a random 24-byte bitstring `nonce` and an encrypted `cookie` reply field which consists of the following (from the perspective of the cookie reply sender):
+
+```
+tau = lhash("cookie", "tau",r_m, a_m)
+cookie = XAEAD(lhash("cookie", "key", spkt), nonce, tau , mac_peer)
+```
+
+where `r_m` is a secret variable that changes every two minutes to a random value. `a_m` is a concatenation of the source IP address and UDP source port of the client's peer. `mac_peer` is the `mac` field of the peer's handshake message to which this is the reply.  
+
+#### Envelope `mac` Field
+
+Similar to `mac.1` in Wireguard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
+
+```
+mac = lhash("mac", spkt, MAC_WIRE_DATA)
+```
+
+where `MAC_WIRE_DATA` represents all bytes of msg prior to `mac` field in the envelope.
+
+If a client receives an invalid `mac` value for any message, it will discard the message.
+
+#### Envelope cookie field
+
+The cookie content sent in the cookie reply message is used by the sender derive a `cookie` field in the sender's message envelope to retransmit the handshake message.  This is the equivalent of Wireguard's `mac.2` field and is determined as follows:
+
+```
+
+if (is_zero_length_bitstring(last_recvd_cookie)  ||  last_cookie_time_ellapsed >= 120) {
+    cookie = 0^16; //zeroed out 16 bytes bitstring
+}
+else {
+    cookie = lhash("cookie",last_recvd_cookie,COOKIE_WIRE_DATA)
+}
+```
+
+where `last_recvd_cookie` is the last received `cookie` field from a cookie reply message by a hanshake message sender, `last_cookie_time_ellapsed` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of this message prior to the `cookie` field.
+
+The sender can use an invalid value for the `cookie` value, when the receiver is not under load, and the receiver must ignore this value.
+However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. The sender then must wait for the duration of `REKEY-TIMEOUT` (5 seconds) and only then can retransmit the handshake packet with a valid `cookie` value derived from the previous cookie reply message.  
+
 ## Dealing with Packet Loss
 
 The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
