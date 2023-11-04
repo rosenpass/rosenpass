@@ -112,6 +112,9 @@
                   version = cargoToml.package.version;
                   inherit src;
 
+                  cargoBuildOptions = x: x ++ [ "-p" "rosenpass" ];
+                  cargoTestOptions = x: x ++ [ "-p" "rosenpass" ];
+
                   doCheck = true;
 
                   nativeBuildInputs = with pkgs; [
