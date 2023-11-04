@@ -55,7 +55,7 @@
             };
 
             # parsed Cargo.toml
-            cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+            cargoToml = builtins.fromTOML (builtins.readFile ./rosenpass/Cargo.toml);
 
             # source files relevant for rust
             src = pkgs.lib.sourceByRegex ./. [
