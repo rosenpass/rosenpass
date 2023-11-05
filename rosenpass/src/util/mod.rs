@@ -13,6 +13,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+// TODO: Move everything except module declarations out of this file
+mod types;
+mod math;
+
 use crate::coloring::{Public, Secret};
 
 /// Xors a and b element-wise and writes the result into a.

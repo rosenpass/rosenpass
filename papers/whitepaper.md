@@ -65,7 +65,7 @@ The following cryptographic building blocks are used:
 
 | Use   | Scheme | Version | Purpose |
 | ---   | --- | --- | --- |
-| hash  | HMAC-BLAKE2s[@rfc_blake2] | | Hashing, key derivation | 
+| hash  | KMAC[@sha3] | | SHA-3/Keccak based message authentication code | 
 | AEAD  | ChaCha20-Poly1305[@rfc_chachapoly] | | Encryption with sequential nonce |
 | XAEAD | XChaCha20-Poly1305[@draft_xchachapoly] | | Encryption with random nonce |
 | SKEM  | Classic McEliece 460896[@mceliece] | NIST Round 4 Submission | Key encapsulation with static keys | 
@@ -75,7 +75,8 @@ All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 ### Hash
 
-A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we use the HMAC construction [@rfc_hmac] with BLAKE2s [@rfc_blake2] as the inner hash function.
+A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we use the KMAC[@sha3] with no (i.e. an empty) customization string.
+
 
 ```pseudorust
 hash(key, data) -> key
