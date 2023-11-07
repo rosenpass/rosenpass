@@ -21,6 +21,7 @@ use std::process::Stdio;
 use std::slice;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 use crate::util::fopen_w;
 use crate::{
@@ -31,6 +32,9 @@ use crate::{
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
+
+const MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD: usize = 100;
+const LAST_UNDER_LOAD_WINDOW: Duration = Duration::from_secs(10);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
@@ -66,6 +70,12 @@ pub struct WireguardOut {
     pub extra_params: Vec<String>,
 }
 
+#[derive(Debug)]
+pub enum DoSOperation {
+    UnderLoad { last_under_load: Instant },
+    Normal,
+}
+
 /// Holds the state of the application, namely the external IO
 ///
 /// Responsible for file IO, network IO
@@ -79,6 +89,7 @@ pub struct AppServer {
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
+    pub under_load: DoSOperation,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -434,6 +445,7 @@ impl AppServer {
             events,
             mio_poll,
             all_sockets_drained: false,
+            under_load: DoSOperation::Normal,
         })
     }
 
@@ -548,7 +560,17 @@ impl AppServer {
                 }
 
                 ReceivedMessage(len, endpoint) => {
-                    match self.crypt.handle_msg(&rx[..len], &mut *tx) {
+                    println!("Received message from {:?}", endpoint);
+                    let socket_addr = endpoint.addresses().first().copied().ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
+                    let msg_result = match self.under_load {
+                        DoSOperation::UnderLoad { last_under_load: _ } => {
+                            self.crypt.handle_msg_under_load(&rx[..len], &mut *tx, socket_addr)
+                        },
+                        DoSOperation::Normal => {
+                            self.crypt.handle_msg(&rx[..len], &mut *tx)
+                        }
+                    };
+                    match msg_result {
                         Err(ref e) => {
                             self.verbose().then(|| {
                                 info!(
@@ -703,11 +725,29 @@ impl AppServer {
         // desired on a non-dual-stack OS), thus just checking every socket after any
         // readiness event seems to be good enough™ for now.
 
+        println!("All sockets drained: {}", self.all_sockets_drained);
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
             self.mio_poll.poll(&mut self.events, Some(timeout))?;
+
+            let queue_length = self.events.iter().peekable().count();
+
+            println!("queue length: {}", queue_length);
+
+            if queue_length > MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD {
+                self.under_load = DoSOperation::UnderLoad {
+                    last_under_load: Instant::now(),
+                }
+            }
         }
 
+        if let DoSOperation::UnderLoad { last_under_load } = self.under_load {
+            if last_under_load.elapsed() > LAST_UNDER_LOAD_WINDOW {
+                self.under_load = DoSOperation::Normal;
+            }
+        }
+
+        // drain all sockets
         let mut would_block_count = 0;
         for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
             match socket.recv_from(buf) {

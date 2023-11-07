@@ -76,6 +76,7 @@ use crate::{
     util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
+use std::net::SocketAddr;
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
@@ -107,6 +108,9 @@ pub const UNENDING: Timing = 3600.0 * 8.0;
 pub const REKEY_AFTER_TIME_RESPONDER: Timing = 120.0;
 pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
 pub const REJECT_AFTER_TIME: Timing = 180.0;
+
+// From the wireguard paper; "under no circumstances send an initiation message more than once every 5 seconds"
+pub const REKEY_TIMEOUT: Timing = 5.0;
 
 // Seconds until the biscuit key is changed; we issue biscuits
 // using one biscuit key for one epoch and store the biscuit for
@@ -752,8 +756,29 @@ pub struct HandleMsgResult {
 }
 
 impl CryptoServer {
-    /// Respond to an incoming message
-    ///
+    /// Process a message under load 
+    /// This is one of the main entry point for the protocol.
+    /// Keeps track of messages processed, and qualifies messages using 
+    /// cookie based DoS mitigation. Dispatches message for further processing 
+    /// to `process_msg` handler
+    pub fn handle_msg_under_load(
+        &mut self,
+        rx_buf: &[u8],
+        tx_buf: &mut [u8],
+        socket_addr: SocketAddr
+    ) -> Result<HandleMsgResult> {
+
+        //If valid cookie is found, process message
+        let result = self.handle_msg(rx_buf, tx_buf);
+
+        //Otherwise send cookie reply
+
+        return result;
+    }
+
+    /// Handle an incoming message
+    /// This is one of the main entry point for the protocol.
+    /// 
     /// # Overview
     ///
     /// The response is only dependent on the incoming message, thus this
@@ -1731,6 +1756,8 @@ impl CryptoServer {
 
 #[cfg(test)]
 mod test {
+    use std::thread;
+
     use super::*;
 
     fn init_crypto_server() -> CryptoServer {
