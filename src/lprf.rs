@@ -6,7 +6,7 @@
 //! This is a generalization of a PRF operating
 //! on a sequence of inputs instead of a single input.
 //!
-//! Like a Dec function the Iprf features efficient 
+//! Like a Dec function the Iprf features efficient
 //! incrementability.
 //!
 //! You can also think of an Iprf as a Dec function with
@@ -27,7 +27,7 @@ pub fn prf_into(out: &mut [u8], key: &[u8], data: &[u8]) {
     hmac_into(out, key, data).unwrap()
 }
 
-pub fn prf(key: &[u8], data: &[u8]) -> [u8; KEY_SIZE]{
+pub fn prf(key: &[u8], data: &[u8]) -> [u8; KEY_SIZE] {
     mutating([0u8; KEY_SIZE], |r| prf_into(r, key, data))
 }
 
@@ -40,11 +40,11 @@ impl Iprf {
         IprfBranch(self.0)
     }
 
-    // TODO: Protocol! Use domain separation to ensure that 
+    // TODO: Protocol! Use domain separation to ensure that
     fn mix(self, v: &[u8]) -> Self {
         Self(prf(&self.0, v))
     }
-    
+
     fn mix_secret<const N: usize>(self, v: Secret<N>) -> SecretIprf {
         SecretIprf::prf_invoc(&self.0, v.secret())
     }
@@ -70,8 +70,9 @@ impl IprfBranch {
 
 impl SecretIprf {
     fn prf_invoc(k: &[u8], d: &[u8]) -> SecretIprf {
-        mutating(SecretIprf(Secret::zero()), |r|
-            prf_into(k, d, r.secret_mut()))
+        mutating(SecretIprf(Secret::zero()), |r| {
+            prf_into(k, d, r.secret_mut())
+        })
     }
 
     fn from_key(k: Secret<N>) -> SecretIprf {

@@ -2,7 +2,7 @@ use anyhow::Result;
 use rosenpass::pqkem::KEM;
 use rosenpass::{
     pqkem::StaticKEM,
-    protocol::{SPk, SSk, CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SymKey},
+    protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
     sodium::sodium_init,
 };
 
