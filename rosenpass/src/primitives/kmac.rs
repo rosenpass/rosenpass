@@ -137,7 +137,7 @@ pub(crate) fn right_encode<W, N>(dst: &mut W, v: &N)
 /// assert_eq!(assemble_secret(|w| encode_string(w, b"Hello")), b"\1\5Hello");
 /// assert_eq!(assemble_secret(|w| encode_string(w, b"Hello World")), b"\1\x0AHello World");
 /// ```
-pub(crate) pub fn encode_string<W>(dst: W, str: &[u8])
+pub(crate) fn encode_string<W>(dst: W, str: &[u8])
         -> Result<(), W::Error>
     where
         W: WriteSecret {
@@ -191,10 +191,10 @@ pub(crate) fn kmac256(out: &mut [u8], key: &[u8], data: &[u8]) {
     //   https://doi.org/10.6028/NIST.SP.800-185
     //   "SHA-3 derived functions: cSHAKE, KMAC, TupleHash, and ParallelHash"
     //   Page 10
-    use sha3::{CShake256, CShake356Core};
+    use sha3::{CShake256, CShake256Core};
 
     let hasher = CShake256::from_core(
-        CShake356Core::new_with_function_name(&"", &"KMAC"));
+        CShake256Core::new_with_function_name(&"", &"KMAC"));
 
     bytepad(hasher, 168, |w| encode_string(w, key)).guaranteed();
     hasher.update(data);

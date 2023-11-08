@@ -30,7 +30,7 @@ pub(crate) trait WriteSecret {
     ///
     /// The implementation should take care to ensure that any intermediate buffers
     /// are zeroized.
-    pub fn write_secret(&mut self, buf: &[u8]) -> std::Result<(), Self::Error>;
+    fn write_secret(&mut self, buf: &[u8]) -> std::Result<(), Self::Error>;
 }
 
 impl<T: AsRef<[u8]>> WriteSecret for T {
@@ -111,14 +111,7 @@ impl<T: std::io::Write> WriteSecret for WriteSecretFromIoWrite<T> {
     }
 }
 
-impl<T: std::io::Write> WriteSecret for & {
-    type Error = std::io::Error;
-    fn write_secret<W: Write>(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        self.0.write_all(buf)
-    }
-}
-
-/// Helper for counting the number of bytes written to a stream
+/// Helper for counting the number of byts written to a stream
 ///
 /// # Examples
 ///

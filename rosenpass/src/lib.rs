@@ -1,7 +1,7 @@
 #[macro_use]
 pub mod util;
 #[macro_use]
-pub mod sodium;
+pub mod symmetric;
 pub mod coloring;
 #[rustfmt::skip]
 pub mod labeled_prf;

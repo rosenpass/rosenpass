@@ -6,7 +6,7 @@ use std::result::Result;
 /// the function will not panic.
 ///
 /// Implementations must not panic.
-trait GuaranteedValue {
+pub(crate) trait GuaranteedValue {
     type Value;
 
     /// Extract the contained value while being panic-safe, like .unwrap()

@@ -14,8 +14,10 @@ use std::{
 };
 
 // TODO: Move everything except module declarations out of this file
-mod types;
-mod math;
+pub(crate) mod types;
+pub(crate) mod math;
+pub(crate) mod result;
+pub(crate) mod io;
 
 use crate::coloring::{Public, Secret};
 
