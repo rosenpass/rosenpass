@@ -23,6 +23,8 @@ macro_rules! prflabel {
 
 prflabel!(protocol, mac, "mac");
 prflabel!(protocol, cookie, "cookie");
+prflabel!(protocol, cookie_tau, "cookie-tau");
+prflabel!(protocol, cookie_key, "cookie-key");
 prflabel!(protocol, peerid, "peer id");
 prflabel!(protocol, biscuit_ad, "biscuit additional data");
 prflabel!(protocol, ckinit, "chaining key init");

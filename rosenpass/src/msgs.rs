@@ -45,7 +45,10 @@
 
 use super::RosenpassError;
 use crate::pqkem::*;
-use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_ciphers::{aead, xaead};
+
+pub const MAC_SIZE: usize = 16;
+pub const COOKIE_SIZE: usize = 16;
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -265,9 +268,9 @@ data_lense! { Envelope<M> :=
     payload: M::LEN,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
-    mac: 16,
-    /// Currently unused, TODO: do something with this
-    cookie: 16
+    mac: MAC_SIZE,
+    /// Cookie value
+    cookie: COOKIE_SIZE
 }
 
 data_lense! { InitHello :=
@@ -320,11 +323,11 @@ data_lense! { EmptyData :=
 
 data_lense! { Biscuit :=
     /// H(spki) – Ident ifies the initiator
-    pidi: KEY_LEN,
+    pidi: aead::KEY_LEN,
     /// The biscuit number (replay protection)
     biscuit_no: 12,
     /// Chaining key
-    ck: KEY_LEN
+    ck: aead::KEY_LEN
 }
 
 data_lense! { DataMsg :=
@@ -332,7 +335,9 @@ data_lense! { DataMsg :=
 }
 
 data_lense! { CookieReply :=
-    dummy: 4
+    sid: 4,
+    nonce: xaead::NONCE_LEN,
+    cookie_encrypted: MAC_SIZE + xaead::TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
