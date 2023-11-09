@@ -301,7 +301,9 @@ data_lense! { DataMsg :=
 }
 
 data_lense! { CookieReply :=
-    dummy: 4
+    sid: 4,
+    nonce: 24,
+    cookie_encrypted: 16 + sodium::AEAD_TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////

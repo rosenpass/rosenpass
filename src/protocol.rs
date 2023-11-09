@@ -68,7 +68,7 @@
 
 use crate::{
     coloring::*,
-    labeled_prf as lprf,
+    labeled_prf::{self as lprf, cookie, cookie_tau},
     msgs::*,
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
@@ -76,10 +76,13 @@ use crate::{
     util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
-use std::net::SocketAddr;
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
+};
+use std::{
+    net::{IpAddr, SocketAddr},
+    time::Instant,
 };
 
 // CONSTANTS & SETTINGS //////////////////////////
@@ -111,6 +114,9 @@ pub const REJECT_AFTER_TIME: Timing = 180.0;
 
 // From the wireguard paper; "under no circumstances send an initiation message more than once every 5 seconds"
 pub const REKEY_TIMEOUT: Timing = 5.0;
+
+pub const COOKIE_SECRET_LEN: usize = 32;
+pub const COOKIE_SECRET_EXP: Timing = 120.0;
 
 // Seconds until the biscuit key is changed; we issue biscuits
 // using one biscuit key for one epoch and store the biscuit for
@@ -187,6 +193,48 @@ pub struct CryptoServer {
 
     // Tick handling
     pub peer_poll_off: usize,
+
+    // Random state
+    pub cookie_secret: CookieSecret,
+}
+
+#[derive(Debug)]
+pub enum CookieSecret {
+    Some {
+        value: [u8; COOKIE_SECRET_LEN],
+        last_updated: Timebase,
+    },
+    None,
+}
+
+impl CookieSecret {
+    pub fn get(&mut self) -> &[u8] {
+        if let CookieSecret::Some {
+            value,
+            last_updated,
+        } = self
+        {
+            if last_updated.now() > COOKIE_SECRET_EXP {
+                rng(value);
+                *last_updated = Timebase::default();
+            }
+            value
+        } else {
+            *self = CookieSecret::Some {
+                value: [0; COOKIE_SECRET_LEN],
+                last_updated: Timebase::default(),
+            };
+            let value = match self {
+                CookieSecret::Some {
+                    value,
+                    last_updated: _,
+                } => value,
+                CookieSecret::None => unreachable!(),
+            };
+            rng(value);
+            value
+        }
+    }
 }
 
 /// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
@@ -452,6 +500,7 @@ impl CryptoServer {
             peers: Vec::new(),
             index: HashMap::new(),
             peer_poll_off: 0,
+            cookie_secret: CookieSecret::None,
         }
     }
 
@@ -756,29 +805,157 @@ pub struct HandleMsgResult {
 }
 
 impl CryptoServer {
-    /// Process a message under load 
+    /// Process a message under load
     /// This is one of the main entry point for the protocol.
-    /// Keeps track of messages processed, and qualifies messages using 
-    /// cookie based DoS mitigation. Dispatches message for further processing 
-    /// to `process_msg` handler
+    /// Keeps track of messages processed, and qualifies messages using
+    /// cookie based DoS mitigation. Dispatches message for further processing
+    /// to `process_msg` handler if cookie is valid, otherwise sends a cookie reply
+    /// message for sender to process and verify for messages part of the handshake phase
+    /// (i.e. InitHello, RespHello, InitConf messages only)
     pub fn handle_msg_under_load(
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        socket_addr: SocketAddr
+        peer: PeerPtr,
+        socket_addr: SocketAddr,
     ) -> Result<HandleMsgResult> {
+        
+        //Check cookie value
+        let mut ip_addr_port = match socket_addr.ip() {
+            IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
+            IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
+        };
+
+        ip_addr_port.extend_from_slice(&socket_addr.port().to_be_bytes());
+
+        let (rx_bytes_til_cookie, rx_cookie, rx_mac, rx_sid) = match rx_buf[0].try_into() {
+            Ok(MsgType::InitHello) => {
+                let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
+                // msg_in.payload().init_hello()?.
+                ( msg_in.until_cookie().to_vec(), msg_in.cookie().to_vec(), msg_in.mac().to_vec(),
+                Some( msg_in.payload().init_hello()?.sidi().to_vec())
+            )
+            }
+            Ok(MsgType::RespHello) => {
+                let msg_in = rx_buf.envelope::<RespHello<&[u8]>>()?;
+                (
+                    msg_in.until_cookie().to_vec(),
+                    msg_in.cookie().to_vec(),
+                    msg_in.mac().to_vec(),
+                    Some( msg_in.payload().resp_hello()?.sidr().to_vec())
+                )
+            }
+            Ok(MsgType::InitConf) => {
+                let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
+                (
+                    msg_in.until_cookie().to_vec(),
+                    msg_in.cookie().to_vec(),
+                    msg_in.mac().to_vec(),
+                    Some( msg_in.payload().init_conf()?.sidi().to_vec())
+                )
+            }
+            Ok(MsgType::EmptyData) => {
+                let msg_in = rx_buf.envelope::<EmptyData<&[u8]>>()?;
+                (
+                    msg_in.until_cookie().to_vec(),
+                    msg_in.cookie().to_vec(),
+                    msg_in.mac().to_vec(),
+                    // Cannot extract sender's session id from EmptyData message
+                    None
+                )
+            }
+            Ok(MsgType::DataMsg) => {
+                let msg_in = rx_buf.envelope::<DataMsg<&[u8]>>()?;
+                (
+                    msg_in.until_cookie().to_vec(),
+                    msg_in.cookie().to_vec(),
+                    msg_in.mac().to_vec(),
+                    //Cannot extract sender's session id from DataMsg message
+                    None
+                )
+            }
+            Ok(MsgType::CookieReply) => {
+                let msg_in = rx_buf.envelope::<CookieReply<&[u8]>>()?;
+                (
+                    msg_in.until_cookie().to_vec(),
+                    msg_in.cookie().to_vec(),
+                    msg_in.mac().to_vec(),
+                    //Cannot extract sender's session id from CookieReply message
+                    None
+                )
+            }
+            Err(_) => {
+                bail!("Message type not supported")
+            }
+        };
+
+        let cookie_tau = lprf::cookie_tau()?
+            .mix(self.cookie_secret.get())?
+            .mix(&ip_addr_port)?
+            .into_value();
+
+        let expected = lprf::cookie()?
+            .mix(&cookie_tau)?
+            .mix(&rx_bytes_til_cookie)?
+            .into_value()[..16]
+            .to_vec();
 
         //If valid cookie is found, process message
-        let result = self.handle_msg(rx_buf, tx_buf);
-
+        if sodium_memcmp(&rx_cookie, &expected) {
+            let result = self.handle_msg(rx_buf, tx_buf)?;
+            return Ok(result);
+        }
         //Otherwise send cookie reply
+        else if rx_sid.is_some() {
+            // length of the response. We assume no response, so 0 length for now
+            let mut len = None;
+            let mut msg_out = tx_buf.envelope::<CookieReply<&mut [u8]>>()?;
+            let spkt = &peer.get(&self).spkt;
+            let cookie_key = lprf::cookie_key()?.mix(spkt.secret())?.into_value();
 
-        return result;
+            let mut cookie_reply_lens = msg_out.payload_mut().cookie_reply()?;
+            let mut nonce_val = [0u8; 24];
+
+            // Copy sender's session id to cookie reply message
+            {
+                let sid = cookie_reply_lens.sid_mut();
+                sid.copy_from_slice(&rx_sid.as_ref().unwrap()[..]);
+            }
+
+            // Generate random nonce, copy it to message and nonce_val
+            {
+                let nonce = cookie_reply_lens.nonce_mut();
+                rng(nonce);
+                nonce_val.copy_from_slice(&nonce);
+            }
+
+            // Encrypt cookie
+            {
+                let cookie_encrypted = cookie_reply_lens.cookie_encrypted_mut();
+                aead_enc_into(
+                    cookie_encrypted,
+                    &cookie_key,
+                    &nonce_val,
+                    &rx_mac,
+                    &cookie_tau,
+                )?;
+            }
+
+            len = Some(self.seal_and_commit_msg(peer, MsgType::CookieReply, msg_out)?);
+
+            return Ok(HandleMsgResult {
+                exchanged_with: None,
+                resp: len,
+            });
+        }
+        else {
+            return Err(anyhow::anyhow!("Message did not contain cookie or could not be sent a cookie reply message (non-handshake)"));
+        }
     }
 
     /// Handle an incoming message
     /// This is one of the main entry point for the protocol.
-    /// 
+    ///
     /// # Overview
     ///
     /// The response is only dependent on the incoming message, thus this

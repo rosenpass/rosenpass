@@ -23,6 +23,8 @@ macro_rules! prflabel {
 
 prflabel!(protocol, mac,        "mac");
 prflabel!(protocol, cookie,     "cookie");
+prflabel!(protocol, cookie_tau,     "cookie-tau");
+prflabel!(protocol, cookie_key,     "cookie-key");
 prflabel!(protocol, peerid,     "peer id");
 prflabel!(protocol, biscuit_ad, "biscuit additional data");
 prflabel!(protocol, ckinit,     "chaining key init");
@@ -42,8 +44,6 @@ prflabel_leaf!(_ckextract, mix,        "mix");
 prflabel_leaf!(_ckextract, hs_enc,     "handshake encryption");
 prflabel_leaf!(_ckextract, ini_enc,    "initiator handshake encryption");
 prflabel_leaf!(_ckextract, res_enc,    "responder handshake encryption");
-prflabel_leaf!(cookie, cookie_tau,     "tau");
-prflabel_leaf!(cookie, cookie_enc_key, "key");
 
 prflabel!(_ckextract, _user, "user");
 prflabel!(_user, _rp, "rosenpass.eu");

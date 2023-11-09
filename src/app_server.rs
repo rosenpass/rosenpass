@@ -23,6 +23,7 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::protocol::Peer;
 use crate::util::fopen_w;
 use crate::{
     config::Verbosity,
@@ -561,14 +562,35 @@ impl AppServer {
 
                 ReceivedMessage(len, endpoint) => {
                     println!("Received message from {:?}", endpoint);
-                    let socket_addr = endpoint.addresses().first().copied().ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
+
                     let msg_result = match self.under_load {
                         DoSOperation::UnderLoad { last_under_load: _ } => {
-                            self.crypt.handle_msg_under_load(&rx[..len], &mut *tx, socket_addr)
-                        },
-                        DoSOperation::Normal => {
-                            self.crypt.handle_msg(&rx[..len], &mut *tx)
+                            //TODO: Lookup peer through addresses (hash)
+                            let index = self
+                                .peers
+                                .iter()
+                                .enumerate()
+                                .find(|(_num, p)| {
+                                    if let Some(ep) = p.endpoint() {
+                                        ep.addresses() == endpoint.addresses()
+                                    } else {
+                                        false
+                                    }
+                                })
+                                .ok_or(anyhow::anyhow!("Received message from unknown endpoint"))?.0;
+                            let socket_addr = endpoint
+                                .addresses()
+                                .first()
+                                .copied()
+                                .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
+                            self.crypt.handle_msg_under_load(
+                                &rx[..len],
+                                &mut *tx,
+                                PeerPtr(index),
+                                socket_addr,
+                            )
                         }
+                        DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
                     };
                     match msg_result {
                         Err(ref e) => {
