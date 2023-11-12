@@ -23,10 +23,10 @@
 //!     pqkem::{StaticKEM, KEM},
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
-//! # fn main() -> Result<(), rosenpass::RosenpassError> {
+//! # fn main() -> anyhow::Result<()> {
 //!
 //! // always init libsodium before anything
-//! rosenpass::sodium::sodium_init().unwrap();
+//! rosenpass::sodium::sodium_init()?;
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -42,25 +42,26 @@
 //! let mut b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 //!
 //! // introduce peers to each other
-//! a.add_peer(Some(psk.clone()), peer_b_pk).unwrap();
-//! b.add_peer(Some(psk), peer_a_pk).unwrap();
+//! a.add_peer(Some(psk.clone()), peer_b_pk)?;
+//! b.add_peer(Some(psk), peer_a_pk)?;
 //!
 //! // declare buffers for message exchange
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
 //!
 //! // let a initiate a handshake
-//! let length = a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice());
+//! let mut maybe_len = Some(a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice())?);
 //!
-//! // let b respond to a and a respond to b, in two rounds
-//! for _ in 0..2 {
-//!    b.handle_msg(&a_buf[..], &mut b_buf[..]);
-//!    a.handle_msg(&b_buf[..], &mut a_buf[..]);
+//! // let a and b communicate
+//! while let Some(len) = maybe_len {
+//!    maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
+//!    std::mem::swap(&mut a, &mut b);
+//!    std::mem::swap(&mut a_buf, &mut b_buf);
 //! }
 //!
 //! // all done! Extract the shared keys and ensure they are identical
-//! let a_key = a.osk(PeerPtr(0));
-//! let b_key = b.osk(PeerPtr(0));
-//! assert_eq!(a_key.unwrap().secret(), b_key.unwrap().secret(),
+//! let a_key = a.osk(PeerPtr(0))?;
+//! let b_key = b.osk(PeerPtr(0))?;
+//! assert_eq!(a_key.secret(), b_key.secret(),
 //!     "the key exchanged failed to establish a shared secret");
 //! # Ok(())
 //! # }
