@@ -833,7 +833,7 @@ impl CryptoServer {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
                 // msg_in.payload().init_hello()?.
                 ( msg_in.until_cookie().to_vec(), msg_in.cookie().to_vec(), msg_in.mac().to_vec(),
-                Some( msg_in.payload().init_hello()?.sidi().to_vec())
+                msg_in.payload().init_hello()?.sidi().to_vec()
             )
             }
             Ok(MsgType::RespHello) => {
@@ -842,7 +842,7 @@ impl CryptoServer {
                     msg_in.until_cookie().to_vec(),
                     msg_in.cookie().to_vec(),
                     msg_in.mac().to_vec(),
-                    Some( msg_in.payload().resp_hello()?.sidr().to_vec())
+                    msg_in.payload().resp_hello()?.sidr().to_vec()
                 )
             }
             Ok(MsgType::InitConf) => {
@@ -851,38 +851,11 @@ impl CryptoServer {
                     msg_in.until_cookie().to_vec(),
                     msg_in.cookie().to_vec(),
                     msg_in.mac().to_vec(),
-                    Some( msg_in.payload().init_conf()?.sidi().to_vec())
+                    msg_in.payload().init_conf()?.sidi().to_vec()
                 )
             }
-            Ok(MsgType::EmptyData) => {
-                let msg_in = rx_buf.envelope::<EmptyData<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    // Cannot extract sender's session id from EmptyData message
-                    None
-                )
-            }
-            Ok(MsgType::DataMsg) => {
-                let msg_in = rx_buf.envelope::<DataMsg<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    //Cannot extract sender's session id from DataMsg message
-                    None
-                )
-            }
-            Ok(MsgType::CookieReply) => {
-                let msg_in = rx_buf.envelope::<CookieReply<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    //Cannot extract sender's session id from CookieReply message
-                    None
-                )
+            Ok(_)  => {
+                bail!("Message did not contain cookie or could not be sent a cookie reply message (non-handshake)")
             }
             Err(_) => {
                 bail!("Message type not supported")
@@ -906,7 +879,7 @@ impl CryptoServer {
             return Ok(result);
         }
         //Otherwise send cookie reply
-        else if rx_sid.is_some() {
+        else {
             // length of the response. We assume no response, so 0 length for now
             let mut len = None;
             let mut msg_out = tx_buf.envelope::<CookieReply<&mut [u8]>>()?;
@@ -919,7 +892,7 @@ impl CryptoServer {
             // Copy sender's session id to cookie reply message
             {
                 let sid = cookie_reply_lens.sid_mut();
-                sid.copy_from_slice(&rx_sid.as_ref().unwrap()[..]);
+                sid.copy_from_slice(&rx_sid[..]);
             }
 
             // Generate random nonce, copy it to message and nonce_val
@@ -947,9 +920,6 @@ impl CryptoServer {
                 exchanged_with: None,
                 resp: len,
             });
-        }
-        else {
-            return Err(anyhow::anyhow!("Message did not contain cookie or could not be sent a cookie reply message (non-handshake)"));
         }
     }
 
@@ -1038,7 +1008,14 @@ impl CryptoServer {
                 self.handle_resp_conf(msg_in.payload().empty_data()?)?
             }
             Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
-            Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
+            Ok(MsgType::CookieReply) => {
+                let msg_in = rx_buf.envelope::<CookieReply<&[u8]>>()?;
+                ensure!(msg_in.check_seal(self)?, seal_broken);
+
+                let peer = self.handle_cookie_reply(msg_in.payload().cookie_reply()?)?;
+                len = 0;
+                peer
+            }
             Err(_) => {
                 bail!("CookieReply handling not implemented!")
             }
@@ -1929,12 +1906,20 @@ impl CryptoServer {
 
         Ok(hs.peer())
     }
+
+    pub fn handle_cookie_reply(&mut self, cr: CookieReply<&[u8]>) -> Result<PeerPtr> {
+        /* 
+        let peer = self
+            .find_peer(PeerId::from_slice(cr.sid()))
+            .with_context(|| format!("No such peer {pidr:?}.", pidr = cr.pidr()))?;
+        */
+        let session_id = cr.sid();
+        todo!()
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use std::thread;
-
     use super::*;
 
     fn init_crypto_server() -> CryptoServer {
