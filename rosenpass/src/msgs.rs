@@ -143,7 +143,7 @@ macro_rules! data_lense(
             pub fn check_size(len: usize) -> Result<(), RosenpassError>{
                 let required_size = $( $len + )+ 0;
                 let actual_size = len;
-                if required_size < actual_size {
+                if required_size != actual_size {
                     Err(RosenpassError::BufferSizeMismatch {
                         required_size,
                         actual_size,
@@ -199,22 +199,52 @@ macro_rules! data_lense(
             type __ContainerType;
 
             /// Create a lense to the byte slice
-            fn [< $type:snake >] $(< $($generic),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError>;
+            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError>;
+
+            /// Create a lense to the byte slice, automatically truncating oversized buffers
+            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError>;
         }
 
         impl<'a> [< $type Ext >] for &'a [u8] {
             type __ContainerType = &'a [u8];
 
-            fn [< $type:snake >] $(< $($generic),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+                $type::<Self::__ContainerType, $( $($generic),+ )? >::check_size(self.len())?;
                 Ok($type ( self, $( $( ::core::marker::PhantomData::<$generic>  ),+ )? ))
+            }
+
+            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+                let required_size = $( $len + )+ 0;
+                let actual_size = self.len();
+                if actual_size < required_size {
+                    return Err(RosenpassError::BufferSizeMismatch {
+                        required_size,
+                        actual_size,
+                    });
+                }
+
+                [< $type Ext >]::[< $type:snake >](&self[..required_size])
             }
         }
 
         impl<'a> [< $type Ext >] for &'a mut [u8] {
             type __ContainerType = &'a mut [u8];
-
-            fn [< $type:snake >] $(< $($generic),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+                $type::<Self::__ContainerType, $( $($generic),+ )? >::check_size(self.len())?;
                 Ok($type ( self, $( $( ::core::marker::PhantomData::<$generic>  ),+ )? ))
+            }
+
+            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
+                let required_size = $( $len + )+ 0;
+                let actual_size = self.len();
+                if actual_size < required_size {
+                    return Err(RosenpassError::BufferSizeMismatch {
+                        required_size,
+                        actual_size,
+                    });
+                }
+
+                [< $type Ext >]::[< $type:snake >](&mut self[..required_size])
             }
         }
     });

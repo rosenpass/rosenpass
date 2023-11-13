@@ -55,14 +55,13 @@
             };
 
             # parsed Cargo.toml
-            cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+            cargoToml = builtins.fromTOML (builtins.readFile ./rosenpass/Cargo.toml);
 
             # source files relevant for rust
-            src = pkgs.lib.sourceByRegex ./. [
-              "Cargo\\.(toml|lock)"
-              "build.rs"
-              "(src|benches)(/.*\\.(rs|md))?"
-              "rp"
+            src = pkgs.lib.sources.sourceFilesBySuffices ./. [
+              ".lock"
+              ".rs"
+              ".toml"
             ];
 
             # builds a bin path for all dependencies for the `rp` shellscript
@@ -111,6 +110,9 @@
                   name = cargoToml.package.name;
                   version = cargoToml.package.version;
                   inherit src;
+
+                  cargoBuildOptions = x: x ++ [ "-p" "rosenpass" ];
+                  cargoTestOptions = x: x ++ [ "-p" "rosenpass" ];
 
                   doCheck = true;
 
@@ -285,7 +287,7 @@
           packages.proof-proverif = pkgs.stdenv.mkDerivation {
             name = "rosenpass-proverif-proof";
             version = "unstable";
-            src = pkgs.lib.sourceByRegex ./. [
+            src = pkgs.lib.sources.sourceByRegex ./. [
               "analyze.sh"
               "marzipan(/marzipan.awk)?"
               "analysis(/.*)?"

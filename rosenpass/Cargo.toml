@@ -1,0 +1,42 @@
+[package]
+name = "rosenpass"
+version = "0.2.0"
+authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Build post-quantum-secure VPNs with WireGuard!"
+homepage = "https://rosenpass.eu/"
+repository = "https://github.com/rosenpass/rosenpass"
+readme = "readme.md"
+
+[[bench]]
+name = "handshake"
+harness = false
+
+[dependencies]
+anyhow = { version = "1.0.71", features = ["backtrace"] }
+base64 = "0.21.1"
+static_assertions = "1.1.0"
+memoffset = "0.9.0"
+libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
+oqs-sys = { version = "0.8", default-features = false, features = ['classic_mceliece', 'kyber'] }
+lazy_static = "1.4.0"
+thiserror = "1.0.40"
+paste = "1.0.12"
+log = { version = "0.4.17", optional = true }
+env_logger = { version = "0.10.0", optional = true }
+serde = { version = "1.0.163", features = ["derive"] }
+toml = "0.7.4"
+clap = { version = "4.3.0", features = ["derive"] }
+mio = { version = "0.8.6", features = ["net", "os-poll"] }
+
+[build-dependencies]
+anyhow = "1.0.71"
+
+[dev-dependencies]
+criterion = "0.4.0"
+test_bin = "0.4.0"
+stacker = "0.1.15"
+
+[features]
+default = ["log", "env_logger"]

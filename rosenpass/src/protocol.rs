@@ -23,10 +23,10 @@
 //!     pqkem::{StaticKEM, KEM},
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
-//! # fn main() -> Result<(), rosenpass::RosenpassError> {
+//! # fn main() -> anyhow::Result<()> {
 //!
 //! // always init libsodium before anything
-//! rosenpass::sodium::sodium_init().unwrap();
+//! rosenpass::sodium::sodium_init()?;
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -42,25 +42,26 @@
 //! let mut b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 //!
 //! // introduce peers to each other
-//! a.add_peer(Some(psk.clone()), peer_b_pk).unwrap();
-//! b.add_peer(Some(psk), peer_a_pk).unwrap();
+//! a.add_peer(Some(psk.clone()), peer_b_pk)?;
+//! b.add_peer(Some(psk), peer_a_pk)?;
 //!
 //! // declare buffers for message exchange
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
 //!
 //! // let a initiate a handshake
-//! let length = a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice());
+//! let mut maybe_len = Some(a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice())?);
 //!
-//! // let b respond to a and a respond to b, in two rounds
-//! for _ in 0..2 {
-//!    b.handle_msg(&a_buf[..], &mut b_buf[..]);
-//!    a.handle_msg(&b_buf[..], &mut a_buf[..]);
+//! // let a and b communicate
+//! while let Some(len) = maybe_len {
+//!    maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
+//!    std::mem::swap(&mut a, &mut b);
+//!    std::mem::swap(&mut a_buf, &mut b_buf);
 //! }
 //!
 //! // all done! Extract the shared keys and ensure they are identical
-//! let a_key = a.osk(PeerPtr(0));
-//! let b_key = b.osk(PeerPtr(0));
-//! assert_eq!(a_key.unwrap().secret(), b_key.unwrap().secret(),
+//! let a_key = a.osk(PeerPtr(0))?;
+//! let b_key = b.osk(PeerPtr(0))?;
+//! assert_eq!(a_key.secret(), b_key.secret(),
 //!     "the key exchanged failed to establish a shared secret");
 //! # Ok(())
 //! # }
@@ -789,7 +790,7 @@ impl CryptoServer {
     // TODO remove unnecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
     pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
-        let mut msg = tx_buf.envelope::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
+        let mut msg = tx_buf.envelope_truncating::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
         self.handle_initiation(peer, msg.payload_mut().init_hello()?)?;
         let len = self.seal_and_commit_msg(peer, MsgType::InitHello, msg)?;
         peer.hs()
@@ -965,7 +966,7 @@ impl CryptoServer {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope::<RespHello<&mut [u8]>>()?;
+                let mut msg_out = tx_buf.envelope_truncating::<RespHello<&mut [u8]>>()?;
                 let peer = self.handle_init_hello(
                     msg_in.payload().init_hello()?,
                     msg_out.payload_mut().resp_hello()?,
@@ -977,7 +978,7 @@ impl CryptoServer {
                 let msg_in = rx_buf.envelope::<RespHello<&[u8]>>()?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope::<InitConf<&mut [u8]>>()?;
+                let mut msg_out = tx_buf.envelope_truncating::<InitConf<&mut [u8]>>()?;
                 let peer = self.handle_resp_hello(
                     msg_in.payload().resp_hello()?,
                     msg_out.payload_mut().init_conf()?,
@@ -992,7 +993,7 @@ impl CryptoServer {
                 let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope::<EmptyData<&mut [u8]>>()?;
+                let mut msg_out = tx_buf.envelope_truncating::<EmptyData<&mut [u8]>>()?;
                 let peer = self.handle_init_conf(
                     msg_in.payload().init_conf()?,
                     msg_out.payload_mut().empty_data()?,
@@ -1922,31 +1923,94 @@ impl CryptoServer {
 mod test {
     use super::*;
 
-    fn init_crypto_server() -> CryptoServer {
-        // always init libsodium before anything
+    #[test]
+    /// Ensure that the protocol implementation can deal with truncated
+    /// messages and with overlong messages.
+    ///
+    /// This test performs a complete handshake between two randomly generated
+    /// servers; instead of delivering the message correctly at first messages
+    /// of length zero through about 1.2 times the correct message size are delivered.
+    ///
+    /// Producing an error is expected on each of these messages.
+    ///
+    /// Finally the correct message is delivered and the same process
+    /// starts again in the other direction.
+    ///
+    /// Through all this, the handshake should still successfully terminate;
+    /// i.e. an exchanged key must be produced in both servers.
+    fn handles_incorrect_size_messages() {
         crate::sodium::sodium_init().unwrap();
 
-        // initialize secret and public key for the crypto server
-        let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-
-        // Guranteed to have 8MiB of stack size
         stacker::grow(8 * 1024 * 1024, || {
-            StaticKEM::keygen(sk.secret_mut(), pk.secret_mut()).expect("unable to generate keys");
-        });
+            const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
+            type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
 
-        CryptoServer::new(sk, pk)
+            const PEER0: PeerPtr = PeerPtr(0);
+
+            let (mut me, mut they) = make_server_pair().unwrap();
+            let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
+
+            // Process the entire handshake
+            let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
+            loop {
+                if let Some(l) = msglen {
+                    std::mem::swap(&mut me, &mut they);
+                    std::mem::swap(&mut msgbuf, &mut resbuf);
+                    msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
+                } else {
+                    break;
+                }
+            }
+
+            assert_eq!(
+                me.osk(PEER0).unwrap().secret(),
+                they.osk(PEER0).unwrap().secret()
+            );
+        });
     }
 
-    /// The determination of the message type relies on reading the first byte of the message. Only
-    /// after that the length of the message is checked against the specified message type. This
-    /// test ensures that nothing breaks in the case of an empty message.
-    #[test]
-    #[should_panic = "called `Result::unwrap()` on an `Err` value: received empty message, ignoring it"]
-    fn handle_empty_message() {
-        let mut crypt = init_crypto_server();
-        let empty_rx_buf = [0u8; 0];
-        let mut tx_buf = [0u8; 0];
+    /// Used in handles_incorrect_size_messages() to first deliver many truncated
+    /// and overlong messages, finally the correct message is delivered and the response
+    /// returned.
+    fn test_incorrect_sizes_for_msg(
+        srv: &mut CryptoServer,
+        msgbuf: &[u8],
+        msglen: usize,
+        resbuf: &mut [u8],
+    ) -> Option<usize> {
+        resbuf.fill(0);
 
-        crypt.handle_msg(&empty_rx_buf, &mut tx_buf).unwrap();
+        for l in 0..(((msglen as f32) * 1.2) as usize) {
+            if l == msglen {
+                continue;
+            }
+
+            let res = srv.handle_msg(&msgbuf[..l], resbuf);
+            assert!(matches!(res, Err(_))); // handle_msg should raise an error
+            assert!(!resbuf.iter().find(|x| **x != 0).is_some()); // resbuf should not have been changed
+        }
+
+        // Apply the proper handle_msg operation
+        srv.handle_msg(&msgbuf[..msglen], resbuf).unwrap().resp
+    }
+
+    fn keygen() -> Result<(SSk, SPk)> {
+        // TODO: Copied from the benchmark; deduplicate
+        let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
+        StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
+        Ok((sk, pk))
+    }
+
+    fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
+        // TODO: Copied from the benchmark; deduplicate
+        let psk = SymKey::random();
+        let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
+        let (mut a, mut b) = (
+            CryptoServer::new(ska, pka.clone()),
+            CryptoServer::new(skb, pkb.clone()),
+        );
+        a.add_peer(Some(psk.clone()), pkb)?;
+        b.add_peer(Some(psk), pka)?;
+        Ok((a, b))
     }
 }
