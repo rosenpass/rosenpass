@@ -332,8 +332,9 @@ data_lense! { DataMsg :=
 
 data_lense! { CookieReply :=
     sid: 4,
-    nonce: 24,
-    cookie_encrypted: 16 + sodium::AEAD_TAG_LEN
+    nonce: sodium::XAEAD_NONCE_LEN,
+    cookie_encrypted: sodium::KEY_SIZE,
+    cookie_msg_mac: sodium::XAEAD_TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
