@@ -439,8 +439,8 @@ The sender of the exchange then uses this cookie in order to resend the message 
 The cookie reply message consists of the `sid` of the client under load, a random 24-byte bitstring `nonce` and an encrypted `cookie` reply field which consists of the following (from the perspective of the cookie reply sender):
 
 ```
-tau = lhash("cookie", "tau",r_m, a_m)
-cookie = XAEAD(lhash("cookie", "key", spkt), nonce, tau , mac_peer)
+tau = lhash("cookie-tau",r_m, a_m)[0..16]
+cookie = XAEAD(lhash("cookie-key", spkm), nonce, tau , mac_peer)
 ```
 
 where `r_m` is a secret variable that changes every two minutes to a random value. `a_m` is a concatenation of the source IP address and UDP source port of the client's peer. `mac_peer` is the `mac` field of the peer's handshake message to which this is the reply.  
@@ -475,6 +475,17 @@ where `last_recvd_cookie` is the last received `cookie` field from a cookie repl
 
 The sender can use an invalid value for the `cookie` value, when the receiver is not under load, and the receiver must ignore this value.
 However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. The sender then must wait for the duration of `REKEY-TIMEOUT` (5 seconds) and only then can retransmit the handshake packet with a valid `cookie` value derived from the previous cookie reply message.  
+
+### Conditions to trigger DoS Mechanism
+
+Rosenpass implementations are expected to detect conditions in which they are under computational load to trigger the cookie based DoS mitigation mechanism by replying with a cookie reply message.
+
+
+For the reference implemenation,
+
+```
+TDB- add mechanism
+```
 
 ## Dealing with Packet Loss
 

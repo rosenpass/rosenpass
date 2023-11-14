@@ -23,7 +23,6 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::protocol::Peer;
 use crate::util::fopen_w;
 use crate::{
     config::Verbosity,

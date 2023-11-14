@@ -265,7 +265,7 @@ data_lense! { Envelope<M> :=
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
     mac: sodium::MAC_SIZE,
-    /// Currently unused, TODO: do something with this
+    /// Cookie value
     cookie: sodium::MAC_SIZE
 }
 
@@ -333,8 +333,7 @@ data_lense! { DataMsg :=
 data_lense! { CookieReply :=
     sid: 4,
     nonce: sodium::XAEAD_NONCE_LEN,
-    cookie_encrypted: sodium::KEY_SIZE,
-    cookie_msg_mac: sodium::XAEAD_TAG_LEN
+    cookie_encrypted: sodium::MAC_SIZE + sodium::XAEAD_TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////

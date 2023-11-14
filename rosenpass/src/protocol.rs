@@ -69,11 +69,11 @@
 
 use crate::{
     coloring::*,
-    labeled_prf::{self as lprf, cookie, cookie_tau},
+    labeled_prf::{self as lprf},
     msgs::*,
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
-    sodium::*,
+    sodium::{self, *},
     util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
@@ -81,10 +81,7 @@ use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
-use std::{
-    net::{IpAddr, SocketAddr},
-    time::Instant,
-};
+use std::net::{IpAddr, SocketAddr};
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -116,8 +113,12 @@ pub const REJECT_AFTER_TIME: Timing = 180.0;
 // From the wireguard paper; "under no circumstances send an initiation message more than once every 5 seconds"
 pub const REKEY_TIMEOUT: Timing = 5.0;
 
-pub const COOKIE_SECRET_LEN: usize = 32;
+// Cookie Secret value Rm composing `cookie_tau` in the whitepaper
+pub const COOKIE_SECRET_LEN: usize = sodium::MAC_SIZE;
 pub const COOKIE_SECRET_EXP: Timing = 120.0;
+
+// Peer Cookie Tau expiration
+pub const PEER_COOKIE_TAU_EXP: Timing = 120.0;
 
 // Seconds until the biscuit key is changed; we issue biscuits
 // using one biscuit key for one epoch and store the biscuit for
@@ -135,6 +136,8 @@ pub const RETRANSMIT_DELAY_END: Timing = 10.0;
 pub const RETRANSMIT_DELAY_JITTER: Timing = 0.5;
 
 pub const EVENT_GRACE: Timing = 0.0025;
+
+use sodium::MAC_SIZE;
 
 // UTILITY FUNCTIONS /////////////////////////////
 
@@ -195,7 +198,7 @@ pub struct CryptoServer {
     // Tick handling
     pub peer_poll_off: usize,
 
-    // Random state
+    // Random state which changes every COOKIE_SECRET_EXP seconds
     pub cookie_secret: CookieSecret,
 }
 
@@ -216,14 +219,15 @@ impl CookieSecret {
         }
     }
 
-    pub fn get_or_reset_ellapsed(&mut self, expiry: Timing) -> Option<&[u8]> {
+    // Get the cookie secret, does not update the value
+    pub fn get(&self, expiry: Timing) -> Option<&[u8]> {
         if let CookieSecret::Some {
             value: _value,
             last_updated,
         } = self
         {
             if last_updated.now() > expiry {
-                *self = CookieSecret::None;
+                return None;
             }
         }
 
@@ -303,7 +307,8 @@ pub struct Peer {
     pub session: Option<Session>,
     pub handshake: Option<InitiatorHandshake>,
     pub initiation_requested: bool,
-    pub cookie_secret: CookieSecret,
+    pub cookie_tau: CookieSecret,
+    pub last_sent_mac: Option<Public<MAC_SIZE>>,
 }
 
 impl Peer {
@@ -315,7 +320,8 @@ impl Peer {
             session: None,
             initiation_requested: false,
             handshake: None,
-            cookie_secret: CookieSecret::None,
+            cookie_tau: CookieSecret::None,
+            last_sent_mac: None,
         }
     }
 }
@@ -577,7 +583,8 @@ impl CryptoServer {
             session: None,
             handshake: None,
             initiation_requested: false,
-            cookie_secret: CookieSecret::None,
+            cookie_tau: CookieSecret::None,
+            last_sent_mac: None,
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -680,7 +687,8 @@ impl Peer {
             session: None,
             handshake: None,
             initiation_requested: false,
-            cookie_secret: CookieSecret::None,
+            cookie_tau: CookieSecret::None,
+            last_sent_mac: None,
         }
     }
 
@@ -915,7 +923,8 @@ impl CryptoServer {
                     .get_or_update_ellapsed(COOKIE_SECRET_EXP, rng),
             )?
             .mix(&ip_addr_port)?
-            .into_value();
+            .into_value()[..16]
+            .to_vec();
 
         let expected = lprf::cookie()?
             .mix(&cookie_tau)?
@@ -933,11 +942,10 @@ impl CryptoServer {
             // length of the response. We assume no response, so 0 length for now
             let mut len = None;
             let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
-            let spkt = &peer.get(&self).spkt;
-            let cookie_key = lprf::cookie_key()?.mix(spkt.secret())?.into_value();
+            let cookie_key = lprf::cookie_key()?.mix(self.spkm.secret())?.into_value();
 
             let mut cookie_reply_lens = msg_out.payload_mut().cookie_reply()?;
-            let mut nonce_val = [0u8; 24];
+            let nonce_val = XAEADNonce::random();
 
             // Copy sender's session id to cookie reply message
             {
@@ -948,18 +956,18 @@ impl CryptoServer {
             // Generate random nonce, copy it to message and nonce_val
             {
                 let nonce = cookie_reply_lens.nonce_mut();
-                rng(nonce);
-                nonce_val.copy_from_slice(&nonce);
+                nonce.copy_from_slice(&nonce_val.value);
             }
 
             // Encrypt cookie
             {
-                const COOKIE_LENS_SID_LEN : usize= 4;
-                let cookie_ciphertext = &mut cookie_reply_lens.all_bytes_mut()[COOKIE_LENS_SID_LEN..];
+                const COOKIE_LENS_SID_LEN: usize = 4;
+                let cookie_ciphertext =
+                    &mut cookie_reply_lens.all_bytes_mut()[COOKIE_LENS_SID_LEN..];
                 xaead_enc_into(
                     cookie_ciphertext,
                     &cookie_key,
-                    &nonce_val,
+                    &nonce_val.value,
                     &rx_mac,
                     &cookie_tau,
                 )?;
@@ -1079,7 +1087,8 @@ impl CryptoServer {
     }
 
     /// Serialize message to `tx_buf`, generating the `mac` in the process of
-    /// doing so
+    /// doing so. If `cookie_secret` is also present, a `cookie` value is also generated
+    /// and added to the message
     ///
     /// The message type is explicitly required here because it is very easy to
     /// forget setting that, which creates subtle but far ranging errors.
@@ -1091,6 +1100,15 @@ impl CryptoServer {
     ) -> Result<usize> {
         msg.msg_type_mut()[0] = msg_type as u8;
         msg.seal(peer, self)?;
+        msg.seal_cookie(peer, self)?;
+
+        //Store sent mac value as last sent mac (for cookie reply)
+        let mut mac = [0u8; MAC_SIZE];
+        mac.copy_from_slice(msg.mac());
+
+        peer.get_mut(self)
+            .last_sent_mac
+            .replace(Public { value: mac });
         Ok(<Envelope<(), M> as LenseView>::LEN)
     }
 }
@@ -1360,12 +1378,22 @@ impl IniHsPtr {
     }
 
     pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> Result<usize> {
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
-        cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
-        Ok(ih.tx_len)
+        let ih_tx_len: usize;
+
+        {
+            let ih = self
+                .get_mut(srv)
+                .as_mut()
+                .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+            cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
+            ih_tx_len = ih.tx_len;
+        }
+
+        // Add cookie to retransmitted message
+        let mut envelope = tx_buf.envelope_truncating::<InitHello<&mut [u8]>>()?;
+        envelope.seal_cookie(self.peer(), srv)?;
+
+        Ok(ih_tx_len)
     }
 
     pub fn register_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
@@ -1408,6 +1436,18 @@ where
             .mix(self.until_mac())?;
         self.mac_mut()
             .copy_from_slice(mac.into_value()[..16].as_ref());
+        Ok(())
+    }
+
+    /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
+    pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
+        let tau = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP);
+
+        if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
+            let cookie = lprf::cookie()?.mix(&cookie_tau)?.mix(self.until_cookie())?;
+            self.cookie_mut()
+                .copy_from_slice(cookie.into_value()[..16].as_ref());
+        }
         Ok(())
     }
 }
@@ -1961,29 +2001,37 @@ impl CryptoServer {
     pub fn handle_cookie_reply(&mut self, cr: CookieReply<&[u8]>) -> Result<PeerPtr> {
         let session_id = SessionId::from_slice(cr.sid());
 
-        let peer_ptr : Option<PeerPtr> = self
-            .lookup_session(session_id).map(|v| PeerPtr(v.0)).or_else(|| {
-                self.lookup_handshake(session_id).map(|v| PeerPtr(v.0))
-            });
+        let peer_ptr: Option<PeerPtr> = self
+            .lookup_session(session_id)
+            .map(|v| PeerPtr(v.0))
+            .or_else(|| self.lookup_handshake(session_id).map(|v| PeerPtr(v.0)));
         if let Some(peer) = peer_ptr {
-            let mut cookie_value = [0u8; COOKIE_SECRET_LEN];
-            let mut mac = [0u8; AEAD_TAG_LEN];
-            let cookie_key = lprf::cookie_key()?.mix(peer.get(&self).spkt.secret())?.into_value();
+            if let Some(mac) = peer.get(self).last_sent_mac {
+                let mut cookie_value = [0u8; COOKIE_SECRET_LEN];
+                let spkt = peer.get(self).spkt.secret();
+                let cookie_key = lprf::cookie_key()?.mix(spkt)?.into_value();
 
-            xaead_dec_into(
-                &mut cookie_value,
-                &cookie_key,
-                &mut mac,
-                &cr.all_bytes()[4..],
-            )?;
-            peer.get_mut(self).cookie_secret = CookieSecret::Some {
-                value: cookie_value,
-                last_updated: Timebase::default(),
-            };
+                xaead_dec_into(
+                    &mut cookie_value,
+                    &cookie_key,
+                    &mac.value,
+                    &cr.all_bytes()[4..],
+                )?;
 
-            //Schedule last message retransmission
+                peer.get_mut(self).cookie_tau = CookieSecret::Some {
+                    value: cookie_value,
+                    last_updated: Timebase::default(),
+                };
 
-            todo!()
+                //TODO: Last message retransmission
+
+                Ok(peer)
+            } else {
+                bail!(
+                    "No last sent message for peer {pidr:?} to decrypt cookie reply.",
+                    pidr = cr.sid()
+                );
+            }
         } else {
             bail!("No such peer {pidr:?}.", pidr = cr.sid());
         }
@@ -1992,7 +2040,7 @@ impl CryptoServer {
 
 #[cfg(test)]
 mod test {
-    use std::net::SocketAddrV4;
+    use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
     use super::*;
 
@@ -2097,27 +2145,73 @@ mod test {
             let mut b_to_a_buf = MsgBufPlus::zero();
 
             let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+
             let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
             let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
 
             //B handles handshake under load, should send cookie reply message with invalid cookie
-            let HandleMsgResult{ resp, ..} = b.handle_msg_under_load(
-                &a_to_b_buf.as_slice()[..init_hello_len],
-                &mut *b_to_a_buf,
-                PeerPtr(0),
-                SocketAddr::V4(ip_a),
-            )
-            .unwrap();
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg_under_load(
+                    &a_to_b_buf.as_slice()[..init_hello_len],
+                    &mut *b_to_a_buf,
+                    PeerPtr(0),
+                    SocketAddr::V4(ip_a),
+                )
+                .unwrap();
 
             let cookie_reply_len = resp.unwrap();
 
             //A handles cookie reply message
-            a.handle_msg(& b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf).unwrap();
+            a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
+                .unwrap();
 
-            assert!(a.peers[0].cookie_secret.is_some());
+            assert!(a.peers[0].cookie_tau.is_some());
 
-            //, should send retransmit message with valid cookie
+            let expected_cookie_tau = lprf::cookie_tau()
+                .unwrap()
+                .mix(b.cookie_secret.get(COOKIE_SECRET_EXP).unwrap())
+                .unwrap()
+                .mix(&ip_addr_port_a)
+                .unwrap()
+                .into_value()[..16]
+                .to_vec();
+            assert_eq!(
+                a.peers[0].cookie_tau.get(PEER_COOKIE_TAU_EXP),
+                Some(&expected_cookie_tau[..])
+            );
+
+            let retx_init_hello_len = loop {
+                match a.poll().unwrap() {
+                    PollResult::SendRetransmission(peer) => {
+                        break( a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
+                    }
+                    PollResult::Sleep(time) => {sleep(Duration::from_secs_f64(time));}
+                    _ => {},
+                }
+            };
+
+            let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(retx_msg_type, MsgType::InitHello);
+
+            //B handles retransmitted message
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg_under_load(
+                    &a_to_b_buf.as_slice()[..retx_init_hello_len],
+                    &mut *b_to_a_buf,
+                    PeerPtr(0),
+                    SocketAddr::V4(ip_a),
+                )
+                .unwrap();
+
+            let _resp_hello_len = resp.unwrap();
+
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
+
+            //TODO: Retransmission time ellapsed is after certain minimum period
         });
     }
 }
