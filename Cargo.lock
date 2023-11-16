@@ -1014,7 +1014,6 @@ name = "rosenpass"
 version = "0.2.1"
 dependencies = [
  "anyhow",
- "base64",
  "clap 4.4.8",
  "criterion",
  "env_logger",
@@ -1025,12 +1024,25 @@ dependencies = [
  "mio",
  "oqs-sys",
  "paste",
+ "rosenpass-constant-time",
+ "rosenpass-util",
  "serde",
  "stacker",
  "static_assertions",
  "test_bin",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "rosenpass-constant-time"
+version = "0.1.0"
+
+[[package]]
+name = "rosenpass-util"
+version = "0.1.0"
+dependencies = [
+ "base64",
 ]
 
 [[package]]

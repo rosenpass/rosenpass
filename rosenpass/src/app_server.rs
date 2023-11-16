@@ -26,8 +26,9 @@ use crate::util::fopen_w;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-    util::{b64_writer, fmt_b64},
 };
+use rosenpass_util::attempt;
+use rosenpass_util::b64::{b64_writer, fmt_b64};
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
