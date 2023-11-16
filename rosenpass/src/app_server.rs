@@ -4,6 +4,7 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
+use rosenpass_util::file::fopen_w;
 
 use std::cell::Cell;
 use std::io::Write;
@@ -22,7 +23,6 @@ use std::slice;
 use std::thread;
 use std::time::Duration;
 
-use crate::util::fopen_w;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},

@@ -1,10 +1,10 @@
 use anyhow::{bail, ensure};
 use clap::Parser;
+use rosenpass_util::file::{LoadValue, LoadValueB64};
 use std::path::{Path, PathBuf};
 
 use crate::app_server;
 use crate::app_server::AppServer;
-use crate::util::{LoadValue, LoadValueB64};
 use crate::{
     // app_server::{AppServer, LoadValue, LoadValueB64},
     coloring::Secret,
