@@ -10,15 +10,6 @@ use std::{
 use crate::coloring::{Public, Secret};
 use rosenpass_util::b64::b64_reader;
 
-// TODO remove this once std::cmp::max becomes const
-pub const fn max_usize(a: usize, b: usize) -> usize {
-    if a > b {
-        a
-    } else {
-        b
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Timebase(Instant);
 
