@@ -4,30 +4,10 @@ use std::{
     fs::{File, OpenOptions},
     io::Read,
     path::Path,
-    time::{Duration, Instant},
 };
 
 use crate::coloring::{Public, Secret};
 use rosenpass_util::b64::b64_reader;
-
-#[derive(Clone, Debug)]
-pub struct Timebase(Instant);
-
-impl Default for Timebase {
-    fn default() -> Self {
-        Self(Instant::now())
-    }
-}
-
-impl Timebase {
-    pub fn now(&self) -> f64 {
-        self.0.elapsed().as_secs_f64()
-    }
-
-    pub fn dur(&self, t: f64) -> Duration {
-        Duration::from_secs_f64(t)
-    }
-}
 
 pub fn mutating<T, F>(mut v: T, f: F) -> T
 where
