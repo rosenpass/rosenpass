@@ -77,7 +77,7 @@ use crate::{
     util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
-use rosenpass_util::{cat, mem::cpy_min};
+use rosenpass_util::{cat, mem::cpy_min, ord::max_usize};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
