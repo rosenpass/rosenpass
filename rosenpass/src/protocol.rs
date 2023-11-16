@@ -74,10 +74,9 @@ use crate::{
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
     sodium::*,
-    util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
-use rosenpass_util::{cat, mem::cpy_min, ord::max_usize};
+use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
