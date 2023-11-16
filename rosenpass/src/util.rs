@@ -9,22 +9,6 @@ use std::{
 use crate::coloring::{Public, Secret};
 use rosenpass_util::b64::b64_reader;
 
-pub fn mutating<T, F>(mut v: T, f: F) -> T
-where
-    F: Fn(&mut T),
-{
-    f(&mut v);
-    v
-}
-
-pub fn sideeffect<T, F>(v: T, f: F) -> T
-where
-    F: Fn(&T),
-{
-    f(&v);
-    v
-}
-
 /// load'n store
 
 /// Open a file writable
