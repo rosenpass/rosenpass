@@ -7,9 +7,8 @@ use std::{
 };
 
 use anyhow::{bail, ensure};
+use rosenpass_util::file::fopen_w;
 use serde::{Deserialize, Serialize};
-
-use crate::util::fopen_w;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
