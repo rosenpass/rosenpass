@@ -14,8 +14,9 @@ name = "handshake"
 harness = false
 
 [dependencies]
+rosenpass-util = { path = "../rosenpass-util" }
+rosenpass-constant-time = { path = "../rosenpass-constant-time" }
 anyhow = { version = "1.0.71", features = ["backtrace"] }
-base64 = "0.21.1"
 static_assertions = "1.1.0"
 memoffset = "0.9.0"
 libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }

@@ -1,9 +1,10 @@
 //! Bindings and helpers for accessing libsodium functions
 
-use crate::util::*;
 use anyhow::{ensure, Result};
 use libsodium_sys as libsodium;
 use log::trace;
+use rosenpass_constant_time::xor_into;
+use rosenpass_util::attempt;
 use static_assertions::const_assert_eq;
 use std::os::raw::{c_ulonglong, c_void};
 use std::ptr::{null as nullptr, null_mut as nullptr_mut};

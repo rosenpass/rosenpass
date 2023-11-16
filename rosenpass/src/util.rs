@@ -1,92 +1,14 @@
 //! Helper functions and macros
 use anyhow::{ensure, Context, Result};
-use base64::{
-    display::Base64Display as B64Display, read::DecoderReader as B64Reader,
-    write::EncoderWriter as B64Writer,
-};
 use std::{
-    borrow::{Borrow, BorrowMut},
-    cmp::min,
     fs::{File, OpenOptions},
-    io::{Read, Write},
+    io::Read,
     path::Path,
     time::{Duration, Instant},
 };
 
 use crate::coloring::{Public, Secret};
-
-/// Xors a and b element-wise and writes the result into a.
-///
-/// # Examples
-///
-/// ```
-/// use rosenpass::util::xor_into;
-/// let mut a = String::from("hello").into_bytes();
-/// let b = b"world";
-/// xor_into(&mut a, b);
-/// assert_eq!(&a, b"\x1f\n\x1e\x00\x0b");
-/// ```
-#[inline]
-pub fn xor_into(a: &mut [u8], b: &[u8]) {
-    assert!(a.len() == b.len());
-    for (av, bv) in a.iter_mut().zip(b.iter()) {
-        *av ^= *bv;
-    }
-}
-
-/// Concatenate two byte arrays
-// TODO: Zeroize result?
-#[macro_export]
-macro_rules! cat {
-    ($len:expr; $($toks:expr),+) => {{
-        let mut buf = [0u8; $len];
-        let mut off = 0;
-        $({
-            let tok = $toks;
-            let tr = ::std::borrow::Borrow::<[u8]>::borrow(tok);
-            (&mut buf[off..(off + tr.len())]).copy_from_slice(tr);
-            off += tr.len();
-        })+
-        assert!(off == buf.len(), "Size mismatch in cat!()");
-        buf
-    }}
-}
-
-// TODO: consistent inout ordering
-pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
-    dst.borrow_mut().copy_from_slice(src.borrow());
-}
-
-/// Copy from `src` to `dst`. If `src` and `dst` are not of equal length, copy as many bytes as possible.
-pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
-    let src = src.borrow();
-    let dst = dst.borrow_mut();
-    let len = min(src.len(), dst.len());
-    dst[..len].copy_from_slice(&src[..len]);
-}
-
-/// Try block basically…returns a result and allows the use of the question mark operator inside
-#[macro_export]
-macro_rules! attempt {
-    ($block:expr) => {
-        (|| -> ::anyhow::Result<_> { $block })()
-    };
-}
-
-use base64::engine::general_purpose::GeneralPurpose as Base64Engine;
-const B64ENGINE: Base64Engine = base64::engine::general_purpose::STANDARD;
-
-pub fn fmt_b64<'a>(payload: &'a [u8]) -> B64Display<'a, 'static, Base64Engine> {
-    B64Display::<'a, 'static>::new(payload, &B64ENGINE)
-}
-
-pub fn b64_writer<W: Write>(w: W) -> B64Writer<'static, Base64Engine, W> {
-    B64Writer::new(w, &B64ENGINE)
-}
-
-pub fn b64_reader<R: Read>(r: R) -> B64Reader<'static, Base64Engine, R> {
-    B64Reader::new(r, &B64ENGINE)
-}
+use rosenpass_util::b64::b64_reader;
 
 // TODO remove this once std::cmp::max becomes const
 pub const fn max_usize(a: usize, b: usize) -> usize {

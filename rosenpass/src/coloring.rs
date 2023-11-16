@@ -8,10 +8,11 @@
 
 use crate::{
     sodium::{rng, zeroize},
-    util::{cpy, mutating},
+    util::mutating,
 };
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
+use rosenpass_util::mem::cpy;
 use std::{
     collections::HashMap,
     convert::TryInto,
