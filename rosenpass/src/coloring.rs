@@ -6,13 +6,10 @@
 //! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
 //! - the memory is mlocked, e.g. it is never swapped
 
-use crate::{
-    sodium::{rng, zeroize},
-    util::mutating,
-};
+use crate::sodium::{rng, zeroize};
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
-use rosenpass_util::mem::cpy;
+use rosenpass_util::{functional::mutating, mem::cpy};
 use std::{
     collections::HashMap,
     convert::TryInto,
