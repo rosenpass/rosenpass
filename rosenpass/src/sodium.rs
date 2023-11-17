@@ -6,10 +6,8 @@ use rosenpass_constant_time::xor_into;
 use rosenpass_util::attempt;
 use static_assertions::const_assert_eq;
 use std::os::raw::c_ulonglong;
-use std::ptr::{null as nullptr, null_mut as nullptr_mut};
+use std::ptr::null as nullptr;
 
-pub const XAEAD_TAG_LEN: usize = libsodium::crypto_aead_xchacha20poly1305_ietf_ABYTES as usize;
-pub const XAEAD_NONCE_LEN: usize = libsodium::crypto_aead_xchacha20poly1305_IETF_NPUBBYTES as usize;
 pub const NONCE0: [u8; libsodium::crypto_aead_chacha20poly1305_IETF_NPUBBYTES as usize] =
     [0u8; libsodium::crypto_aead_chacha20poly1305_IETF_NPUBBYTES as usize];
 pub const NOTHING: [u8; 0] = [0u8; 0];
@@ -29,62 +27,6 @@ macro_rules! sodium_call {
         Ok(())
     })};
     ($name:ident) => { sodium_call!($name, ) };
-}
-
-#[inline]
-pub fn xaead_enc_into(
-    ciphertext: &mut [u8],
-    key: &[u8],
-    nonce: &[u8],
-    ad: &[u8],
-    plaintext: &[u8],
-) -> Result<()> {
-    assert!(ciphertext.len() == plaintext.len() + XAEAD_NONCE_LEN + XAEAD_TAG_LEN);
-    assert!(key.len() == libsodium::crypto_aead_xchacha20poly1305_IETF_KEYBYTES as usize);
-    let (n, ct) = ciphertext.split_at_mut(XAEAD_NONCE_LEN);
-    n.copy_from_slice(nonce);
-    let mut clen: u64 = 0;
-    sodium_call!(
-        crypto_aead_xchacha20poly1305_ietf_encrypt,
-        ct.as_mut_ptr(),
-        &mut clen,
-        plaintext.as_ptr(),
-        plaintext.len() as c_ulonglong,
-        ad.as_ptr(),
-        ad.len() as c_ulonglong,
-        nullptr(), // nsec is not used
-        nonce.as_ptr(),
-        key.as_ptr()
-    )?;
-    assert!(clen as usize == ct.len());
-    Ok(())
-}
-
-#[inline]
-pub fn xaead_dec_into(
-    plaintext: &mut [u8],
-    key: &[u8],
-    ad: &[u8],
-    ciphertext: &[u8],
-) -> Result<()> {
-    assert!(ciphertext.len() == plaintext.len() + XAEAD_NONCE_LEN + XAEAD_TAG_LEN);
-    assert!(key.len() == libsodium::crypto_aead_xchacha20poly1305_IETF_KEYBYTES as usize);
-    let (n, ct) = ciphertext.split_at(XAEAD_NONCE_LEN);
-    let mut mlen: u64 = 0;
-    sodium_call!(
-        crypto_aead_xchacha20poly1305_ietf_decrypt,
-        plaintext.as_mut_ptr(),
-        &mut mlen as *mut c_ulonglong,
-        nullptr_mut(), // nsec is not used
-        ct.as_ptr(),
-        ct.len() as c_ulonglong,
-        ad.as_ptr(),
-        ad.len() as c_ulonglong,
-        n.as_ptr(),
-        key.as_ptr()
-    )?;
-    assert!(mlen as usize == plaintext.len());
-    Ok(())
 }
 
 #[inline]
