@@ -1025,6 +1025,7 @@ dependencies = [
  "oqs-sys",
  "paste",
  "rosenpass-constant-time",
+ "rosenpass-sodium",
  "rosenpass-util",
  "serde",
  "stacker",
@@ -1037,6 +1038,16 @@ dependencies = [
 [[package]]
 name = "rosenpass-constant-time"
 version = "0.1.0"
+
+[[package]]
+name = "rosenpass-sodium"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libsodium-sys-stable",
+ "log",
+ "rosenpass-util",
+]
 
 [[package]]
 name = "rosenpass-util"

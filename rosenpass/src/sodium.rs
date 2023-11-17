@@ -2,7 +2,6 @@
 
 use anyhow::{ensure, Result};
 use libsodium_sys as libsodium;
-use log::trace;
 use rosenpass_constant_time::xor_into;
 use rosenpass_util::attempt;
 use static_assertions::const_assert_eq;
@@ -32,12 +31,6 @@ macro_rules! sodium_call {
         Ok(())
     })};
     ($name:ident) => { sodium_call!($name, ) };
-}
-
-#[inline]
-pub fn sodium_init() -> Result<()> {
-    trace!("initializing libsodium");
-    sodium_call!(sodium_init)
 }
 
 #[inline]
