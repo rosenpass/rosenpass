@@ -45,7 +45,7 @@
 
 use super::RosenpassError;
 use crate::{pqkem::*, sodium};
-use rosenpass_ciphers::aead;
+use rosenpass_ciphers::{aead, xaead};
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -385,7 +385,7 @@ impl TryFrom<u8> for MsgType {
 pub const BISCUIT_PT_LEN: usize = Biscuit::<()>::LEN;
 
 /// Length in bytes of an encrypted Biscuit (cipher text)
-pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN;
+pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
 
 #[cfg(test)]
 mod test_constants {
@@ -393,6 +393,7 @@ mod test_constants {
         msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN},
         sodium,
     };
+    use rosenpass_ciphers::xaead;
 
     #[test]
     fn sodium_keysize() {
@@ -408,7 +409,7 @@ mod test_constants {
     fn biscuit_ct_len() {
         assert_eq!(
             BISCUIT_CT_LEN,
-            BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN
+            BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN
         );
     }
 }

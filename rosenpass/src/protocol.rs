@@ -76,7 +76,7 @@ use crate::{
     sodium::*,
 };
 use anyhow::{bail, ensure, Context, Result};
-use rosenpass_ciphers::aead;
+use rosenpass_ciphers::{aead, xaead};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
@@ -152,7 +152,7 @@ pub type PeerId = Public<KEY_SIZE>;
 pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
-pub type XAEADNonce = Public<XAEAD_NONCE_LEN>;
+pub type XAEADNonce = Public<{ xaead::NONCE_LEN }>;
 
 pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
 
@@ -1309,7 +1309,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).key.secret();
         let pt = biscuit.all_bytes();
-        xaead_enc_into(biscuit_ct, k, &*n, &ad, pt)?;
+        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -1335,7 +1335,7 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // slice
-        xaead_dec_into(
+        xaead::decrypt(
             biscuit.all_bytes_mut(),
             bk.get(srv).key.secret(),
             &ad,
