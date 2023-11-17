@@ -25,8 +25,8 @@
 //! };
 //! # fn main() -> anyhow::Result<()> {
 //!
-//! // always init libsodium before anything
-//! rosenpass::sodium::sodium_init()?;
+//! // always initialize libsodium before anything
+//! rosenpass_sodium::init()?;
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -1750,7 +1750,7 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
-        crate::sodium::sodium_init().unwrap();
+        rosenpass_sodium::init().unwrap();
 
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
