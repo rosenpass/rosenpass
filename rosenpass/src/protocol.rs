@@ -1360,7 +1360,7 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            sodium_bigint_cmp(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
+            rosenpass_sodium::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1637,7 +1637,7 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
 
         // ICR5
-        if sodium_bigint_cmp(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+        if rosenpass_sodium::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
             // ICR6
             peer.get_mut(self).biscuit_used = biscuit_no;
 
