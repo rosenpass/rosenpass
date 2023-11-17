@@ -1154,7 +1154,7 @@ impl IniHsPtr {
                         .min(ih.tx_count as f64),
                 )
                 * RETRANSMIT_DELAY_JITTER
-                * (rand_f64() + 1.0);
+                * (rosenpass_sodium::rand_f64() + 1.0); // TODO: Relace with the rand crate
         ih.tx_count += 1;
         Ok(())
     }
