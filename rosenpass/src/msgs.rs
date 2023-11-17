@@ -45,6 +45,7 @@
 
 use super::RosenpassError;
 use crate::{pqkem::*, sodium};
+use rosenpass_ciphers::aead;
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -277,9 +278,9 @@ data_lense! { InitHello :=
     /// Classic McEliece Ciphertext
     sctr: StaticKEM::CT_LEN,
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pidic: sodium::AEAD_TAG_LEN + 32,
+    pidic: aead::TAG_LEN + 32,
     /// Encrypted TAI64N Time Stamp (against replay attacks)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { RespHello :=
@@ -292,7 +293,7 @@ data_lense! { RespHello :=
     /// Classic McEliece Ciphertext
     scti: StaticKEM::CT_LEN,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN,
+    auth: aead::TAG_LEN,
     /// Responders handshake state in encrypted form
     biscuit: BISCUIT_CT_LEN
 }
@@ -305,7 +306,7 @@ data_lense! { InitConf :=
     /// Responders handshake state in encrypted form
     biscuit: BISCUIT_CT_LEN,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { EmptyData :=
@@ -314,7 +315,7 @@ data_lense! { EmptyData :=
     /// Nonce
     ctr: 8,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { Biscuit :=

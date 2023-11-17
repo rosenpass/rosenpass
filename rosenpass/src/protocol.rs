@@ -76,6 +76,7 @@ use crate::{
     sodium::*,
 };
 use anyhow::{bail, ensure, Context, Result};
+use rosenpass_ciphers::aead;
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
@@ -1239,13 +1240,13 @@ impl HandshakeState {
 
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_enc_into(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
+        aead::encrypt(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
         self.mix(ct)
     }
 
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_dec_into(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
+        aead::decrypt(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
         self.mix(ct)
     }
 
@@ -1629,7 +1630,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; AEAD_TAG_LEN], &NOTHING)?;
+        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &NOTHING)?;
 
         // ICR3
         core.mix(ic.sidi())?.mix(ic.sidr())?;
@@ -1683,9 +1684,9 @@ impl CryptoServer {
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]);
+        let n = cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead_enc_into(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
+        aead::encrypt(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -1717,11 +1718,11 @@ impl CryptoServer {
             let n = u64::from_le_bytes(rc.ctr().try_into().unwrap());
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
-            aead_dec_into(
+            aead::decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]),
+                &cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]),
                 &NOTHING,
                 rc.auth(),
             )?;
