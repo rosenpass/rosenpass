@@ -15,4 +15,5 @@ pub fn init() -> anyhow::Result<()> {
     sodium_call!(sodium_init)
 }
 
+pub mod aead;
 pub mod helpers;

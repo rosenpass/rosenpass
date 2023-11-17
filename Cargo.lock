@@ -1024,6 +1024,7 @@ dependencies = [
  "mio",
  "oqs-sys",
  "paste",
+ "rosenpass-ciphers",
  "rosenpass-constant-time",
  "rosenpass-sodium",
  "rosenpass-util",
@@ -1033,6 +1034,13 @@ dependencies = [
  "test_bin",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "rosenpass-ciphers"
+version = "0.1.0"
+dependencies = [
+ "rosenpass-sodium",
 ]
 
 [[package]]
