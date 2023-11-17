@@ -34,19 +34,6 @@ macro_rules! sodium_call {
 }
 
 #[inline]
-pub fn sodium_memcmp(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len()
-        && unsafe {
-            let r = libsodium::sodium_memcmp(
-                a.as_ptr() as *const c_void,
-                b.as_ptr() as *const c_void,
-                a.len(),
-            );
-            r == 0
-        }
-}
-
-#[inline]
 pub fn sodium_bigint_cmp(a: &[u8], b: &[u8]) -> i32 {
     assert!(a.len() == b.len());
     unsafe { libsodium::sodium_compare(a.as_ptr(), b.as_ptr(), a.len()) }

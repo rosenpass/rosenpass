@@ -1190,7 +1190,10 @@ where
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
-        Ok(sodium_memcmp(self.mac(), &expected.into_value()[..16]))
+        Ok(rosenpass_sodium::memcmp(
+            self.mac(),
+            &expected.into_value()[..16],
+        ))
     }
 }
 
