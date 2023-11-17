@@ -34,13 +34,6 @@ macro_rules! sodium_call {
 }
 
 #[inline]
-pub fn sodium_bigint_inc(v: &mut [u8]) {
-    unsafe {
-        libsodium::sodium_increment(v.as_mut_ptr(), v.len());
-    }
-}
-
-#[inline]
 pub fn rng(buf: &mut [u8]) {
     unsafe { libsodium::randombytes_buf(buf.as_mut_ptr() as *mut c_void, buf.len()) };
 }

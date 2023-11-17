@@ -1297,7 +1297,7 @@ impl HandshakeState {
             .into_value();
 
         // consume biscuit no
-        sodium_bigint_inc(&mut *srv.biscuit_ctr);
+        rosenpass_sodium::increment(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
