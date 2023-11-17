@@ -178,12 +178,12 @@ impl<const N: usize> Secret<N> {
 
     /// Sets all data of an existing secret to null bytes
     pub fn zeroize(&mut self) {
-        rosenpass_sodium::memzero(self.secret_mut());
+        rosenpass_sodium::helpers::memzero(self.secret_mut());
     }
 
     /// Sets all data an existing secret to random bytes
     pub fn randomize(&mut self) {
-        rosenpass_sodium::randombytes_buf(self.secret_mut());
+        rosenpass_sodium::helpers::randombytes_buf(self.secret_mut());
     }
 
     /// Borrows the data
@@ -248,7 +248,7 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public]
     pub fn randomize(&mut self) {
-        rosenpass_sodium::randombytes_buf(&mut self.value);
+        rosenpass_sodium::helpers::randombytes_buf(&mut self.value);
     }
 }
 

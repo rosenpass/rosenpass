@@ -1154,7 +1154,7 @@ impl IniHsPtr {
                         .min(ih.tx_count as f64),
                 )
                 * RETRANSMIT_DELAY_JITTER
-                * (rosenpass_sodium::rand_f64() + 1.0); // TODO: Relace with the rand crate
+                * (rosenpass_sodium::helpers::rand_f64() + 1.0); // TODO: Replace with the rand crate
         ih.tx_count += 1;
         Ok(())
     }
@@ -1190,7 +1190,7 @@ where
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
-        Ok(rosenpass_sodium::memcmp(
+        Ok(rosenpass_sodium::helpers::memcmp(
             self.mac(),
             &expected.into_value()[..16],
         ))
@@ -1297,7 +1297,7 @@ impl HandshakeState {
             .into_value();
 
         // consume biscuit no
-        rosenpass_sodium::increment(&mut *srv.biscuit_ctr);
+        rosenpass_sodium::helpers::increment(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
@@ -1360,7 +1360,8 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            rosenpass_sodium::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
+            rosenpass_sodium::helpers::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used)
+                >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1637,7 +1638,7 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
 
         // ICR5
-        if rosenpass_sodium::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+        if rosenpass_sodium::helpers::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
             // ICR6
             peer.get_mut(self).biscuit_used = biscuit_no;
 
