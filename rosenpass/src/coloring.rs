@@ -6,7 +6,6 @@
 //! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
 //! - the memory is mlocked, e.g. it is never swapped
 
-use crate::sodium::{rng, zeroize};
 use anyhow::Context;
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
@@ -179,12 +178,12 @@ impl<const N: usize> Secret<N> {
 
     /// Sets all data of an existing secret to null bytes
     pub fn zeroize(&mut self) {
-        zeroize(self.secret_mut());
+        rosenpass_sodium::memzero(self.secret_mut());
     }
 
     /// Sets all data an existing secret to random bytes
     pub fn randomize(&mut self) {
-        rng(self.secret_mut());
+        rosenpass_sodium::randombytes_buf(self.secret_mut());
     }
 
     /// Borrows the data
@@ -249,7 +248,7 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public]
     pub fn randomize(&mut self) {
-        rng(&mut self.value);
+        rosenpass_sodium::randombytes_buf(&mut self.value);
     }
 }
 

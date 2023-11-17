@@ -5,7 +5,7 @@ use libsodium_sys as libsodium;
 use rosenpass_constant_time::xor_into;
 use rosenpass_util::attempt;
 use static_assertions::const_assert_eq;
-use std::os::raw::{c_ulonglong, c_void};
+use std::os::raw::c_ulonglong;
 use std::ptr::{null as nullptr, null_mut as nullptr_mut};
 
 pub const AEAD_TAG_LEN: usize = libsodium::crypto_aead_chacha20poly1305_IETF_ABYTES as usize;
@@ -31,16 +31,6 @@ macro_rules! sodium_call {
         Ok(())
     })};
     ($name:ident) => { sodium_call!($name, ) };
-}
-
-#[inline]
-pub fn rng(buf: &mut [u8]) {
-    unsafe { libsodium::randombytes_buf(buf.as_mut_ptr() as *mut c_void, buf.len()) };
-}
-
-#[inline]
-pub fn zeroize(buf: &mut [u8]) {
-    unsafe { libsodium::sodium_memzero(buf.as_mut_ptr() as *mut c_void, buf.len()) };
 }
 
 #[inline]
@@ -238,16 +228,4 @@ pub fn hmac(key: &[u8], data: &[u8]) -> Result<[u8; KEY_SIZE]> {
     let mut r = [0u8; KEY_SIZE];
     hmac_into(&mut r, key, data)?;
     Ok(r)
-}
-
-// Choose a fully random u64
-pub fn rand_u64() -> u64 {
-    let mut buf = [0u8; 8];
-    rng(&mut buf);
-    u64::from_le_bytes(buf)
-}
-
-// Choose a random f64 in [0; 1] inclusive; quick and dirty
-pub fn rand_f64() -> f64 {
-    (rand_u64() as f64) / (u64::MAX as f64)
 }
