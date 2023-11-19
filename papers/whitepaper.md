@@ -474,12 +474,11 @@ else {
 where `last_recvd_cookie` is the last received `cookie` field from a cookie reply message by a hanshake message sender, `last_cookie_time_ellapsed` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of this message prior to the `cookie` field.
 
 The sender can use an invalid value for the `cookie` value, when the receiver is not under load, and the receiver must ignore this value.
-However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. The sender then must wait for the duration of `REKEY-TIMEOUT` (5 seconds) and only then can retransmit the handshake packet with a valid `cookie` value derived from the previous cookie reply message.  
+However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. 
 
 ### Conditions to trigger DoS Mechanism
 
 Rosenpass implementations are expected to detect conditions in which they are under computational load to trigger the cookie based DoS mitigation mechanism by replying with a cookie reply message.
-
 
 For the reference implemenation,
 
@@ -492,6 +491,18 @@ TDB- add mechanism
 The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
+
+### Interaction with cookie reply system
+
+When a peer is under load, a handshake message (be it from the initiator and the responder) may be discarded and a cookie reply message sent. 
+
+#### Initiator
+
+On reciept of the cookie reply message, which will enable the peer to send a retransmitted InitHello or InitConf message with a valid `cookie` value that will not be discarded, the peer will resend the message as per retransmission logic listed above.
+
+#### Responder
+
+On a reciept of a cookie reply message, the responder should wait for a retranmission of `InitHello` or `InitConf` messages and respond with the above retranmission logic with the `cookie` value appended.
 
 \printbibliography
 

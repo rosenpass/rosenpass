@@ -883,7 +883,6 @@ impl CryptoServer {
         let (rx_bytes_til_cookie, rx_cookie, rx_mac, rx_sid) = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
-                // msg_in.payload().init_hello()?.
                 (
                     msg_in.until_cookie().to_vec(),
                     msg_in.cookie().to_vec(),
@@ -940,7 +939,7 @@ impl CryptoServer {
         //Otherwise send cookie reply
         else {
             // length of the response. We assume no response, so 0 length for now
-            let mut len = None;
+            let len ;
             let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
             let cookie_key = lprf::cookie_key()?.mix(self.spkm.secret())?.into_value();
 
@@ -1441,8 +1440,6 @@ where
 
     /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        let tau = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP);
-
         if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
             let cookie = lprf::cookie()?.mix(&cookie_tau)?.mix(self.until_cookie())?;
             self.cookie_mut()
@@ -2023,8 +2020,6 @@ impl CryptoServer {
                     last_updated: Timebase::default(),
                 };
 
-                //TODO: Last message retransmission
-
                 Ok(peer)
             } else {
                 bail!(
@@ -2033,6 +2028,8 @@ impl CryptoServer {
                 );
             }
         } else {
+            let sids : Vec<_> = self.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidm)).collect();
+            println!("SID: {:?}", sids);
             bail!("No such peer {pidr:?}.", pidr = cr.sid());
         }
     }
@@ -2136,7 +2133,7 @@ mod test {
     }
 
     #[test]
-    fn generate_store_cookie_reply() {
+    fn cookie_reply_mechanism_responder_under_load() {
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2186,10 +2183,12 @@ mod test {
             let retx_init_hello_len = loop {
                 match a.poll().unwrap() {
                     PollResult::SendRetransmission(peer) => {
-                        break( a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
+                        break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
                     }
-                    PollResult::Sleep(time) => {sleep(Duration::from_secs_f64(time));}
-                    _ => {},
+                    PollResult::Sleep(time) => {
+                        sleep(Duration::from_secs_f64(time));
+                    }
+                    _ => {}
                 }
             };
 
@@ -2210,8 +2209,103 @@ mod test {
 
             let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
             assert_eq!(resp_msg_type, MsgType::RespHello);
+        });
+    }
 
-            //TODO: Retransmission time ellapsed is after certain minimum period
+    #[test]
+    fn cookie_reply_mechanism_initiator_under_load() {
+        stacker::grow(8 * 1024 * 1024, || {
+            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+            let (mut a, mut b) = make_server_pair().unwrap();
+
+            let mut a_to_b_buf = MsgBufPlus::zero();
+            let mut b_to_a_buf = MsgBufPlus::zero();
+
+            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+            let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
+
+            //A initiates handshake
+            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+
+            //B handles InitHello message, should respond with RespHello
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let resp_hello_len = resp.unwrap();
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
+        
+            let sids : Vec<_> = b.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidt)).collect();
+            println!("Peer SIDs: {:?}", sids);
+
+            //A handles RespHello message under load, should send cookie reply
+            let HandleMsgResult { resp, .. } = 
+            a.handle_msg_under_load(
+                &b_to_a_buf[..resp_hello_len],
+                &mut *a_to_b_buf,
+                PeerPtr(0),
+                SocketAddr::V4(ip_b),
+            )
+            .unwrap();
+
+            let cookie_reply_len = resp.unwrap();
+            let resp_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::CookieReply);
+
+            //B Handles cookie reply message
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..cookie_reply_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            assert!(resp.is_none());
+            let sids : Vec<_> = b.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidm)).collect();
+            println!("Peer SIDs: {:?}", sids);
+
+            // A waits to resend InitHello message
+            let retx_init_hello_len = loop {
+                match a.poll().unwrap() {
+                    PollResult::SendRetransmission(peer) => {
+                        break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
+                    }
+                    PollResult::Sleep(time) => {
+                        sleep(Duration::from_secs_f64(time));
+                    }
+                    _ => {}
+                }
+            };
+
+            let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(retx_msg_type, MsgType::InitHello);
+
+            //B handles retransmitted message
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(
+                    &a_to_b_buf.as_slice()[..retx_init_hello_len],
+                    &mut *b_to_a_buf,
+                )
+                .unwrap();
+
+            let resp_hello_len = resp.unwrap();
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
+
+            //A handles RespHello message under load, should send InitConf message
+            let HandleMsgResult { resp, .. } = 
+            a.handle_msg_under_load(
+                &b_to_a_buf[..resp_hello_len],
+                &mut *a_to_b_buf,
+                PeerPtr(0),
+                SocketAddr::V4(ip_b),
+            )
+            .unwrap();
+            
+            let init_conf_len = resp.unwrap();
+            let resp_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::InitConf);
+
         });
     }
 }
