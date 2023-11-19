@@ -103,7 +103,7 @@ pub const BCE: Timing = -3600.0 * 24.0 * 356.0 * 10_000.0;
 // regarding unexpectedly large numbers in system APIs as this is < i16::MAX
 pub const UNENDING: Timing = 3600.0 * 8.0;
 
-// From the wireguard paper; rekey every two minutes,
+// Rekey every two minutes,
 // discard the key if no rekey is achieved within three
 pub const REKEY_AFTER_TIME_RESPONDER: Timing = 120.0;
 pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
@@ -1254,7 +1254,7 @@ impl HandshakeState {
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::encaps(shk.secret_mut(), ct, pk)?;
-        self.mix(pk)?.mix(shk.secret())?.mix(ct)
+        self.mix(pk)?.mix(ct)?.mix(shk.secret())
     }
 
     pub fn decaps_and_mix<T: KEM, const SHK_LEN: usize>(
@@ -1265,7 +1265,7 @@ impl HandshakeState {
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::decaps(shk.secret_mut(), sk, ct)?;
-        self.mix(pk)?.mix(shk.secret())?.mix(ct)
+        self.mix(pk)?.mix(ct)?.mix(shk.secret())
     }
 
     pub fn store_biscuit(
@@ -1604,6 +1604,10 @@ impl CryptoServer {
         // ICI7
         peer.session()
             .insert(self, core.enter_live(self, HandshakeRole::Initiator)?)?;
+
+        // RHI8
+        hs_mut!().eski.zeroize();
+
         hs_mut!().core.erase();
         hs_mut!().next = HandshakeStateMachine::RespConf;
 

@@ -7,7 +7,7 @@
 //! - the memory is mlocked, e.g. it is never swapped
 
 use crate::{
-    sodium::{rng, zeroize},
+    classical_crypto::{rng, zeroize},
     util::{cpy, mutating},
 };
 use lazy_static::lazy_static;

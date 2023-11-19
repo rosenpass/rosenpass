@@ -1,12 +1,16 @@
-//! Bindings and helpers for accessing libsodium functions
+//! bindings and helpers for accessing libsodium functions
 
 use crate::util::*;
 use anyhow::{ensure, Result};
 use libsodium_sys as libsodium;
 use log::trace;
 use static_assertions::const_assert_eq;
+use std::slice::from_ref;
 use std::os::raw::{c_ulonglong, c_void};
 use std::ptr::{null as nullptr, null_mut as nullptr_mut};
+use std::io::Write;
+use std::cmp::max;
+use num_traits::{Zero, ToBytes};
 
 pub const AEAD_TAG_LEN: usize = libsodium::crypto_aead_chacha20poly1305_IETF_ABYTES as usize;
 pub const AEAD_NONCE_LEN: usize = libsodium::crypto_aead_chacha20poly1305_IETF_NPUBBYTES as usize;
@@ -185,30 +189,6 @@ pub fn xaead_dec_into(
     )?;
     assert!(mlen as usize == plaintext.len());
     Ok(())
-}
-
-#[inline]
-fn blake2b_flexible(out: &mut [u8], key: &[u8], data: &[u8]) -> Result<()> {
-    const KEY_MIN: usize = libsodium::crypto_generichash_KEYBYTES_MIN as usize;
-    const KEY_MAX: usize = libsodium::crypto_generichash_KEYBYTES_MAX as usize;
-    const OUT_MIN: usize = libsodium::crypto_generichash_BYTES_MIN as usize;
-    const OUT_MAX: usize = libsodium::crypto_generichash_BYTES_MAX as usize;
-    assert!(key.is_empty() || (KEY_MIN <= key.len() && key.len() <= KEY_MAX));
-    assert!(OUT_MIN <= out.len() && out.len() <= OUT_MAX);
-    let kptr = match key.len() {
-        // NULL key
-        0 => nullptr(),
-        _ => key.as_ptr(),
-    };
-    sodium_call!(
-        crypto_generichash_blake2b,
-        out.as_mut_ptr(),
-        out.len(),
-        data.as_ptr(),
-        data.len() as c_ulonglong,
-        kptr,
-        key.len()
-    )
 }
 
 // TODO: Use proper streaming hash; for mix_hash too.

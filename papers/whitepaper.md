@@ -33,6 +33,7 @@ abstract: |
 Rosenpass inherits most security properties from Post-Quantum WireGuard (PQWG). The security properties mentioned here are covered by the symbolic analysis in the Rosenpass repository. 
 
 ## Secrecy
+
 Three key encapsulations using the keypairs `sski`/`spki`, `sskr`/`spkr`, and `eski`/`epki` provide secrecy (see Section \ref{variables} for an introduction of the variables). Their respective ciphertexts are called `scti`, `sctr`, and `ectr` and the resulting keys are called `spti`, `sptr`, `epti`. A single secure encapsulation is sufficient to provide secrecy. We use two different KEMs (Key Encapsulation Mechanisms; see section \ref{skem}): Kyber and Classic McEliece.
 
 ## Authenticity
@@ -60,12 +61,22 @@ Note that while Rosenpass is secure against state disruption, using it does not 
 
 ## Cryptographic Building Blocks
 
-All symmetric keys and hash values used in Rosenpass are 32 bytes long.
+The following cryptographic building blocks are used:
 
+| Use   | Scheme | Version | Purpose |
+| ---   | --- | --- | --- |
+| hash  | KMAC[@sha3] | | SHA-3/Keccak based message authentication code | 
+| AEAD  | ChaCha20-Poly1305[@rfc_chachapoly] | | Encryption with sequential nonce |
+| XAEAD | XChaCha20-Poly1305[@draft_xchachapoly] | | Encryption with random nonce |
+| SKEM  | Classic McEliece 460896[@mceliece] | NIST Round 4 Submission | Key encapsulation with static keys | 
+| EKEM  | Kyber-512[@kyber] | NIST Round 3 Submission (most recent) | Key encapsulation with ephemeral (random) keys |
+
+All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 ### Hash
 
-A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we use the HMAC construction [@rfc_hmac] with BLAKE2s [@rfc_blake2] as the inner hash function.
+A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we use the KMAC[@sha3] with no (i.e. an empty) customization string.
+
 
 ```pseudorust
 hash(key, data) -> key
@@ -73,7 +84,7 @@ hash(key, data) -> key
 
 ### AEAD
 
-Authenticated encryption with additional data for use with sequential nonces. We use ChaCha20Poly1305 [@rfc_chachapoly] in the implementation.
+Authenticated encryption with additional data for use with sequential nonces. We use ChaCha20-Poly1305 [@rfc_chachapoly] in the implementation.
 
 ```pseudorust
 AEAD::enc(key, nonce, plaintext, additional_data) -> ciphertext
@@ -82,7 +93,7 @@ AEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### XAEAD
 
-Authenticated encryption with additional data for use with random nonces. We use XChaCha20Poly1305 [@draft_xchachapoly] in the implementation, a construction also used by WireGuard.
+Authenticated encryption with additional data for use with random nonces. We use XChaCha20-Poly1305 [@draft_xchachapoly] in the implementation, a construction also used by WireGuard.
 
 
 ```pseudorust
@@ -92,7 +103,7 @@ XAEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### SKEM {#skem}
 
-“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896 [@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
+“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896 (NIST Round 4 Submission; [@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
 
 ```pseudorust
 SKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -101,7 +112,7 @@ SKEM::dec(secret_key, ciphertext) -> shared_key
 
 ### EKEM
 
-Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
+Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber] (NIST Round 3 Submission), which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
 ```pseudorust
 EKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -208,6 +219,30 @@ hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryp
        = lhash("chaining key extract", "handshake encryption")
 ```
 
+## Protocol roles
+
+There are two handshake roles:
+
+- The initiator
+- The responder
+
+The initiator acts as a stateful client, directing the handshake process. The responder acts as a stateless server reacting to the initiator's messages while keeping no local state until the handshake is complete. Instead, the responder pushes their variables into an encrypted session cookie.
+
+The number of concurrent responder-role handshakes with another client is unlimited to account for the possibility of an imposter trying to execute a handshake: Before completion of said handshake, there is no way to figure out which peer is an imposter and which peer is a legitimate client; any attempt to do so might lead to to a state-disruption attack -- denial of service on the protocol level.
+
+There is no mechanism to negotiate which of the peers acts as initiator and responder, instead two parties may be processing separate handshakes in client role and in responder role at the same time.
+
+Implementations must account for this possibility by aborting any ongoing initiator-role handshake upon accepting an InitConf package. Implementations should also use different back-off periods depending on whether the handshake was completed in initiator role or in responder role. The following values are used in the rust reference implementation:
+
+- Initiator rekey interval: 130s
+- Responder rekey interval: 120s
+
+In practice these delays cause participants to take turns acting as initiator and acting as responder since the ten seconds difference is usually enough for the handshake with switched roles to complete before the old initiator's rekey timer goes to zero.
+
+## Endianess
+
+All numeric values are in little-endian format unless otherwise noted.
+
 ## Server State
 
 ### Global
@@ -222,7 +257,7 @@ The server needs to store the following variables:
 Not mandated per se, but required in practice:
 
 * `peers` – A lookup table mapping the peer ID to the internal peer structure
-* `index` – A lookup table mapping the session ID to the ongoing initiator handshake or live session
+* `sessions` – A lookup table mapping the session ID to the ongoing initiator handshake or live session
 
 ### Peer
 
@@ -252,7 +287,7 @@ The responder stores no state. While the responder has access to all of the abov
 
 The biscuit is encrypted with the `XAEAD` primitive and a randomly chosen nonce. The values `sidi` and `sidr` are transmitted publicly as part of InitConf, so they do not need to be present in the biscuit, but they are added to the biscuit's additional data to make sure the correct values are transmitted as part of InitConf.
 
-The `biscuit_key` used to encrypt biscuits should be rotated every two minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated.
+The `biscuit_key` used to encrypt biscuits should be rotated frequently. The reference implementation uses a rotation interval of five minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated.
 
 ### Live Session State
 
@@ -382,7 +417,7 @@ fn load_biscuit(nct) {
     let pt : Biscuit = XAEAD::dec(k, n, ct, ad);
     // Find the peer and apply retransmission protection
     lookup_peer(pt.peerid);
-    assert(pt.biscuit_no <= peer.biscuit_used);
+    assert(pt.biscuit_no >= peer.biscuit_used);
 
     // Restore the chaining key
     ck ← pt.ck;
@@ -434,8 +469,77 @@ The initiator deals with packet loss by storing the messages it sends to the res
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
 
-\printbibliography
+## Timers
+
+The Rosenpass protocol uses various timer-triggered events during its operation. This section provides a listing of the timers used and gives the values used in the reference implementation. Other implementations may choose different values.
+
+### Rekeying
+
+Period after which the previous responder starts a new handshake in initiator role; period after which the previous initiator starts a new handshake in initiator role again; period after which a peer rejects an existing shared key.
+
+```pseudorust
+REKEY_AFTER_TIME_RESPONDER = 120s
+REKEY_AFTER_TIME_INITIATOR = 130s
+REJECT_AFTER_TIME = 180s
+```
+
+### Biscuits
+
+Period after which the biscuit key is rotated.
+
+```pseudorust
+BISCUIT_EPOCH = 300s
+```
+
+### Retransmission
+
+Delay after which all retransmission attempts are aborted; exponential backoff factor for retransmission delay; initial (minimum) retransmission delay; final (maximum) retransmission delay; retransmission jitter/variance factor.
+
+```pseudorust
+RETRANSMIT_ABORT        = 120s
+RETRANSMIT_DELAY_GROWTH = 2
+RETRANSMIT_DELAY_BEGIN  = 500ms
+RETRANSMIT_DELAY_END    = 10s
+RETRANSMIT_DELAY_JITTER = 0.5
+```
 
 \setupimage{landscape,fullpage,label=img:HandlingCode}
 ![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
 
+\printbibliography
+
+# Version history
+
+## Protocol version 2 -- XXXX-XX-XX
+
+During the implementation of go-rosenpass, Steffen Vogel found a number of problems ([issue #68](https://github.com/rosenpass/rosenpass/issues/68)) with the whitepaper. Version two of the document primarily addresses these issues:
+
+### Features
+
+- Use NIST Round 4 Submission of Classic McEliece
+
+### Security issues
+
+- Explicitly erase `eski` (forward secrecy). This is a minor security fix: Before this change the specification left erasing the secret key to the implementation. The reference implementation did erase `eski` but only after receiving the responder confirmation package (EmptyData at the time) instructing the initiator to stop retransmission of the InitConf package. With this change, `eski` is erased before transmission of the InitConf package.
+
+### Bug fixes
+
+- Handle race conditions when both peers complete concurrent handshakes in switched roles. Backwards compatible. Initially addressed in [397a776](https://github.com/rosenpass/rosenpass/commit/397a776c55b1feae1e8e5aceef01cf06bf56b6ed) "fix: Race condition due to concurrent handshake".
+
+### Clarifications
+
+- Add detailed information about when in the handshake process security properties are achieved.
+- Extra section with a list of timers used.
+- Rename the session id/session lookup table from `index` to `sessions`
+- Indicate which version of Classic McEliece and Kyber is used
+- Add a chart with the cryptographic building blocks used
+
+### Mistakes/Inconsistencies
+
+- Old `ct1` name was used for `sctr` (the static responder KEM ciphertext)
+- Biscuit number was asserted to be smaller or equal to the peer's biscuit used variable, where it should have been bigger or equal to
+- Fix a typo "key chaining extract" -> "chaining key extract"; "key chaining init" -> "chaining key init"
+
+## Protocol version 1 -- 2023-03-04
+
+Initial release.

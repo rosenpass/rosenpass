@@ -6,8 +6,10 @@ use {
     anyhow::Result,
 };
 
+const PROTOCOL : &str = "rosenpass 1 rosenpass.eu aead=chachapoly1305 hash=blake2s ekem=kyber512 skem=mceliece460896 xaead=xchachapoly1305";
+
 pub fn protocol() -> Result<PrfTree> {
-    PrfTree::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
+    PrfTree::zero().mix(PROTOCOL.as_bytes())
 }
 
 // TODO Use labels that can serve as identifiers
@@ -40,8 +42,8 @@ macro_rules! prflabel_leaf {
 
 prflabel_leaf!(_ckextract, mix, "mix");
 prflabel_leaf!(_ckextract, hs_enc, "handshake encryption");
-prflabel_leaf!(_ckextract, ini_enc, "initiator handshake encryption");
-prflabel_leaf!(_ckextract, res_enc, "responder handshake encryption");
+prflabel_leaf!(_ckextract, ini_enc, "initiator session encryption");
+prflabel_leaf!(_ckextract, res_enc, "responder session encryption");
 
 prflabel!(_ckextract, _user, "user");
 prflabel!(_user, _rp, "rosenpass.eu");

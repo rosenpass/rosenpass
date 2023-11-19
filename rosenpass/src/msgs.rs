@@ -291,10 +291,10 @@ data_lense! { RespHello :=
     ecti: EphemeralKEM::CT_LEN,
     /// Classic McEliece Ciphertext
     scti: StaticKEM::CT_LEN,
-    /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN,
     /// Responders handshake state in encrypted form
-    biscuit: BISCUIT_CT_LEN
+    biscuit: BISCUIT_CT_LEN,
+    /// Empty encrypted message (just an auth tag)
+    auth: sodium::AEAD_TAG_LEN
 }
 
 data_lense! { InitConf :=
