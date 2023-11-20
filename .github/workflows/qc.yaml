@@ -25,6 +25,17 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
+  mandoc:
+    name: mandoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install mandoc
+        run: sudo apt-get install -y mandoc
+      - name: Check rosenpass.1
+        run: doc/check.sh doc/rosenpass.1
+      - name: Check rp.1
+        run: doc/check.sh doc/rp.1
+
   cargo-audit:
     runs-on: ubuntu-latest
     steps:
