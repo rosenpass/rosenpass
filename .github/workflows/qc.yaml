@@ -32,7 +32,7 @@ jobs:
       - name: Install mandoc
         run: sudo apt-get install -y mandoc
       - name: Print pwd
-        run: echo $PWD
+        run: echo $PWD && ls -l $PWD
       - name: Check rosenpass.1
         run: doc/check.sh doc/rosenpass.1
       - name: Check rp.1
