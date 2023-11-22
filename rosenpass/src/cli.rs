@@ -1,15 +1,17 @@
 use anyhow::{bail, ensure};
 use clap::Parser;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::app_server;
 use crate::app_server::AppServer;
-use crate::util::{LoadValue, LoadValueB64};
+use crate::util::LoadValueB64;
 use crate::{
     // app_server::{AppServer, LoadValue, LoadValueB64},
     coloring::Secret,
     pqkem::{StaticKEM, KEM},
     protocol::{SPk, SSk, SymKey},
+    util::{b64_writer, fopen_w},
 };
 
 use super::config;
@@ -219,8 +221,8 @@ impl Cli {
 
     fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
         // load own keys
-        let sk = SSk::load(&config.secret_key)?;
-        let pk = SPk::load(&config.public_key)?;
+        let sk = SSk::load_b64(&config.secret_key)?;
+        let pk = SPk::load_b64(&config.public_key)?;
 
         // start an application server
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
@@ -234,7 +236,7 @@ impl Cli {
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
                 cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
-                SPk::load(&cfg_peer.public_key)?,
+                SPk::load_b64(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
                 cfg_peer.wg.map(|cfg| app_server::WireguardOut {
                     dev: cfg.device,
@@ -255,7 +257,7 @@ trait StoreSecret {
 
 impl<const N: usize> StoreSecret for Secret<N> {
     fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
+        b64_writer(fopen_w(path)?).write_all(self.secret())?;
         Ok(())
     }
 }
