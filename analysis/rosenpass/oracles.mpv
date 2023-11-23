@@ -21,16 +21,10 @@ fun biscuit_key(kem_sk) : key [private].
   SETUP_KEM_PAIR(sk, pk, setup)         \
   biscuit_key <- biscuit_key(sk);
 
-// #ifdef CONSTANT_KEYS
-//   #define SETUP_HANDSHAKE_STATE()        \
-//     biscuit_key <- biscuit_key(sk);      \
-//     psk  <- setup_key(Spsk);             
-// #else
-  #define SETUP_HANDSHAKE_STATE()         \
-    SETUP_SERVER(biscuit_key, sskm, spkm, Ssskm)   \
-    psk  <- setup_key(Spsk);             \
-    spkt <- setup_kem_pk(Sspkt);
-// #endif
+#define SETUP_HANDSHAKE_STATE()         \
+  SETUP_SERVER(biscuit_key, sskm, spkm, Ssskm)   \
+  psk  <- setup_key(Spsk);             \
+  spkt <- setup_kem_pk(Sspkt);
 
 type seed.
 fun rng_key(seed) : key.
