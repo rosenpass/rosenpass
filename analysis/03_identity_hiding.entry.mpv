@@ -1,0 +1,31 @@
+#include "config.mpv"
+
+#define CHAINING_KEY_EVENTS 1
+#define MESSAGE_TRANSMISSION_EVENTS 1
+#define SESSION_START_EVENTS 0
+#define RANDOMIZED_CALL_IDS 0
+#define CONSTANT_KEYS 1
+#define SECURE_RNG 1
+#undef FULL_MODEL
+#undef SIMPLE_MODEL
+#define SIMPLE_MODEL 1
+
+#include "prelude/basic.mpv"
+#include "crypto/key.mpv"
+#include "crypto/kem.mpv"
+
+//free initiator_sk1, initiator_sk2, responder_sk: kem_sk [private].
+free initiator_pk, responder_pk: kem_pk[private].
+// noninterf initiator_pk among(kem_pub(initiator_sk1), kem_pub(initiator_sk2)).
+
+#include "rosenpass/oracles.mpv"
+
+let identity_hiding_main() = 0
+  | REP(INITIATOR_BOUND, Oinitiator)
+  | REP(RESPONDER_BOUND, Oinit_hello)
+  | REP(RESPONDER_BOUND, Oinit_conf).
+
+let main = identity_hiding_main.
+
+weaksecret initiator_pk.
+weaksecret responder_pk.
