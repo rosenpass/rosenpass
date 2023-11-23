@@ -1,7 +1,8 @@
 use anyhow::Result;
+use rosenpass::pqkem::KEM;
 use rosenpass::{
-    pqkem::{EphemeralKEM, CCAKEM},
-    protocol::{CcaPk, CcaSk, CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SymKey},
+    pqkem::StaticKEM,
+    protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
     sodium::sodium_init,
 };
 
@@ -38,9 +39,9 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
     Ok(())
 }
 
-fn keygen() -> Result<(CcaSk, CcaPk)> {
-    let (mut sk, mut pk) = (CcaSk::zero(), CcaPk::zero());
-    CCAKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
+fn keygen() -> Result<(SSk, SPk)> {
+    let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
+    StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
     Ok((sk, pk))
 }
 
@@ -61,12 +62,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     let (mut a, mut b) = make_server_pair().unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {
-            CcaSk::zero();
+            SSk::zero();
         })
     });
     c.bench_function("cca_public_alloc", |bench| {
         bench.iter(|| {
-            CcaPk::zero();
+            SPk::zero();
         })
     });
     c.bench_function("keygen", |bench| {

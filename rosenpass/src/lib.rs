@@ -19,7 +19,7 @@ pub enum RosenpassError {
     Oqs,
     #[error("error from external library while calling OQS")]
     OqsExternalLib,
-    #[error("buffer size mismatch, required {required_size} but only found {actual_size}")]
+    #[error("buffer size mismatch, required {required_size} but found {actual_size}")]
     BufferSizeMismatch {
         required_size: usize,
         actual_size: usize,
