@@ -4,28 +4,109 @@
 #define MESSAGE_TRANSMISSION_EVENTS 1
 #define SESSION_START_EVENTS 0
 #define RANDOMIZED_CALL_IDS 0
-#define CONSTANT_KEYS 1
-#define SECURE_RNG 1
 #undef FULL_MODEL
 #undef SIMPLE_MODEL
 #define SIMPLE_MODEL 1
 
 #include "prelude/basic.mpv"
 #include "crypto/key.mpv"
+#include "rosenpass/oracles.mpv"
 #include "crypto/kem.mpv"
 
-//free initiator_sk1, initiator_sk2, responder_sk: kem_sk [private].
-free initiator_pk, responder_pk: kem_pk[private].
-// noninterf initiator_pk among(kem_pub(initiator_sk1), kem_pub(initiator_sk2)).
+#define NEW_TRUSTED_SEED(name)            \
+  new MCAT(name, _secret_seed):seed_prec; \
+  name <- make_trusted_seed(MCAT(name, _secret_seed)); \
 
-#include "rosenpass/oracles.mpv"
+free C2:channel.
+free D:channel [private].
+free secure_biscuit_no:Atom [private].
+free secure_sidi,secure_sidr:SessionId [private].
+free secure_psk:key [private].
+free secure_septi_trusted_prec: seed_prec [private].
+free secure_sspti_trusted_prec: seed_prec [private].
+free secure_seski_trusted_prec: seed_prec [private].
+free secure_ssptr_trusted_prec: seed_prec [private].
+free initiator1, initiator2:kem_sk_prec[private].
+free responder1, responder2:kem_sk_prec[private].
 
-let identity_hiding_main() = 0
-  | REP(INITIATOR_BOUND, Oinitiator)
-  | REP(RESPONDER_BOUND, Oinit_hello)
-  | REP(RESPONDER_BOUND, Oinit_conf).
+let secure_init_hello2(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, responder: kem_sk_tmpl, C:channel) =
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, C).
+
+let secure_resp_hello2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidr:SessionId, sidi:SessionId, biscuit_no:Atom, psk:key_tmpl, C:channel) =
+  in(D, Envelope(k, IH2b(InitHello(=sidi, epki, sctr, pidiC, auth))));
+  ih <- InitHello(sidi, epki, sctr, pidiC, auth);
+  NEW_TRUSTED_SEED(septi_trusted_seed)
+  NEW_TRUSTED_SEED(sspti_trusted_seed)
+  Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, C).
+
+let secure_init_conf2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, psk:key_tmpl, sidi:SessionId, sidr:SessionId, C:channel) =
+  in(D, Envelope(k3, IC2b(InitConf(=sidi, =sidr, biscuit, auth3))));
+  ic <- InitConf(sidi,sidr,biscuit, auth3);
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  Oinit_conf_inner(initiator, psk, responder, ic, C).
+
+fun Csecure_init_hello(SessionId, key_tmpl, kem_sk_tmpl): Atom[data].
+let secure_init_hello(initiator: kem_sk_tmpl) =
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  in(C, Csecure_init_hello(sidi, psk, responder));
+  Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, C).
+
+fun Csecure_resp_hello(SessionId, SessionId, Atom, key_tmpl, kem_sk_tmpl, InitHello_t): Atom[data].
+let secure_resp_hello(initiator: kem_sk_tmpl) =
+  NEW_TRUSTED_SEED(septi_trusted_seed)
+  NEW_TRUSTED_SEED(sspti_trusted_seed)
+  in(C, Csecure_resp_hello(sidr, sidi, biscuit_no, psk, responder, ih));
+  Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, C).
+
+fun Csecure_init_conf(key_tmpl, kem_sk_tmpl, InitConf_t): Atom[data].
+let secure_init_conf(initiator: kem_sk_tmpl) =
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  in(C, Csecure_init_conf(psk, responder, ic));
+  Oinit_conf_inner(initiator, psk, responder, ic, C).
+
+let secure_communication(initiator: kem_sk_tmpl, responder:kem_sk_tmpl, C:channel) =
+  secure_key <- prepare_key(secure_psk);
+  (!secure_init_hello2(initiator, secure_sidi, secure_key, responder, C))
+  | !secure_resp_hello2(initiator, responder, secure_sidr, secure_sidi, secure_biscuit_no, secure_key, C)
+  | !(secure_init_conf2(initiator, responder, secure_key, secure_sidi, secure_sidr, C)).
+
+let run_secure_protocols(participant:kem_sk_tmpl) =
+  !(secure_init_hello(participant)) 
+  | !(secure_resp_hello(participant))
+  | !(secure_init_conf(participant)).
+
+let secure_particpant_communication() = 0
+  | !run_secure_protocols(make_trusted_kem_sk(responder1)) | !run_secure_protocols(make_trusted_kem_sk(responder2)) 
+  | !run_secure_protocols(make_trusted_kem_sk(initiator1)) | !run_secure_protocols(make_trusted_kem_sk(initiator2)).
+
+let pipeChannel(D:channel, C:channel) =
+  in(D, b:bits);
+  out(C, b).
+
+fun kem_private(kem_pk): kem_sk
+  reduc forall sk_tmpl:kem_sk;
+    kem_private(kem_pub(sk_tmpl)) = sk_tmpl[private].
+
+let secretCommunication() =
+  responder_pk <- choice[setup_kem_pk(make_trusted_kem_sk(responder1)), setup_kem_pk(make_trusted_kem_sk(responder2))];
+  kem_seed <- prepare_kem_sk(kem_private(responder_pk));
+  kem_pk <- setup_kem_pk(kem_seed);
+  initiator_seed <- prepare_kem_sk(trusted_kem_sk(initiator1));
+  secure_communication(initiator_seed, kem_seed, D) | !pipeChannel(D, C2).
+
+let reveal_pks() =
+  out(C, setup_kem_pk(make_trusted_kem_sk(responder1)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(responder2)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(initiator1)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(initiator2))).
+
+let identity_hiding_main() = 
+  0 | reveal_pks() | secure_particpant_communication() | phase 1; secretCommunication().
+
 
 let main = identity_hiding_main.
-
-weaksecret initiator_pk.
-weaksecret responder_pk.

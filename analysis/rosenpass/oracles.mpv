@@ -47,23 +47,15 @@ CK_EV(  event OskOinit_conf(key, key). )
 MTX_EV( event ICRjct(InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event ResponderSession(InitConf_t, key). )
 event ConsumeBiscuit(Atom, kem_sk, kem_pk, Atom).
-let Oinit_conf() = 
-  in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));
+
+let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t, C_in:channel) =
 #if RANDOMIZED_CALL_IDS
   new call:Atom;
 #else
   call <- Cinit_conf(Ssskm, Spsk, Sspkt, ic);
 #endif
 
-#ifdef CONSTANT_KEYS 
-  spkt <- initiator_pk;
-  spkm <- responder_pk;
-  sskm <- kem_private(spkm);
-  psk  <- setup_key(Spsk);
-  biscuit_key <- biscuit_key(sskm);
-#else
   SETUP_HANDSHAKE_STATE()
-#endif
 
   eski <- kem_sk0;
   epki <- kem_pk0;
@@ -82,6 +74,10 @@ let Oinit_conf() =
     0
 #endif
   ).
+  
+let Oinit_conf() = 
+  in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));
+  Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic, C).
 
 restriction biscuit_no:Atom, sskm:kem_sk, spkr:kem_pk, ad1:Atom, ad2:Atom;
   event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad1)) && event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad2))
@@ -95,8 +91,8 @@ CK_EV(  event OskOresp_hello(key, key, key). )
 MTX_EV( event RHRjct(RespHello_t, key, kem_sk, kem_pk). )
 MTX_EV( event ICSent(RespHello_t, InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event InitiatorSession(RespHello_t, key). )
-let Oresp_hello(HS_DECL_ARGS) =
-  in(C, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit, auth)));
+let Oresp_hello(HS_DECL_ARGS, C_in:channel) =
+  in(C_in, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit, auth)));
   rh <- RespHello(sidr, sidi, ecti, scti, biscuit, auth);
   /* try */ let ic = (
     ck_ini <- ck;
@@ -108,7 +104,7 @@ let Oresp_hello(HS_DECL_ARGS) =
     SES_EV( event InitiatorSession(rh, osk); )
     ic
   /* success */ ) in (
-    out(C, EnvelopeInitConf(create_mac(spkt, IC2b(ic)), ic))
+    out(C_in, Envelope(create_mac(spkt, IC2b(ic)), IC2b(ic)))
   /* fail */ ) else (
 #if MESSAGE_TRANSMISSION_EVENTS
     event RHRjct(rh, psk, sski, spkr)
@@ -126,8 +122,8 @@ MTX_EV( event IHRjct(InitHello_t, key, kem_sk, kem_pk). )
 MTX_EV( event RHSent(InitHello_t, RespHello_t, key, kem_sk, kem_pk). )
 event ConsumeSidr(SessionId, Atom).
 event ConsumeBn(Atom, kem_sk, kem_pk, Atom).
-let Oinit_hello() = 
-  in(C, Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih));
+
+let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt: kem_sk_tmpl, Septi: seed_tmpl, Sspti: seed_tmpl, ih: InitHello_t, C_in:channel) = 
 #if RANDOMIZED_CALL_IDS
   new call:Atom;
 #else
@@ -136,38 +132,17 @@ let Oinit_hello() =
   // TODO: This is ugly
   let InitHello(sidi, epki, sctr, pidiC, auth) = ih in
 
-#ifdef CONSTANT_KEYS 
-  spkt <- initiator_pk;
-  spkm <- responder_pk;
-  sskm <- kem_private(spkm);
-  psk  <- setup_key(Spsk);
-  biscuit_key <- biscuit_key(sskm);
-#else
   SETUP_HANDSHAKE_STATE()
-#endif
 
   eski <- kem_sk0;
 
   event ConsumeBn(biscuit_no, sskm, spkt, call);
   event ConsumeSidr(sidr, call);
 
-#ifdef SECURE_RNG
-  new septi_trusted_prec: seed_prec;
-  new sspti_trusted_prec: seed_prec;
-
-  septi_trusted_seed <- make_trusted_seed(septi_trusted_prec);
-  sspti_trusted_seed <- make_trusted_seed(sspti_trusted_prec);
-
-  epti <- rng_key(setup_seed(septi_trusted_seed)); // RHR4
-  spti <- rng_key(setup_seed(sspti_trusted_seed)); // RHR4
-  event ConsumeSeed(Epti, setup_seed(septi_trusted_seed), call);
-  event ConsumeSeed(Spti, setup_seed(sspti_trusted_seed), call);
-#else
   epti <- rng_key(setup_seed(Septi)); // RHR4
   spti <- rng_key(setup_seed(Sspti)); // RHR5
   event ConsumeSeed(Epti, setup_seed(Septi), call);
   event ConsumeSeed(Spti, setup_seed(Sspti), call);
-#endif
 
   let rh = (
     INITHELLO_CONSUME()
@@ -177,7 +152,8 @@ let Oinit_hello() =
     MTX_EV( event RHSent(ih, rh, psk, sskr, spki); )
     rh
   /* success */ ) in (
-    out(C, EnvelopeRespHello(create_mac(spkt, RH2b(rh)), rh))
+    out(C_in, Envelope(create_mac(spkt, RH2b(rh)), RH2b(rh)))
+
   /* fail */ ) else (
 #if MESSAGE_TRANSMISSION_EVENTS
     event IHRjct(ih, psk, sskr, spki)
@@ -185,6 +161,10 @@ let Oinit_hello() =
     0
 #endif
   ).
+
+let Oinit_hello() = 
+  in(C, Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih));
+  Oinit_hello_inner(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih, C).
 
 restriction sid:SessionId, ad1:Atom, ad2:Atom;
   event(ConsumeSidr(sid, ad1)) && event(ConsumeSidr(sid, ad2))
@@ -204,52 +184,33 @@ CK_EV( event OskOinitiator(key, key, kem_sk, kem_pk, key). )
 MTX_EV( event IHSent(InitHello_t, key, kem_sk, kem_pk). )
 event ConsumeSidi(SessionId, Atom).
 
+let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt: kem_sk_tmpl, Seski: seed_tmpl, Ssptr: seed_tmpl, C_in:channel) =
+  #if RANDOMIZED_CALL_IDS
+    new call:Atom;
+  #else
+    call <- Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr);
+  #endif
+
+    SETUP_HANDSHAKE_STATE()
+
+    sidr <- sid0;
+
+    RNG_KEM_PAIR(eski, epki, Seski) // IHI3
+    sptr <- rng_key(setup_seed(Ssptr)); // IHI5
+    event ConsumeSidi(sidi, call);
+    event ConsumeSeed(Sptr, setup_seed(Ssptr), call);
+    event ConsumeSeed(Eski, setup_seed(Seski), call);
+
+    INITHELLO_PRODUCE()
+    CK_EV( event OskOinitiator_ck(ck); ) 
+    CK_EV( event OskOinitiator(ck, psk, sski, spkr, sptr); )
+    MTX_EV( event IHSent(ih, psk, sski, spkr); )
+    out(C_in, Envelope(create_mac(spkt, IH2b(ih)), IH2b(ih)));
+    Oresp_hello(HS_PASS_ARGS, C).
+
 let Oinitiator() =
   in(C, Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr));
-#if RANDOMIZED_CALL_IDS
-  new call:Atom;
-#else
-  call <- Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr);
-#endif
-
-#ifdef CONSTANT_KEYS 
-  spkt <- responder_pk;
-  spkm <- initiator_pk;
-  sskm <- kem_private(spkm);
-  psk  <- setup_key(Spsk);
-  biscuit_key <- biscuit_key(sskm);
-#else
-  SETUP_HANDSHAKE_STATE()
-#endif
-
-  sidr <- sid0;
-
-#ifdef SECURE_RNG
-  new ssptr_trusted_prec: seed_prec;
-  new seski_trusted_prec: seed_prec;
-
-  ssptr_trusted_seed <- make_trusted_seed(ssptr_trusted_prec);
-  seski_trusted_seed <- make_trusted_seed(seski_trusted_prec);
-
-  RNG_KEM_PAIR(eski, epki, seski_trusted_seed) // IHI3
-  sptr <- rng_key(setup_seed(ssptr_trusted_seed)); // IHI5
-  event ConsumeSidi(sidi, call);
-  event ConsumeSeed(Sptr, setup_seed(ssptr_trusted_seed), call);
-  event ConsumeSeed(Eski, setup_seed(seski_trusted_seed), call);
-#else
-  RNG_KEM_PAIR(eski, epki, Seski) // IHI3
-  sptr <- rng_key(setup_seed(Ssptr)); // IHI5
-  event ConsumeSidi(sidi, call);
-  event ConsumeSeed(Sptr, setup_seed(Ssptr), call);
-  event ConsumeSeed(Eski, setup_seed(Seski), call);
-#endif
-
-  INITHELLO_PRODUCE()
-  CK_EV( event OskOinitiator_ck(ck); ) 
-  CK_EV( event OskOinitiator(ck, psk, sski, spkr, sptr); )
-  MTX_EV( event IHSent(ih, psk, sski, spkr); )
-  out(C, EnvelopeInitHello(create_mac(spkt, IH2b(ih) ), ih));
-  Oresp_hello(HS_PASS_ARGS).
+  Oinitiator_inner(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr, C).
 
 restriction sid:SessionId, ad1:Atom, ad2:Atom;
   event(ConsumeSidi(sid, ad1)) && event(ConsumeSidi(sid, ad2))

@@ -2,13 +2,10 @@
 #include "crypto/kem.mpv"
 #include "rosenpass/handshake_state.mpv"
 
-#define ENVELOPE(TYPE)                        \
-  type MCAT(MCAT(Envelope, TYPE), _t).        \ 
-  fun CAT(Envelope, TYPE) (                   \
-    key,                                       \
-    MCAT(TYPE, _t)                           \
-  ) : MCAT(MCAT(Envelope, TYPE), _t) [data].
-
+fun Envelope(
+  key,
+  bits
+): bits [data].
 letfun create_mac(pk:kem_pk, payload:bits) = lprf2(MAC, kem_pk2b(pk), payload).
 
 type InitHello_t.
@@ -20,7 +17,6 @@ fun InitHello(
   bits       // auth
 ) : InitHello_t [data].
 
-ENVELOPE(InitHello)
 fun IH2b(InitHello_t) : bitstring [typeConverter].
 
 #define INITHELLO_PRODUCE()       \
@@ -53,10 +49,9 @@ fun RespHello(
     bits       // auth
 ) : RespHello_t [data].
 
-ENVELOPE(RespHello)
 fun RH2b(RespHello_t) : bitstring [typeConverter].
 
-#define RESPHELLO_PRODUCE()                   \
+#define RESPHELLO_PRODUCE()  \
   /* not handled here */           /* RHR1 */ \
   MIX2(sid2b(sidr), sid2b(sidi))   /* RHR3 */ \
   ENCAPS_AND_MIX(ecti, epki, epti) /* RHR4 */ \
@@ -82,7 +77,6 @@ fun InitConf(
     bits       // auth
 ) : InitConf_t [data].
 
-ENVELOPE(InitConf)
 fun IC2b(InitConf_t) : bitstring [typeConverter].
 
 #define INITCONF_PRODUCE()                  \
