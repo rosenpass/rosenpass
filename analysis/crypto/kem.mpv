@@ -9,13 +9,10 @@ type kem_sk.
 type kem_pk.
 
 fun kem_pub(kem_sk) : kem_pk.
-fun kem_private(kem_pk) : kem_sk[private].
 fun kem_enc(kem_pk, key) : bits.
 fun kem_dec(kem_sk, bits) : key
   reduc forall sk:kem_sk, shk:key;
-    kem_dec(sk, kem_enc(kem_pub(sk), shk)) = shk
-  otherwise forall pk:kem_pk, shk:key;
-    kem_dec(kem_private(pk), kem_enc(pk, shk)) = shk.
+    kem_dec(sk, kem_enc(kem_pub(sk), shk)) = shk.
 
 fun kem_pk2b(kem_pk) : bits [typeConverter].
 
