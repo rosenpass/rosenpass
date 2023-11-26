@@ -34,15 +34,15 @@ let secure_init_hello2(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, 
   NEW_TRUSTED_SEED(ssptr_trusted_seed)
   Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, C).
 
-let secure_resp_hello2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidr:SessionId, sidi:SessionId, biscuit_no:Atom, psk:key_tmpl, C:channel) =
-  in(D, Envelope(k, IH2b(InitHello(=sidi, epki, sctr, pidiC, auth))));
+let secure_resp_hello2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidr:SessionId, sidi:SessionId, biscuit_no:Atom, psk:key_tmpl, C_in:channel) =
+  in(C_in, Envelope(k, IH2b(InitHello(=sidi, epki, sctr, pidiC, auth))));
   ih <- InitHello(sidi, epki, sctr, pidiC, auth);
   NEW_TRUSTED_SEED(septi_trusted_seed)
   NEW_TRUSTED_SEED(sspti_trusted_seed)
   Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, C).
 
-let secure_init_conf2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, psk:key_tmpl, sidi:SessionId, sidr:SessionId, C:channel) =
-  in(D, Envelope(k3, IC2b(InitConf(=sidi, =sidr, biscuit, auth3))));
+let secure_init_conf2(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, psk:key_tmpl, sidi:SessionId, sidr:SessionId, C_in:channel) =
+  in(C_in, Envelope(k3, IC2b(InitConf(=sidi, =sidr, biscuit, auth3))));
   ic <- InitConf(sidi,sidr,biscuit, auth3);
   NEW_TRUSTED_SEED(seski_trusted_seed)
   NEW_TRUSTED_SEED(ssptr_trusted_seed)
@@ -93,11 +93,13 @@ fun kem_private(kem_pk): kem_sk
     kem_private(kem_pub(sk_tmpl)) = sk_tmpl[private].
 
 let secretCommunication() =
-  responder_pk <- choice[setup_kem_pk(make_trusted_kem_sk(responder1)), setup_kem_pk(make_trusted_kem_sk(responder2))];
-  kem_seed <- prepare_kem_sk(kem_private(responder_pk));
-  kem_pk <- setup_kem_pk(kem_seed);
+  // initiator_pk <- choice[setup_kem_pk(make_trusted_kem_sk(initiator1)), setup_kem_pk(make_trusted_kem_sk(initiator2))];
+  // initiator_seed <- prepare_kem_sk(kem_private(initiator_pk));
+ 
   initiator_seed <- prepare_kem_sk(trusted_kem_sk(initiator1));
-  secure_communication(initiator_seed, kem_seed, D) | !pipeChannel(D, C2).
+  responder_pk <- choice[setup_kem_pk(make_trusted_kem_sk(responder1)), setup_kem_pk(make_trusted_kem_sk(responder2))];
+  responder_seed <- prepare_kem_sk(kem_private(responder_pk));
+  secure_communication(initiator_seed, responder_seed, D) | !pipeChannel(D, C2).
 
 let reveal_pks() =
   out(C, setup_kem_pk(make_trusted_kem_sk(responder1)));
