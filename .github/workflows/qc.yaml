@@ -117,3 +117,32 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - run: nix develop --command cargo test
+
+  cargo-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install libsodium
+        run: sudo apt-get install -y libsodium-dev
+      - name: Install nightly toolchain
+        run: |
+          rustup toolchain install nightly
+          rustup default nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Run fuzzing
+        run: |
+          cargo fuzz run fuzz_aead_enc_into -- -max_total_time=60
+          cargo fuzz run fuzz_blake2b -- -max_total_time=60
+          cargo fuzz run fuzz_handle_msg -- -max_total_time=60
+          cargo fuzz run fuzz_kyber_encaps -- -max_total_time=60
+          cargo fuzz run fuzz_mceliece_encaps -- -max_total_time=60
