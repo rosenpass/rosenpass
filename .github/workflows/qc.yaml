@@ -133,12 +133,16 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install libsodium
         run: sudo apt-get install -y libsodium-dev
+      - name: Install nightly toolchain
+        run: |
+          rustup toolchain install nightly
+          rustup default nightly
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Run fuzzing
         run: |
-          cargo fuzz run fuzz_aead_enc_into
-          cargo fuzz run fuzz_blake2b
-          cargo fuzz run fuzz_handle_msg
-          cargo fuzz run fuzz_kyber_encaps
-          cargo fuzz run fuzz_mceliece_encaps
+          cargo fuzz run fuzz_aead_enc_into -- -max_total_time=60
+          cargo fuzz run fuzz_blake2b -- -max_total_time=60
+          cargo fuzz run fuzz_handle_msg -- -max_total_time=60
+          cargo fuzz run fuzz_kyber_encaps -- -max_total_time=60
+          cargo fuzz run fuzz_mceliece_encaps -- -max_total_time=60
