@@ -6,18 +6,23 @@
 //! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
 //! - the memory is mlocked, e.g. it is never swapped
 
-use crate::{
-    sodium::{rng, zeroize},
-    util::{cpy, mutating},
-};
+use anyhow::Context;
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
+use rosenpass_util::{
+    b64::b64_reader,
+    file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, StoreValue},
+    functional::mutating,
+    mem::cpy,
+};
+use std::result::Result;
 use std::{
     collections::HashMap,
     convert::TryInto,
     fmt,
     ops::{Deref, DerefMut},
     os::raw::c_void,
+    path::Path,
     ptr::null_mut,
     sync::Mutex,
 };
@@ -173,12 +178,12 @@ impl<const N: usize> Secret<N> {
 
     /// Sets all data of an existing secret to null bytes
     pub fn zeroize(&mut self) {
-        zeroize(self.secret_mut());
+        rosenpass_sodium::helpers::memzero(self.secret_mut());
     }
 
     /// Sets all data an existing secret to random bytes
     pub fn randomize(&mut self) {
-        rng(self.secret_mut());
+        rosenpass_sodium::helpers::randombytes_buf(self.secret_mut());
     }
 
     /// Borrows the data
@@ -243,7 +248,7 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public]
     pub fn randomize(&mut self) {
-        rng(&mut self.value);
+        rosenpass_sodium::helpers::randombytes_buf(&mut self.value);
     }
 }
 
@@ -357,5 +362,82 @@ mod test {
 
         // and that the secret was zeroized
         assert_eq!(new_secret.secret(), &[0; N]);
+    }
+}
+
+trait StoreSecret {
+    type Error;
+
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>;
+}
+
+impl<T: StoreValue> StoreSecret for T {
+    type Error = <T as StoreValue>::Error;
+
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error> {
+        self.store(path)
+    }
+}
+
+impl<const N: usize> LoadValue for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let mut v = Self::random();
+        let p = path.as_ref();
+        fopen_r(p)?
+            .read_exact_to_end(v.secret_mut())
+            .with_context(|| format!("Could not load file {p:?}"))?;
+        Ok(v)
+    }
+}
+
+impl<const N: usize> LoadValueB64 for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn load_b64<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        use std::io::Read;
+
+        let mut v = Self::random();
+        let p = path.as_ref();
+        // This might leave some fragments of the secret on the stack;
+        // in practice this is likely not a problem because the stack likely
+        // will be overwritten by something else soon but this is not exactly
+        // guaranteed. It would be possible to remedy this, but since the secret
+        // data will linger in the Linux page cache anyways with the current
+        // implementation, going to great length to erase the secret here is
+        // not worth it right now.
+        b64_reader(&mut fopen_r(p)?)
+            .read_exact(v.secret_mut())
+            .with_context(|| format!("Could not load base64 file {p:?}"))?;
+        Ok(v)
+    }
+}
+
+impl<const N: usize> StoreSecret for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        std::fs::write(path, self.secret())?;
+        Ok(())
+    }
+}
+
+impl<const N: usize> LoadValue for Public<N> {
+    type Error = anyhow::Error;
+
+    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let mut v = Self::random();
+        fopen_r(path)?.read_exact_to_end(&mut *v)?;
+        Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValue for Public<N> {
+    type Error = anyhow::Error;
+
+    fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        std::fs::write(path, **self)?;
+        Ok(())
     }
 }

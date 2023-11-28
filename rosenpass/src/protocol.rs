@@ -25,8 +25,8 @@
 //! };
 //! # fn main() -> anyhow::Result<()> {
 //!
-//! // always init libsodium before anything
-//! rosenpass::sodium::sodium_init()?;
+//! // always initialize libsodium before anything
+//! rosenpass_sodium::init()?;
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -74,9 +74,10 @@ use crate::{
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
     sodium::{self, *},
-    util::*,
 };
 use anyhow::{bail, ensure, Context, Result};
+use rosenpass_ciphers::{aead, xaead};
+use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
@@ -164,7 +165,7 @@ pub type PeerId = Public<KEY_SIZE>;
 pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
-pub type XAEADNonce = Public<XAEAD_NONCE_LEN>;
+pub type XAEADNonce = Public<{ xaead::NONCE_LEN }>;
 
 pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
 
@@ -864,7 +865,8 @@ impl CryptoServer {
     /// cookie based DoS mitigation. Dispatches message for further processing
     /// to `process_msg` handler if cookie is valid, otherwise sends a cookie reply
     /// message for sender to process and verify for messages part of the handshake phase
-    /// (i.e. InitHello, RespHello, InitConf messages only)
+    /// (i.e. InitHello, InitConf messages only). Bails on messages sent by responder and 
+    /// non-handshake messages.
     pub fn handle_msg_under_load(
         &mut self,
         rx_buf: &[u8],
@@ -890,15 +892,6 @@ impl CryptoServer {
                     msg_in.payload().init_hello()?.sidi().to_vec(),
                 )
             }
-            Ok(MsgType::RespHello) => {
-                let msg_in = rx_buf.envelope::<RespHello<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    msg_in.payload().resp_hello()?.sidr().to_vec(),
-                )
-            }
             Ok(MsgType::InitConf) => {
                 let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
                 (
@@ -909,7 +902,7 @@ impl CryptoServer {
                 )
             }
             Ok(_) => {
-                bail!("Message did not contain cookie or could not be sent a cookie reply message (non-handshake)")
+                bail!("Message did not contain cookie or could not be sent a cookie reply message (responder sent-message or non-handshake)")
             }
             Err(_) => {
                 bail!("Message type not supported")
@@ -919,7 +912,7 @@ impl CryptoServer {
         let cookie_tau = lprf::cookie_tau()?
             .mix(
                 self.cookie_secret
-                    .get_or_update_ellapsed(COOKIE_SECRET_EXP, rng),
+                    .get_or_update_ellapsed(COOKIE_SECRET_EXP, rosenpass_sodium::helpers::randombytes_buf),
             )?
             .mix(&ip_addr_port)?
             .into_value()[..16]
@@ -932,14 +925,12 @@ impl CryptoServer {
             .to_vec();
 
         //If valid cookie is found, process message
-        if sodium_memcmp(&rx_cookie, &expected) {
+        if rosenpass_sodium::helpers::memcmp(&rx_cookie, &expected) {
             let result = self.handle_msg(rx_buf, tx_buf)?;
-            return Ok(result);
+            Ok(result)
         }
         //Otherwise send cookie reply
         else {
-            // length of the response. We assume no response, so 0 length for now
-            let len ;
             let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
             let cookie_key = lprf::cookie_key()?.mix(self.spkm.secret())?.into_value();
 
@@ -963,7 +954,7 @@ impl CryptoServer {
                 const COOKIE_LENS_SID_LEN: usize = 4;
                 let cookie_ciphertext =
                     &mut cookie_reply_lens.all_bytes_mut()[COOKIE_LENS_SID_LEN..];
-                xaead_enc_into(
+                xaead::encrypt(
                     cookie_ciphertext,
                     &cookie_key,
                     &nonce_val.value,
@@ -972,12 +963,13 @@ impl CryptoServer {
                 )?;
             }
 
-            len = Some(self.seal_and_commit_msg(peer, MsgType::CookieReply, msg_out)?);
+            // length of the response 
+            let len = Some(self.seal_and_commit_msg(peer, MsgType::CookieReply, msg_out)?);
 
-            return Ok(HandleMsgResult {
+            Ok(HandleMsgResult {
                 exchanged_with: None,
                 resp: len,
-            });
+            })
         }
     }
 
@@ -1410,7 +1402,7 @@ impl IniHsPtr {
                         .min(ih.tx_count as f64),
                 )
                 * RETRANSMIT_DELAY_JITTER
-                * (rand_f64() + 1.0);
+                * (rosenpass_sodium::helpers::rand_f64() + 1.0); // TODO: Replace with the rand crate
         ih.tx_count += 1;
         Ok(())
     }
@@ -1441,7 +1433,7 @@ where
     /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
-            let cookie = lprf::cookie()?.mix(&cookie_tau)?.mix(self.until_cookie())?;
+            let cookie = lprf::cookie()?.mix(cookie_tau)?.mix(self.until_cookie())?;
             self.cookie_mut()
                 .copy_from_slice(cookie.into_value()[..16].as_ref());
         }
@@ -1456,7 +1448,10 @@ where
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
-        Ok(sodium_memcmp(self.mac(), &expected.into_value()[..16]))
+        Ok(rosenpass_sodium::helpers::memcmp(
+            self.mac(),
+            &expected.into_value()[..16],
+        ))
     }
 }
 
@@ -1502,13 +1497,13 @@ impl HandshakeState {
 
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_enc_into(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
+        aead::encrypt(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
         self.mix(ct)
     }
 
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_dec_into(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
+        aead::decrypt(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
         self.mix(ct)
     }
 
@@ -1560,7 +1555,7 @@ impl HandshakeState {
             .into_value();
 
         // consume biscuit no
-        sodium_bigint_inc(&mut *srv.biscuit_ctr);
+        rosenpass_sodium::helpers::increment(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
@@ -1571,7 +1566,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).key.secret();
         let pt = biscuit.all_bytes();
-        xaead_enc_into(biscuit_ct, k, &*n, &ad, pt)?;
+        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -1597,7 +1592,7 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // slice
-        xaead_dec_into(
+        xaead::decrypt(
             biscuit.all_bytes_mut(),
             bk.get(srv).key.secret(),
             &ad,
@@ -1623,7 +1618,8 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            sodium_bigint_cmp(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
+            rosenpass_sodium::helpers::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used)
+                >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1891,7 +1887,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; AEAD_TAG_LEN], &NOTHING)?;
+        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &NOTHING)?;
 
         // ICR3
         core.mix(ic.sidi())?.mix(ic.sidr())?;
@@ -1900,7 +1896,7 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
 
         // ICR5
-        if sodium_bigint_cmp(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+        if rosenpass_sodium::helpers::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
             // ICR6
             peer.get_mut(self).biscuit_used = biscuit_no;
 
@@ -1945,9 +1941,9 @@ impl CryptoServer {
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]);
+        let n = cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead_enc_into(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
+        aead::encrypt(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -1979,11 +1975,11 @@ impl CryptoServer {
             let n = u64::from_le_bytes(rc.ctr().try_into().unwrap());
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
-            aead_dec_into(
+            aead::decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]),
+                &cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]),
                 &NOTHING,
                 rc.auth(),
             )?;
@@ -2008,7 +2004,7 @@ impl CryptoServer {
                 let spkt = peer.get(self).spkt.secret();
                 let cookie_key = lprf::cookie_key()?.mix(spkt)?.into_value();
 
-                xaead_dec_into(
+                xaead::decrypt(
                     &mut cookie_value,
                     &cookie_key,
                     &mac.value,
@@ -2057,7 +2053,7 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
-        crate::sodium::sodium_init().unwrap();
+        rosenpass_sodium::init().unwrap();
 
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
@@ -2213,7 +2209,7 @@ mod test {
     }
 
     #[test]
-    fn cookie_reply_mechanism_initiator_under_load() {
+    fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2242,70 +2238,13 @@ mod test {
             println!("Peer SIDs: {:?}", sids);
 
             //A handles RespHello message under load, should send cookie reply
-            let HandleMsgResult { resp, .. } = 
+            assert!(
             a.handle_msg_under_load(
                 &b_to_a_buf[..resp_hello_len],
                 &mut *a_to_b_buf,
                 PeerPtr(0),
                 SocketAddr::V4(ip_b),
-            )
-            .unwrap();
-
-            let cookie_reply_len = resp.unwrap();
-            let resp_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::CookieReply);
-
-            //B Handles cookie reply message
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..cookie_reply_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            assert!(resp.is_none());
-            let sids : Vec<_> = b.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidm)).collect();
-            println!("Peer SIDs: {:?}", sids);
-
-            // A waits to resend InitHello message
-            let retx_init_hello_len = loop {
-                match a.poll().unwrap() {
-                    PollResult::SendRetransmission(peer) => {
-                        break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
-                    }
-                    PollResult::Sleep(time) => {
-                        sleep(Duration::from_secs_f64(time));
-                    }
-                    _ => {}
-                }
-            };
-
-            let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(retx_msg_type, MsgType::InitHello);
-
-            //B handles retransmitted message
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg(
-                    &a_to_b_buf.as_slice()[..retx_init_hello_len],
-                    &mut *b_to_a_buf,
-                )
-                .unwrap();
-
-            let resp_hello_len = resp.unwrap();
-            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::RespHello);
-
-            //A handles RespHello message under load, should send InitConf message
-            let HandleMsgResult { resp, .. } = 
-            a.handle_msg_under_load(
-                &b_to_a_buf[..resp_hello_len],
-                &mut *a_to_b_buf,
-                PeerPtr(0),
-                SocketAddr::V4(ip_b),
-            )
-            .unwrap();
-            
-            let init_conf_len = resp.unwrap();
-            let resp_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::InitConf);
-
+            ).is_err());
         });
     }
 }

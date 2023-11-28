@@ -14,8 +14,11 @@ name = "handshake"
 harness = false
 
 [dependencies]
+rosenpass-util = { path = "../util" }
+rosenpass-constant-time = { path = "../constant-time" }
+rosenpass-sodium = { path = "../sodium" }
+rosenpass-ciphers = { path = "../ciphers" }
 anyhow = { version = "1.0.71", features = ["backtrace"] }
-base64 = "0.21.1"
 static_assertions = "1.1.0"
 memoffset = "0.9.0"
 libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
@@ -23,8 +26,8 @@ oqs-sys = { version = "0.8", default-features = false, features = ['classic_mcel
 lazy_static = "1.4.0"
 thiserror = "1.0.40"
 paste = "1.0.12"
-log = { version = "0.4.17", optional = true }
-env_logger = { version = "0.10.0", optional = true }
+log = { version = "0.4.17" }
+env_logger = { version = "0.10.0" }
 serde = { version = "1.0.163", features = ["derive"] }
 toml = "0.7.4"
 clap = { version = "4.3.0", features = ["derive"] }
@@ -37,6 +40,3 @@ anyhow = "1.0.71"
 criterion = "0.4.0"
 test_bin = "0.4.0"
 stacker = "0.1.15"
-
-[features]
-default = ["log", "env_logger"]

@@ -4,6 +4,7 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
+use rosenpass_util::file::fopen_w;
 
 use std::cell::Cell;
 use std::io::Write;
@@ -23,18 +24,20 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::util::fopen_w;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-    util::{b64_writer, fmt_b64},
 };
+use rosenpass_util::attempt;
+use rosenpass_util::b64::{b64_writer, fmt_b64};
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
-const MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD: usize = 100;
-const LAST_UNDER_LOAD_WINDOW: Duration = Duration::from_secs(10);
+// Using values from Linux Kernel implementation
+// TODO: Customize values for rosenpass
+const MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD: usize = 4096;
+const LAST_UNDER_LOAD_WINDOW: Duration = Duration::from_secs(1);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
@@ -560,8 +563,6 @@ impl AppServer {
                 }
 
                 ReceivedMessage(len, endpoint) => {
-                    println!("Received message from {:?}", endpoint);
-
                     let msg_result = match self.under_load {
                         DoSOperation::UnderLoad { last_under_load: _ } => {
                             //TODO: Lookup peer through addresses (hash)

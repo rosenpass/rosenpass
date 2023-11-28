@@ -45,6 +45,7 @@
 
 use super::RosenpassError;
 use crate::{pqkem::*, sodium};
+use rosenpass_ciphers::{aead, xaead};
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -277,9 +278,9 @@ data_lense! { InitHello :=
     /// Classic McEliece Ciphertext
     sctr: StaticKEM::CT_LEN,
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pidic: sodium::AEAD_TAG_LEN + 32,
+    pidic: aead::TAG_LEN + 32,
     /// Encrypted TAI64N Time Stamp (against replay attacks)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { RespHello :=
@@ -292,7 +293,7 @@ data_lense! { RespHello :=
     /// Classic McEliece Ciphertext
     scti: StaticKEM::CT_LEN,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN,
+    auth: aead::TAG_LEN,
     /// Responders handshake state in encrypted form
     biscuit: BISCUIT_CT_LEN
 }
@@ -305,7 +306,7 @@ data_lense! { InitConf :=
     /// Responders handshake state in encrypted form
     biscuit: BISCUIT_CT_LEN,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { EmptyData :=
@@ -314,7 +315,7 @@ data_lense! { EmptyData :=
     /// Nonce
     ctr: 8,
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    auth: aead::TAG_LEN
 }
 
 data_lense! { Biscuit :=
@@ -332,8 +333,8 @@ data_lense! { DataMsg :=
 
 data_lense! { CookieReply :=
     sid: 4,
-    nonce: sodium::XAEAD_NONCE_LEN,
-    cookie_encrypted: sodium::MAC_SIZE + sodium::XAEAD_TAG_LEN
+    nonce: xaead::NONCE_LEN,
+    cookie_encrypted: sodium::MAC_SIZE + xaead::TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -386,7 +387,7 @@ impl TryFrom<u8> for MsgType {
 pub const BISCUIT_PT_LEN: usize = Biscuit::<()>::LEN;
 
 /// Length in bytes of an encrypted Biscuit (cipher text)
-pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN;
+pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
 
 #[cfg(test)]
 mod test_constants {
@@ -394,6 +395,7 @@ mod test_constants {
         msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN},
         sodium,
     };
+    use rosenpass_ciphers::xaead;
 
     #[test]
     fn sodium_keysize() {
@@ -409,7 +411,7 @@ mod test_constants {
     fn biscuit_ct_len() {
         assert_eq!(
             BISCUIT_CT_LEN,
-            BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN
+            BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN
         );
     }
 }
