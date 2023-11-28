@@ -73,10 +73,9 @@ use crate::{
     msgs::*,
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
-    sodium::*,
 };
 use anyhow::{bail, ensure, Context, Result};
-use rosenpass_ciphers::{aead, xaead};
+use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
@@ -145,10 +144,10 @@ pub type SSk = Secret<{ StaticKEM::SK_LEN }>;
 pub type EPk = Public<{ EphemeralKEM::PK_LEN }>;
 pub type ESk = Secret<{ EphemeralKEM::SK_LEN }>;
 
-pub type SymKey = Secret<KEY_SIZE>;
-pub type SymHash = Public<KEY_SIZE>;
+pub type SymKey = Secret<KEY_LEN>;
+pub type SymHash = Public<KEY_LEN>;
 
-pub type PeerId = Public<KEY_SIZE>;
+pub type PeerId = Public<KEY_LEN>;
 pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
@@ -1240,13 +1239,13 @@ impl HandshakeState {
 
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead::encrypt(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
+        aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead::decrypt(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
+        aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
 
@@ -1448,7 +1447,7 @@ impl CryptoServer {
             .mix(peer.get(self).psk.secret())?;
 
         // IHI8
-        hs.core.encrypt_and_mix(ih.auth_mut(), &NOTHING)?;
+        hs.core.encrypt_and_mix(ih.auth_mut(), &[])?;
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
@@ -1514,7 +1513,7 @@ impl CryptoServer {
         core.store_biscuit(self, peer, rh.biscuit_mut())?;
 
         // RHR7
-        core.encrypt_and_mix(rh.auth_mut(), &NOTHING)?;
+        core.encrypt_and_mix(rh.auth_mut(), &[])?;
 
         Ok(peer)
     }
@@ -1600,7 +1599,7 @@ impl CryptoServer {
         ic.biscuit_mut().copy_from_slice(rh.biscuit());
 
         // ICI4
-        core.encrypt_and_mix(ic.auth_mut(), &NOTHING)?;
+        core.encrypt_and_mix(ic.auth_mut(), &[])?;
 
         // Split() – We move the secrets into the session; we do not
         // delete the InitiatorHandshake, just clear it's secrets because
@@ -1630,7 +1629,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &NOTHING)?;
+        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
 
         // ICR3
         core.mix(ic.sidi())?.mix(ic.sidr())?;
@@ -1686,7 +1685,7 @@ impl CryptoServer {
 
         let n = cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead::encrypt(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
+        aead::encrypt(rc.auth_mut(), k, &n, &[], &[])?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -1723,7 +1722,7 @@ impl CryptoServer {
                 &mut [0u8; 0],
                 s.txkt.secret(),
                 &cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]),
-                &NOTHING,
+                &[],
                 rc.auth(),
             )?;
         }

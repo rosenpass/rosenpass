@@ -1,25 +1,23 @@
 //! Implementation of the tree-like structure used for the label derivation in [labeled_prf](crate::labeled_prf)
-use {
-    crate::{
-        coloring::Secret,
-        sodium::{hmac, hmac_into, KEY_SIZE},
-    },
-    anyhow::Result,
-};
+use crate::coloring::Secret;
+
+use anyhow::Result;
+use rosenpass_ciphers::{hash, KEY_LEN};
+use rosenpass_to::To;
 
 // TODO Use a proper Dec interface
 #[derive(Clone, Debug)]
-pub struct PrfTree([u8; KEY_SIZE]);
+pub struct PrfTree([u8; KEY_LEN]);
 #[derive(Clone, Debug)]
-pub struct PrfTreeBranch([u8; KEY_SIZE]);
+pub struct PrfTreeBranch([u8; KEY_LEN]);
 #[derive(Clone, Debug)]
-pub struct SecretPrfTree(Secret<KEY_SIZE>);
+pub struct SecretPrfTree(Secret<KEY_LEN>);
 #[derive(Clone, Debug)]
-pub struct SecretPrfTreeBranch(Secret<KEY_SIZE>);
+pub struct SecretPrfTreeBranch(Secret<KEY_LEN>);
 
 impl PrfTree {
     pub fn zero() -> Self {
-        Self([0u8; KEY_SIZE])
+        Self([0u8; KEY_LEN])
     }
 
     pub fn dup(self) -> PrfTreeBranch {
@@ -32,21 +30,21 @@ impl PrfTree {
 
     // TODO: Protocol! Use domain separation to ensure that
     pub fn mix(self, v: &[u8]) -> Result<Self> {
-        Ok(Self(hmac(&self.0, v)?))
+        Ok(Self(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
     }
 
     pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretPrfTree> {
         SecretPrfTree::prf_invoc(&self.0, v.secret())
     }
 
-    pub fn into_value(self) -> [u8; KEY_SIZE] {
+    pub fn into_value(self) -> [u8; KEY_LEN] {
         self.0
     }
 }
 
 impl PrfTreeBranch {
     pub fn mix(&self, v: &[u8]) -> Result<PrfTree> {
-        Ok(PrfTree(hmac(&self.0, v)?))
+        Ok(PrfTree(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
     }
 
     pub fn mix_secret<const N: usize>(&self, v: Secret<N>) -> Result<SecretPrfTree> {
@@ -57,7 +55,7 @@ impl PrfTreeBranch {
 impl SecretPrfTree {
     pub fn prf_invoc(k: &[u8], d: &[u8]) -> Result<SecretPrfTree> {
         let mut r = SecretPrfTree(Secret::zero());
-        hmac_into(r.0.secret_mut(), k, d)?;
+        hash::hash(k, d).to(r.0.secret_mut())?;
         Ok(r)
     }
 
@@ -69,7 +67,7 @@ impl SecretPrfTree {
         SecretPrfTreeBranch(self.0)
     }
 
-    pub fn danger_from_secret(k: Secret<KEY_SIZE>) -> Self {
+    pub fn danger_from_secret(k: Secret<KEY_LEN>) -> Self {
         Self(k)
     }
 
@@ -81,12 +79,12 @@ impl SecretPrfTree {
         Self::prf_invoc(self.0.secret(), v.secret())
     }
 
-    pub fn into_secret(self) -> Secret<KEY_SIZE> {
+    pub fn into_secret(self) -> Secret<KEY_LEN> {
         self.0
     }
 
     pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
-        hmac_into(self.0.secret_mut(), v, dst)
+        hash::hash(v, dst).to(self.0.secret_mut())
     }
 }
 
@@ -102,7 +100,7 @@ impl SecretPrfTreeBranch {
     // TODO: This entire API is not very nice; we need this for biscuits, but
     // it might be better to extract a special "biscuit"
     // labeled subkey and reinitialize the chain with this
-    pub fn danger_into_secret(self) -> Secret<KEY_SIZE> {
+    pub fn danger_into_secret(self) -> Secret<KEY_LEN> {
         self.0
     }
 }

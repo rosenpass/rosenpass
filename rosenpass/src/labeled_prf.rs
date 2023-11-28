@@ -1,10 +1,10 @@
 //! Pseudo Random Functions (PRFs) with a tree-like label scheme which
 //! ensures their uniqueness
 
-use {
-    crate::{prftree::PrfTree, sodium::KEY_SIZE},
-    anyhow::Result,
-};
+
+use crate::prftree::PrfTree;
+use anyhow::Result;
+use rosenpass_ciphers::KEY_LEN;
 
 pub fn protocol() -> Result<PrfTree> {
     PrfTree::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
@@ -30,7 +30,7 @@ prflabel!(protocol, _ckextract, "chaining key extract");
 
 macro_rules! prflabel_leaf {
     ($base:ident, $name:ident, $($lbl:expr),* ) => {
-        pub fn $name() -> Result<[u8; KEY_SIZE]> {
+        pub fn $name() -> Result<[u8; KEY_LEN]> {
             let t = $base()?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
