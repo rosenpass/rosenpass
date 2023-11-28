@@ -865,7 +865,7 @@ impl CryptoServer {
     /// cookie based DoS mitigation. Dispatches message for further processing
     /// to `process_msg` handler if cookie is valid, otherwise sends a cookie reply
     /// message for sender to process and verify for messages part of the handshake phase
-    /// (i.e. InitHello, InitConf messages only). Bails on messages sent by responder and 
+    /// (i.e. InitHello, InitConf messages only). Bails on messages sent by responder and
     /// non-handshake messages.
     pub fn handle_msg_under_load(
         &mut self,
@@ -910,10 +910,10 @@ impl CryptoServer {
         };
 
         let cookie_tau = lprf::cookie_tau()?
-            .mix(
-                self.cookie_secret
-                    .get_or_update_ellapsed(COOKIE_SECRET_EXP, rosenpass_sodium::helpers::randombytes_buf),
-            )?
+            .mix(self.cookie_secret.get_or_update_ellapsed(
+                COOKIE_SECRET_EXP,
+                rosenpass_sodium::helpers::randombytes_buf,
+            ))?
             .mix(&ip_addr_port)?
             .into_value()[..16]
             .to_vec();
@@ -963,7 +963,7 @@ impl CryptoServer {
                 )?;
             }
 
-            // length of the response 
+            // length of the response
             let len = Some(self.seal_and_commit_msg(peer, MsgType::CookieReply, msg_out)?);
 
             Ok(HandleMsgResult {
@@ -2024,7 +2024,11 @@ impl CryptoServer {
                 );
             }
         } else {
-            let sids : Vec<_> = self.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidm)).collect();
+            let sids: Vec<_> = self
+                .peers
+                .iter()
+                .map(|p| p.session.as_ref().map(|s| s.sidm))
+                .collect();
             println!("SID: {:?}", sids);
             bail!("No such peer {pidr:?}.", pidr = cr.sid());
         }
@@ -2233,18 +2237,23 @@ mod test {
             let resp_hello_len = resp.unwrap();
             let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
             assert_eq!(resp_msg_type, MsgType::RespHello);
-        
-            let sids : Vec<_> = b.peers.iter().map(|p| p.session.as_ref().map(|s| s.sidt)).collect();
+
+            let sids: Vec<_> = b
+                .peers
+                .iter()
+                .map(|p| p.session.as_ref().map(|s| s.sidt))
+                .collect();
             println!("Peer SIDs: {:?}", sids);
 
             //A handles RespHello message under load, should send cookie reply
-            assert!(
-            a.handle_msg_under_load(
-                &b_to_a_buf[..resp_hello_len],
-                &mut *a_to_b_buf,
-                PeerPtr(0),
-                SocketAddr::V4(ip_b),
-            ).is_err());
+            assert!(a
+                .handle_msg_under_load(
+                    &b_to_a_buf[..resp_hello_len],
+                    &mut *a_to_b_buf,
+                    PeerPtr(0),
+                    SocketAddr::V4(ip_b),
+                )
+                .is_err());
         });
     }
 }

@@ -577,7 +577,8 @@ impl AppServer {
                                         false
                                     }
                                 })
-                                .ok_or(anyhow::anyhow!("Received message from unknown endpoint"))?.0;
+                                .ok_or(anyhow::anyhow!("Received message from unknown endpoint"))?
+                                .0;
                             let socket_addr = endpoint
                                 .addresses()
                                 .first()
