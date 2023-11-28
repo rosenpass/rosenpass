@@ -1074,6 +1074,7 @@ dependencies = [
  "rosenpass-ciphers",
  "rosenpass-constant-time",
  "rosenpass-sodium",
+ "rosenpass-to",
  "rosenpass-util",
  "serde",
  "stacker",
@@ -1087,12 +1088,20 @@ dependencies = [
 name = "rosenpass-ciphers"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "rosenpass-constant-time",
  "rosenpass-sodium",
+ "rosenpass-to",
+ "static_assertions",
+ "zeroize",
 ]
 
 [[package]]
 name = "rosenpass-constant-time"
 version = "0.1.0"
+dependencies = [
+ "rosenpass-to",
+]
 
 [[package]]
 name = "rosenpass-fuzzing"
@@ -1103,6 +1112,7 @@ dependencies = [
  "rosenpass",
  "rosenpass-ciphers",
  "rosenpass-sodium",
+ "rosenpass-to",
  "stacker",
 ]
 
@@ -1113,6 +1123,7 @@ dependencies = [
  "anyhow",
  "libsodium-sys-stable",
  "log",
+ "rosenpass-to",
  "rosenpass-util",
 ]
 
@@ -1711,6 +1722,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "525b4ec142c6b68a2d10f01f7bbf6755599ca3f81ea53b8431b7dd348f5fdb2d"
 
 [[package]]
 name = "zip"

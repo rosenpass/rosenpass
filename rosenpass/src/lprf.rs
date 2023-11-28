@@ -17,23 +17,16 @@
 //!
 //! TODO Base the construction on a proper Dec function
 
-pub struct Iprf([u8; KEY_SIZE]);
-pub struct IprfBranch([u8; KEY_SIZE]);
-pub struct SecretIprf(Secret<KEY_SIZE>);
-pub struct SecretIprfBranch(Secret<KEY_SIZE>);
+use rosenpass_ciphers::{KEY_LEN, hash};
 
-pub fn prf_into(out: &mut [u8], key: &[u8], data: &[u8]) {
-    // TODO: The error handling with sodium is a scurge
-    hmac_into(out, key, data).unwrap()
-}
-
-pub fn prf(key: &[u8], data: &[u8]) -> [u8; KEY_SIZE] {
-    mutating([0u8; KEY_SIZE], |r| prf_into(r, key, data))
-}
+pub struct Iprf([u8; KEY_LEN]);
+pub struct IprfBranch([u8; KEY_LEN]);
+pub struct SecretIprf(Secret<KEY_LEN>);
+pub struct SecretIprfBranch(Secret<KEY_LEN>);
 
 impl Iprf {
     fn zero() -> Self {
-        Self([0u8; KEY_SIZE])
+        Self([0u8; KEY_LEN])
     }
 
     fn dup(self) -> IprfBranch {
@@ -42,25 +35,25 @@ impl Iprf {
 
     // TODO: Protocol! Use domain separation to ensure that
     fn mix(self, v: &[u8]) -> Self {
-        Self(prf(&self.0, v))
+        Self(hash(&self.0, v).collect<[u8; KEY_LEN]>())
     }
 
     fn mix_secret<const N: usize>(self, v: Secret<N>) -> SecretIprf {
         SecretIprf::prf_invoc(&self.0, v.secret())
     }
 
-    fn into_value(self) -> [u8; KEY_SIZE] {
+    fn into_value(self) -> [u8; KEY_LEN] {
         self.0
     }
 
     fn extract(self, v: &[u8], dst: &mut [u8]) {
-        prf_into(&self.0, v, dst)
+        hash(&self.0, v).to(dst)
     }
 }
 
 impl IprfBranch {
     fn mix(&self, v: &[u8]) -> Iprf {
-        Iprf(prf(self.0, v))
+        Iprf(hash(self.0, v).collect<[u8; KEY_LEN]>())
     }
 
     fn mix_secret<const N: usize>(&self, v: Secret<N>) -> SecretIprf {
@@ -71,7 +64,7 @@ impl IprfBranch {
 impl SecretIprf {
     fn prf_invoc(k: &[u8], d: &[u8]) -> SecretIprf {
         mutating(SecretIprf(Secret::zero()), |r| {
-            prf_into(k, d, r.secret_mut())
+            hash(k, d).to(r.secret_mut())
         })
     }
 
@@ -87,12 +80,12 @@ impl SecretIprf {
         Self::prf_invoc(self.0.secret(), v.secret())
     }
 
-    fn into_secret(self) -> Secret<KEY_SIZE> {
+    fn into_secret(self) -> Secret<KEY_LEN> {
         self.0
     }
 
     fn into_secret_slice(self, v: &[u8], dst: &[u8]) {
-        prf_into(self.0.secret(), v, dst)
+        hash(self.0.secret(), v).to(dst)
     }
 }
 

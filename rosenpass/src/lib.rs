@@ -1,5 +1,3 @@
-#[macro_use]
-pub mod sodium;
 pub mod coloring;
 #[rustfmt::skip]
 pub mod labeled_prf;
