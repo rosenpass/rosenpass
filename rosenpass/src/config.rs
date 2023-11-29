@@ -348,13 +348,9 @@ impl Rosenpass {
             public_key: "rp-peer-public-key".into(),
             endpoint: Some("my-peer.test:9999".into()),
             exchange_command: [
-                "wg",
-                "set",
-                "wg0",
-                "peer",
-                "<PEER_ID>",
-                "preshared-key",
-                "/dev/stdin",
+                "currently",
+                "not",
+                "in use",
             ]
             .into_iter()
             .map(|x| x.to_string())
