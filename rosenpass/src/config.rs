@@ -41,10 +41,6 @@ pub struct RosenpassPeer {
     #[serde(default)]
     pub key_out: Option<PathBuf>,
 
-    // TODO make sure failure does not crash but is logged
-    #[serde(default)]
-    pub exchange_command: Vec<String>,
-
     // TODO make this field only available on binary builds, not on library builds
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
@@ -347,21 +343,12 @@ impl Rosenpass {
         let peer = RosenpassPeer {
             public_key: "/path/to/rp-peer-public-key".into(),
             endpoint: Some("my-peer.test:9999".into()),
-            exchange_command: [
-                "currently",
-                "not",
-                "in use",
-            ]
-            .into_iter()
-            .map(|x| x.to_string())
-            .collect(),
             key_out: Some("/path/to/rp-key-out.txt".into()),
             pre_shared_key: None,
             wg: Some(WireGuard {
                 device: "wirgeguard device e.g. wg0".into(),
                 peer: "wireguard public key".into(),
                 extra_params: vec![
-                    "extra params".into(),
                     "passed to".into(),
                     "wg set".into()
                 ] }),
