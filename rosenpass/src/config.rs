@@ -361,7 +361,14 @@ impl Rosenpass {
             .collect(),
             key_out: Some("rp-key-out".into()),
             pre_shared_key: None,
-            wg: None,
+            wg: Some(WireGuard {
+                device: "wirgeguard device e.g. wg0".into(),
+                peer: "wireguard public key".into(),
+                extra_params: vec![
+                    "extra params".into(),
+                    "passed to".into(),
+                    "wg set".into()
+                ] }),
         };
 
         Self {
