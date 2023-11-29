@@ -4,8 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass::sodium::mac_into;
-use rosenpass_sodium::init as sodium_init;
+use rosenpass_sodium::{hash::blake2b, init as sodium_init};
+use rosenpass_to::To;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Blake2b {
@@ -18,5 +18,5 @@ fuzz_target!(|input: Blake2b| {
 
     let mut out = [0u8; 32];
 
-    mac_into(&mut out, &input.key, &input.data).unwrap();
+    blake2b::hash(&input.key, &input.data).to(&mut out).unwrap();
 });

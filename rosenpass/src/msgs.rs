@@ -44,8 +44,11 @@
 //! ```
 
 use super::RosenpassError;
-use crate::{pqkem::*, sodium};
+use crate::pqkem::*;
 use rosenpass_ciphers::{aead, xaead};
+
+pub const MAC_SIZE: usize = 16;
+pub const COOKIE_SIZE: usize = 16;
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -265,9 +268,9 @@ data_lense! { Envelope<M> :=
     payload: M::LEN,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
-    mac: sodium::MAC_SIZE,
+    mac: MAC_SIZE,
     /// Cookie value
-    cookie: sodium::MAC_SIZE
+    cookie: COOKIE_SIZE
 }
 
 data_lense! { InitHello :=
@@ -320,11 +323,11 @@ data_lense! { EmptyData :=
 
 data_lense! { Biscuit :=
     /// H(spki) – Ident ifies the initiator
-    pidi: sodium::KEY_SIZE,
+    pidi: aead::KEY_LEN,
     /// The biscuit number (replay protection)
     biscuit_no: 12,
     /// Chaining key
-    ck: sodium::KEY_SIZE
+    ck: aead::KEY_LEN
 }
 
 data_lense! { DataMsg :=
@@ -334,7 +337,7 @@ data_lense! { DataMsg :=
 data_lense! { CookieReply :=
     sid: 4,
     nonce: xaead::NONCE_LEN,
-    cookie_encrypted: sodium::MAC_SIZE + xaead::TAG_LEN
+    cookie_encrypted: MAC_SIZE + xaead::TAG_LEN
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -391,20 +394,17 @@ pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG
 
 #[cfg(test)]
 mod test_constants {
-    use crate::{
-        msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN},
-        sodium,
-    };
-    use rosenpass_ciphers::xaead;
+    use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
+    use rosenpass_ciphers::{xaead, KEY_LEN};
 
     #[test]
     fn sodium_keysize() {
-        assert_eq!(sodium::KEY_SIZE, 32);
+        assert_eq!(KEY_LEN, 32);
     }
 
     #[test]
     fn biscuit_pt_len() {
-        assert_eq!(BISCUIT_PT_LEN, 2 * sodium::KEY_SIZE + 12);
+        assert_eq!(BISCUIT_PT_LEN, 2 * KEY_LEN + 12);
     }
 
     #[test]
