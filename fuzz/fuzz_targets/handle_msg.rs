@@ -3,8 +3,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass::coloring::Secret;
 use rosenpass::protocol::CryptoServer;
+use rosenpass_secret_memory::Secret;
 use rosenpass_sodium::init as sodium_init;
 
 fuzz_target!(|rx_buf: &[u8]| {

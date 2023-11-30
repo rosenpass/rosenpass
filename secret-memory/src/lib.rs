@@ -1,4 +1,8 @@
+pub mod debug;
+pub mod file;
+
 mod public;
 pub use crate::public::Public;
 
-pub mod debug;
+mod secret;
+pub use crate::secret::Secret;

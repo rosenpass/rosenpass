@@ -1,4 +1,3 @@
-pub mod coloring;
 #[rustfmt::skip]
 pub mod labeled_prf;
 pub mod app_server;
