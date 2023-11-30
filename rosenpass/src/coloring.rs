@@ -1,11 +1,3 @@
-//! Types types for dealing with (secret-) values
-//!
-//! These types use type level coloring to make accidential leackage of secrets extra hard. Both [Secret] and [Public] own their data, but the memory backing
-//! [Secret] is special:
-//! - as it is heap allocated, we can actively zeroize the memory before freeing it.
-//! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
-//! - the memory is mlocked, e.g. it is never swapped
-
 use anyhow::Context;
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
@@ -13,17 +5,10 @@ use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, StoreValue},
     functional::mutating,
-    mem::cpy,
 };
 use std::result::Result;
 use std::{
-    collections::HashMap,
-    convert::TryInto,
-    fmt,
-    ops::{Deref, DerefMut},
-    os::raw::c_void,
-    path::Path,
-    ptr::null_mut,
+    collections::HashMap, convert::TryInto, fmt, os::raw::c_void, path::Path, ptr::null_mut,
     sync::Mutex,
 };
 
@@ -216,81 +201,6 @@ impl<const N: usize> fmt::Debug for Secret<N> {
     }
 }
 
-/// Contains information in the form of a byte array that may be known to the
-/// public
-// TODO: We should get rid of the Public type; just use a normal value
-#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct Public<const N: usize> {
-    pub value: [u8; N],
-}
-
-impl<const N: usize> Public<N> {
-    /// Create a new [Public] from a byte slice
-    pub fn from_slice(value: &[u8]) -> Self {
-        mutating(Self::zero(), |r| cpy(value, &mut r.value))
-    }
-
-    /// Create a new [Public] from a byte array
-    pub fn new(value: [u8; N]) -> Self {
-        Self { value }
-    }
-
-    /// Create a zero initialized [Public]
-    pub fn zero() -> Self {
-        Self { value: [0u8; N] }
-    }
-
-    /// Create a random initialized [Public]
-    pub fn random() -> Self {
-        mutating(Self::zero(), |r| r.randomize())
-    }
-
-    /// Randomize all bytes in an existing [Public]
-    pub fn randomize(&mut self) {
-        rosenpass_sodium::helpers::randombytes_buf(&mut self.value);
-    }
-}
-
-/// Writes the contents of an `&[u8]` as hexadecimal symbols to a [std::fmt::Formatter]
-pub fn debug_crypto_array(v: &[u8], fmt: &mut fmt::Formatter) -> fmt::Result {
-    fmt.write_str("[{}]=")?;
-    if v.len() > 64 {
-        for byte in &v[..32] {
-            std::fmt::LowerHex::fmt(byte, fmt)?;
-        }
-        fmt.write_str("…")?;
-        for byte in &v[v.len() - 32..] {
-            std::fmt::LowerHex::fmt(byte, fmt)?;
-        }
-    } else {
-        for byte in v {
-            std::fmt::LowerHex::fmt(byte, fmt)?;
-        }
-    }
-    Ok(())
-}
-
-impl<const N: usize> fmt::Debug for Public<N> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        debug_crypto_array(&self.value, fmt)
-    }
-}
-
-impl<const N: usize> Deref for Public<N> {
-    type Target = [u8; N];
-
-    fn deref(&self) -> &[u8; N] {
-        &self.value
-    }
-}
-
-impl<const N: usize> DerefMut for Public<N> {
-    fn deref_mut(&mut self) -> &mut [u8; N] {
-        &mut self.value
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -419,25 +329,6 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
     fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         std::fs::write(path, self.secret())?;
-        Ok(())
-    }
-}
-
-impl<const N: usize> LoadValue for Public<N> {
-    type Error = anyhow::Error;
-
-    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let mut v = Self::random();
-        fopen_r(path)?.read_exact_to_end(&mut *v)?;
-        Ok(v)
-    }
-}
-
-impl<const N: usize> StoreValue for Public<N> {
-    type Error = anyhow::Error;
-
-    fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, **self)?;
         Ok(())
     }
 }
