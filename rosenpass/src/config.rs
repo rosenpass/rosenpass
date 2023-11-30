@@ -344,14 +344,12 @@ impl Rosenpass {
             public_key: "/path/to/rp-peer-public-key".into(),
             endpoint: Some("my-peer.test:9999".into()),
             key_out: Some("/path/to/rp-key-out.txt".into()),
-            pre_shared_key: None,
+            pre_shared_key: Some("additional pre shared key".into()),
             wg: Some(WireGuard {
                 device: "wirgeguard device e.g. wg0".into(),
                 peer: "wireguard public key".into(),
-                extra_params: vec![
-                    "passed to".into(),
-                    "wg set".into()
-                ] }),
+                extra_params: vec!["passed to".into(), "wg set".into()],
+            }),
         };
 
         Self {
