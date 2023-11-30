@@ -19,20 +19,20 @@ rosenpass-constant-time = { path = "../constant-time" }
 rosenpass-sodium = { path = "../sodium" }
 rosenpass-ciphers = { path = "../ciphers" }
 rosenpass-to = { path = "../to" }
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 static_assertions = { workspace = true }
 memoffset = { workspace = true }
-libsodium-sys-stable = { workspace = true, features = ["use-pkg-config"] }
-oqs-sys = { workspace = true, default-features = false, features = ['classic_mceliece', 'kyber'] }
+libsodium-sys-stable = { workspace = true }
+oqs-sys = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
 paste = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 toml = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
-mio = { workspace = true, features = ["net", "os-poll"] }
+clap = { workspace = true }
+mio = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
