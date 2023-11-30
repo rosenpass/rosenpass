@@ -1064,7 +1064,6 @@ dependencies = [
  "clap 4.4.8",
  "criterion",
  "env_logger",
- "lazy_static",
  "libsodium-sys-stable",
  "log",
  "memoffset",
@@ -1122,6 +1121,8 @@ name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "lazy_static",
+ "libsodium-sys-stable",
  "rosenpass-sodium",
  "rosenpass-to",
  "rosenpass-util",

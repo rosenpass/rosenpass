@@ -1,13 +1,12 @@
 use anyhow::{bail, ensure};
 use clap::Parser;
+use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::app_server;
 use crate::app_server::AppServer;
 use crate::{
-    // app_server::{AppServer, LoadValue, LoadValueB64},
-    coloring::Secret,
     pqkem::{StaticKEM, KEM},
     protocol::{SPk, SSk, SymKey},
 };
@@ -246,16 +245,5 @@ impl Cli {
         }
 
         srv.event_loop()
-    }
-}
-
-trait StoreSecret {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
-}
-
-impl<const N: usize> StoreSecret for Secret<N> {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
-        Ok(())
     }
 }

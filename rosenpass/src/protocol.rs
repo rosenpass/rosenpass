@@ -68,7 +68,6 @@
 //! ```
 
 use crate::{
-    coloring::*,
     labeled_prf as lprf,
     msgs::*,
     pqkem::*,
@@ -76,7 +75,7 @@ use crate::{
 };
 use anyhow::{bail, ensure, Context, Result};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
-use rosenpass_secret_memory::Public;
+use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
