@@ -11,11 +11,23 @@ members = [
     "fuzzing",
 ]
 
+default-members = [
+    "rosenpass"
+]
+
 [workspace.metadata.release]
 # ensure that adding `--package` as argument to `cargo release` still creates version tags in the form of `vx.y.z`
 tag-prefix = ""
 
 [workspace.dependencies]
+rosenpass = { path = "rosenpass" }
+rosenpass-util = { path = "util" }
+rosenpass-constant-time = { path = "constant-time" }
+rosenpass-sodium = { path = "sodium" }
+rosenpass-ciphers = { path = "ciphers" }
+rosenpass-to = { path = "to" }
+criterion = "0.4.0"
+test_bin = "0.4.0"
 libfuzzer-sys = "0.4"
 stacker = "0.1.15"
 doc-comment = "0.3.3"

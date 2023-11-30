@@ -11,18 +11,10 @@ cargo-fuzz = true
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
 stacker = { workspace = true }
-
-[dependencies.rosenpass]
-path = "../rosenpass"
-
-[dependencies.rosenpass-sodium]
-path = "../sodium"
-
-[dependencies.rosenpass-ciphers]
-path = "../ciphers"
-
-[dependencies.rosenpass-to]
-path = "../to"
+rosenpass-sodium = { workspace = true }
+rosenpass-ciphers = { workspace = true }
+rosenpass-to = { workspace = true }
+rosenpass = { workspace = true }
 
 [[bin]]
 name = "fuzz_handle_msg"

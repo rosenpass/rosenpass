@@ -14,11 +14,11 @@ name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-util = { path = "../util" }
-rosenpass-constant-time = { path = "../constant-time" }
-rosenpass-sodium = { path = "../sodium" }
-rosenpass-ciphers = { path = "../ciphers" }
-rosenpass-to = { path = "../to" }
+rosenpass-util = { workspace = true }
+rosenpass-constant-time = { workspace = true }
+rosenpass-sodium = { workspace = true }
+rosenpass-ciphers = { workspace = true }
+rosenpass-to = { workspace = true }
 anyhow = { workspace = true }
 static_assertions = { workspace = true }
 memoffset = { workspace = true }
@@ -38,6 +38,6 @@ mio = { workspace = true }
 anyhow = { workspace = true }
 
 [dev-dependencies]
-criterion = "0.4.0"
-test_bin = "0.4.0"
+criterion = { workspace = true }
+test_bin = { workspace = true }
 stacker = { workspace = true }
