@@ -14,30 +14,6 @@ name = "handshake"
 harness = false
 
 [dependencies]
-<<<<<<< Updated upstream
-rosenpass-util = { workspace = true }
-rosenpass-constant-time = { workspace = true }
-rosenpass-sodium = { workspace = true }
-rosenpass-ciphers = { workspace = true }
-rosenpass-to = { workspace = true }
-anyhow = { workspace = true }
-static_assertions = { workspace = true }
-memoffset = { workspace = true }
-libsodium-sys-stable = { workspace = true }
-oqs-sys = { workspace = true }
-lazy_static = { workspace = true }
-thiserror = { workspace = true }
-paste = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
-clap = { workspace = true }
-mio = { workspace = true }
-
-[build-dependencies]
-anyhow = { workspace = true }
-=======
 rosenpass-util = { path = "../util" }
 rosenpass-constant-time = { path = "../constant-time" }
 rosenpass-sodium = { path = "../sodium" }
@@ -57,7 +33,6 @@ toml = "0.7.4"
 clap = { version = "4.3.0", features = ["derive"] }
 mio = { version = "0.8.6", features = ["net", "os-poll"] }
 [build-dependencies]
->>>>>>> Stashed changes
 
 [dev-dependencies]
 criterion = { workspace = true }
