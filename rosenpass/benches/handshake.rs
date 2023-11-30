@@ -1,10 +1,26 @@
-use anyhow::Result;
+use thiserror::Error;
 use rosenpass::pqkem::KEM;
 use rosenpass::{
     pqkem::StaticKEM,
     protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
     sodium::sodium_init,
 };
+
+use log::{error, info};
+
+#[derive(Debug, Error)]
+enum MyError {
+    #[error("CryptoServer error: {0}")]
+    CryptoServerError(#[from] rosenpass::Error),
+}
+
+impl From<std::io::Error> for MyError {
+    fn from(error: std::io::Error) -> Self {
+        Self::CryptoServerError(error.into())
+    }
+}
+
+type Result<T> = std::result::Result<T, MyError>;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -77,7 +93,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
     c.bench_function("handshake", |bench| {
         bench.iter(|| {
-            hs(black_box(&mut a), black_box(&mut b)).unwrap();
+            if let Err(err) = hs(black_box(&mut a), black_box(&mut b)) {
+                error!("Handshake error: {:?}", err);
+            }
         })
     });
 }

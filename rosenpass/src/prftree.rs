@@ -1,9 +1,18 @@
 //! Implementation of the tree-like structure used for the label derivation in [labeled_prf](crate::labeled_prf)
 use crate::coloring::Secret;
-
-use anyhow::Result;
+use log::{error, log_enabled, Level};
+use rosenpass_ciphers::hash::HashError;
 use rosenpass_ciphers::{hash, KEY_LEN};
 use rosenpass_to::To;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PrfTreeError {
+    #[error("Error hashing data")]
+    HashError,
+    #[error("Logging is disabled")]
+    LoggingDisabled,
+}
 
 // TODO Use a proper Dec interface
 #[derive(Clone, Debug)]
@@ -29,11 +38,20 @@ impl PrfTree {
     }
 
     // TODO: Protocol! Use domain separation to ensure that
-    pub fn mix(self, v: &[u8]) -> Result<Self> {
-        Ok(Self(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
+    pub fn mix(self, v: &[u8]) -> Result<Self, PrfTreeError> {
+        if !log_enabled!(Level::Error) {
+            // Skip unnecessary computation if error logging is not enabled
+            return Err(PrfTreeError::LoggingDisabled);
+        }
+
+        let result = hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>().map_err(|e| {
+            error!("Error hashing data: {}", e);
+            PrfTreeError::HashError
+        })?;
+        Ok(Self(result))
     }
 
-    pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretPrfTree> {
+    pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretPrfTree, PrfTreeError> {
         SecretPrfTree::prf_invoc(&self.0, v.secret())
     }
 
@@ -43,19 +61,28 @@ impl PrfTree {
 }
 
 impl PrfTreeBranch {
-    pub fn mix(&self, v: &[u8]) -> Result<PrfTree> {
-        Ok(PrfTree(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
+    pub fn mix(&self, v: &[u8]) -> Result<PrfTree, PrfTreeError> {
+        hash::hash(&self.0, v)
+            .collect::<[u8; KEY_LEN]>()
+            .map_err(|e| {
+                error!("Error hashing data: {}", e);
+                PrfTreeError::HashError
+            })
+            .map(PrfTree)
     }
 
-    pub fn mix_secret<const N: usize>(&self, v: Secret<N>) -> Result<SecretPrfTree> {
+    pub fn mix_secret<const N: usize>(&self, v: Secret<N>) -> Result<SecretPrfTree, PrfTreeError> {
         SecretPrfTree::prf_invoc(&self.0, v.secret())
     }
 }
 
 impl SecretPrfTree {
-    pub fn prf_invoc(k: &[u8], d: &[u8]) -> Result<SecretPrfTree> {
+    pub fn prf_invoc(k: &[u8], d: &[u8]) -> Result<SecretPrfTree, PrfTreeError> {
         let mut r = SecretPrfTree(Secret::zero());
-        hash::hash(k, d).to(r.0.secret_mut())?;
+        hash::hash(k, d).to(r.0.secret_mut()).map_err(|e| {
+            error!("Error hashing data: {}", e);
+            PrfTreeError::HashError
+        })?;
         Ok(r)
     }
 
@@ -71,11 +98,11 @@ impl SecretPrfTree {
         Self(k)
     }
 
-    pub fn mix(self, v: &[u8]) -> Result<SecretPrfTree> {
+    pub fn mix(self, v: &[u8]) -> Result<SecretPrfTree, PrfTreeError> {
         Self::prf_invoc(self.0.secret(), v)
     }
 
-    pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretPrfTree> {
+    pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretPrfTree, PrfTreeError> {
         Self::prf_invoc(self.0.secret(), v.secret())
     }
 
@@ -83,17 +110,20 @@ impl SecretPrfTree {
         self.0
     }
 
-    pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
-        hash::hash(v, dst).to(self.0.secret_mut())
+    pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<(), PrfTreeError> {
+        hash::hash(v, dst).to(self.0.secret_mut()).map_err(|e| {
+            error!("Error hashing data: {}", e);
+            PrfTreeError::HashError
+        })
     }
 }
 
 impl SecretPrfTreeBranch {
-    pub fn mix(&self, v: &[u8]) -> Result<SecretPrfTree> {
+    pub fn mix(&self, v: &[u8]) -> Result<SecretPrfTree, PrfTreeError> {
         SecretPrfTree::prf_invoc(self.0.secret(), v)
     }
 
-    pub fn mix_secret<const N: usize>(&self, v: Secret<N>) -> Result<SecretPrfTree> {
+    pub fn mix_secret<const N: usize>(&self, v: Secret<N>) -> Result<SecretPrfTree, PrfTreeError> {
         SecretPrfTree::prf_invoc(self.0.secret(), v.secret())
     }
 

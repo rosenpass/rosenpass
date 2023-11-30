@@ -10,9 +10,19 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
 [dependencies]
+<<<<<<< Updated upstream
 anyhow = { workspace = true }
 rosenpass-sodium = { workspace = true }
 rosenpass-to = { workspace = true }
 rosenpass-constant-time = { workspace = true }
 static_assertions = { workspace = true }
 zeroize = { workspace = true }
+=======
+log = "0.4.14"
+thiserror = "1.0.31"
+rosenpass-sodium = { path = "../sodium" }
+rosenpass-to = { path = "../to" }
+rosenpass-constant-time = { path = "../constant-time" }
+static_assertions = "1.1.0"
+zeroize = "1.7.0"
+>>>>>>> Stashed changes
