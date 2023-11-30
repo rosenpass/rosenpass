@@ -12,6 +12,6 @@ readme = "readme.md"
 [dependencies]
 rosenpass-util = { path = "../util" }
 rosenpass-to = { path = "../to" }
-anyhow = { version = "1.0.71", features = ["backtrace"] }
-libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
-log = { version = "0.4.17" }
+anyhow = { workspace = true, features = ["backtrace"] }
+libsodium-sys-stable = { workspace = true, features = ["use-pkg-config"] }
+log = { workspace = true }
