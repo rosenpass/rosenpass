@@ -67,13 +67,9 @@
 //! # }
 //! ```
 
-use crate::{
-    labeled_prf as lprf,
-    msgs::*,
-    pqkem::*,
-    prftree::{SecretPrfTree, SecretPrfTreeBranch},
-};
+use crate::{hash_domains, msgs::*, pqkem::*};
 use anyhow::{bail, ensure, Context, Result};
+use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
@@ -233,7 +229,7 @@ pub struct HandshakeState {
     /// Session ID of Responder
     pub sidr: SessionId,
     /// Chaining Key
-    pub ck: SecretPrfTreeBranch,
+    pub ck: SecretHashDomainNamespace, // TODO: We should probably add an abstr
 }
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
@@ -285,7 +281,7 @@ pub struct Session {
     pub sidt: SessionId,
     pub handshake_role: HandshakeRole,
     // Crypto
-    pub ck: SecretPrfTreeBranch,
+    pub ck: SecretHashDomainNamespace,
     /// Key for Transmission ("transmission key mine")
     pub txkm: SymKey,
     /// Key for Reception ("transmission key theirs")
@@ -460,7 +456,7 @@ impl CryptoServer {
     #[rustfmt::skip]
     pub fn pidm(&self) -> Result<PeerId> {
         Ok(Public::new(
-            lprf::peerid()?
+            hash_domains::peerid()?
                 .mix(self.spkm.secret())?
                 .into_value()))
     }
@@ -590,7 +586,7 @@ impl Peer {
     #[rustfmt::skip]
     pub fn pidt(&self) -> Result<PeerId> {
         Ok(Public::new(
-            lprf::peerid()?
+            hash_domains::peerid()?
                 .mix(self.spkt.secret())?
                 .into_value()))
     }
@@ -603,7 +599,7 @@ impl Session {
             sidm: SessionId::zero(),
             sidt: SessionId::zero(),
             handshake_role: HandshakeRole::Initiator,
-            ck: SecretPrfTree::zero().dup(),
+            ck: SecretHashDomain::zero().dup(),
             txkm: SymKey::zero(),
             txkt: SymKey::zero(),
             txnm: 0,
@@ -1174,7 +1170,7 @@ where
 {
     /// Calculate the message authentication code (`mac`)
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        let mac = lprf::mac()?
+        let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(self.until_mac())?;
         self.mac_mut()
@@ -1189,7 +1185,9 @@ where
 {
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
-        let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
+        let expected = hash_domains::mac()?
+            .mix(srv.spkm.secret())?
+            .mix(self.until_mac())?;
         Ok(rosenpass_sodium::helpers::memcmp(
             self.mac(),
             &expected.into_value()[..16],
@@ -1219,32 +1217,32 @@ impl HandshakeState {
         Self {
             sidi: SessionId::zero(),
             sidr: SessionId::zero(),
-            ck: SecretPrfTree::zero().dup(),
+            ck: SecretHashDomain::zero().dup(),
         }
     }
 
     pub fn erase(&mut self) {
-        self.ck = SecretPrfTree::zero().dup();
+        self.ck = SecretHashDomain::zero().dup();
     }
 
     pub fn init(&mut self, spkr: &[u8]) -> Result<&mut Self> {
-        self.ck = lprf::ckinit()?.mix(spkr)?.into_secret_prf_tree().dup();
+        self.ck = hash_domains::ckinit()?.turn_secret().mix(spkr)?.dup();
         Ok(self)
     }
 
     pub fn mix(&mut self, a: &[u8]) -> Result<&mut Self> {
-        self.ck = self.ck.mix(&lprf::mix()?)?.mix(a)?.dup();
+        self.ck = self.ck.mix(&hash_domains::mix()?)?.mix(a)?.dup();
         Ok(self)
     }
 
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
+        let k = self.ck.mix(&hash_domains::hs_enc()?)?.into_secret();
         aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
+        let k = self.ck.mix(&hash_domains::hs_enc()?)?.into_secret();
         aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
@@ -1290,7 +1288,7 @@ impl HandshakeState {
             .copy_from_slice(self.ck.clone().danger_into_secret().secret());
 
         // calculate ad contents
-        let ad = lprf::biscuit_ad()?
+        let ad = hash_domains::biscuit_ad()?
             .mix(srv.spkm.secret())?
             .mix(self.sidi.as_slice())?
             .mix(self.sidr.as_slice())?
@@ -1325,7 +1323,7 @@ impl HandshakeState {
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
 
         // Calculate additional data fields
-        let ad = lprf::biscuit_ad()?
+        let ad = hash_domains::biscuit_ad()?
             .mix(srv.spkm.secret())?
             .mix(sidi.as_slice())?
             .mix(sidr.as_slice())?
@@ -1343,7 +1341,7 @@ impl HandshakeState {
 
         // Reconstruct the biscuit fields
         let no = BiscuitId::from_slice(biscuit.biscuit_no());
-        let ck = SecretPrfTree::danger_from_secret(Secret::from_slice(biscuit.ck())).dup();
+        let ck = SecretHashDomain::danger_from_secret(Secret::from_slice(biscuit.ck())).dup();
         let pid = PeerId::from_slice(biscuit.pidi());
 
         // Reconstruct the handshake state
@@ -1370,8 +1368,8 @@ impl HandshakeState {
 
     pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole) -> Result<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
-        let tki = ck.mix(&lprf::ini_enc()?)?.into_secret();
-        let tkr = ck.mix(&lprf::res_enc()?)?.into_secret();
+        let tki = ck.mix(&hash_domains::ini_enc()?)?.into_secret();
+        let tkr = ck.mix(&hash_domains::res_enc()?)?.into_secret();
         let created_at = srv.timebase.now();
         let (ntx, nrx) = (0, 0);
         let (mysid, peersid, ktx, krx) = match role {
@@ -1402,7 +1400,7 @@ impl CryptoServer {
             .get(self)
             .as_ref()
             .with_context(|| format!("No current session for peer {:?}", peer))?;
-        Ok(session.ck.mix(&lprf::osk()?)?.into_secret())
+        Ok(session.ck.mix(&hash_domains::osk()?)?.into_secret())
     }
 }
 

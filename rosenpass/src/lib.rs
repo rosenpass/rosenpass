@@ -1,11 +1,9 @@
-#[rustfmt::skip]
-pub mod labeled_prf;
 pub mod app_server;
 pub mod cli;
 pub mod config;
+pub mod hash_domains;
 pub mod msgs;
 pub mod pqkem;
-pub mod prftree;
 pub mod protocol;
 
 #[derive(thiserror::Error, Debug)]
