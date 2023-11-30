@@ -1,4 +1,5 @@
 use crate::debug::debug_crypto_array;
+use rand::{Fill as Randomize, Rng};
 use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::file::{fopen_r, LoadValue, ReadExactToEnd, StoreValue};
 use rosenpass_util::functional::mutating;
@@ -39,7 +40,13 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public]
     pub fn randomize(&mut self) {
-        rosenpass_sodium::helpers::randombytes_buf(&mut self.value);
+        self.try_fill(&mut crate::rand::rng()).unwrap()
+    }
+}
+
+impl<const N: usize> Randomize for Public<N> {
+    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
+        self.value.try_fill(rng)
     }
 }
 

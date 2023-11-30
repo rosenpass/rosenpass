@@ -1150,7 +1150,7 @@ impl IniHsPtr {
                         .min(ih.tx_count as f64),
                 )
                 * RETRANSMIT_DELAY_JITTER
-                * (rosenpass_sodium::helpers::rand_f64() + 1.0); // TODO: Replace with the rand crate
+                * (rand::random::<f64>() + 1.0); // TODO: Replace with the rand crate
         ih.tx_count += 1;
         Ok(())
     }

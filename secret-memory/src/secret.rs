@@ -1,16 +1,15 @@
+use crate::file::StoreSecret;
 use anyhow::Context;
 use lazy_static::lazy_static;
+use rand::{Fill as Randomize, Rng};
 use rosenpass_sodium::alloc::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
 use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
     functional::mutating,
 };
-use zeroize::{Zeroize, ZeroizeOnDrop};
-
 use std::{collections::HashMap, convert::TryInto, fmt, path::Path, sync::Mutex};
-
-use crate::file::StoreSecret;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
@@ -94,7 +93,7 @@ impl<const N: usize> Secret<N> {
 
     /// Sets all data an existing secret to random bytes
     pub fn randomize(&mut self) {
-        rosenpass_sodium::helpers::randombytes_buf(self.secret_mut());
+        self.try_fill(&mut crate::rand::rng()).unwrap()
     }
 
     /// Borrows the data
@@ -112,6 +111,16 @@ impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
 impl<const N: usize> Zeroize for Secret<N> {
     fn zeroize(&mut self) {
         self.secret_mut().zeroize();
+    }
+}
+
+impl<const N: usize> Randomize for Secret<N> {
+    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
+        // Zeroize self first just to make sure the barriers from the zeroize create take
+        // effect to prevent the compiler from optimizing this away.
+        // We should at some point replace this with our own barriers.
+        self.zeroize();
+        self.secret_mut().try_fill(rng)
     }
 }
 
