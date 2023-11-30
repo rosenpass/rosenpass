@@ -32,11 +32,6 @@ pub fn randombytes_buf(buf: &mut [u8]) {
     unsafe { libsodium::randombytes_buf(buf.as_mut_ptr() as *mut c_void, buf.len()) };
 }
 
-#[inline]
-pub fn memzero(buf: &mut [u8]) {
-    unsafe { libsodium::sodium_memzero(buf.as_mut_ptr() as *mut c_void, buf.len()) };
-}
-
 // Choose a fully random u64
 // TODO: Replace with ::rand::random
 pub fn rand_u64() -> u64 {

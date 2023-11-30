@@ -6,6 +6,7 @@ use rosenpass_util::{
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
     functional::mutating,
 };
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use std::{
     collections::HashMap, convert::TryInto, fmt, os::raw::c_void, path::Path, ptr::null_mut,
@@ -74,7 +75,7 @@ impl SecretMemoryPool {
     ///
     /// # Safety
     ///
-    /// This function contains an unsafe call to [libsodium::sodium_malloc].
+    /// This function contains an unsafe call to [libsodium_sys::sodium_malloc].
     /// This call has no known safety invariants, thus nothing can go wrong™.
     /// However, just like normal `malloc()` this can return a null ptr. Thus
     /// the returned pointer is checked for null; causing the program to panic
@@ -100,8 +101,8 @@ impl Drop for SecretMemoryPool {
     /// # Safety
     ///
     /// The drop implementation frees the contained elements using
-    /// [libsodium::sodium_free]. This is safe as long as every `*mut c_void`
-    /// contained was initialized with a call to [libsodium::sodium_malloc]
+    /// [libsodium_sys::sodium_free]. This is safe as long as every `*mut c_void`
+    /// contained was initialized with a call to [libsodium_sys::sodium_malloc]
     fn drop(&mut self) {
         for ptr in self.pool.drain().flat_map(|(_, x)| x.into_iter()) {
             unsafe {
@@ -119,7 +120,7 @@ unsafe impl Send for SecretMemoryPool {}
 
 /// Store for a secret
 ///
-/// Uses memory allocated with [libsodium::sodium_malloc],
+/// Uses memory allocated with [libsodium_sys::sodium_malloc],
 /// esentially can do the same things as `[u8; N].as_mut_ptr()`.
 pub struct Secret<const N: usize> {
     ptr: *mut c_void,
@@ -164,11 +165,6 @@ impl<const N: usize> Secret<N> {
         mutating(Self::zero(), |r| r.randomize())
     }
 
-    /// Sets all data of an existing secret to null bytes
-    pub fn zeroize(&mut self) {
-        rosenpass_sodium::helpers::memzero(self.secret_mut());
-    }
-
     /// Sets all data an existing secret to random bytes
     pub fn randomize(&mut self) {
         rosenpass_sodium::helpers::randombytes_buf(self.secret_mut());
@@ -201,6 +197,13 @@ impl<const N: usize> Secret<N> {
 impl<const N: usize> fmt::Debug for Secret<N> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str("<SECRET>")
+    }
+}
+
+impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
+impl<const N: usize> Zeroize for Secret<N> {
+    fn zeroize(&mut self) {
+        self.secret_mut().zeroize();
     }
 }
 
