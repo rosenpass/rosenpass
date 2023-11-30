@@ -16,5 +16,6 @@ pub fn init() -> anyhow::Result<()> {
 }
 
 pub mod aead;
+pub mod alloc;
 pub mod hash;
 pub mod helpers;

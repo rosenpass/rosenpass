@@ -1,6 +1,6 @@
 use anyhow::Context;
 use lazy_static::lazy_static;
-use libsodium_sys as libsodium;
+use rosenpass_sodium::alloc::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
 use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
@@ -8,10 +8,7 @@ use rosenpass_util::{
 };
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use std::{
-    collections::HashMap, convert::TryInto, fmt, os::raw::c_void, path::Path, ptr::null_mut,
-    sync::Mutex,
-};
+use std::{collections::HashMap, convert::TryInto, fmt, path::Path, sync::Mutex};
 
 use crate::file::StoreSecret;
 
@@ -32,116 +29,46 @@ lazy_static! {
 /// [libsodium documentation](https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations)
 #[derive(Debug)] // TODO check on Debug derive, is that clever
 struct SecretMemoryPool {
-    pool: HashMap<usize, Vec<*mut c_void>>,
+    pool: HashMap<usize, Vec<SodiumBox<[u8]>>>,
 }
 
 impl SecretMemoryPool {
     /// Create a new [SecretMemoryPool]
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let pool = HashMap::new();
-
-        Self { pool }
-    }
-
-    /// Return secrete back to the pool for future re-use
-    ///
-    /// This consumes the [Secret], but its memory is re-used.
-    #[allow(dead_code)]
-    pub fn release<const N: usize>(&mut self, mut s: Secret<N>) {
-        unsafe {
-            self.release_by_ref(&mut s);
+        Self {
+            pool: HashMap::new(),
         }
-        std::mem::forget(s);
     }
 
-    /// Return secret back to the pool for future re-use, by slice
-    ///
-    /// # Safety
-    ///
-    /// After calling this function on a [Secret], the secret must never be
-    /// used again for anything.
-    unsafe fn release_by_ref<const N: usize>(&mut self, s: &mut Secret<N>) {
-        s.zeroize();
-        let Secret { ptr: secret } = s;
-        // don't call Secret::drop, that could cause a double free
-        self.pool.entry(N).or_default().push(*secret);
+    /// Return secret back to the pool for future re-use
+    pub fn release<const N: usize>(&mut self, mut sec: SodiumBox<[u8; N]>) {
+        sec.zeroize();
+
+        // This conversion sequence is weird but at least it guarantees
+        // that the heap allocation is preserved according to the docs
+        let sec: SodiumVec<u8> = sec.into();
+        let sec: SodiumBox<[u8]> = sec.into();
+
+        self.pool.entry(N).or_default().push(sec);
     }
 
     /// Take protected memory from the pool, allocating new one if no suitable
     /// chunk is found in the inventory.
     ///
     /// The secret is guaranteed to be full of nullbytes
-    ///
-    /// # Safety
-    ///
-    /// This function contains an unsafe call to [libsodium_sys::sodium_malloc].
-    /// This call has no known safety invariants, thus nothing can go wrong™.
-    /// However, just like normal `malloc()` this can return a null ptr. Thus
-    /// the returned pointer is checked for null; causing the program to panic
-    /// if it is null.
-    pub fn take<const N: usize>(&mut self) -> Secret<N> {
+    pub fn take<const N: usize>(&mut self) -> SodiumBox<[u8; N]> {
         let entry = self.pool.entry(N).or_default();
-        let secret = entry.pop().unwrap_or_else(|| {
-            let ptr = unsafe { libsodium::sodium_malloc(N) };
-            assert!(
-                !ptr.is_null(),
-                "libsodium::sodium_mallloc() returned a null ptr"
-            );
-            ptr
-        });
-
-        let mut s = Secret { ptr: secret };
-        s.zeroize();
-        s
-    }
-}
-
-impl Drop for SecretMemoryPool {
-    /// # Safety
-    ///
-    /// The drop implementation frees the contained elements using
-    /// [libsodium_sys::sodium_free]. This is safe as long as every `*mut c_void`
-    /// contained was initialized with a call to [libsodium_sys::sodium_malloc]
-    fn drop(&mut self) {
-        for ptr in self.pool.drain().flat_map(|(_, x)| x.into_iter()) {
-            unsafe {
-                libsodium::sodium_free(ptr);
-            }
+        match entry.pop() {
+            None => SodiumBox::new_in([0u8; N], SodiumAlloc::default()),
+            Some(sec) => sec.try_into().unwrap(),
         }
     }
 }
 
-/// # Safety
-///
-/// No safety implications are known, since the `*mut c_void` in
-/// is essentially used like a `&mut u8` [SecretMemoryPool].
-unsafe impl Send for SecretMemoryPool {}
-
-/// Store for a secret
-///
-/// Uses memory allocated with [libsodium_sys::sodium_malloc],
-/// esentially can do the same things as `[u8; N].as_mut_ptr()`.
+/// Storeage for a secret backed by [rosenpass_sodium::alloc::Alloc]
 pub struct Secret<const N: usize> {
-    ptr: *mut c_void,
-}
-
-impl<const N: usize> Clone for Secret<N> {
-    fn clone(&self) -> Self {
-        let mut new = Self::zero();
-        new.secret_mut().clone_from_slice(self.secret());
-        new
-    }
-}
-
-impl<const N: usize> Drop for Secret<N> {
-    fn drop(&mut self) {
-        self.zeroize();
-        // the invariant that the [Secret] is not used after the
-        // `release_by_ref` call is guaranteed, since this is a drop implementation
-        unsafe { SECRET_CACHE.lock().unwrap().release_by_ref(self) };
-        self.ptr = null_mut();
-    }
+    storage: Option<SodiumBox<[u8; N]>>,
 }
 
 impl<const N: usize> Secret<N> {
@@ -155,9 +82,9 @@ impl<const N: usize> Secret<N> {
     pub fn zero() -> Self {
         // Using [SecretMemoryPool] here because this operation is expensive,
         // yet it is used in hot loops
-        let s = SECRET_CACHE.lock().unwrap().take();
-        assert_eq!(s.secret(), &[0u8; N]);
-        s
+        Self {
+            storage: Some(SECRET_CACHE.lock().unwrap().take()),
+        }
     }
 
     /// Returns a new [Secret] that is randomized
@@ -172,23 +99,33 @@ impl<const N: usize> Secret<N> {
 
     /// Borrows the data
     pub fn secret(&self) -> &[u8; N] {
-        // - calling `from_raw_parts` is safe, because `ptr` is initalized with
-        //   as `N` byte allocation from the creation of `Secret` onwards. `ptr`
-        //   stays valid over the full lifetime of `Secret`
-        //
-        // - calling uwnrap is safe, because we can guarantee that the slice has
-        //   exactly the required size `N` to create an array of `N` elements.
-        let ptr = self.ptr as *const u8;
-        let slice = unsafe { std::slice::from_raw_parts(ptr, N) };
-        slice.try_into().unwrap()
+        self.storage.as_ref().unwrap()
     }
 
     /// Borrows the data mutably
     pub fn secret_mut(&mut self) -> &mut [u8; N] {
-        // the same safety argument as for `secret()` holds
-        let ptr = self.ptr as *mut u8;
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, N) };
-        slice.try_into().unwrap()
+        self.storage.as_mut().unwrap()
+    }
+}
+
+impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
+impl<const N: usize> Zeroize for Secret<N> {
+    fn zeroize(&mut self) {
+        self.secret_mut().zeroize();
+    }
+}
+
+impl<const N: usize> Drop for Secret<N> {
+    fn drop(&mut self) {
+        self.storage
+            .take()
+            .map(|sec| SECRET_CACHE.lock().unwrap().release(sec));
+    }
+}
+
+impl<const N: usize> Clone for Secret<N> {
+    fn clone(&self) -> Self {
+        Self::from_slice(self.secret())
     }
 }
 
@@ -197,13 +134,6 @@ impl<const N: usize> Secret<N> {
 impl<const N: usize> fmt::Debug for Secret<N> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str("<SECRET>")
-    }
-}
-
-impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
-impl<const N: usize> Zeroize for Secret<N> {
-    fn zeroize(&mut self) {
-        self.secret_mut().zeroize();
     }
 }
 
@@ -255,72 +185,44 @@ impl<const N: usize> StoreSecret for Secret<N> {
 mod test {
     use super::*;
 
-    /// https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations
-    /// promises us that allocated memory is initialized with this magic byte
-    const SODIUM_MAGIC_BYTE: u8 = 0xdb;
-
-    /// must be called before any interaction with libsodium
-    fn init() {
-        unsafe { libsodium_sys::sodium_init() };
-    }
-
-    /// checks that whe can malloc with libsodium
-    #[test]
-    fn sodium_malloc() {
-        init();
-        const N: usize = 8;
-        let ptr = unsafe { libsodium_sys::sodium_malloc(N) };
-        let mem = unsafe { std::slice::from_raw_parts(ptr as *mut u8, N) };
-        assert_eq!(mem, &[SODIUM_MAGIC_BYTE; N])
-    }
-
-    /// checks that whe can free with libsodium
-    #[test]
-    fn sodium_free() {
-        init();
-        const N: usize = 8;
-        let ptr = unsafe { libsodium_sys::sodium_malloc(N) };
-        unsafe { libsodium_sys::sodium_free(ptr) }
-    }
-
     /// check that we can alloc using the magic pool
     #[test]
     fn secret_memory_pool_take() {
-        init();
+        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: Secret<N> = pool.take();
-        assert_eq!(secret.secret(), &[0; N]);
+        let secret: SodiumBox<[u8; N]> = pool.take();
+        assert_eq!(secret.as_ref(), &[0; N]);
     }
 
     /// check that a secrete lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
-        init();
+        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: Secret<N> = pool.take();
+        let secret: SodiumBox<[u8; N]> = pool.take();
         std::mem::drop(pool);
-        assert_eq!(secret.secret(), &[0; N]);
+        assert_eq!(secret.as_ref(), &[0; N]);
     }
 
     /// check that a secrete can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
-        init();
+        rosenpass_sodium::init().unwrap();
         const N: usize = 1;
         let mut pool = SecretMemoryPool::new();
-        let mut secret: Secret<N> = pool.take();
-        let old_secret_ptr = secret.ptr;
+        let mut secret: SodiumBox<[u8; N]> = pool.take();
+        let old_secret_ptr = secret.as_ref().as_ptr();
 
-        secret.secret_mut()[0] = 0x13;
+        secret.as_mut()[0] = 0x13;
         pool.release(secret);
 
         // now check that we get the same ptr
-        let new_secret: Secret<N> = pool.take();
-        assert_eq!(old_secret_ptr, new_secret.ptr);
+        let new_secret: SodiumBox<[u8; N]> = pool.take();
+        assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
 
         // and that the secret was zeroized
-        assert_eq!(new_secret.secret(), &[0; N]);
+        assert_eq!(new_secret.as_ref(), &[0; N]);
     }
 }
