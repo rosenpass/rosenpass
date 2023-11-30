@@ -1,10 +1,26 @@
-use anyhow::Result;
+use thiserror::Error;
 use rosenpass::pqkem::KEM;
 use rosenpass::{
     pqkem::StaticKEM,
     protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
     sodium::sodium_init,
 };
+
+use log::{error, info};
+
+#[derive(Debug, Error)]
+enum CryptoError {
+    #[error("CryptoServer error: {0}")]
+    CryptoServerError(#[from] rosenpass::Error),
+}
+
+impl From<std::io::Error> for CryptoError {
+    fn from(error: std::io::Error) -> Self {
+        Self::CryptoServerError(error.into())
+    }
+}
+
+type Result<T> = std::result::Result<T, CryptoError>;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 

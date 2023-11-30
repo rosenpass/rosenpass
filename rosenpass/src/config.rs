@@ -6,9 +6,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, ensure};
+
 use rosenpass_util::file::fopen_w;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use log::{error, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
@@ -59,11 +61,29 @@ pub struct WireGuard {
     pub extra_params: Vec<String>,
 }
 
+#[derive(Error, Debug)]
+pub enum MyValidationError {
+    #[error("Validation failed: {0}")]
+    ValidationFailed(String),
+}
+
+#[derive(Error, Debug)]
+pub enum RosenpassError {
+    #[error("Failed to read config file: {0}")]
+    ReadConfigError(#[from] std::io::Error),
+    #[error("Failed to parse config file: {0}")]
+    ParseConfigError(#[from] toml::de::Error),
+    #[error("Failed to write config file: {0}")]
+    WriteConfigError(#[from] std::io::Error),
+    #[error("Failed to validate config: {0}")]
+    ValidationFailedError(#[from] MyValidationError),
+}
+
 impl Rosenpass {
     /// Load a config file from a file path
     ///
     /// no validation is conducted
-    pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
+    pub fn load<P: AsRef<Path>>(p: P) -> Result<Self, RosenpassError> {
         let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
 
         config.config_file_path = p.as_ref().to_owned();
@@ -71,59 +91,55 @@ impl Rosenpass {
     }
 
     /// Write a config to a file
-    pub fn store<P: AsRef<Path>>(&self, p: P) -> anyhow::Result<()> {
+    pub fn store<P: AsRef<Path>>(&self, p: P) -> Result<(), RosenpassError> {
         let serialized_config =
-            toml::to_string_pretty(&self).expect("unable to serialize the default config");
-        fs::write(p, serialized_config)?;
+            toml::to_string_pretty(&self).map_err(RosenpassError::WriteConfigError)?;
+        fs::write(p, serialized_config).map_err(RosenpassError::WriteConfigError)?;
         Ok(())
     }
 
     /// Commit the configuration to where it came from, overwriting the original file
-    pub fn commit(&self) -> anyhow::Result<()> {
+    pub fn commit(&self) -> Result<(), RosenpassError> {
         let mut f = fopen_w(&self.config_file_path)?;
-        f.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
-
-        self.store(&self.config_file_path)
+        f.write_all(toml::to_string_pretty(&self).map_err(RosenpassError::WriteConfigError)?.as_bytes())?;
+        self.store(&self.config_file_path)?;
+        Ok(())
     }
 
     /// Validate a configuration
-    pub fn validate(&self) -> anyhow::Result<()> {
+    pub fn validate(&self) -> Result<(), RosenpassError> {
         // check the public-key file exists
-        ensure!(
-            self.public_key.is_file(),
-            "public-key file {:?} does not exist",
-            self.public_key
-        );
-
+        if !self.public_key.is_file() {
+            let error_message = format!("public-key file {:?} does not exist", self.public_key);
+            return Err(RosenpassError::ValidationFailedError(MyValidationError::ValidationFailed(error_message)));
+        }
+    
         // check the secret-key file exists
-        ensure!(
-            self.secret_key.is_file(),
-            "secret-key file {:?} does not exist",
-            self.secret_key
-        );
-
+        if !self.secret_key.is_file() {
+            let error_message = format!("secret-key file {:?} does not exist", self.secret_key);
+            return Err(RosenpassError::ValidationFailedError(MyValidationError::ValidationFailed(error_message)));
+        }
+    
         for (i, peer) in self.peers.iter().enumerate() {
             // check peer's public-key file exists
-            ensure!(
-                peer.public_key.is_file(),
-                "peer {i} public-key file {:?} does not exist",
-                peer.public_key
-            );
-
+            if !peer.public_key.is_file() {
+                let error_message = format!("peer {} public-key file {:?} does not exist", i, peer.public_key);
+                return Err(RosenpassError::ValidationFailedError(MyValidationError::ValidationFailed(error_message)));
+            }
+    
             // check endpoint is usable
             if let Some(addr) = peer.endpoint.as_ref() {
-                ensure!(
-                    addr.to_socket_addrs().is_ok(),
-                    "peer {i} endpoint {} can not be parsed to a socket address",
-                    addr
-                );
+                if let Err(err) = addr.to_socket_addrs() {
+                    warn!("peer {} endpoint {} can not be parsed to a socket address: {}", i, addr, err);
+                }
             }
-
-            // TODO warn if neither out_key nor exchange_command is defined
+    
+            // TODO: Add warning logic for neither out_key nor exchange_command defined
         }
-
+    
         Ok(())
     }
+    
 
     /// Creates a new configuration
     pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(public_key: P1, secret_key: P2) -> Self {
@@ -152,7 +168,7 @@ impl Rosenpass {
 
     /// from chaotic args
     /// Quest: the grammar is undecideable, what do we do here?
-    pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
+    pub fn parse_args(args: Vec<String>) -> Result<Self, RosenpassError> {
         let mut config = Self::new("", "");
 
         #[derive(Debug, Hash, PartialEq, Eq)]

@@ -74,13 +74,26 @@ use crate::{
     pqkem::*,
     prftree::{SecretPrfTree, SecretPrfTreeBranch},
 };
-use anyhow::{bail, ensure, Context, Result};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
+
+use log::{error};
+use thiserror::Error;
+
+
+#[derive(Error, Debug)]
+enum CryptoServerError {
+    #[error("An error occurred: {0}")]
+    CustomError(String),
+    // Add more error variants as needed
+}
+
+type CryptoServerResult<T> = Result<T, CryptoServerError>;
+
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -377,7 +390,7 @@ impl IniHsPtr {
         &self,
         srv: &'a mut CryptoServer,
         hs: InitiatorHandshake,
-    ) -> Result<&'a mut InitiatorHandshake> {
+    ) -> CryptoServerResult<&'a mut InitiatorHandshake> {
         srv.register_session(hs.core.sidi, self.peer())?;
         self.take(srv);
         self.peer().get_mut(srv).initiation_requested = false;
@@ -406,7 +419,7 @@ impl SessionPtr {
         PeerPtr(self.0)
     }
 
-    pub fn insert<'a>(&self, srv: &'a mut CryptoServer, ses: Session) -> Result<&'a mut Session> {
+    pub fn insert<'a>(&self, srv: &'a mut CryptoServer, ses: Session) -> CryptoServerResult<&'a mut Session> {
         self.take(srv);
         srv.register_session(ses.sidm, self.peer())?;
         Ok(self.peer().get_mut(srv).session.insert(ses))
@@ -458,7 +471,7 @@ impl CryptoServer {
     }
 
     #[rustfmt::skip]
-    pub fn pidm(&self) -> Result<PeerId> {
+    pub fn pidm(&self) -> CryptoServerResult<PeerId> {
         Ok(Public::new(
             lprf::peerid()?
                 .mix(self.spkm.secret())?
@@ -474,7 +487,7 @@ impl CryptoServer {
     }
 
     /// Add a peer with an optional pre shared key (`psk`) and its public key (`pk`)
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> Result<PeerPtr> {
+    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> CryptoServerResult<PeerPtr> {
         let peer = Peer {
             psk: psk.unwrap_or_else(SymKey::zero),
             spkt: pk,
@@ -486,10 +499,11 @@ impl CryptoServer {
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
         match self.index.entry(IndexKey::Peer(peerid)) {
-            Occupied(_) => bail!(
+            Occupied(_) => 
+            return Err(CryptoServerError::CustomError(format!(
                 "Cannot insert peer with id {:?}; peer with this id already registered.",
                 peerid
-            ),
+            )));
             Vacant(e) => e.insert(peerno),
         };
         self.peers.push(peer);
@@ -498,10 +512,13 @@ impl CryptoServer {
 
     /// Register a new session (during a successful handshake, persisting longer
     /// than the handshake). Might return an error on session id collision
-    pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> Result<()> {
+    pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> CryptoServerResult<()> {
         match self.index.entry(IndexKey::Sid(id)) {
             Occupied(p) if PeerPtr(*p.get()) == peer => {} // Already registered
-            Occupied(_) => bail!("Cannot insert session with id {:?}; id is in use.", id),
+            Occupied(_) => 
+            return Err(CryptoServerError::CustomError(format!(
+                "Cannot insert session with id {:?}; id is in use.", id
+            ))),
             Vacant(e) => {
                 e.insert(peer.0);
             }
@@ -588,7 +605,7 @@ impl Peer {
     }
 
     #[rustfmt::skip]
-    pub fn pidt(&self) -> Result<PeerId> {
+    pub fn pidt(&self) -> CryptoServerResult<PeerId> {
         Ok(Public::new(
             lprf::peerid()?
                 .mix(self.spkt.secret())?
@@ -736,7 +753,7 @@ impl CryptoServer {
     // NOTE retransmission? yes if initiator, no if responder
     // TODO remove unnecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
-    pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
+    pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> CryptoServerResult<usize> {
         let mut msg = tx_buf.envelope_truncating::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
         self.handle_initiation(peer, msg.payload_mut().init_hello()?)?;
         let len = self.seal_and_commit_msg(peer, MsgType::InitHello, msg)?;
@@ -781,7 +798,7 @@ impl CryptoServer {
     /// | t1   |             | <-        | `RespHello` |
     /// | t2   | `InitConf`  | ->        |             |
     /// | t3   |             | <-        | `EmptyData` |
-    pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
+    pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> CryptoServerResult<HandleMsgResult> {
         let seal_broken = "Message seal broken!";
         // length of the response. We assume no response, so None for now
         let mut len = 0;
@@ -836,7 +853,10 @@ impl CryptoServer {
 
                 self.handle_resp_conf(msg_in.payload().empty_data()?)?
             }
-            Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
+            Ok(MsgType::DataMsg) =>
+            return Err(CryptoServerError::CustomError(format!(
+                "DataMsg handling not implemented!"
+            ))),
             Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
             Err(_) => {
                 bail!("CookieReply handling not implemented!")
@@ -859,7 +879,7 @@ impl CryptoServer {
         peer: PeerPtr,
         msg_type: MsgType,
         mut msg: Envelope<&mut [u8], M>,
-    ) -> Result<usize> {
+    ) -> CryptoServerResult<usize> {
         msg.msg_type_mut()[0] = msg_type as u8;
         msg.seal(peer, self)?;
         Ok(<Envelope<(), M> as LenseView>::LEN)
@@ -964,7 +984,7 @@ impl PollResult {
         }
     }
 
-    pub fn try_fold_with<F: FnOnce() -> Result<PollResult>>(&self, f: F) -> Result<PollResult> {
+    pub fn try_fold_with<F: FnOnce() -> CryptoServerResult<PollResult>>(&self, f: F) -> CryptoServerResult<PollResult> {
         if self.saturated() {
             Ok(*self)
         } else {
@@ -972,11 +992,11 @@ impl PollResult {
         }
     }
 
-    pub fn poll_child<P: Pollable>(&self, srv: &mut CryptoServer, p: &P) -> Result<PollResult> {
+    pub fn poll_child<P: Pollable>(&self, srv: &mut CryptoServer, p: &P) -> CryptoServerResult<PollResult> {
         self.try_fold_with(|| p.poll(srv))
     }
 
-    pub fn poll_children<P, I>(&self, srv: &mut CryptoServer, iter: I) -> Result<PollResult>
+    pub fn poll_children<P, I>(&self, srv: &mut CryptoServer, iter: I) -> CryptoServerResult<PollResult>
     where
         P: Pollable,
         I: Iterator<Item = P>,
@@ -1003,11 +1023,11 @@ impl PollResult {
         }
     }
 
-    pub fn try_sched<W: Into<Wait>, F: FnOnce() -> Result<PollResult>>(
+    pub fn try_sched<W: Into<Wait>, F: FnOnce() -> CryptoServerResult<PollResult>>(
         &self,
         wait: W,
         f: F,
-    ) -> Result<PollResult> {
+    ) -> CryptoServerResult<PollResult> {
         let wait = wait.into().0;
         if self.saturated() {
             Ok(*self)
@@ -1018,7 +1038,7 @@ impl PollResult {
         }
     }
 
-    pub fn ok(&self) -> Result<PollResult> {
+    pub fn ok(&self) -> CryptoServerResult<PollResult> {
         Ok(*self)
     }
 
@@ -1042,7 +1062,7 @@ pub fn void_poll<T, F: FnOnce() -> T>(f: F) -> impl FnOnce() -> PollResult {
 }
 
 pub trait Pollable {
-    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult>;
+    fn poll(&self, srv: &mut CryptoServer) -> CryptoServerResult<PollResult>;
 }
 
 impl CryptoServer {
@@ -1050,7 +1070,7 @@ impl CryptoServer {
     /// notable difference: since `self` already is the server, the signature
     /// has to be different; `self` must be a `&mut` and already is a borrow to
     /// the server, eluding the need for a second arg.
-    pub fn poll(&mut self) -> Result<PollResult> {
+    pub fn poll(&mut self) -> CryptoServerResult<PollResult> {
         let r = begin_poll() // Poll each biscuit and peer until an event is found
             .poll_children(self, self.biscuit_key_ptrs())?
             .poll_children(self, self.peer_ptrs_off(self.peer_poll_off))?;
@@ -1063,7 +1083,7 @@ impl CryptoServer {
 }
 
 impl Pollable for BiscuitKeyPtr {
-    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> CryptoServerResult<PollResult> {
         begin_poll()
             .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale biscuits
             .ok()
@@ -1071,7 +1091,7 @@ impl Pollable for BiscuitKeyPtr {
 }
 
 impl Pollable for PeerPtr {
-    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> CryptoServerResult<PollResult> {
         let (ses, hs) = (self.session(), self.hs());
         begin_poll()
             .sched(hs.life_left(srv), void_poll(|| hs.take(srv))) // Silently erase old handshakes
@@ -1099,7 +1119,7 @@ impl Pollable for PeerPtr {
 }
 
 impl Pollable for IniHsPtr {
-    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+    fn poll(&self, srv: &mut CryptoServer) -> CryptoServerResult<PollResult> {
         begin_poll().try_sched(self.retransmission_in(srv), || {
             // Registering retransmission even if app does not retransmit.
             // This explicitly permits applications to ignore the event.
@@ -1112,13 +1132,13 @@ impl Pollable for IniHsPtr {
 // MESSAGE RETRANSMISSION ////////////////////////
 
 impl CryptoServer {
-    pub fn retransmit_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
+    pub fn retransmit_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> CryptoServerResult<usize> {
         peer.hs().apply_retransmission(self, tx_buf)
     }
 }
 
 impl IniHsPtr {
-    pub fn store_msg_for_retransmission(&self, srv: &mut CryptoServer, msg: &[u8]) -> Result<()> {
+    pub fn store_msg_for_retransmission(&self, srv: &mut CryptoServer, msg: &[u8]) -> CryptoServerResult<()> {
         let ih = self
             .get_mut(srv)
             .as_mut()
@@ -1130,7 +1150,7 @@ impl IniHsPtr {
         Ok(())
     }
 
-    pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> Result<usize> {
+    pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> CryptoServerResult<usize> {
         let ih = self
             .get_mut(srv)
             .as_mut()
@@ -1139,7 +1159,7 @@ impl IniHsPtr {
         Ok(ih.tx_len)
     }
 
-    pub fn register_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
+    pub fn register_retransmission(&self, srv: &mut CryptoServer) -> CryptoServerResult<()> {
         let tb = srv.timebase.clone();
         let ih = self
             .get_mut(srv)
@@ -1173,7 +1193,7 @@ where
     M: LenseView,
 {
     /// Calculate the message authentication code (`mac`)
-    pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
+    pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> CryptoServerResult<()> {
         let mac = lprf::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(self.until_mac())?;
@@ -1188,7 +1208,7 @@ where
     M: LenseView,
 {
     /// Check the message authentication code
-    pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
+    pub fn check_seal(&self, srv: &CryptoServer) -> CryptoServerResult<bool> {
         let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
         Ok(rosenpass_sodium::helpers::memcmp(
             self.mac(),
@@ -1227,7 +1247,7 @@ impl HandshakeState {
         self.ck = SecretPrfTree::zero().dup();
     }
 
-    pub fn init(&mut self, spkr: &[u8]) -> Result<&mut Self> {
+    pub fn init(&mut self, spkr: &[u8]) -> CryptoServerResult<&mut Self> {
         self.ck = lprf::ckinit()?.mix(spkr)?.into_secret_prf_tree().dup();
         Ok(self)
     }
@@ -1237,13 +1257,13 @@ impl HandshakeState {
         Ok(self)
     }
 
-    pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
+    pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> CryptoServerResult<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
         aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
-    pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
+    pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> CryptoServerResult<&mut Self> {
         let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
         aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
@@ -1254,7 +1274,7 @@ impl HandshakeState {
         &mut self,
         ct: &mut [u8],
         pk: &[u8],
-    ) -> Result<&mut Self> {
+    ) -> CryptoServerResult<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::encaps(shk.secret_mut(), ct, pk)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
@@ -1265,7 +1285,7 @@ impl HandshakeState {
         sk: &[u8],
         pk: &[u8],
         ct: &[u8],
-    ) -> Result<&mut Self> {
+    ) -> CryptoServerResult<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::decaps(shk.secret_mut(), sk, ct)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
@@ -1276,7 +1296,7 @@ impl HandshakeState {
         srv: &mut CryptoServer,
         peer: PeerPtr,
         biscuit_ct: &mut [u8],
-    ) -> Result<&mut Self> {
+    ) -> CryptoServerResult<&mut Self> {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
         let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // lens view
 
@@ -1320,7 +1340,7 @@ impl HandshakeState {
         biscuit_ct: &[u8],
         sidi: SessionId,
         sidr: SessionId,
-    ) -> Result<(PeerPtr, BiscuitId, HandshakeState)> {
+    ) -> CryptoServerResult<(PeerPtr, BiscuitId, HandshakeState)> {
         // The first bit of the biscuit indicates which biscuit key was used
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
 
@@ -1368,7 +1388,7 @@ impl HandshakeState {
         Ok((peer, no, hs))
     }
 
-    pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole) -> Result<Session> {
+    pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole) -> CryptoServerResult<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
         let tki = ck.mix(&lprf::ini_enc()?)?.into_secret();
         let tkr = ck.mix(&lprf::res_enc()?)?.into_secret();
@@ -1396,7 +1416,7 @@ impl CryptoServer {
     /// Get the shared key that was established with given peer
     ///
     /// Fail if no session is available with the peer
-    pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
+    pub fn osk(&self, peer: PeerPtr) -> CryptoServerResult<SymKey> {
         let session = peer
             .session()
             .get(self)
@@ -1413,7 +1433,7 @@ impl CryptoServer {
         &mut self,
         peer: PeerPtr,
         mut ih: InitHello<&mut [u8]>,
-    ) -> Result<PeerPtr> {
+    ) -> CryptoServerResult<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
 
         // IHI1
@@ -1459,7 +1479,7 @@ impl CryptoServer {
         &mut self,
         ih: InitHello<&[u8]>,
         mut rh: RespHello<&mut [u8]>,
-    ) -> Result<PeerPtr> {
+    ) -> CryptoServerResult<PeerPtr> {
         let mut core = HandshakeState::zero();
 
         core.sidi = SessionId::from_slice(ih.sidi());
@@ -1522,7 +1542,7 @@ impl CryptoServer {
         &mut self,
         rh: RespHello<&[u8]>,
         mut ic: InitConf<&mut [u8]>,
-    ) -> Result<PeerPtr> {
+    ) -> CryptoServerResult<PeerPtr> {
         // RHI2
         let peer = self
             .lookup_handshake(SessionId::from_slice(rh.sidi()))
@@ -1618,7 +1638,7 @@ impl CryptoServer {
         &mut self,
         ic: InitConf<&[u8]>,
         mut rc: EmptyData<&mut [u8]>,
-    ) -> Result<PeerPtr> {
+    ) -> CryptoServerResult<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -1679,6 +1699,7 @@ impl CryptoServer {
             .get_mut(self)
             .as_mut()
             .context("Cannot send acknowledgement. No session.")?;
+        return Err(CryptoServerError::CustomError("Cannot send acknowledgement. No session.".to_string()));
         rc.sid_mut().copy_from_slice(&ses.sidt.value);
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
@@ -1690,7 +1711,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_resp_conf(&mut self, rc: EmptyData<&[u8]>) -> Result<PeerPtr> {
+    pub fn handle_resp_conf(&mut self, rc: EmptyData<&[u8]>) -> CryptoServerResult<PeerPtr> {
         let sid = SessionId::from_slice(rc.sid());
         let hs = self
             .lookup_handshake(sid)
@@ -1809,14 +1830,14 @@ mod test {
         srv.handle_msg(&msgbuf[..msglen], resbuf).unwrap().resp
     }
 
-    fn keygen() -> Result<(SSk, SPk)> {
+    fn keygen() -> CryptoServerResult<(SSk, SPk)> {
         // TODO: Copied from the benchmark; deduplicate
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
         StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
         Ok((sk, pk))
     }
 
-    fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
+    fn make_server_pair() -> CryptoServerResult<(CryptoServer, CryptoServer)> {
         // TODO: Copied from the benchmark; deduplicate
         let psk = SymKey::random();
         let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);

@@ -1,17 +1,32 @@
 use libsodium_sys as libsodium;
 
+// Add these imports for log and thiserror
+use log::{error, trace};
+use thiserror::Error;
+
+// Custom error type for libsodium operations
+#[derive(Error, Debug)]
+enum SodiumError {
+    #[error("Error in libsodium's {0}.")]
+    LibSodiumError(#[from] libsodium::libsodium_errno_t),
+}
+
 macro_rules! sodium_call {
-    ($name:ident, $($args:expr),*) => { ::rosenpass_util::attempt!({
-        anyhow::ensure!(unsafe{libsodium::$name($($args),*)} > -1,
-            "Error in libsodium's {}.", stringify!($name));
-        Ok(())
-    })};
+    ($name:ident, $($args:expr),*) => {
+        ::rosenpass_util::attempt!({
+            if unsafe { libsodium::$name($($args),*) } <= -1 {
+                let errno = libsodium::sodium_errno();
+                return Err(SodiumError::LibSodiumError(errno));
+            }
+            Ok(())
+        })
+    };
     ($name:ident) => { sodium_call!($name, ) };
 }
 
 #[inline]
-pub fn init() -> anyhow::Result<()> {
-    log::trace!("initializing libsodium");
+pub fn init() -> Result<(), SodiumError> {
+    trace!("initializing libsodium");
     sodium_call!(sodium_init)
 }
 

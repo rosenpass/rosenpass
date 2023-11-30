@@ -1,47 +1,67 @@
-use anyhow::ensure;
+use std::error::Error;
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Read};
+use std::path::Path;
 use std::result::Result;
-use std::{fs::OpenOptions, path::Path};
+use std::{fs::OpenOptions, io::ErrorKind};
+
+// Adding these imports for log and thiserror
+use log::{error, info};
+use thiserror::Error;
+
+/// Creating Custom error type for file operations
+#[derive(Error, Debug)]
+enum FileError {
+    #[error("Failed to open file: {0}")]
+    OpenFileError(#[from] io::Error),
+    #[error("File too long!")]
+    FileTooLongError,
+}
 
 /// Open a file writable
-pub fn fopen_w<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
+pub fn fopen_w<P: AsRef<Path>>(path: P) -> io::Result<File> {
     Ok(OpenOptions::new()
         .read(false)
         .write(true)
         .create(true)
         .truncate(true)
-        .open(path)?)
+        .open(&path)?)
 }
+
 /// Open a file readable
-pub fn fopen_r<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
+pub fn fopen_r<P: AsRef<Path>>(path: P) -> io::Result<File> {
     Ok(OpenOptions::new()
         .read(true)
         .write(false)
         .create(false)
         .truncate(false)
-        .open(path)?)
+        .open(&path)?)
 }
 
 pub trait ReadExactToEnd {
-    type Error;
+    type Error: Error;
 
     fn read_exact_to_end(&mut self, buf: &mut [u8]) -> Result<(), Self::Error>;
 }
 
 impl<R: Read> ReadExactToEnd for R {
-    type Error = anyhow::Error;
+    type Error = FileError;
 
-    fn read_exact_to_end(&mut self, buf: &mut [u8]) -> anyhow::Result<()> {
+    fn read_exact_to_end(&mut self, buf: &mut [u8]) -> Result<(), Self::Error> {
         let mut dummy = [0u8; 8];
         self.read_exact(buf)?;
-        ensure!(self.read(&mut dummy)? == 0, "File too long!");
+
+        // Change ensure! to an if statement for error handling
+        if self.read(&mut dummy)? != 0 {
+            return Err(FileError::FileTooLongError);
+        }
+
         Ok(())
     }
 }
 
 pub trait LoadValue {
-    type Error;
+    type Error: Error;
 
     fn load<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
@@ -49,7 +69,7 @@ pub trait LoadValue {
 }
 
 pub trait LoadValueB64 {
-    type Error;
+    type Error: Error;
 
     fn load_b64<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
@@ -57,7 +77,7 @@ pub trait LoadValueB64 {
 }
 
 pub trait StoreValue {
-    type Error;
+    type Error: Error;
 
     fn store<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>;
 }

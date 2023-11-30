@@ -10,8 +10,8 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
 [dependencies]
-rosenpass-util = { workspace = true }
-rosenpass-to = { workspace = true }
-anyhow = { workspace = true }
-libsodium-sys-stable = { workspace = true }
-log = { workspace = true }
+rosenpass-util = { path = "../util" }
+rosenpass-to = { path = "../to" }
+libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
+log = { version = "0.4.17" }
+thiserror = { version = "1.0.40" }

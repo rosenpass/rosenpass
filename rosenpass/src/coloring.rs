@@ -6,9 +6,10 @@
 //! - guard pages before and after each allocation trap accidential sequential reads that creep towards our secrets
 //! - the memory is mlocked, e.g. it is never swapped
 
-use anyhow::Context;
+//use anyhow::Context;
 use lazy_static::lazy_static;
 use libsodium_sys as libsodium;
+use log::{error, warn};
 use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, StoreValue},
@@ -26,6 +27,16 @@ use std::{
     ptr::null_mut,
     sync::Mutex,
 };
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum SecretError {
+    #[error("libsodium::sodium_malloc() returned a null ptr")]
+    SodiumMallocError,
+
+    #[error("Error loading file: {0}")]
+    LoadError(#[from] std::io::Error),
+}
 
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
@@ -379,23 +390,24 @@ impl<T: StoreValue> StoreSecret for T {
     }
 }
 
+// Modify the functions that use anyhow to use the new error type
 impl<const N: usize> LoadValue for Secret<N> {
-    type Error = anyhow::Error;
+    type Error = SecretError;
 
-    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    fn load<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error> {
         let mut v = Self::random();
         let p = path.as_ref();
         fopen_r(p)?
             .read_exact_to_end(v.secret_mut())
-            .with_context(|| format!("Could not load file {p:?}"))?;
+            .map_err(|e| SecretError::LoadError(e))?;
         Ok(v)
     }
 }
 
 impl<const N: usize> LoadValueB64 for Secret<N> {
-    type Error = anyhow::Error;
+    type Error = SecretError;
 
-    fn load_b64<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    fn load_b64<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error> {
         use std::io::Read;
 
         let mut v = Self::random();
@@ -409,35 +421,37 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
         // not worth it right now.
         b64_reader(&mut fopen_r(p)?)
             .read_exact(v.secret_mut())
-            .with_context(|| format!("Could not load base64 file {p:?}"))?;
+            .map_err(|e| SecretError::LoadError(e));
         Ok(v)
     }
 }
 
 impl<const N: usize> StoreSecret for Secret<N> {
-    type Error = anyhow::Error;
+    type Error = SecretError;
 
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error> {
+        std::fs::write(path, self.secret()).map_err(|e| SecretError::LoadError(e))?;
         Ok(())
     }
 }
 
 impl<const N: usize> LoadValue for Public<N> {
-    type Error = anyhow::Error;
+    type Error = SecretError;
 
-    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    fn load<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error> {
         let mut v = Self::random();
-        fopen_r(path)?.read_exact_to_end(&mut *v)?;
+        fopen_r(path)?
+            .read_exact_to_end(&mut *v)
+            .map_err(|e| SecretError::LoadError(e))?;
         Ok(v)
     }
 }
 
 impl<const N: usize> StoreValue for Public<N> {
-    type Error = anyhow::Error;
+    type Error = SecretError;
 
-    fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, **self)?;
+    fn store<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error> {
+        std::fs::write(path, **self).map_err(|e| SecretError::LoadError(e))?;
         Ok(())
     }
 }

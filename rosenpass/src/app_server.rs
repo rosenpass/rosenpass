@@ -1,6 +1,3 @@
-use anyhow::bail;
-
-use anyhow::Result;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
@@ -21,7 +18,50 @@ use std::process::Command;
 use std::process::Stdio;
 use std::slice;
 use std::thread;
+use thiserror::Error;
 use std::time::Duration;
+
+// Define a custom error type using thiserror
+#[derive(Debug, Error)]
+enum AppError {
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("MIO error: {0}")]
+    Mio(#[from] mio::Error),
+
+    #[error("Rosenpass utility error: {0}")]
+    RosenpassUtil(#[from] rosenpass_util::Error),
+
+    #[error("Cryptographic error: {0}")]
+    Crypto(#[from] crate::protocol::CryptoError),
+
+    #[error("Networking error: {0}")]
+    Networking(#[from] std::io::Error),
+
+    #[error("Command execution error: {0}")]
+    CommandExecution(#[from] std::io::Error),
+
+    // Add more error variants as needed
+}
+
+impl From<AppError> for std::io::Error {
+    fn from(err: AppError) -> Self {
+        match err {
+            AppError::Io(io_err) => io_err,
+            AppError::Mio(mio_err) => std::io::Error::new(std::io::ErrorKind::Other, mio_err),
+            AppError::RosenpassUtil(util_err) => std::io::Error::new(std::io::ErrorKind::Other, util_err),
+            AppError::Crypto(crypto_err) => std::io::Error::new(std::io::ErrorKind::Other, crypto_err),
+            AppError::Networking(net_err) => std::io::Error::new(std::io::ErrorKind::Other, format!("{}", net_err)),
+            AppError::CommandExecution(io_err) => io_err,
+            // Handle additional error variants if needed
+        }
+    }
+}
+
+
+// Update the Result type to use the custom error type
+type AppResult<T> = Result<T, AppError>;
 
 use crate::{
     config::Verbosity,
@@ -100,7 +140,7 @@ impl SocketPtr {
         &mut srv.sockets[self.0]
     }
 
-    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
+    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> AppResult<()> {
         self.get(srv).send_to(buf, addr)?;
         Ok(())
     }
@@ -183,7 +223,7 @@ impl Endpoint {
     }
 
     /// Start endpoint discovery from a hostname
-    pub fn discovery_from_hostname(hostname: String) -> anyhow::Result<Self> {
+    pub fn discovery_from_hostname(hostname: String) -> AppResult<Self> {
         let host = HostPathDiscoveryEndpoint::lookup(hostname)?;
         Ok(Endpoint::Discovery(host))
     }
@@ -213,7 +253,7 @@ impl Endpoint {
         Some(Self::discovery_from_addresses(addrs))
     }
 
-    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> AppResult<()> {
         use Endpoint::*;
         match self {
             SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
@@ -272,7 +312,7 @@ impl HostPathDiscoveryEndpoint {
     }
 
     /// Lookup a hostname
-    pub fn lookup(hostname: String) -> anyhow::Result<Self> {
+    pub fn lookup(hostname: String) -> AppResult<Self> {
         Ok(Self {
             addresses: ToSocketAddrs::to_socket_addrs(&hostname)?.collect(),
             scouting_state: Cell::new((0, 0)),
@@ -293,7 +333,7 @@ impl HostPathDiscoveryEndpoint {
     /// Attempt to reach the host
     ///
     /// Will round-robin-try different socket-ip-combinations on each call.
-    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> AppResult<()> {
         let (addr_off, sock_off) = self.scouting_state.get();
 
         let mut addrs = (self.addresses)
@@ -342,7 +382,7 @@ impl AppServer {
         pk: SPk,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
-    ) -> anyhow::Result<Self> {
+    ) -> AppResult<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(8);
@@ -449,7 +489,7 @@ impl AppServer {
         outfile: Option<PathBuf>,
         outwg: Option<WireguardOut>,
         hostname: Option<String>,
-    ) -> anyhow::Result<AppPeerPtr> {
+    ) -> AppResult<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
         assert!(pn == self.peers.len());
         let initial_endpoint = hostname
@@ -465,7 +505,7 @@ impl AppServer {
         Ok(AppPeerPtr(pn))
     }
 
-    pub fn listen_loop(&mut self) -> anyhow::Result<()> {
+    pub fn listen_loop(&mut self) -> AppResult<()> {
         const INIT_SLEEP: f64 = 0.01;
         const MAX_FAILURES: i32 = 10;
         let mut failure_cnt = 0;
@@ -501,7 +541,7 @@ impl AppServer {
         }
     }
 
-    pub fn event_loop(&mut self) -> anyhow::Result<()> {
+    pub fn event_loop(&mut self) -> AppResult<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
 
         /// if socket address for peer is known, call closure
@@ -589,7 +629,7 @@ impl AppServer {
         peer: AppPeerPtr,
         why: KeyOutputReason,
         key: &SymKey,
-    ) -> anyhow::Result<()> {
+    ) -> AppResult<()> {
         let peerid = peer.lower().get(&self.crypt).pidt()?;
         let ap = peer.get_app(self);
 
@@ -654,18 +694,21 @@ impl AppServer {
         Ok(())
     }
 
-    pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
+    pub fn poll(&mut self, rx_buf: &mut [u8]) -> AppResult<AppPollResult> {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
+    
         loop {
-            return Ok(match self.crypt.poll()? {
-                C::DeleteKey(PeerPtr(no)) => A::DeleteKey(AppPeerPtr(no)),
-                C::SendInitiation(PeerPtr(no)) => A::SendInitiation(AppPeerPtr(no)),
-                C::SendRetransmission(PeerPtr(no)) => A::SendRetransmission(AppPeerPtr(no)),
-                C::Sleep(timeout) => match self.try_recv(rx_buf, timeout)? {
-                    Some((len, addr)) => A::ReceivedMessage(len, addr),
-                    None => continue,
+            return Ok(match self.crypt.poll() {
+                Ok(C::DeleteKey(PeerPtr(no))) => A::DeleteKey(AppPeerPtr(no)),
+                Ok(C::SendInitiation(PeerPtr(no))) => A::SendInitiation(AppPeerPtr(no)),
+                Ok(C::SendRetransmission(PeerPtr(no))) => A::SendRetransmission(AppPeerPtr(no)),
+                Ok(C::Sleep(timeout)) => match self.try_recv(rx_buf, timeout) {
+                    Ok(Some((len, addr))) => A::ReceivedMessage(len, addr),
+                    Ok(None) => continue,
+                    Err(e) => return Err(AppError::from(e)),
                 },
+                Err(e) => return Err(AppError::from(e)),
             });
         }
     }
@@ -679,14 +722,14 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         timeout: Timing,
-    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
+    ) -> AppResult<Option<(usize, Endpoint)>> {
         let timeout = Duration::from_secs_f64(timeout);
-
+    
         // if there is no time to wait on IO, well, then, lets not waste any time!
         if timeout.is_zero() {
             return Ok(None);
         }
-
+    
         // NOTE when using mio::Poll, there are some particularities (taken from
         // https://docs.rs/mio/latest/mio/struct.Poll.html):
         //
@@ -703,12 +746,12 @@ impl AppServer {
         // is primarily heaving one or two sockets (if IPv4 and IPv6 IF_ANY listen is
         // desired on a non-dual-stack OS), thus just checking every socket after any
         // readiness event seems to be good enough™ for now.
-
+    
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
             self.mio_poll.poll(&mut self.events, Some(timeout))?;
         }
-
+    
         let mut would_block_count = 0;
         for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
             match socket.recv_from(buf) {
@@ -727,13 +770,13 @@ impl AppServer {
                     would_block_count += 1;
                 }
                 // TODO if one socket continuously returns an error, then we never poll, thus we never wait for a timeout, thus we have a spin-lock
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(AppError::from(e)),
             }
         }
-
+    
         // if each socket returned WouldBlock, then we drained them all at least once indeed
         self.all_sockets_drained = would_block_count == self.sockets.len();
-
+    
         Ok(None)
-    }
+    }    
 }
