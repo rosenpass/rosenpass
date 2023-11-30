@@ -1073,6 +1073,7 @@ dependencies = [
  "paste",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
+ "rosenpass-secret-memory",
  "rosenpass-sodium",
  "rosenpass-to",
  "rosenpass-util",
@@ -1114,6 +1115,16 @@ dependencies = [
  "rosenpass-sodium",
  "rosenpass-to",
  "stacker",
+]
+
+[[package]]
+name = "rosenpass-secret-memory"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rosenpass-sodium",
+ "rosenpass-to",
+ "rosenpass-util",
 ]
 
 [[package]]
