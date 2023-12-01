@@ -3,10 +3,12 @@ resolver = "2"
 
 members = [
     "rosenpass",
+    "cipher-traits",
     "ciphers",
     "util",
     "constant-time",
     "sodium",
+    "oqs",
     "to",
     "fuzz",
     "secret-memory",
@@ -25,9 +27,11 @@ rosenpass = { path = "rosenpass" }
 rosenpass-util = { path = "util" }
 rosenpass-constant-time = { path = "constant-time" }
 rosenpass-sodium = { path = "sodium" }
+rosenpass-cipher-traits = { path = "cipher-traits" }
 rosenpass-ciphers = { path = "ciphers" }
 rosenpass-to = { path = "to" }
 rosenpass-secret-memory = { path = "secret-memory" }
+rosenpass-oqs = { path = "oqs" }
 criterion = "0.4.0"
 test_bin = "0.4.0"
 libfuzzer-sys = "0.4"
@@ -48,7 +52,7 @@ log = { version = "0.4.20" }
 clap = { version = "4.4.10", features = ["derive"] }
 serde = { version = "1.0.193", features = ["derive"] }
 arbitrary = { version = "1.3.2", features = ["derive"] }
-anyhow = { version = "1.0.75", features = ["backtrace"] }
+anyhow = { version = "1.0.75", features = ["backtrace", "std"] }
 mio = { version = "0.8.9", features = ["net", "os-poll"] }
 libsodium-sys-stable= { version = "1.20.4", features = ["use-pkg-config"] }
 oqs-sys = { version = "0.8", default-features = false, features = ['classic_mceliece', 'kyber']  }

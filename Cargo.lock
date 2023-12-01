@@ -1110,9 +1110,9 @@ dependencies = [
  "log",
  "memoffset",
  "mio",
- "oqs-sys",
  "paste",
  "rand",
+ "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
  "rosenpass-secret-memory",
@@ -1128,11 +1128,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosenpass-cipher-traits"
+version = "0.1.0"
+
+[[package]]
 name = "rosenpass-ciphers"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "rosenpass-constant-time",
+ "rosenpass-oqs",
  "rosenpass-secret-memory",
  "rosenpass-sodium",
  "rosenpass-to",
@@ -1154,11 +1159,22 @@ dependencies = [
  "arbitrary",
  "libfuzzer-sys",
  "rosenpass",
+ "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-secret-memory",
  "rosenpass-sodium",
  "rosenpass-to",
  "stacker",
+]
+
+[[package]]
+name = "rosenpass-oqs"
+version = "0.1.0"
+dependencies = [
+ "oqs-sys",
+ "paste",
+ "rosenpass-cipher-traits",
+ "rosenpass-util",
 ]
 
 [[package]]
