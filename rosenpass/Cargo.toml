@@ -14,28 +14,25 @@ name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-util = { workspace = true }
-rosenpass-constant-time = { workspace = true }
-rosenpass-sodium = { workspace = true }
-rosenpass-ciphers = { workspace = true }
-rosenpass-to = { workspace = true }
-anyhow = { workspace = true }
-static_assertions = { workspace = true }
-memoffset = { workspace = true }
-libsodium-sys-stable = { workspace = true }
-oqs-sys = { workspace = true }
-lazy_static = { workspace = true }
-thiserror = { workspace = true }
-paste = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
-clap = { workspace = true }
-mio = { workspace = true }
-
+rosenpass-util = { path = "../util" }
+rosenpass-constant-time = { path = "../constant-time" }
+rosenpass-sodium = { path = "../sodium" }
+rosenpass-ciphers = { path = "../ciphers" }
+rosenpass-to = { path = "../to" }
+static_assertions = "1.1.0"
+memoffset = "0.9.0"
+libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
+oqs-sys = { version = "0.8", default-features = false, features = ['classic_mceliece', 'kyber'] }
+lazy_static = "1.4.0"
+thiserror = "1.0.40"
+paste = "1.0.12"
+log = { version = "0.4.17" }
+env_logger = { version = "0.10.0" }
+serde = { version = "1.0.163", features = ["derive"] }
+toml = "0.7.4"
+clap = { version = "4.3.0", features = ["derive"] }
+mio = { version = "0.8.6", features = ["net", "os-poll"] }
 [build-dependencies]
-anyhow = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

@@ -1,7 +1,8 @@
-use anyhow::{bail, ensure};
 use clap::Parser;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use std::path::{Path, PathBuf};
+use log::{error, ensure, info};
+use thiserror::Error;
 
 use crate::app_server;
 use crate::app_server::AppServer;
@@ -13,6 +14,23 @@ use crate::{
 };
 
 use super::config;
+
+// Custom error type for validation and file-related operations
+#[derive(Error, Debug)]
+enum RosenpassError {
+    #[error("Config file {0:?} already exists")]
+    ConfigFileExists(PathBuf),
+    #[error("{0:?} does not exist")]
+    FileNotFound(PathBuf),
+    #[error("Either a config-file or both public-key and secret-key file are required")]
+    MissingConfigOrKeys,
+    #[error("Public-key file {0:?} exists, refusing to overwrite it")]
+    PublicKeyFileExists(PathBuf),
+    #[error("Secret-key file {0:?} exists, refusing to overwrite it")]
+    SecretKeyFileExists(PathBuf),
+    #[error("Config file {0:?} does not exist")]
+    ConfigFileNotExists(PathBuf),
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
@@ -37,6 +55,8 @@ pub enum Cli {
      */
     #[allow(rustdoc::broken_intra_doc_links)]
     #[allow(rustdoc::invalid_html_tags)]
+
+
     Exchange {
         /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>]... [verbose]
         #[clap(value_name = "OWN_CONFIG")]
@@ -89,6 +109,25 @@ pub enum Cli {
         force: bool,
     },
 
+    #[derive(Error, Debug)]
+    #[error("Config file {0:?} already exists")]
+    ConfigFileExists(PathBuf),
+    #[derive(Error, Debug)]
+    #[error("{0:?} does not exist")]
+    FileNotFound(PathBuf),
+    #[derive(Error, Debug)]
+    #[error("Either a config-file or both public-key and secret-key file are required")]
+    MissingConfigOrKeys,
+    #[derive(Error, Debug)]
+    #[error("Public-key file {0:?} exists, refusing to overwrite it")]
+    PublicKeyFileExists(PathBuf),
+    #[derive(Error, Debug)]
+    #[error("Secret-key file {0:?} exists, refusing to overwrite it")]
+    SecretKeyFileExists(PathBuf),
+    #[derive(Error, Debug)]
+    #[error("Config file {0:?} does not exist")]
+    ConfigFileNotExists(PathBuf),
+
     /// Validate a configuration
     Validate { config_files: Vec<PathBuf> },
 
@@ -98,7 +137,7 @@ pub enum Cli {
 }
 
 impl Cli {
-    pub fn run() -> anyhow::Result<()> {
+    pub fn run() -> Result<(), RosenpassError> {
         let cli = Self::parse();
 
         use Cli::*;
@@ -115,7 +154,7 @@ impl Cli {
             GenConfig { config_file, force } => {
                 ensure!(
                     force || !config_file.exists(),
-                    "config file {config_file:?} already exists"
+                    RosenpassError::ConfigFileExists(config_file.clone())
                 );
 
                 config::Rosenpass::example_config().store(config_file)?;
@@ -132,7 +171,7 @@ impl Cli {
                     (Some(config_file), _, _) => {
                         ensure!(
                             config_file.exists(),
-                            "config file {config_file:?} does not exist"
+                            RosenpassError::FileNotFound(config_file.clone())
                         );
 
                         let config = config::Rosenpass::load(config_file)?;
@@ -141,7 +180,7 @@ impl Cli {
                     }
                     (_, Some(pkf), Some(skf)) => (pkf, skf),
                     _ => {
-                        bail!("either a config-file or both public-key and secret-key file are required")
+                        return Err(RosenpassError::MissingConfigOrKeys);
                     }
                 };
 
@@ -149,16 +188,16 @@ impl Cli {
                 let mut problems = vec![];
                 if !force && pkf.is_file() {
                     problems.push(format!(
-                        "public-key file {pkf:?} exist, refusing to overwrite it"
+                        RosenpassError::PublicKeyFileExists(pkf.clone())
                     ));
                 }
                 if !force && skf.is_file() {
                     problems.push(format!(
-                        "secret-key file {skf:?} exist, refusing to overwrite it"
+                        RosenpassError::SecretKeyFileExists(skf.clone())
                     ));
                 }
                 if !problems.is_empty() {
-                    bail!(problems.join("\n"));
+                    return Err(RosenpassError::MissingConfigOrKeys);
                 }
 
                 // generate the keys and store them in files
@@ -173,7 +212,7 @@ impl Cli {
             ExchangeConfig { config_file } => {
                 ensure!(
                     config_file.exists(),
-                    "config file '{config_file:?}' does not exist"
+                    RosenpassError::ConfigFileNotExists(config_file.clone())
                 );
 
                 let config = config::Rosenpass::load(config_file)?;
@@ -202,13 +241,13 @@ impl Cli {
                 for file in config_files {
                     match config::Rosenpass::load(&file) {
                         Ok(config) => {
-                            eprintln!("{file:?} is valid TOML and conforms to the expected schema");
+                            info!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
-                                Ok(_) => eprintln!("{file:?} is passed all logical checks"),
-                                Err(_) => eprintln!("{file:?} contains logical errors"),
+                                Ok(_) => info!("{file:?} is passed all logical checks"),
+                                Err(_) => info!("{file:?} contains logical errors"),
                             }
                         }
-                        Err(e) => eprintln!("{file:?} is not valid: {e}"),
+                        Err(e) => error!("{file:?} is not valid: {e}"),
                     }
                 }
             }
@@ -217,7 +256,7 @@ impl Cli {
         Ok(())
     }
 
-    fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
+    fn event_loop(config: config::Rosenpass) -> Result<(), RosenpassError> {
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -250,12 +289,17 @@ impl Cli {
 }
 
 trait StoreSecret {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), RosenpassError>;
 }
 
 impl<const N: usize> StoreSecret for Secret<N> {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
+    fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), RosenpassError> {
+        fs::write(&path, self.secret()).map_err(|e| {
+            RosenpassError::FileWriteError {
+                path: path.as_ref().to_path_buf(),
+                source: e,
+            }
+        })?;
         Ok(())
     }
 }

@@ -2,6 +2,11 @@
 #[macro_export]
 macro_rules! attempt {
     ($block:expr) => {
-        (|| -> ::anyhow::Result<_> { $block })()
+        (|| -> Result<_, ::rosenpass_util::SodiumError> {
+            $block.map_err(|err| {
+                // Converted anyhow::Error to SodiumError
+                ::rosenpass_util::SodiumError::LibSodiumError(err)
+            })
+        })()
     };
 }
