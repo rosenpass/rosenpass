@@ -6,6 +6,7 @@ author:
 - Benjamin Lipp = Max Planck Institute for Security and Privacy (MPI-SP)
 - Wanja Zaeske
 - Lisa Schmidt = {Scientific Illustrator – \\url{mullana.de}}
+- Prabhpreet Dua
 abstract: |
        Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, WireGuard (WG) [@wg] uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for another application. The Rosenpass protocol builds on “Post-quantum WireGuard” (PQWG) [@pqwg] and improves it by using a cookie mechanism to provide security against state disruption attacks.
 
