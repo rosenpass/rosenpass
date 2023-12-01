@@ -44,7 +44,8 @@
 //! ```
 
 use super::RosenpassError;
-use crate::pqkem::*;
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 
 // Macro magic ////////////////////////////////////////////////////////////////
@@ -108,7 +109,7 @@ macro_rules! data_lense(
     (maybe_docstring_link $x:expr) => (stringify!([$x]));
 
     // struct name  < optional generics     >    := optional doc string      field name   : field length, ...
-    ($type:ident $( < $( $generic:ident ),+ > )? := $( $( #[ $attr:meta ] )* $field:ident : $len:expr ),+) => (::paste::paste!{
+($type:ident $( < $( $generic:ident ),+ > )? := $( $( #[ $attr:meta ] )* $field:ident : $len:expr ),+) => (::paste::paste!{
 
         #[allow(rustdoc::broken_intra_doc_links)]
         /// A data lense to manipulate byte slices.
@@ -274,9 +275,9 @@ data_lense! { InitHello :=
     /// Randomly generated connection id
     sidi: 4,
     /// Kyber 512 Ephemeral Public Key
-    epki: EphemeralKEM::PK_LEN,
+    epki: EphemeralKem::PK_LEN,
     /// Classic McEliece Ciphertext
-    sctr: StaticKEM::CT_LEN,
+    sctr: StaticKem::CT_LEN,
     /// Encryped: 16 byte hash of McEliece initiator static key
     pidic: aead::TAG_LEN + 32,
     /// Encrypted TAI64N Time Stamp (against replay attacks)
@@ -289,9 +290,9 @@ data_lense! { RespHello :=
     /// Copied from InitHello
     sidi: 4,
     /// Kyber 512 Ephemeral Ciphertext
-    ecti: EphemeralKEM::CT_LEN,
+    ecti: EphemeralKem::CT_LEN,
     /// Classic McEliece Ciphertext
-    scti: StaticKEM::CT_LEN,
+    scti: StaticKem::CT_LEN,
     /// Empty encrypted message (just an auth tag)
     auth: aead::TAG_LEN,
     /// Responders handshake state in encrypted form

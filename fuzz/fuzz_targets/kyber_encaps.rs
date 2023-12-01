@@ -4,7 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass::pqkem::{EphemeralKEM, KEM};
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::EphemeralKem;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {
@@ -15,5 +16,5 @@ fuzz_target!(|input: Input| {
     let mut ciphertext = [0u8; 768];
     let mut shared_secret = [0u8; 32];
 
-    EphemeralKEM::encaps(&mut shared_secret, &mut ciphertext, &input.pk).unwrap();
+    EphemeralKem::encaps(&mut shared_secret, &mut ciphertext, &input.pk).unwrap();
 });

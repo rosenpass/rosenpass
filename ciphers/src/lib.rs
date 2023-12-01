@@ -22,3 +22,8 @@ pub mod xaead {
 }
 
 pub mod hash_domain;
+
+pub mod kem {
+    pub use rosenpass_oqs::ClassicMceliece460896 as StaticKem;
+    pub use rosenpass_oqs::Kyber512 as EphemeralKem;
+}

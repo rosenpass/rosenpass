@@ -19,8 +19,9 @@
 //! [CryptoServer].
 //!
 //! ```
+//! use rosenpass_cipher_traits::Kem;
+//! use rosenpass_ciphers::kem::StaticKem;
 //! use rosenpass::{
-//!     pqkem::{StaticKEM, KEM},
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> anyhow::Result<()> {
@@ -30,11 +31,11 @@
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
-//! StaticKEM::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
+//! StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
 //!
 //! // ... and for peer b
 //! let (mut peer_b_sk, mut peer_b_pk) = (SSk::zero(), SPk::zero());
-//! StaticKEM::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
+//! StaticKem::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
 //!
 //! // initialize server and a pre-shared key
 //! let psk = SymKey::random();
@@ -67,9 +68,11 @@
 //! # }
 //! ```
 
-use crate::{hash_domains, msgs::*, pqkem::*};
+use crate::{hash_domains, msgs::*};
 use anyhow::{bail, ensure, Context, Result};
+use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
@@ -77,6 +80,7 @@ use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
+use std::convert::Infallible;
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -135,10 +139,10 @@ pub fn has_happened(ev: Timing, now: Timing) -> bool {
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 
-pub type SPk = Secret<{ StaticKEM::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
-pub type SSk = Secret<{ StaticKEM::SK_LEN }>;
-pub type EPk = Public<{ EphemeralKEM::PK_LEN }>;
-pub type ESk = Secret<{ EphemeralKEM::SK_LEN }>;
+pub type SPk = Secret<{ StaticKem::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
+pub type SSk = Secret<{ StaticKem::SK_LEN }>;
+pub type EPk = Public<{ EphemeralKem::PK_LEN }>;
+pub type ESk = Secret<{ EphemeralKem::SK_LEN }>;
 
 pub type SymKey = Secret<KEY_LEN>;
 pub type SymHash = Public<KEY_LEN>;
@@ -1248,7 +1252,7 @@ impl HandshakeState {
     }
 
     // I loathe "error: constant expression depends on a generic parameter"
-    pub fn encaps_and_mix<T: KEM, const SHK_LEN: usize>(
+    pub fn encaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
         &mut self,
         ct: &mut [u8],
         pk: &[u8],
@@ -1258,7 +1262,7 @@ impl HandshakeState {
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
-    pub fn decaps_and_mix<T: KEM, const SHK_LEN: usize>(
+    pub fn decaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
         &mut self,
         sk: &[u8],
         pk: &[u8],
@@ -1422,7 +1426,7 @@ impl CryptoServer {
         ih.sidi_mut().copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
-        EphemeralKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         ih.epki_mut().copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -1430,7 +1434,7 @@ impl CryptoServer {
 
         // IHI5
         hs.core
-            .encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+            .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
                 ih.sctr_mut(),
                 peer.get(self).spkt.secret(),
             )?;
@@ -1469,7 +1473,7 @@ impl CryptoServer {
         core.mix(ih.sidi())?.mix(ih.epki())?;
 
         // IHR5
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             ih.sctr(),
@@ -1499,10 +1503,10 @@ impl CryptoServer {
         core.mix(rh.sidr())?.mix(rh.sidi())?;
 
         // RHR4
-        core.encaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
+        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
 
         // RHR5
-        core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             rh.scti_mut(),
             peer.get(self).spkt.secret(),
         )?;
@@ -1567,14 +1571,14 @@ impl CryptoServer {
         core.mix(rh.sidr())?.mix(rh.sidi())?;
 
         // RHI4
-        core.decaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(
+        core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
             hs!().eski.secret(),
             &*hs!().epki,
             rh.ecti(),
         )?;
 
         // RHI5
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             rh.scti(),
@@ -1810,7 +1814,7 @@ mod test {
     fn keygen() -> Result<(SSk, SPk)> {
         // TODO: Copied from the benchmark; deduplicate
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
+        StaticKem::keygen(sk.secret_mut(), pk.secret_mut())?;
         Ok((sk, pk))
     }
 
