@@ -12,12 +12,14 @@ struct AllocatorContents;
 #[derive(Clone, Default)]
 pub struct Alloc {
     _dummy_private_data: AllocatorContents,
+    alloc: SodiumAlloc,
 }
 
 impl Alloc {
     pub fn new() -> Self {
         Alloc {
             _dummy_private_data: AllocatorContents,
+            alloc: SodiumAlloc::default(),
         }
     }
 
@@ -25,6 +27,25 @@ impl Alloc {
 
 unsafe impl Allocator for Alloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        self.alloc.do_allocate(layout)
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
+        self.alloc.do_deallocate(ptr, _layout);
+    }
+}
+
+impl fmt::Debug for Alloc {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str("<libsodium based Rust allocator>")
+    }
+}
+
+#[derive(Clone, Default)]
+struct SodiumAlloc;
+
+impl SodiumAlloc {
+    fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         // Call sodium allocator
         let ptr = unsafe { libsodium::sodium_malloc(layout.size()) };
 
@@ -53,21 +74,16 @@ unsafe impl Allocator for Alloc {
         }
     }
 
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
+    fn do_deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         unsafe {
             libsodium::sodium_free(ptr.as_ptr() as *mut c_void);
         }
     }
 }
 
-impl fmt::Debug for Alloc {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str("<libsodium based Rust allocator>")
-    }
-}
 
 #[derive(Clone, Default)]
-pub struct SecretAlloc {
+struct SecretAlloc {
     fd : i32,
 }
 
@@ -86,7 +102,7 @@ impl SecretAlloc {
         }
     }
 
-    fn do_secret_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+    fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let ptr = unsafe {
             let ret = libc::mmap(null_mut::<libc::c_void>(), layout.size(), libc::PROT_READ | libc::PROT_WRITE, libc::MAP_LOCKED, self.fd, 0);
             if ret == libc::MAP_FAILED {
@@ -117,7 +133,7 @@ impl SecretAlloc {
         }
     }
 
-    fn do_secret_deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+    fn do_deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
         unsafe {
             libc::munmap(ptr.as_ptr() as *mut libc::c_void, layout.size());
         }
