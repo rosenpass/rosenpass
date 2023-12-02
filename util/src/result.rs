@@ -62,7 +62,7 @@ pub trait GuaranteedValue {
 /// }
 ///
 /// fn failable_multiply<T>(a: &T, b: u32)
-///         -> Result<T, T::Error> {
+///         -> Result<T, T::Error>
 ///     where
 ///         T: FailableAddition<Error> {
 ///     let mut accu = a.failable_addition(a)?;
