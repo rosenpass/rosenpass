@@ -1,16 +1,14 @@
 use anyhow::{bail, ensure};
 use clap::Parser;
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::app_server;
 use crate::app_server::AppServer;
-use crate::{
-    // app_server::{AppServer, LoadValue, LoadValueB64},
-    coloring::Secret,
-    pqkem::{StaticKEM, KEM},
-    protocol::{SPk, SSk, SymKey},
-};
+use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
 
@@ -164,7 +162,7 @@ impl Cli {
                 // generate the keys and store them in files
                 let mut ssk = crate::protocol::SSk::random();
                 let mut spk = crate::protocol::SPk::random();
-                StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
+                StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
 
                 ssk.store_secret(skf)?;
                 spk.store_secret(pkf)?;
@@ -246,16 +244,5 @@ impl Cli {
         }
 
         srv.event_loop()
-    }
-}
-
-trait StoreSecret {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
-}
-
-impl<const N: usize> StoreSecret for Secret<N> {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
-        Ok(())
     }
 }

@@ -68,7 +68,17 @@
 //! # }
 //! ```
 
+<<<<<<< HEAD
+use crate::{
+    coloring::*,
+    labeled_prf::{self as lprf},
+    msgs::*,
+    pqkem::*,
+    prftree::{SecretPrfTree, SecretPrfTreeBranch},
+};
+=======
 use crate::{hash_domains, msgs::*};
+>>>>>>> main
 use anyhow::{bail, ensure, Context, Result};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
@@ -81,9 +91,11 @@ use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
+<<<<<<< HEAD
 use std::net::{IpAddr, SocketAddr};
+=======
 use std::convert::Infallible;
-
+>>>>>>> main
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -205,7 +217,7 @@ pub struct CryptoServer {
 #[derive(Debug)]
 pub enum CookieSecret {
     Some {
-        value: Secret<COOKIE_SECRET_LEN>,
+        value: [u8; COOKIE_SECRET_LEN],
         last_updated: Timebase,
     },
     None,
@@ -214,7 +226,7 @@ pub enum CookieSecret {
 impl CookieSecret {
     pub fn new(value: [u8; COOKIE_SECRET_LEN]) -> Self {
         Self::Some {
-            value: Secret::random(),
+            value,
             last_updated: Timebase::default(),
         }
     }
@@ -232,13 +244,13 @@ impl CookieSecret {
         }
 
         match self {
-            CookieSecret::Some { value, .. } => Some(value.secret()),
+            CookieSecret::Some { value, .. } => Some(value),
             CookieSecret::None => None,
         }
     }
 
     // Get the cookie secret or update the value if it has expired and return the updated value
-    pub fn get_or_update_ellapsed<F: Fn(&mut Secret<COOKIE_SECRET_LEN>)>(
+    pub fn get_or_update_ellapsed<F: Fn(&mut [u8])>(
         &mut self,
         expiry: Timing,
         update_fn: F,
@@ -252,10 +264,10 @@ impl CookieSecret {
                 update_fn(value);
                 *last_updated = Timebase::default();
             }
-            value.secret()
+            value
         } else {
             *self = CookieSecret::Some {
-                value: Secret::zero(),
+                value: [0; COOKIE_SECRET_LEN],
                 last_updated: Timebase::default(),
             };
             let value = match self {
@@ -266,7 +278,7 @@ impl CookieSecret {
                 CookieSecret::None => unreachable!(),
             };
             update_fn(value);
-            value.secret()
+            value
         }
     }
 
@@ -908,16 +920,16 @@ impl CryptoServer {
             }
         };
 
-        let cookie_tau = hash_domains::cookie_tau()?
+        let cookie_tau = lprf::cookie_tau()?
             .mix(self.cookie_secret.get_or_update_ellapsed(
                 COOKIE_SECRET_EXP,
-                Secret::randomize,
+                rosenpass_sodium::helpers::randombytes_buf,
             ))?
             .mix(&ip_addr_port)?
             .into_value()[..16]
             .to_vec();
 
-        let expected = hash_domains::cookie()?
+        let expected = lprf::cookie()?
             .mix(&cookie_tau)?
             .mix(&rx_bytes_til_cookie)?
             .into_value()[..16]
@@ -931,7 +943,7 @@ impl CryptoServer {
         //Otherwise send cookie reply
         else {
             let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
-            let cookie_key = hash_domains::cookie_key()?.mix(self.spkm.secret())?.into_value();
+            let cookie_key = lprf::cookie_key()?.mix(self.spkm.secret())?.into_value();
 
             let mut cookie_reply_lens = msg_out.payload_mut().cookie_reply()?;
             let nonce_val = XAEADNonce::random();
@@ -1432,7 +1444,7 @@ where
     /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
-            let cookie = hash_domains::cookie()?.mix(cookie_tau)?.mix(self.until_cookie())?;
+            let cookie = lprf::cookie()?.mix(cookie_tau)?.mix(self.until_cookie())?;
             self.cookie_mut()
                 .copy_from_slice(cookie.into_value()[..16].as_ref());
         }
@@ -2001,12 +2013,12 @@ impl CryptoServer {
             .or_else(|| self.lookup_handshake(session_id).map(|v| PeerPtr(v.0)));
         if let Some(peer) = peer_ptr {
             if let Some(mac) = peer.get(self).last_sent_mac {
-                let mut cookie_value = Secret::zero();
+                let mut cookie_value = [0u8; COOKIE_SECRET_LEN];
                 let spkt = peer.get(self).spkt.secret();
-                let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
+                let cookie_key = lprf::cookie_key()?.mix(spkt)?.into_value();
 
                 xaead::decrypt(
-                    cookie_value.secret_mut(),
+                    &mut cookie_value,
                     &cookie_key,
                     &mac.value,
                     &cr.all_bytes()[4..],
@@ -2168,7 +2180,7 @@ mod test {
 
             assert!(a.peers[0].cookie_tau.is_some());
 
-            let expected_cookie_tau = hash_domains::cookie_tau()
+            let expected_cookie_tau = lprf::cookie_tau()
                 .unwrap()
                 .mix(b.cookie_secret.get(COOKIE_SECRET_EXP).unwrap())
                 .unwrap()

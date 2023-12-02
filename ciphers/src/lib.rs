@@ -5,7 +5,7 @@ pub mod subtle;
 pub const KEY_LEN: usize = 32;
 const_assert!(KEY_LEN == aead::KEY_LEN);
 const_assert!(KEY_LEN == xaead::KEY_LEN);
-const_assert!(KEY_LEN == hash::KEY_LEN);
+const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 
 /// Authenticated encryption with associated data
 pub mod aead {
@@ -21,8 +21,9 @@ pub mod xaead {
     };
 }
 
-pub mod hash {
-    pub use crate::subtle::incorrect_hmac_blake2b::{
-        hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN,
-    };
+pub mod hash_domain;
+
+pub mod kem {
+    pub use rosenpass_oqs::ClassicMceliece460896 as StaticKem;
+    pub use rosenpass_oqs::Kyber512 as EphemeralKem;
 }

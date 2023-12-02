@@ -10,9 +10,11 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
 [dependencies]
-anyhow = "1.0.75"
-rosenpass-sodium = { path = "../sodium" }
-rosenpass-to = { path = "../to" }
-rosenpass-constant-time = { path = "../constant-time" }
-static_assertions = "1.1.0"
-zeroize = "1.7.0"
+anyhow = { workspace = true }
+rosenpass-sodium = { workspace = true }
+rosenpass-to = { workspace = true }
+rosenpass-constant-time = { workspace = true }
+rosenpass-secret-memory = { workspace = true }
+rosenpass-oqs = { workspace = true }
+static_assertions = { workspace = true }
+zeroize = { workspace = true }
