@@ -81,9 +81,8 @@ use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
-use std::net::{IpAddr, SocketAddr};
 use std::convert::Infallible;
-
+use std::net::{IpAddr, SocketAddr};
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -909,10 +908,10 @@ impl CryptoServer {
         };
 
         let cookie_tau = hash_domains::cookie_tau()?
-            .mix(self.cookie_secret.get_or_update_ellapsed(
-                COOKIE_SECRET_EXP,
-                Secret::randomize,
-            ))?
+            .mix(
+                self.cookie_secret
+                    .get_or_update_ellapsed(COOKIE_SECRET_EXP, Secret::randomize),
+            )?
             .mix(&ip_addr_port)?
             .into_value()[..16]
             .to_vec();
@@ -931,7 +930,9 @@ impl CryptoServer {
         //Otherwise send cookie reply
         else {
             let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
-            let cookie_key = hash_domains::cookie_key()?.mix(self.spkm.secret())?.into_value();
+            let cookie_key = hash_domains::cookie_key()?
+                .mix(self.spkm.secret())?
+                .into_value();
 
             let mut cookie_reply_lens = msg_out.payload_mut().cookie_reply()?;
             let nonce_val = XAEADNonce::random();
@@ -1432,7 +1433,9 @@ where
     /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
-            let cookie = hash_domains::cookie()?.mix(cookie_tau)?.mix(self.until_cookie())?;
+            let cookie = hash_domains::cookie()?
+                .mix(cookie_tau)?
+                .mix(self.until_cookie())?;
             self.cookie_mut()
                 .copy_from_slice(cookie.into_value()[..16].as_ref());
         }
