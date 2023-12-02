@@ -5,20 +5,15 @@ use std::fmt;
 use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
 
-#[derive(Clone, Default)]
-struct AllocatorContents;
-
 /// Memory allocation using sodium_malloc/sodium_free
 #[derive(Clone, Default)]
 pub struct Alloc {
-    _dummy_private_data: AllocatorContents,
     alloc: SodiumAlloc,
 }
 
 impl Alloc {
     pub fn new() -> Self {
         Alloc {
-            _dummy_private_data: AllocatorContents,
             alloc: SodiumAlloc::default(),
         }
     }
