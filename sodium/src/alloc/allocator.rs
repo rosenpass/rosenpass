@@ -77,7 +77,7 @@ impl SodiumAlloc {
 }
 
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct SecretAlloc {
     fd : i32,
 }
@@ -132,6 +132,12 @@ impl SecretAlloc {
         unsafe {
             libc::munmap(ptr.as_ptr() as *mut libc::c_void, layout.size());
         }
+    }
+}
+
+impl Default for SecretAlloc {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
