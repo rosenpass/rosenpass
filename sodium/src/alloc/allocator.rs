@@ -1,5 +1,4 @@
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
-use libsodium_sys as libsodium;
 use libc;
 use std::fmt;
 use std::mem::size_of;
@@ -240,7 +239,7 @@ impl SodiumAlloc {
 
     fn unprotected_ptr_from_user_ptr(ptr: *const libc::c_void) -> *mut libc::c_void {
         let canary_ptr = unsafe { ptr.sub(Self::CANARY_SIZE) };
-        let unprotected_ptr_u = unsafe { canary_ptr as usize & !Self::PAGE_MASK };
+        let unprotected_ptr_u = canary_ptr as usize & !Self::PAGE_MASK;
         if unprotected_ptr_u <= Self::PAGE_SIZE * 2 {
             Self::do_misuse();
         }
