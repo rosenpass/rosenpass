@@ -9,52 +9,35 @@ use std::ptr::{NonNull, null_mut};
 /// Memory allocation using sodium_malloc/sodium_free
 #[derive(Clone)]
 pub struct Alloc {
-    alloc: AllocDispatcher,
-}
-
-#[derive(Clone)]
-enum AllocDispatcher {
-    Secrete(SecretAlloc),
-    Sodium(SodiumAlloc),
+    #[cfg(with_memfd_secret)]
+    alloc: SecretAlloc,
+    #[cfg(not(with_memfd_secret))]
+    alloc: SodiumAlloc,
 }
 
 impl Alloc {
+    #[cfg(with_memfd_secret)]
     pub fn new() -> Self {
-        let secret_alloc = SecretAlloc::new();
-        if let Some(sa) = secret_alloc {
-            Alloc {
-                alloc: AllocDispatcher::Secrete(sa),
-            }
-        } else {
-            Alloc {
-                alloc: AllocDispatcher::Sodium(SodiumAlloc::default()),
-            }
+        Alloc {
+            alloc: SecretAlloc::new(),
         }
     }
 
+    #[cfg(not(with_memfd_secret))]
+    pub fn new() -> Self {
+        Alloc {
+            alloc: SodiumAlloc::default(),
+        }
+    }
 }
 
 unsafe impl Allocator for Alloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match self.alloc {
-            AllocDispatcher::Secrete(ref alloc) => {
-                alloc.do_allocate(layout)
-            }
-            AllocDispatcher::Sodium(ref alloc) => {
-                alloc.do_allocate(layout)
-            }
-        }
+        self.alloc.do_allocate(layout)
     }
 
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
-        match self.alloc {
-            AllocDispatcher::Secrete(ref alloc) => {
-                alloc.do_deallocate(ptr, _layout);
-            }
-            AllocDispatcher::Sodium(ref alloc) => {
-                alloc.do_deallocate(ptr, _layout);
-            }
-        }
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        self.alloc.do_deallocate(ptr, layout);
     }
 }
 
@@ -134,9 +117,6 @@ impl SodiumAlloc {
         let unprotected_ptr = base_ptr.add(Self::PAGE_SIZE * 2);
 
         Self::do_mem_protect_noaccess(base_ptr.add(Self::PAGE_SIZE), Self::PAGE_SIZE);
-        // unsafe {
-            // libc::memcpy(unprotected_ptr.add(unprotected_size), Self::CANARY.as_ptr() as *const libc::c_void, Self::CANARY_SIZE);
-        // }
         Self::do_mem_protect_noaccess(unprotected_ptr.add(unprotected_size), Self::PAGE_SIZE);
         Self::do_mlock(unprotected_ptr, unprotected_size);
         let canary_ptr = unprotected_ptr.add(Self::page_round(size_with_canary)).sub(size_with_canary);
@@ -164,10 +144,6 @@ impl SodiumAlloc {
         if libc::memcmp(canary_ptr, Self::CANARY.as_ptr() as *const libc::c_void, Self::CANARY_SIZE) != 0 {
             Self::do_out_of_bounds();
         }
-        // if libc::memcmp(unprotected_ptr.add(unprotected_size), Self::CANARY.as_ptr() as *const libc::c_void,
-                        // Self::CANARY_SIZE) != 0 {
-            // Self::do_out_of_bounds();
-        // }
         Self::do_munlock(unprotected_ptr, unprotected_size);
         Self::do_free_aligned(base_ptr, total_size);
     }
@@ -266,21 +242,19 @@ struct SecretAlloc {
 }
 
 impl SecretAlloc {
-    pub fn new() -> Option<Self> {
+    pub fn new() -> Self {
         let fd  = unsafe {
             libc::syscall(libc::SYS_memfd_secret, 0) as i32
         };
         if fd == -1 {
-            // Some legacy system does not support memfd_secret.
-            log::error!(
+            panic!(
                 "Create secret file descriptor failed {}.",
                 std::io::Error::last_os_error()
             );
-            return None;
         }
-        Some(SecretAlloc {
+        SecretAlloc {
             fd: fd,
-        })
+        }
     }
 
     fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
