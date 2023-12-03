@@ -291,7 +291,6 @@
               ];
               buildPhase = ''
                 export HOME=$(mktemp -d)
-                export OSFONTDIR="$(kpsewhich --var-value TEXMF)/fonts/{opentype/public/nunito,truetype/google/noto}"
                 latexmk -r tex/CI.rc
               '';
               installPhase = ''
