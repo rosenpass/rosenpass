@@ -211,9 +211,9 @@ pub enum CookieSecret {
 }
 
 impl CookieSecret {
-    pub fn new(value: [u8; COOKIE_SECRET_LEN]) -> Self {
+    pub fn new(value: Secret<COOKIE_SECRET_LEN>) -> Self {
         Self::Some {
-            value: Secret::random(),
+            value,
             last_updated: Timebase::default(),
         }
     }
@@ -2042,6 +2042,7 @@ impl CryptoServer {
 #[cfg(test)]
 mod test {
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
+    use serial_test::serial;
 
     use super::*;
 
@@ -2137,6 +2138,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
@@ -2217,6 +2219,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
