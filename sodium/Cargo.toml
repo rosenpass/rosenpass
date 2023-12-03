@@ -16,4 +16,6 @@ anyhow = { workspace = true }
 libsodium-sys-stable = { workspace = true }
 log = { workspace = true }
 allocator-api2 = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
 libc = "0.2.150"
