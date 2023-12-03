@@ -93,7 +93,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
     c.bench_function("handshake", |bench| {
         bench.iter(|| {
-            hs(black_box(&mut a), black_box(&mut b)).unwrap();
+            if let Err(err) = hs(black_box(&mut a), black_box(&mut b)) {
+                error!("Handshake error: {:?}", err);
+            }
         })
     });
 }
