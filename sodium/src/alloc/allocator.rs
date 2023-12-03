@@ -2,6 +2,7 @@ use allocator_api2::alloc::{AllocError, Allocator, Layout};
 use libsodium_sys as libsodium;
 use libc;
 use std::fmt;
+use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
 
@@ -75,7 +76,7 @@ struct SodiumAlloc;
 impl SodiumAlloc {
     fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         // Call sodium allocator
-        let ptr = unsafe { libsodium::sodium_malloc(layout.size()) };
+        let ptr = unsafe { Self::do_malloc(layout.size()) };
 
         // Ensure the right allocation is used
         let off = ptr.align_offset(layout.align());
@@ -104,8 +105,157 @@ impl SodiumAlloc {
 
     fn do_deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         unsafe {
-            libsodium::sodium_free(ptr.as_ptr() as *mut c_void);
+            Self::do_free(ptr.as_ptr() as *mut c_void);
         }
+    }
+
+    const PAGE_SIZE: usize = 0x10000;
+    const PAGE_MASK: usize = Self::PAGE_SIZE - 1;
+    const CANARY_SIZE: usize = 16;
+    const CANARY: [u8; Self::CANARY_SIZE] = [0x31; Self::CANARY_SIZE];
+
+    // Reference libsoldium, just convert to rust
+    unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
+        // total memory region:
+        // |PAGE|PAGE|unprotected|PAGE|
+        let size_with_canary = size + Self::CANARY_SIZE;
+        let unprotected_size = Self::page_round(size_with_canary);
+        let total_size = Self::PAGE_SIZE + Self::PAGE_SIZE + unprotected_size + Self::PAGE_SIZE;
+
+        if size >= (std::usize::MAX - Self::PAGE_SIZE * 4) {
+            return null_mut();
+        }
+
+        if Self::PAGE_SIZE <= Self::CANARY_SIZE || Self::PAGE_SIZE < std::mem::size_of::<usize>() {
+            Self::do_misuse();
+        }
+
+        let base_ptr = Self::do_alloc_aligned(total_size);
+        let unprotected_ptr = base_ptr.add(Self::PAGE_SIZE * 2);
+
+        Self::do_mem_protect_noaccess(base_ptr.add(Self::PAGE_SIZE), Self::PAGE_SIZE);
+        // unsafe {
+            // libc::memcpy(unprotected_ptr.add(unprotected_size), Self::CANARY.as_ptr() as *const libc::c_void, Self::CANARY_SIZE);
+        // }
+        Self::do_mem_protect_noaccess(unprotected_ptr.add(unprotected_size), Self::PAGE_SIZE);
+        Self::do_mlock(unprotected_ptr, unprotected_size);
+        let canary_ptr = unprotected_ptr.add(Self::page_round(size_with_canary)).sub(size_with_canary);
+        let user_ptr = canary_ptr.add(Self::CANARY_SIZE);
+        unsafe {
+            libc::memcpy(canary_ptr, Self::CANARY.as_ptr() as *const libc::c_void, Self::CANARY_SIZE);
+            libc::memcpy(base_ptr, (&unprotected_size) as *const usize as *const libc::c_void , size_of::<usize>());
+        }
+        Self::do_mem_protect_readonly(base_ptr, Self::PAGE_SIZE);
+        assert_eq!(Self::unprotected_ptr_from_user_ptr(user_ptr), unprotected_ptr);
+        user_ptr
+    }
+
+    unsafe fn do_free(ptr: *mut libc::c_void) {
+        if ptr == null_mut() {
+            return;
+        }
+        let canary_ptr = ptr.sub(Self::CANARY_SIZE);
+        let unprotected_ptr = Self::unprotected_ptr_from_user_ptr(ptr);
+        let base_ptr = unprotected_ptr.sub(Self::PAGE_SIZE * 2);
+        let mut unprotected_size = 0;
+        libc::memcpy(&mut unprotected_size as *mut usize as *mut libc::c_void, base_ptr, size_of::<usize>());
+        let total_size = Self::PAGE_SIZE + Self::PAGE_SIZE + unprotected_size + Self::PAGE_SIZE;
+        Self::do_mem_protect_readwrite(base_ptr, total_size);
+        if libc::memcmp(canary_ptr, Self::CANARY.as_ptr() as *const libc::c_void, Self::CANARY_SIZE) != 0 {
+            Self::do_out_of_bounds();
+        }
+        // if libc::memcmp(unprotected_ptr.add(unprotected_size), Self::CANARY.as_ptr() as *const libc::c_void,
+                        // Self::CANARY_SIZE) != 0 {
+            // Self::do_out_of_bounds();
+        // }
+        Self::do_munlock(unprotected_ptr, unprotected_size);
+        Self::do_free_aligned(base_ptr, total_size);
+    }
+
+    fn page_round(size: usize) -> usize {
+        return (size + Self::PAGE_MASK) & !Self::PAGE_MASK;
+    }
+
+    fn do_misuse() {
+        panic!("Sodium malloc misuse.");
+    }
+
+    fn do_out_of_bounds() {
+        panic!("Sodium memory out of bounds.");
+    }
+
+    fn do_alloc_aligned(size: usize) -> *mut libc::c_void {
+        let mut ptr = null_mut();
+        let ret = unsafe {
+            libc::posix_memalign(&mut ptr, Self::PAGE_SIZE, size)
+        };
+        if ret != 0 {
+            log::error!(
+                "posix_memalign failed."
+            );
+            return null_mut();
+        }
+        ptr
+    }
+
+    fn do_free_aligned(ptr: *mut libc::c_void, _size: usize) {
+        unsafe {
+            libc::free(ptr);
+        }
+    }
+
+    fn do_mem_protect_noaccess(ptr: *mut libc::c_void, size: usize) {
+        let ret = unsafe {
+            libc::mprotect(ptr, size, libc::PROT_NONE)
+        };
+        if ret != 0 {
+            log::error!(
+                "mprotect PROT_NONE failed."
+            );
+        }
+    }
+
+    fn do_mem_protect_readonly(ptr: *mut libc::c_void, size: usize) {
+        let ret = unsafe {
+            libc::mprotect(ptr, size, libc::PROT_READ)
+        };
+        if ret != 0 {
+            log::error!(
+                "mprotect PROT_READ failed."
+            );
+        }
+    }
+
+    fn do_mem_protect_readwrite(ptr: *mut libc::c_void, size: usize) {
+        let ret = unsafe {
+            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE)
+        };
+        if ret != 0 {
+            log::error!(
+                "mprotect PROT_READ | PROT_WRITE failed."
+            );
+        }
+    }
+
+    fn do_mlock(ptr: *mut libc::c_void, size: usize) -> i32 {
+        unsafe {
+            libc::mlock(ptr, size)
+        }
+    }
+
+    fn do_munlock(ptr: *mut libc::c_void, size: usize) -> i32 {
+        unsafe {
+            libc::munlock(ptr, size)
+        }
+    }
+
+    fn unprotected_ptr_from_user_ptr(ptr: *const libc::c_void) -> *mut libc::c_void {
+        let canary_ptr = unsafe { ptr.sub(Self::CANARY_SIZE) };
+        let unprotected_ptr_u = unsafe { canary_ptr as usize & !Self::PAGE_MASK };
+        if unprotected_ptr_u <= Self::PAGE_SIZE * 2 {
+            Self::do_misuse();
+        }
+        unprotected_ptr_u as *mut libc::c_void
     }
 }
 
