@@ -98,6 +98,7 @@ impl SodiumAlloc {
     const CANARY: [u8; Self::CANARY_SIZE] = [0x31; Self::CANARY_SIZE];
 
     // Reference libsoldium, just convert to rust
+    #[cfg(with_posix_memalign)]
     unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
         // total memory region:
         // |PAGE|PAGE|unprotected|PAGE|
@@ -130,6 +131,7 @@ impl SodiumAlloc {
         user_ptr
     }
 
+    #[cfg(with_posix_memalign)]
     unsafe fn do_free(ptr: *mut libc::c_void) {
         if ptr == null_mut() {
             return;
@@ -148,6 +150,16 @@ impl SodiumAlloc {
         Self::do_free_aligned(base_ptr, total_size);
     }
 
+    #[cfg(not(with_posix_memalign))]
+    unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
+        libc::malloc(size)
+    }
+
+    #[cfg(not(with_posix_memalign))]
+    unsafe fn do_free(ptr: *mut libc::c_void) {
+        libc::free(ptr);
+    }
+
     fn page_round(size: usize) -> usize {
         return (size + Self::PAGE_MASK) & !Self::PAGE_MASK;
     }
@@ -160,6 +172,7 @@ impl SodiumAlloc {
         panic!("Sodium memory out of bounds.");
     }
 
+    #[cfg(with_posix_memalign)]
     fn do_alloc_aligned(size: usize) -> *mut libc::c_void {
         let mut ptr = null_mut();
         let ret = unsafe {
