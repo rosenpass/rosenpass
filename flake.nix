@@ -264,6 +264,7 @@
             inherit system;
           };
           packages = self.packages.${system};
+          devShells = self.devShells.${system};
         in
         {
           #
@@ -325,6 +326,28 @@
             '';
           };
 
+          #
+          ### A DevContainer attempt
+          #
+          packages.dev-container = pkgs.dockerTools.buildImage rec {
+            name = "rosenpass-dev-container";
+            tag = "latest";
+            copyToRoot = pkgs.buildEnv {
+              name = "image-root";
+              paths = with pkgs; [
+                bash
+                coreutils
+                curl
+                gnutar
+                gzip
+                openssh
+                stdenv.cc
+              ]; #++ lib.lists.filter (p: builtins.hasAttr "version" p)
+                #devShells.default.nativeBuildInputs;
+              pathsToLink = [ "/bin" "/lib" ];
+            };
+            config.Cmd = [ "/bin/bash" ];
+          };
 
           #
           ### Devshells ###
