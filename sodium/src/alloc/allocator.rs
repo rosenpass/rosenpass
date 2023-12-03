@@ -6,15 +6,28 @@ use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
 
 /// Memory allocation using sodium_malloc/sodium_free
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Alloc {
-    alloc: SodiumAlloc,
+    alloc: AllocDispatcher,
+}
+
+#[derive(Clone)]
+enum AllocDispatcher {
+    Secrete(SecretAlloc),
+    Sodium(SodiumAlloc),
 }
 
 impl Alloc {
     pub fn new() -> Self {
-        Alloc {
-            alloc: SodiumAlloc::default(),
+        let secret_alloc = SecretAlloc::new();
+        if let Some(sa) = secret_alloc {
+            Alloc {
+                alloc: AllocDispatcher::Secrete(sa),
+            }
+        } else {
+            Alloc {
+                alloc: AllocDispatcher::Sodium(SodiumAlloc::default()),
+            }
         }
     }
 
@@ -22,11 +35,31 @@ impl Alloc {
 
 unsafe impl Allocator for Alloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        self.alloc.do_allocate(layout)
+        match self.alloc {
+            AllocDispatcher::Secrete(ref alloc) => {
+                alloc.do_allocate(layout)
+            }
+            AllocDispatcher::Sodium(ref alloc) => {
+                alloc.do_allocate(layout)
+            }
+        }
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
-        self.alloc.do_deallocate(ptr, _layout);
+        match self.alloc {
+            AllocDispatcher::Secrete(ref alloc) => {
+                alloc.do_deallocate(ptr, _layout);
+            }
+            AllocDispatcher::Sodium(ref alloc) => {
+                alloc.do_deallocate(ptr, _layout);
+            }
+        }
+    }
+}
+
+impl Default for Alloc {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -83,18 +116,21 @@ struct SecretAlloc {
 }
 
 impl SecretAlloc {
-    pub fn new() -> Self {
+    pub fn new() -> Option<Self> {
         let fd  = unsafe {
             libc::syscall(libc::SYS_memfd_secret, 0) as i32
         };
         if fd == -1 {
-            panic!(
-                "Create secret file descriptor failed."
+            // Some legacy system does not support memfd_secret.
+            log::error!(
+                "Create secret file descriptor failed {}.",
+                std::io::Error::last_os_error()
             );
+            return None;
         }
-        SecretAlloc {
+        Some(SecretAlloc {
             fd: fd,
-        }
+        })
     }
 
     fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
@@ -132,12 +168,6 @@ impl SecretAlloc {
         unsafe {
             libc::munmap(ptr.as_ptr() as *mut libc::c_void, layout.size());
         }
-    }
-}
-
-impl Default for SecretAlloc {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
