@@ -5,6 +5,11 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
 
+use std::sync::OnceLock;
+
+static A: OnceLock<i32> = OnceLock::new();
+
+
 /// Memory allocation using sodium_malloc/sodium_free
 #[derive(Clone)]
 pub struct Alloc {
@@ -96,7 +101,7 @@ impl SodiumAlloc {
     const CANARY_SIZE: usize = 16;
     const CANARY: [u8; Self::CANARY_SIZE] = [0x31; Self::CANARY_SIZE];
 
-    // Reference libsoldium, just convert to rust
+    // Reference libsodium, just convert to rust
     #[cfg(with_posix_memalign)]
     unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
         // total memory region:
