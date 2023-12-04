@@ -5,11 +5,6 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
 
-use std::sync::OnceLock;
-
-static A: OnceLock<i32> = OnceLock::new();
-
-
 /// Memory allocation using sodium_malloc/sodium_free
 #[derive(Clone)]
 pub struct Alloc {
