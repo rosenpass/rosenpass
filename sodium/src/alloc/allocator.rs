@@ -56,7 +56,7 @@ impl fmt::Debug for Alloc {
 const CANARY_SIZE: usize = 16;
 type CanaryType = [u8; CANARY_SIZE];
 
-fn get_canny() -> &'static CanaryType {
+fn get_canary() -> &'static CanaryType {
     static CANARY: std::sync::OnceLock<CanaryType> = std::sync::OnceLock::new();
     // Canary is used to detect invalid write
     // So its value is meaningless
@@ -134,7 +134,7 @@ impl SodiumAlloc {
         let canary_ptr = unprotected_ptr.add(Self::page_round(size_with_canary)).sub(size_with_canary);
         let user_ptr = canary_ptr.add(CANARY_SIZE);
         unsafe {
-            libc::memcpy(canary_ptr, get_canny().as_ptr() as *const libc::c_void, CANARY_SIZE);
+            libc::memcpy(canary_ptr, get_canary().as_ptr() as *const libc::c_void, CANARY_SIZE);
             libc::memcpy(base_ptr, (&unprotected_size) as *const usize as *const libc::c_void , size_of::<usize>());
         }
         Self::do_mem_protect_readonly(base_ptr, Self::PAGE_SIZE);
@@ -154,7 +154,7 @@ impl SodiumAlloc {
         libc::memcpy(&mut unprotected_size as *mut usize as *mut libc::c_void, base_ptr, size_of::<usize>());
         let total_size = Self::PAGE_SIZE + Self::PAGE_SIZE + unprotected_size + Self::PAGE_SIZE;
         Self::do_mem_protect_readwrite(base_ptr, total_size);
-        if libc::memcmp(canary_ptr, get_canny().as_ptr() as *const libc::c_void, CANARY_SIZE) != 0 {
+        if libc::memcmp(canary_ptr, get_canary().as_ptr() as *const libc::c_void, CANARY_SIZE) != 0 {
             Self::do_out_of_bounds();
         }
         Self::do_munlock(unprotected_ptr, unprotected_size);
