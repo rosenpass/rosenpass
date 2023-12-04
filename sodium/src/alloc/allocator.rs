@@ -55,9 +55,9 @@ impl fmt::Debug for Alloc {
 
 const CANARY_SIZE: usize = 16;
 type CanaryType = [u8; CANARY_SIZE];
-static CANARY: std::sync::OnceLock<CanaryType> = std::sync::OnceLock::new();
 
 fn get_canny() -> &'static CanaryType {
+    static CANARY: std::sync::OnceLock<CanaryType> = std::sync::OnceLock::new();
     // Canary is used to detect invalid write
     // So its value is meaningless
     // And random number is more secure to avoid attack fake it
