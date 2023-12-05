@@ -2141,6 +2141,8 @@ mod test {
     #[test]
     #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
+        rosenpass_sodium::init().unwrap();
+
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2223,6 +2225,7 @@ mod test {
     #[test]
     #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
+        rosenpass_sodium::init().unwrap();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2247,14 +2250,7 @@ mod test {
             let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
             assert_eq!(resp_msg_type, MsgType::RespHello);
 
-            let sids: Vec<_> = b
-                .peers
-                .iter()
-                .map(|p| p.session.as_ref().map(|s| s.sidt))
-                .collect();
-            println!("Peer SIDs: {:?}", sids);
-
-            //A handles RespHello message under load, should send cookie reply
+            //A handles RespHello message under load, should not send cookie reply
             assert!(a
                 .handle_msg_under_load(
                     &b_to_a_buf[..resp_hello_len],
