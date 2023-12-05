@@ -2047,7 +2047,7 @@ mod test {
     use super::*;
 
     #[test]
-    #[parallel]
+    #[serial]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
     ///
