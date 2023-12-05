@@ -87,6 +87,15 @@ pub enum Cli {
         force: bool,
     },
 
+    /// Deprecated - use gen-keys instead
+    #[allow(rustdoc::broken_intra_doc_links)]
+    #[allow(rustdoc::invalid_html_tags)]
+    Keygen {
+        // NOTE yes, the legacy keygen argument initially really accepted "privet-key", not "secret-key"!
+        /// public-key <PATH> private-key <PATH>
+        args: Vec<String>,
+    },
+
     /// Validate a configuration
     Validate { config_files: Vec<PathBuf> },
 
@@ -117,6 +126,40 @@ impl Cli {
                 );
 
                 config::Rosenpass::example_config().store(config_file)?;
+            }
+
+            // Deprecated - use gen-keys instead
+            Keygen { args } => {
+                log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
+
+                let mut public_key: Option<PathBuf> = None;
+                let mut secret_key: Option<PathBuf> = None;
+
+                // Manual arg parsing, since clap wants to prefix flags with "--"
+                let mut args = args.into_iter();
+                loop {
+                    match (args.next().as_ref().map(String::as_str), args.next()) {
+                        (Some("private-key"), Some(opt)) | (Some("secret-key"), Some(opt)) => {
+                            secret_key = Some(opt.into());
+                        }
+                        (Some("public-key"), Some(opt)) => {
+                            public_key = Some(opt.into());
+                        }
+                        (Some(flag), _) => {
+                            bail!("Unknown option `{}`", flag);
+                        }
+                        (_, _) => break,
+                    };
+                }
+
+                if secret_key.is_none() {
+                    bail!("private-key is required");
+                }
+                if public_key.is_none() {
+                    bail!("public-key is required");
+                }
+
+                generate_and_save_keypair(secret_key.unwrap(), public_key.unwrap())?;
             }
 
             GenKeys {
@@ -160,12 +203,7 @@ impl Cli {
                 }
 
                 // generate the keys and store them in files
-                let mut ssk = crate::protocol::SSk::random();
-                let mut spk = crate::protocol::SPk::random();
-                StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
-
-                ssk.store_secret(skf)?;
-                spk.store_secret(pkf)?;
+                generate_and_save_keypair(skf, pkf)?;
             }
 
             ExchangeConfig { config_file } => {
@@ -245,4 +283,13 @@ impl Cli {
 
         srv.event_loop()
     }
+}
+
+/// generate secret and public keys, store in files according to the paths passed as arguments
+fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
+    let mut ssk = crate::protocol::SSk::random();
+    let mut spk = crate::protocol::SPk::random();
+    StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
+    ssk.store_secret(secret_key)?;
+    spk.store_secret(public_key)
 }
