@@ -370,7 +370,7 @@ impl Default for Verbosity {
 #[cfg(test)]
 mod test {
     use std::net::IpAddr;
-
+    use serial_test::parallel;
     use super::*;
 
     fn split_str(s: &str) -> Vec<String> {
@@ -378,6 +378,7 @@ mod test {
     }
 
     #[test]
+    #[parallel]
     fn test_simple_cli_parse() {
         let args = split_str(
             "public-key /my/public-key secret-key /my/secret-key verbose \
@@ -407,6 +408,7 @@ mod test {
     }
 
     #[test]
+    #[parallel]
     fn test_cli_parse_multiple_peers() {
         let args = split_str(
             "public-key /my/public-key secret-key /my/secret-key verbose \

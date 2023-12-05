@@ -2042,11 +2042,12 @@ impl CryptoServer {
 #[cfg(test)]
 mod test {
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
-    use serial_test::serial;
+    use serial_test::{serial, parallel};
 
     use super::*;
 
     #[test]
+    #[parallel] 
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
     ///

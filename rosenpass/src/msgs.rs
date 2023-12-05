@@ -190,19 +190,23 @@ pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG
 #[cfg(test)]
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
+    use serial_test::parallel;
     use rosenpass_ciphers::{xaead, KEY_LEN};
 
     #[test]
+    #[parallel]
     fn sodium_keysize() {
         assert_eq!(KEY_LEN, 32);
     }
 
     #[test]
+    #[parallel]
     fn biscuit_pt_len() {
         assert_eq!(BISCUIT_PT_LEN, 2 * KEY_LEN + 12);
     }
 
     #[test]
+    #[parallel]
     fn biscuit_ct_len() {
         assert_eq!(
             BISCUIT_CT_LEN,
