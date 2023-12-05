@@ -2041,13 +2041,11 @@ impl CryptoServer {
 
 #[cfg(test)]
 mod test {
-    use serial_test::serial;
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
     use super::*;
 
     #[test]
-    #[serial]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
     ///
@@ -2139,7 +2137,6 @@ mod test {
     }
 
     #[test]
-    #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
         rosenpass_sodium::init().unwrap();
 
@@ -2222,7 +2219,6 @@ mod test {
     }
 
     #[test]
-    #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
         rosenpass_sodium::init().unwrap();
         stacker::grow(8 * 1024 * 1024, || {
