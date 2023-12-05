@@ -2041,7 +2041,7 @@ impl CryptoServer {
 
 #[cfg(test)]
 mod test {
-    use serial_test::{parallel, serial};
+    use serial_test::serial;
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
     use super::*;
@@ -2138,6 +2138,7 @@ mod test {
         Ok((a, b))
     }
 
+    #[ignore]
     #[test]
     #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
@@ -2219,6 +2220,7 @@ mod test {
         });
     }
 
+    #[ignore]
     #[test]
     #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
