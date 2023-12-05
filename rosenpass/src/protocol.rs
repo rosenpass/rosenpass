@@ -2221,7 +2221,6 @@ mod test {
         });
     }
 
-    #[ignore]
     #[test]
     #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
