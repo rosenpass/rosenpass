@@ -2138,7 +2138,6 @@ mod test {
         Ok((a, b))
     }
 
-    #[ignore]
     #[test]
     #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
