@@ -369,9 +369,9 @@ impl Default for Verbosity {
 
 #[cfg(test)]
 mod test {
-    use std::net::IpAddr;
-    use serial_test::parallel;
     use super::*;
+    use serial_test::parallel;
+    use std::net::IpAddr;
 
     fn split_str(s: &str) -> Vec<String> {
         s.split(" ").map(|s| s.to_string()).collect()

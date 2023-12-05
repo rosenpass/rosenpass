@@ -190,8 +190,8 @@ pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG
 #[cfg(test)]
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
-    use serial_test::parallel;
     use rosenpass_ciphers::{xaead, KEY_LEN};
+    use serial_test::parallel;
 
     #[test]
     #[parallel]
