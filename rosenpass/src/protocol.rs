@@ -867,33 +867,6 @@ impl CryptoServer {
         peer: PeerPtr,
         ip_addr_port: &[u8],
     ) -> Result<HandleMsgResult> {
-        let (rx_bytes_til_cookie, rx_cookie, rx_mac, rx_sid) = match rx_buf[0].try_into() {
-            Ok(MsgType::InitHello) => {
-                let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    msg_in.payload().init_hello()?.sidi().to_vec(),
-                )
-            }
-            Ok(MsgType::InitConf) => {
-                let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
-                (
-                    msg_in.until_cookie().to_vec(),
-                    msg_in.cookie().to_vec(),
-                    msg_in.mac().to_vec(),
-                    msg_in.payload().init_conf()?.sidi().to_vec(),
-                )
-            }
-            Ok(_) => {
-                bail!("Message did not contain cookie or could not be sent a cookie reply message (responder sent-message or non-handshake)")
-            }
-            Err(_) => {
-                bail!("Message type not supported")
-            }
-        };
-
         let cookie_tau = hash_domains::cookie_tau()?
             .mix(
                 self.cookie_secret
@@ -903,11 +876,44 @@ impl CryptoServer {
             .into_value()[..16]
             .to_vec();
 
-        let expected = hash_domains::cookie()?
-            .mix(&cookie_tau)?
-            .mix(&rx_bytes_til_cookie)?
-            .into_value()[..16]
-            .to_vec();
+        let mut expected = [0u8; COOKIE_SIZE];
+        let mut rx_cookie = [0u8; COOKIE_SIZE];
+        let mut rx_mac = [0u8; MAC_SIZE];
+        let mut rx_sid = [0u8; 4];
+        match rx_buf[0].try_into() {
+            Ok(MsgType::InitHello) => {
+                let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
+                expected.copy_from_slice(
+                    &hash_domains::cookie()?
+                        .mix(&cookie_tau)?
+                        .mix(&msg_in.until_cookie())?
+                        .into_value()[..16],
+                );
+
+                rx_cookie.copy_from_slice(msg_in.cookie());
+                rx_mac.copy_from_slice(msg_in.mac());
+                rx_sid.copy_from_slice(msg_in.payload().init_hello()?.sidi());
+            }
+            Ok(MsgType::InitConf) => {
+                let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
+                expected.copy_from_slice(
+                    &hash_domains::cookie()?
+                        .mix(&cookie_tau)?
+                        .mix(&msg_in.until_cookie())?
+                        .into_value()[..16],
+                );
+
+                rx_cookie.copy_from_slice(msg_in.cookie());
+                rx_mac.copy_from_slice(msg_in.mac());
+                rx_sid.copy_from_slice(msg_in.payload().init_conf()?.sidi());
+            }
+            Ok(_) => {
+                bail!("Message did not contain cookie or could not be sent a cookie reply message (responder sent-message or non-handshake)")
+            }
+            Err(_) => {
+                bail!("Message type not supported")
+            }
+        };
 
         //If valid cookie is found, process message
         if rosenpass_sodium::helpers::memcmp(&rx_cookie, &expected) {
