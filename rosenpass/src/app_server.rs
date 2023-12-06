@@ -748,14 +748,11 @@ impl AppServer {
         // desired on a non-dual-stack OS), thus just checking every socket after any
         // readiness event seems to be good enough™ for now.
 
-        println!("All sockets drained: {}", self.all_sockets_drained);
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
             self.mio_poll.poll(&mut self.events, Some(timeout))?;
 
             let queue_length = self.events.iter().peekable().count();
-
-            println!("queue length: {}", queue_length);
 
             if queue_length > MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD {
                 self.under_load = DoSOperation::UnderLoad {
