@@ -579,16 +579,35 @@ impl AppServer {
                                 })
                                 .ok_or(anyhow::anyhow!("Received message from unknown endpoint"))?
                                 .0;
+
                             let socket_addr = endpoint
                                 .addresses()
                                 .first()
-                                .copied()
                                 .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
+
+                            let mut len = 0;
+                            let mut ip_addr_port = [0u8; 18];
+
+                            match socket_addr.ip() {
+                                std::net::IpAddr::V4(ipv4) => {
+                                    ip_addr_port[0..4].copy_from_slice(&ipv4.octets());
+                                    len += 4;
+                                }
+                                std::net::IpAddr::V6(ipv6) => {
+                                    ip_addr_port[0..16].copy_from_slice(&ipv6.octets());
+                                    len += 16;
+                                }
+                            };
+
+                            ip_addr_port[len..len + 2]
+                                .copy_from_slice(&socket_addr.port().to_be_bytes());
+                            len += 2;
+
                             self.crypt.handle_msg_under_load(
                                 &rx[..len],
                                 &mut *tx,
                                 PeerPtr(index),
-                                socket_addr,
+                                &ip_addr_port[..len],
                             )
                         }
                         DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
