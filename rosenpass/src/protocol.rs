@@ -2034,12 +2034,6 @@ impl CryptoServer {
                 );
             }
         } else {
-            let sids: Vec<_> = self
-                .peers
-                .iter()
-                .map(|p| p.session.as_ref().map(|s| s.sidm))
-                .collect();
-            println!("SID: {:?}", sids);
             bail!("No such peer {pidr:?}.", pidr = cr.sid());
         }
     }
