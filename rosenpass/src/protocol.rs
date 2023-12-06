@@ -306,7 +306,6 @@ pub struct Peer {
     pub handshake: Option<InitiatorHandshake>,
     pub initiation_requested: bool,
     pub cookie_tau: CookieSecret,
-    pub last_sent_mac: Option<Public<MAC_SIZE>>,
 }
 
 impl Peer {
@@ -319,7 +318,6 @@ impl Peer {
             initiation_requested: false,
             handshake: None,
             cookie_tau: CookieSecret::None,
-            last_sent_mac: None,
         }
     }
 }
@@ -582,7 +580,6 @@ impl CryptoServer {
             handshake: None,
             initiation_requested: false,
             cookie_tau: CookieSecret::None,
-            last_sent_mac: None,
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -686,7 +683,6 @@ impl Peer {
             handshake: None,
             initiation_requested: false,
             cookie_tau: CookieSecret::None,
-            last_sent_mac: None,
         }
     }
 
@@ -871,15 +867,6 @@ impl CryptoServer {
         peer: PeerPtr,
         ip_addr_port: &[u8],
     ) -> Result<HandleMsgResult> {
-        /*
-        let mut ip_addr_port = match socket_addr.ip() {
-            IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
-            IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
-        };
-
-        ip_addr_port.extend_from_slice(&socket_addr.port().to_be_bytes());
-        */
-
         let (rx_bytes_til_cookie, rx_cookie, rx_mac, rx_sid) = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
@@ -1093,13 +1080,6 @@ impl CryptoServer {
         msg.seal(peer, self)?;
         msg.seal_cookie(peer, self)?;
 
-        //Store sent mac value as last sent mac (for cookie reply)
-        let mut mac = [0u8; MAC_SIZE];
-        mac.copy_from_slice(msg.mac());
-
-        peer.get_mut(self)
-            .last_sent_mac
-            .replace(Public { value: mac });
         Ok(<Envelope<(), M> as LenseView>::LEN)
     }
 }
@@ -2003,7 +1983,33 @@ impl CryptoServer {
             .map(|v| PeerPtr(v.0))
             .or_else(|| self.lookup_handshake(session_id).map(|v| PeerPtr(v.0)));
         if let Some(peer) = peer_ptr {
-            if let Some(mac) = peer.get(self).last_sent_mac {
+            // Get last transmitted handshake message
+            if let Some(ih) = &peer.get(self).handshake {
+                let mut mac = [0u8; MAC_SIZE];
+                match ih.tx_buf[0].try_into() {
+                    Ok(MsgType::InitHello) => {
+                        match ih.tx_buf.envelope_truncating::<InitHello<&mut [u8]>>() {
+                            Ok(t) => {
+                                mac.copy_from_slice(t.mac());
+                                Ok(())
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    Ok(MsgType::InitConf) => {
+                        match ih.tx_buf.envelope_truncating::<InitConf<&mut [u8]>>() {
+                            Ok(t) => {
+                                mac.copy_from_slice(t.mac());
+                                Ok(())
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => bail!(
+                        "No last sent message for peer {pidr:?} to decrypt cookie reply.",
+                        pidr = cr.sid()
+                    ),
+                }?;
                 let mut cookie_value = Secret::zero();
                 let spkt = peer.get(self).spkt.secret();
                 let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
@@ -2011,7 +2017,7 @@ impl CryptoServer {
                 xaead::decrypt(
                     cookie_value.secret_mut(),
                     &cookie_key,
-                    &mac.value,
+                    &mac,
                     &cr.all_bytes()[4..],
                 )?;
 
@@ -2214,7 +2220,7 @@ mod test {
                     &a_to_b_buf.as_slice()[..retx_init_hello_len],
                     &mut *b_to_a_buf,
                     PeerPtr(0),
-                    &ip_addr_port_a
+                    &ip_addr_port_a,
                 )
                 .unwrap();
 
@@ -2254,7 +2260,7 @@ mod test {
 
             let socket_addr_b = std::net::SocketAddr::V4(ip_b);
             let mut ip_addr_port_b = [0u8; 18];
-            let mut ip_addr_port_b_len  = 0;
+            let mut ip_addr_port_b_len = 0;
             match socket_addr_b.ip() {
                 std::net::IpAddr::V4(ipv4) => {
                     ip_addr_port_b[0..4].copy_from_slice(&ipv4.octets());
@@ -2266,7 +2272,8 @@ mod test {
                 }
             };
 
-            ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len+2].copy_from_slice(&socket_addr_b.port().to_be_bytes());
+            ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len + 2]
+                .copy_from_slice(&socket_addr_b.port().to_be_bytes());
             ip_addr_port_b_len += 2;
 
             //A handles RespHello message under load, should not send cookie reply
