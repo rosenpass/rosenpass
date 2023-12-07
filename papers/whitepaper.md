@@ -443,11 +443,11 @@ For an initiator, Rosenpass ignores the message when under load.
 The cookie reply message is sent by the responder when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field which consists of the following:
 
 ```pseudorust
-cookie_value = lhash("cookie-value", cookie_secret, ip_addr_port)[0..16]
+cookie_value = lhash("cookie-value", cookie_secret, initiator_host_info)[0..16]
 cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_peer)
 ```
 
-where `cookie_secret` is a secret variable that changes every two minutes to a random value. `ip_addr_port` is a concatenation of the initiator's IP address and UDP source port, with the bytes concatenated with big endian byte order. `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
+where `cookie_secret` is a secret variable that changes every two minutes to a random value. `initiator_host_info` is used to identify the initiator host, and is a concatenation of the initiator's IP address and UDP source port, with the bytes concatenated with big endian byte order. `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
 
 #### Envelope `mac` Field
 
@@ -463,10 +463,10 @@ If a client receives an invalid `mac` value for any message, it will discard the
 
 #### Envelope cookie field
 
-The `cookie_value` encrypted as part of `cookie_encrypted` field in the cookie reply message is decrypted by its receiver and stored as the `peer.cookie_value` for a limited time (120 seconds). This value is then used by the sender to append a `cookie` field to the sender's message envelope to retransmit the handshake message.  This is the equivalent of Wireguard's `mac.2` field and is determined as follows:
+The initiator, on receiving a CookieReply message, decrypts `cookie_encrypted` and stores the `cookie_value` for the session into `peer[sid].cookie_value` for a limited time (120 seconds). This value is then used to set `cookie` field set for subsequent messages and retransmissions to the responderas follows:
 
 ```pseudorust
-if (peer.cookie_value.is_none()  ||  seconds_since_update(peer.cookie_value) >= 120) {
+if (peer.cookie_value.is_none()  ||  seconds_since_update(peer[sid].cookie_value) >= 120) {
     cookie.zeroize(); //zeroed out 16 bytes bitstring
 }
 else {
@@ -474,10 +474,10 @@ else {
 }
 ```
 
-Here, `peer.cookie_value` is the last received decrypted data of the `cookie_encrypted` field from a cookie reply message by a hanshake message sender, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
+Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
 
-The sender can use an invalid value for the `cookie` value, when the receiver is not under load, and the receiver must ignore this value.
-However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. 
+The inititator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
+However, when the responder is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. 
 
 ### Conditions to trigger DoS Mechanism
 
