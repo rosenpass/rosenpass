@@ -2029,11 +2029,10 @@ impl CryptoServer {
                     &cr.all_bytes()[4..],
                 )?;
 
-                peer.get_mut(self).handshake.as_mut().unwrap().cookie_tau =
-                    CookieSecret::Some {
-                        value: cookie_value,
-                        last_updated: Timebase::default(),
-                    };
+                peer.get_mut(self).handshake.as_mut().unwrap().cookie_tau = CookieSecret::Some {
+                    value: cookie_value,
+                    last_updated: Timebase::default(),
+                };
                 Ok(peer)
             } else {
                 bail!(
@@ -2197,7 +2196,12 @@ mod test {
                 .into_value()[..16]
                 .to_vec();
             assert_eq!(
-                a.peers[0].handshake.as_ref().unwrap().cookie_tau.get(PEER_COOKIE_TAU_EXP),
+                a.peers[0]
+                    .handshake
+                    .as_ref()
+                    .unwrap()
+                    .cookie_tau
+                    .get(PEER_COOKIE_TAU_EXP),
                 Some(&expected_cookie_tau[..])
             );
 
