@@ -440,20 +440,20 @@ For an initiator, Rosenpass ignores the message when under load.
 
 #### Cookie Reply Message
 
-The cookie reply message consists of the `sid` of the client under load, a random 24-byte bitstring `nonce` and encrypting `cookie_tau` into a `cookie` reply field which consists of the following (from the perspective of the cookie reply sender):
+The cookie reply message is sent by the responder when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field which consists of the following:
 
-```
-cookie_tau = lhash("cookie-tau",r_m, a_m)[0..16]
-cookie = XAEAD(lhash("cookie-key", spkm), nonce, cookie_tau , mac_peer)
+```pseudorust
+cookie_value = lhash("cookie-value", cookie_secret, ip_addr_port)[0..16]
+cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_peer)
 ```
 
-where `r_m` is a secret variable that changes every two minutes to a random value. `a_m` is a concatenation of the source IP address and UDP source port of the client's peer. `cookie_tau` will result in a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
+where `cookie_secret` is a secret variable that changes every two minutes to a random value. `ip_addr_port` is a concatenation of the initiator's IP address and UDP source port, with the bytes concatenated with big endian byte order. `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
 
 #### Envelope `mac` Field
 
 Similar to `mac.1` in Wireguard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
 
-```
+```pseudorust
 mac = lhash("mac", spkt, MAC_WIRE_DATA)[0..16]
 ```
 
@@ -463,36 +463,33 @@ If a client receives an invalid `mac` value for any message, it will discard the
 
 #### Envelope cookie field
 
-The `cookie_tau` value encrypted as part of `cookie` field in the cookie reply message is decrypted by its receiver and stored as the `last_recvd_cookie` for a limited time (120 seconds). This value is then used by the sender to append a `cookie` field to the sender's message envelope to retransmit the handshake message.  This is the equivalent of Wireguard's `mac.2` field and is determined as follows:
+The `cookie_value` encrypted as part of `cookie_encrypted` field in the cookie reply message is decrypted by its receiver and stored as the `peer.cookie_value` for a limited time (120 seconds). This value is then used by the sender to append a `cookie` field to the sender's message envelope to retransmit the handshake message.  This is the equivalent of Wireguard's `mac.2` field and is determined as follows:
 
-```
-
-if (is_zero_length_bitstring(last_recvd_cookie)  ||  last_cookie_time_ellapsed >= 120) {
-    cookie = 0^16; //zeroed out 16 bytes bitstring
+```pseudorust
+if (peer.cookie_value.is_none()  ||  seconds_since_update(peer.cookie_value) >= 120) {
+    cookie.zeroize(); //zeroed out 16 bytes bitstring
 }
 else {
-    cookie = lhash("cookie",last_recvd_cookie,COOKIE_WIRE_DATA)
+    cookie = lhash("cookie",peer.cookie_value.unwrap(),COOKIE_WIRE_DATA)
 }
 ```
 
-Here, `last_recvd_cookie` is the last received decrypted data of the `cookie` field from a cookie reply message by a hanshake message sender, `last_cookie_time_ellapsed` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
+Here, `peer.cookie_value` is the last received decrypted data of the `cookie_encrypted` field from a cookie reply message by a hanshake message sender, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
 
 The sender can use an invalid value for the `cookie` value, when the receiver is not under load, and the receiver must ignore this value.
 However, when the receiver is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. 
 
 ### Conditions to trigger DoS Mechanism
 
-Rosenpass implementations are expected to detect conditions in which they are under computational load to trigger the cookie based DoS mitigation mechanism by replying with a cookie reply message.
+This whitepaper does not mandate any specific mechanism to detect responder contention (also mentioned as the under load condition) that would trigger use of the cookie mechanism.
 
-For the reference implemenation, Rosenpass has derived inspiration from the linux implementation of Wireguard.
-
-This implementation suggests that the reciever keep track of the number of messages it is processing at a given time. 
+For the reference implemenation, Rosenpass has derived inspiration from the linux implementation of Wireguard.  This implementation suggests that the reciever keep track of the number of messages it is processing at a given time. 
 
 On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When recieving subsequent messages, if the client is still in an under load state, the client will check if the time ellpased since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
 
 Currently, the following constants are derived from the Linux kernel implementation of Wireguard:
 
-```
+```pseudorust
 MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD = 4096
 LAST_UNDER_LOAD_WINDOW = 1 //seconds
 ```
@@ -509,7 +506,7 @@ The cookie reply system does not interfere with the retransmission logic discuss
 
 When the initator is under load, it will ignore processing any incoming messages.
 
-When a responder is under load, a handshake message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_tau` value to use when appending a `cookie` to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello or InitConf message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
+When a responder is under load, the recieved handshake message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello or InitConf message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
 
 \printbibliography
 
