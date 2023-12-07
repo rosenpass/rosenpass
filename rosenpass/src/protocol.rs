@@ -305,7 +305,6 @@ pub struct Peer {
     pub session: Option<Session>,
     pub handshake: Option<InitiatorHandshake>,
     pub initiation_requested: bool,
-    pub cookie_tau: CookieSecret,
 }
 
 impl Peer {
@@ -317,7 +316,6 @@ impl Peer {
             session: None,
             initiation_requested: false,
             handshake: None,
-            cookie_tau: CookieSecret::None,
         }
     }
 }
@@ -371,6 +369,9 @@ pub struct InitiatorHandshake {
     pub tx_count: usize,
     pub tx_len: usize,
     pub tx_buf: MsgBuf,
+
+    // Cookie storage for retransmission
+    pub cookie_tau: CookieSecret,
 }
 
 #[derive(Debug)]
@@ -579,7 +580,6 @@ impl CryptoServer {
             session: None,
             handshake: None,
             initiation_requested: false,
-            cookie_tau: CookieSecret::None,
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -682,7 +682,6 @@ impl Peer {
             session: None,
             handshake: None,
             initiation_requested: false,
-            cookie_tau: CookieSecret::None,
         }
     }
 
@@ -1418,12 +1417,14 @@ where
 
     /// Calculate and append the cookie value if `cookie_tau` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        if let Some(cookie_tau) = peer.get(srv).cookie_tau.get(PEER_COOKIE_TAU_EXP) {
-            let cookie = hash_domains::cookie()?
-                .mix(cookie_tau)?
-                .mix(self.until_cookie())?;
-            self.cookie_mut()
-                .copy_from_slice(cookie.into_value()[..16].as_ref());
+        if let Some(ih) = &peer.get(srv).handshake {
+            if let Some(cookie_tau) = ih.cookie_tau.get(PEER_COOKIE_TAU_EXP) {
+                let cookie = hash_domains::cookie()?
+                    .mix(cookie_tau)?
+                    .mix(self.until_cookie())?;
+                self.cookie_mut()
+                    .copy_from_slice(cookie.into_value()[..16].as_ref());
+            }
         }
         Ok(())
     }
@@ -1458,6 +1459,7 @@ impl InitiatorHandshake {
             tx_count: 0,
             tx_len: 0,
             tx_buf: MsgBuf::zero(),
+            cookie_tau: CookieSecret::None,
         }
     }
 }
@@ -2027,11 +2029,11 @@ impl CryptoServer {
                     &cr.all_bytes()[4..],
                 )?;
 
-                peer.get_mut(self).cookie_tau = CookieSecret::Some {
-                    value: cookie_value,
-                    last_updated: Timebase::default(),
-                };
-
+                peer.get_mut(self).handshake.as_mut().unwrap().cookie_tau =
+                    CookieSecret::Some {
+                        value: cookie_value,
+                        last_updated: Timebase::default(),
+                    };
                 Ok(peer)
             } else {
                 bail!(
@@ -2184,7 +2186,7 @@ mod test {
             a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
                 .unwrap();
 
-            assert!(a.peers[0].cookie_tau.is_some());
+            assert!(a.peers[0].handshake.as_ref().unwrap().cookie_tau.is_some());
 
             let expected_cookie_tau = hash_domains::cookie_tau()
                 .unwrap()
@@ -2195,7 +2197,7 @@ mod test {
                 .into_value()[..16]
                 .to_vec();
             assert_eq!(
-                a.peers[0].cookie_tau.get(PEER_COOKIE_TAU_EXP),
+                a.peers[0].handshake.as_ref().unwrap().cookie_tau.get(PEER_COOKIE_TAU_EXP),
                 Some(&expected_cookie_tau[..])
             );
 
