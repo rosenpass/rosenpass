@@ -1,10 +1,10 @@
 [package]
 name = "rosenpass"
+description = "Build post-quantum-secure VPNs with WireGuard!"
 version = "0.2.1"
 authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
@@ -21,6 +21,7 @@ rosenpass-cipher-traits = { workspace = true }
 rosenpass-to = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
 rosenpass-lenses = { workspace = true }
+rosenpass-wireguard-broker = { workspace = true }
 anyhow = { workspace = true }
 static_assertions = { workspace = true }
 memoffset = { workspace = true }
@@ -33,6 +34,8 @@ toml = { workspace = true }
 clap = { workspace = true }
 mio = { workspace = true }
 rand = { workspace = true }
+command-fds = { workspace = true }
+rustix = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
