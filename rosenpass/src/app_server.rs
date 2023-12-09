@@ -1,38 +1,26 @@
-use anyhow::bail;
-
-use anyhow::Result;
-use log::{debug, error, info, warn};
-use mio::Interest;
-use mio::Token;
-use rosenpass_util::file::fopen_w;
-
-use std::cell::Cell;
-use std::io::Write;
-
-use std::io::ErrorKind;
-use std::net::Ipv4Addr;
-use std::net::Ipv6Addr;
-use std::net::SocketAddr;
-use std::net::SocketAddrV4;
-use std::net::SocketAddrV6;
-use std::net::ToSocketAddrs;
+use std::cell::{Cell, RefCell};
+use std::io::{ErrorKind, Write};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
 use std::slice;
-use std::thread;
 use std::time::Duration;
 
-use crate::{
-    config::Verbosity,
-    protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-};
-use rosenpass_util::attempt;
+use anyhow::{bail, Result};
+use log::{error, info, warn};
+use mio::{Interest, Token};
+
+use rosenpass_secret_memory::Public;
 use rosenpass_util::b64::{b64_writer, fmt_b64};
+use rosenpass_util::{attempt, file::fopen_w};
+use rosenpass_wireguard_broker::api::mio_client::MioBrokerClient as PskBroker;
+use rosenpass_wireguard_broker::WireGuardBroker;
+
+use crate::config::Verbosity;
+use crate::protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing};
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
-
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
     SocketAddr::V4(SocketAddrV4::new(IPV4_ANY_ADDR, 0))
@@ -41,6 +29,19 @@ fn ipv4_any_binding() -> SocketAddr {
 fn ipv6_any_binding() -> SocketAddr {
     // addr, port, flowinfo, scope_id
     SocketAddr::V6(SocketAddrV6::new(IPV6_ANY_ADDR, 0, 0, 0))
+}
+
+#[derive(Default)]
+struct MioTokenDispenser {
+    counter: usize,
+}
+
+impl MioTokenDispenser {
+    fn get_token(&mut self) -> Token {
+        let r = self.counter;
+        self.counter += 1;
+        Token(r)
+    }
 }
 
 #[derive(Default, Debug)]
@@ -59,12 +60,22 @@ impl AppPeer {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct WireguardOut {
     // impl KeyOutput
     pub dev: String,
-    pub pk: String,
+    pub pk: Public<32>,
     pub extra_params: Vec<String>,
+}
+
+impl Default for WireguardOut {
+    fn default() -> Self {
+        Self {
+            dev: Default::default(),
+            pk: Public::zero(),
+            extra_params: Default::default(),
+        }
+    }
 }
 
 /// Holds the state of the application, namely the external IO
@@ -77,6 +88,7 @@ pub struct AppServer {
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
     pub mio_poll: mio::Poll,
+    pub psk_broker: RefCell<PskBroker>,
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
@@ -341,11 +353,24 @@ impl AppServer {
         sk: SSk,
         pk: SPk,
         addrs: Vec<SocketAddr>,
+        psk_broker_socket: UnixStream,
         verbosity: Verbosity,
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(8);
+        let mut dispenser = MioTokenDispenser::default();
+
+        // Create the Wireguard broker connection
+        let psk_broker = {
+            let mut sock = mio::net::UnixStream::from_std(psk_broker_socket);
+            mio_poll.registry().register(
+                &mut sock,
+                dispenser.get_token(),
+                Interest::READABLE | Interest::WRITABLE,
+            )?;
+            PskBroker::new(sock)
+        };
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
@@ -430,6 +455,7 @@ impl AppServer {
         Ok(Self {
             crypt: CryptoServer::new(sk, pk),
             peers: Vec::new(),
+            psk_broker: RefCell::new(psk_broker),
             verbosity,
             sockets,
             events,
@@ -624,31 +650,9 @@ impl AppServer {
         }
 
         if let Some(owg) = ap.outwg.as_ref() {
-            let mut child = Command::new("wg")
-                .arg("set")
-                .arg(&owg.dev)
-                .arg("peer")
-                .arg(&owg.pk)
-                .arg("preshared-key")
-                .arg("/dev/stdin")
-                .stdin(Stdio::piped())
-                .args(&owg.extra_params)
-                .spawn()?;
-            b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
-
-            thread::spawn(move || {
-                let status = child.wait();
-
-                if let Ok(status) = status {
-                    if status.success() {
-                        debug!("successfully passed psk to wg")
-                    } else {
-                        error!("could not pass psk to wg {:?}", status)
-                    }
-                } else {
-                    error!("wait failed: {:?}", status)
-                }
-            });
+            self.psk_broker
+                .borrow_mut()
+                .set_psk(&owg.dev, owg.pk.value, *key.secret())?;
         }
 
         Ok(())
@@ -706,8 +710,15 @@ impl AppServer {
 
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
-            self.mio_poll.poll(&mut self.events, Some(timeout))?;
+            self.mio_poll
+                .poll(&mut self.events, Some(timeout))
+                .or_else(|e| match e.kind() {
+                    ErrorKind::Interrupted | ErrorKind::WouldBlock => Ok(()),
+                    _ => Err(e),
+                })?;
         }
+
+        self.psk_broker.get_mut().poll()?;
 
         let mut would_block_count = 0;
         for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
