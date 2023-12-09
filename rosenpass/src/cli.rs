@@ -1,10 +1,22 @@
-use anyhow::{bail, ensure};
+use std::io::{BufReader, Read};
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
+use std::process::Command;
+use std::thread;
+
+use anyhow::{bail, ensure, Context};
 use clap::Parser;
+use command_fds::{CommandFdExt, FdMapping};
+use log::{error, info};
+use rustix::fd::AsRawFd;
+use rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType};
+
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
+use rosenpass_secret_memory::Public;
+use rosenpass_util::b64::b64_reader;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
-use std::path::PathBuf;
 
 use crate::app_server;
 use crate::app_server::AppServer;
@@ -62,6 +74,7 @@ pub enum Cli {
         config_file: PathBuf,
 
         /// Forcefully overwrite existing config file
+        /// - [ ] Janepie
         #[clap(short, long)]
         force: bool,
     },
@@ -220,11 +233,53 @@ impl Cli {
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
 
+        // Spawn the psk broker and use socketpair(2) to connect with them
+        let psk_broker_socket = {
+            let (ours, theirs) = socketpair(
+                AddressFamily::UNIX,
+                SocketType::STREAM,
+                SocketFlags::empty(),
+                None,
+            )?;
+
+            // Setup our end of the socketpair
+            let ours = UnixStream::from(ours);
+            ours.set_nonblocking(true)?;
+
+            // Start the PSK broker
+            let mut child = Command::new("rosenpass-wireguard-broker-socket-handler")
+                .args(["--stream-fd", "3"])
+                .fd_mappings(vec![FdMapping {
+                    parent_fd: theirs.as_raw_fd(),
+                    child_fd: 3,
+                }])?
+                .spawn()?;
+
+            // Handle the PSK broker crashing
+            thread::spawn(move || {
+                let status = child.wait();
+
+                if let Ok(status) = status {
+                    if status.success() {
+                        // Maybe they are doing double forking?
+                        info!("PSK broker exited.");
+                    } else {
+                        error!("PSK broker exited with an error ({status:?})");
+                    }
+                } else {
+                    error!("Wait on PSK broker process failed ({status:?})");
+                }
+            });
+
+            ours
+        };
+
         // start an application server
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
             sk,
             pk,
             config.listen,
+            psk_broker_socket,
             config.verbosity,
         )?);
 
@@ -234,11 +289,24 @@ impl Cli {
                 cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
-                cfg_peer.wg.map(|cfg| app_server::WireguardOut {
-                    dev: cfg.device,
-                    pk: cfg.peer,
-                    extra_params: cfg.extra_params,
-                }),
+                cfg_peer
+                    .wg
+                    .map(|cfg| -> anyhow::Result<_> {
+                        let b64pk = &cfg.peer;
+                        let mut pk = Public::zero();
+                        b64_reader(BufReader::new(b64pk.as_bytes()))
+                            .read_exact(&mut pk.value)
+                            .with_context(|| {
+                                format!("Could not decode base64 public key: '{b64pk}'")
+                            })?;
+
+                        Ok(app_server::WireguardOut {
+                            pk,
+                            dev: cfg.device,
+                            extra_params: cfg.extra_params,
+                        })
+                    })
+                    .transpose()?,
                 cfg_peer.endpoint.clone(),
             )?;
         }
