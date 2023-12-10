@@ -615,7 +615,7 @@ impl AppServer {
             .first()
             .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
 
-        //TODO: Modify AppPeer to store endpoints to enable O(1) search (hash) for addresses 
+        //TODO: Modify AppPeer to store endpoints to enable O(1) search (hash) for addresses
         //If no endpoint matches address, return error
         //Currently, there is no sensible mechanism to map "anonymous" endpoints to PeerPtr
         let index = self

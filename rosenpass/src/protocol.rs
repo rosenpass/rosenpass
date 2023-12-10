@@ -117,6 +117,8 @@ pub const REKEY_TIMEOUT: Timing = 5.0;
 pub const COOKIE_SECRET_LEN: usize = MAC_SIZE;
 pub const COOKIE_SECRET_EPOCH: Timing = 120.0;
 
+// Cookie value len in whitepaper
+pub const COOKIE_VALUE_LEN: usize = MAC_SIZE;
 // Peer `cookie_value` validity
 pub const PEER_COOKIE_VALUE_EPOCH: Timing = 120.0;
 
@@ -187,7 +189,7 @@ pub struct CryptoServer {
     pub sskm: SSk,
     pub spkm: SPk,
     pub biscuit_ctr: BiscuitId,
-    pub biscuit_keys: [BiscuitKey; 2],
+    pub biscuit_keys: [CookieStore<KEY_LEN>; 2],
 
     // Peer/Handshake DB
     pub peers: Vec<Peer>,
@@ -200,109 +202,23 @@ pub struct CryptoServer {
     pub cookie_secret: CookieSecret,
 }
 
+/// Container for storing cookie types: Biscuit, CookieSecret, CookieValue
 #[derive(Debug)]
-pub struct CookieStore {
-    created_at: Timing,
-    value: Secret<COOKIE_SECRET_LEN>,
+pub struct CookieStore<const N: usize> {
+    pub created_at: Timing,
+    pub value: Secret<N>,
 }
 
-impl CookieStore {
-    pub fn new() -> Self {
-        Self {
-            value: Secret::zero(),
-            created_at: BCE,
-        }
-    }
-
-    pub fn update(&mut self, tb: &Timebase, value: &[u8]) {
-        self.value.secret_mut().copy_from_slice(value);
-        self.created_at = tb.now();
-    }
-
-    pub fn randomize(&mut self, tb: &Timebase) {
-        self.value.randomize();
-        self.created_at = tb.now();
-    }
-
-    /*
-
-    // Get the cookie secret, does not update the value
-    pub fn get(&self) -> Option<&[u8]> {
-        self.lifecycle(srv)
-        if let CookieSecret::Some {
-            value: _value,
-            created_at: last_updated,
-        } = self
-        {
-            if last_updated.now() > self.epoch {
-                return None;
-            }
-        }
-
-        match self {
-            CookieSecret::Some { value, .. } => Some(value.secret()),
-            CookieSecret::None => None,
-        }
-    }
-
-    // Get the cookie secret or update the value if it has expired and return the updated value
-    pub fn get_or_update_ellapsed<F: Fn(&mut Secret<COOKIE_SECRET_LEN>)>(
-        &mut self,
-        expiry: Timing,
-        update_fn: F,
-    ) -> &[u8] {
-        if let CookieSecret::Some {
-            value,
-            created_at: last_updated,
-        } = self
-        {
-            if last_updated.now() > expiry {
-                update_fn(value);
-                *last_updated = Timebase::default();
-            }
-            value.secret()
-        } else {
-            *self = CookieSecret::Some {
-                value: Secret::zero(),
-                created_at: Timebase::default(),
-            };
-            let value = match self {
-                CookieSecret::Some {
-                    value,
-                    created_at: _,
-                } => value,
-                CookieSecret::None => unreachable!(),
-            };
-            update_fn(value);
-            value.secret()
-        }
-    }
-
-    pub fn is_some(&self) -> bool {
-        match self {
-            CookieSecret::Some { .. } => true,
-            CookieSecret::None => false,
-        }
-    }
-
-    pub fn is_none(&self) -> bool {
-        !self.is_some()
-    }
-    */
-}
+/// Stores cookie secret, which is used to create a rotating the cookie value
 #[derive(Debug)]
-pub struct CookieSecret(CookieStore);
+pub struct CookieSecret(CookieStore<COOKIE_SECRET_LEN>);
 
 /// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
 /// the responder doesn't store state. Instead the state is stored in a
 /// Biscuit, that is encrypted using the [BiscuitKey] which is only known to
 /// the Responder. Thus secrecy of the Responder state is not violated, still
 /// the responder can avoid storing this state.
-#[derive(Debug)]
-pub struct BiscuitKey {
-    pub created_at: Timing,
-    pub key: SymKey,
-}
+pub type BiscuitKey = CookieStore<KEY_LEN>;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum IndexKey {
@@ -384,7 +300,7 @@ pub struct InitiatorHandshake {
     pub tx_buf: MsgBuf,
 
     // Cookie storage for retransmission, expires PEER_COOKIE_VALUE_EPOCH seconds after creation
-    pub cookie_value: CookieStore,
+    pub cookie_value: CookieStore<COOKIE_VALUE_LEN>,
 }
 
 #[derive(Debug)]
@@ -549,7 +465,7 @@ impl BiscuitKeyPtr {
 }
 
 impl PeerCookieValuePtr {
-    pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a CookieStore> {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a CookieStore<COOKIE_SECRET_LEN>> {
         srv.peers[self.0]
             .handshake
             .as_ref()
@@ -587,7 +503,7 @@ impl CryptoServer {
             // Defaults
             timebase: tb,
             biscuit_ctr: BiscuitId::new([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), // 1, LSB
-            biscuit_keys: [BiscuitKey::new(), BiscuitKey::new()],
+            biscuit_keys: [CookieStore::new(), CookieStore::new()],
             peers: Vec::new(),
             index: HashMap::new(),
             peer_poll_off: 0,
@@ -755,29 +671,30 @@ impl Session {
     }
 }
 
-// BISCUIT KEY ///////////////////////////////////
-
-/// Biscuit Keys are always randomized, so that even if through a bug some
-/// secrete is encrypted with an initialized [BiscuitKey], nobody instead of
-/// everybody may read the secret.
-impl BiscuitKey {
+// COOKIE STORE ///////////////////////////////////
+impl<const N: usize> CookieStore<N> {
     // new creates a random value, that might be counterintuitive for a Default
     // impl
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             created_at: BCE,
-            key: SymKey::random(),
+            value: Secret::<N>::random(),
         }
     }
 
     pub fn erase(&mut self) {
-        self.key.randomize();
+        self.value.randomize();
         self.created_at = BCE;
     }
 
     pub fn randomize(&mut self, tb: &Timebase) {
-        self.key.randomize();
+        self.value.randomize();
+        self.created_at = tb.now();
+    }
+
+    pub fn update(&mut self, tb: &Timebase, value: &[u8]) {
+        self.value.secret_mut().copy_from_slice(value);
         self.created_at = tb.now();
     }
 }
@@ -1033,9 +950,8 @@ impl CryptoServer {
 
             // Encrypt cookie
             {
-                const COOKIE_LENS_SID_LEN: usize = 4;
-                let cookie_ciphertext =
-                    &mut cookie_reply_lens.all_bytes_mut()[COOKIE_LENS_SID_LEN..];
+                let cookie_ciphertext = &mut cookie_reply_lens.all_bytes_mut()
+                    [SID_LEN..SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN];
                 xaead::encrypt(
                     cookie_ciphertext,
                     &cookie_key,
@@ -1482,6 +1398,17 @@ impl IniHsPtr {
         Ok(())
     }
 
+    pub fn register_immediate_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
+        let tb = srv.timebase.clone();
+        let ih = self
+            .get_mut(srv)
+            .as_mut()
+            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+        ih.tx_retry_at = tb.now();
+        ih.tx_count += 1;
+        Ok(())
+    }
+
     pub fn retransmission_in(&self, srv: &mut CryptoServer) -> Option<Timing> {
         self.get(srv)
             .as_ref()
@@ -1644,7 +1571,7 @@ impl HandshakeState {
         n[0] &= 0b0111_1111;
         n[0] |= (bk.0 as u8 & 0x1) << 7;
 
-        let k = bk.get(srv).key.secret();
+        let k = bk.get(srv).value.secret();
         let pt = biscuit.all_bytes();
         xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
@@ -1674,7 +1601,7 @@ impl HandshakeState {
         let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // slice
         xaead::decrypt(
             biscuit.all_bytes_mut(),
-            bk.get(srv).key.secret(),
+            bk.get(srv).value.secret(),
             &ad,
             biscuit_ct,
         )?;
@@ -2111,7 +2038,16 @@ impl CryptoServer {
                 let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.all_bytes()[4..])?;
+                xaead::decrypt(
+                    cookie_value,
+                    &cookie_key,
+                    &mac,
+                    &cr.all_bytes()
+                        [SID_LEN..SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN],
+                )?;
+
+                // Immediately retransmit on recieving a cookie reply message
+                peer.hs().register_immediate_retransmission(self)?;
 
                 Ok(peer)
             } else {

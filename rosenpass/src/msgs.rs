@@ -51,6 +51,7 @@ use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_lenses::{lense, LenseView};
 pub const MAC_SIZE: usize = 16;
 pub const COOKIE_SIZE: usize = 16;
+pub const SID_LEN: usize = 4;
 
 // Macro magic ////////////////////////////////////////////////////////////////
 
@@ -70,7 +71,7 @@ lense! { Envelope<M> :=
 
 lense! { InitHello :=
     /// Randomly generated connection id
-    sidi: 4,
+    sidi: SID_LEN,
     /// Kyber 512 Ephemeral Public Key
     epki: EphemeralKem::PK_LEN,
     /// Classic McEliece Ciphertext
@@ -83,9 +84,9 @@ lense! { InitHello :=
 
 lense! { RespHello :=
     /// Randomly generated connection id
-    sidr: 4,
+    sidr: SID_LEN,
     /// Copied from InitHello
-    sidi: 4,
+    sidi: SID_LEN,
     /// Kyber 512 Ephemeral Ciphertext
     ecti: EphemeralKem::CT_LEN,
     /// Classic McEliece Ciphertext
@@ -98,9 +99,9 @@ lense! { RespHello :=
 
 lense! { InitConf :=
     /// Copied from InitHello
-    sidi: 4,
+    sidi: SID_LEN,
     /// Copied from RespHello
-    sidr: 4,
+    sidr: SID_LEN,
     /// Responders handshake state in encrypted form
     biscuit: BISCUIT_CT_LEN,
     /// Empty encrypted message (just an auth tag)
@@ -109,7 +110,7 @@ lense! { InitConf :=
 
 lense! { EmptyData :=
     /// Copied from RespHello
-    sid: 4,
+    sid: SID_LEN,
     /// Nonce
     ctr: 8,
     /// Empty encrypted message (just an auth tag)
@@ -130,9 +131,14 @@ lense! { DataMsg :=
 }
 
 lense! { CookieReply :=
-    sid: 4,
+    /// Session ID of the sender (initiator)
+    sid: SID_LEN,
+    /// Nonce
     nonce: xaead::NONCE_LEN,
-    cookie_encrypted: MAC_SIZE + xaead::TAG_LEN
+    /// Encrypted cookie with authenticated initiator `mac`
+    cookie_encrypted: MAC_SIZE + xaead::TAG_LEN,
+    /// Padding (make it same size as InitHello)
+    padding:  (SID_LEN + EphemeralKem::PK_LEN + StaticKem::CT_LEN + aead::TAG_LEN + aead::TAG_LEN + 32) - (SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN)
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
