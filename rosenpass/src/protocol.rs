@@ -113,12 +113,12 @@ pub const REJECT_AFTER_TIME: Timing = 180.0;
 // From the wireguard paper; "under no circumstances send an initiation message more than once every 5 seconds"
 pub const REKEY_TIMEOUT: Timing = 5.0;
 
-// Cookie Secret value Rm composing `cookie_key` in the whitepaper
+// Cookie Secret `cookie_secret` in the whitepaper
 pub const COOKIE_SECRET_LEN: usize = MAC_SIZE;
-pub const COOKIE_SECRET_EXP: Timing = 120.0;
+pub const COOKIE_SECRET_EPOCH: Timing = 120.0;
 
-// Peer Cookie Tau expiration
-pub const PEER_COOKIE_VALUE_EXP: Timing = 120.0;
+// Peer `cookie_value` validity
+pub const PEER_COOKIE_VALUE_EPOCH: Timing = 120.0;
 
 // Seconds until the biscuit key is changed; we issue biscuits
 // using one biscuit key for one epoch and store the biscuit for
@@ -196,35 +196,45 @@ pub struct CryptoServer {
     // Tick handling
     pub peer_poll_off: usize,
 
-    // Random state which changes every COOKIE_SECRET_EXP seconds
+    // Random state which changes every COOKIE_SECRET_EPOCH seconds
     pub cookie_secret: CookieSecret,
 }
 
 #[derive(Debug)]
-pub enum CookieSecret {
-    Some {
-        value: Secret<COOKIE_SECRET_LEN>,
-        last_updated: Timebase,
-    },
-    None,
+pub struct CookieStore {
+    created_at: Timing,
+    value: Secret<COOKIE_SECRET_LEN>,
 }
 
-impl CookieSecret {
-    pub fn new(value: Secret<COOKIE_SECRET_LEN>) -> Self {
-        Self::Some {
-            value,
-            last_updated: Timebase::default(),
+impl CookieStore {
+    pub fn new() -> Self {
+        Self {
+            value: Secret::zero(),
+            created_at: BCE,
         }
     }
 
+    pub fn update(&mut self, tb: &Timebase, value: &[u8]) {
+        self.value.secret_mut().copy_from_slice(value);
+        self.created_at = tb.now();
+    }
+
+    pub fn randomize(&mut self, tb: &Timebase) {
+        self.value.randomize();
+        self.created_at = tb.now();
+    }
+
+    /*
+
     // Get the cookie secret, does not update the value
-    pub fn get(&self, expiry: Timing) -> Option<&[u8]> {
+    pub fn get(&self) -> Option<&[u8]> {
+        self.lifecycle(srv)
         if let CookieSecret::Some {
             value: _value,
-            last_updated,
+            created_at: last_updated,
         } = self
         {
-            if last_updated.now() > expiry {
+            if last_updated.now() > self.epoch {
                 return None;
             }
         }
@@ -243,7 +253,7 @@ impl CookieSecret {
     ) -> &[u8] {
         if let CookieSecret::Some {
             value,
-            last_updated,
+            created_at: last_updated,
         } = self
         {
             if last_updated.now() > expiry {
@@ -254,12 +264,12 @@ impl CookieSecret {
         } else {
             *self = CookieSecret::Some {
                 value: Secret::zero(),
-                last_updated: Timebase::default(),
+                created_at: Timebase::default(),
             };
             let value = match self {
                 CookieSecret::Some {
                     value,
-                    last_updated: _,
+                    created_at: _,
                 } => value,
                 CookieSecret::None => unreachable!(),
             };
@@ -278,7 +288,10 @@ impl CookieSecret {
     pub fn is_none(&self) -> bool {
         !self.is_some()
     }
+    */
 }
+#[derive(Debug)]
+pub struct CookieSecret(CookieStore);
 
 /// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
 /// the responder doesn't store state. Instead the state is stored in a
@@ -370,8 +383,8 @@ pub struct InitiatorHandshake {
     pub tx_len: usize,
     pub tx_buf: MsgBuf,
 
-    // Cookie storage for retransmission
-    pub cookie_key: CookieSecret,
+    // Cookie storage for retransmission, expires PEER_COOKIE_VALUE_EPOCH seconds after creation
+    pub cookie_value: CookieStore,
 }
 
 #[derive(Debug)]
@@ -439,6 +452,9 @@ pub struct SessionPtr(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BiscuitKeyPtr(pub usize);
 
+/// Valid index to [CryptoServer::peers] cookie value
+pub struct PeerCookieValuePtr(usize);
+
 impl PeerPtr {
     pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a Peer {
         &srv.peers[self.0]
@@ -454,6 +470,10 @@ impl PeerPtr {
 
     pub fn hs(&self) -> IniHsPtr {
         IniHsPtr(self.0)
+    }
+
+    pub fn cv(&self) -> PeerCookieValuePtr {
+        PeerCookieValuePtr(self.0)
     }
 }
 
@@ -528,6 +548,31 @@ impl BiscuitKeyPtr {
     }
 }
 
+impl PeerCookieValuePtr {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a CookieStore> {
+        srv.peers[self.0]
+            .handshake
+            .as_ref()
+            .map(|v| &v.cookie_value)
+    }
+
+    pub fn update_mut<'a>(&self, srv: &'a mut CryptoServer) -> Option<&'a mut [u8]> {
+        let timebase = srv.timebase.clone();
+
+        if let Some(cs) = PeerPtr(self.0)
+            .hs()
+            .get_mut(srv)
+            .as_mut()
+            .map(|v| &mut v.cookie_value)
+        {
+            cs.created_at = timebase.now();
+            Some(cs.value.secret_mut())
+        } else {
+            None
+        }
+    }
+}
+
 // DATABASE //////////////////////////////////////
 
 impl CryptoServer {
@@ -546,7 +591,7 @@ impl CryptoServer {
             peers: Vec::new(),
             index: HashMap::new(),
             peer_poll_off: 0,
-            cookie_secret: CookieSecret::None,
+            cookie_secret: CookieSecret(CookieStore::new()),
         }
     }
 
@@ -799,6 +844,45 @@ impl Mortal for BiscuitKeyPtr {
     }
 }
 
+impl Mortal for CookieSecret {
+    fn created_at(&self, _srv: &CryptoServer) -> Option<Timing> {
+        if self.0.created_at < 0.0 {
+            None
+        } else {
+            Some(self.0.created_at)
+        }
+    }
+
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.die_at(srv)
+    }
+
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.created_at(srv).map(|t| t + COOKIE_SECRET_EPOCH)
+    }
+}
+
+impl Mortal for PeerCookieValuePtr {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        if let Some(cs) = self.get(srv) {
+            if cs.created_at < 0.0 {
+                return None;
+            }
+            Some(cs.created_at)
+        } else {
+            None
+        }
+    }
+
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.die_at(srv)
+    }
+
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.created_at(srv).map(|t| t + PEER_COOKIE_VALUE_EPOCH)
+    }
+}
+
 /// Trait extension to the [Mortal] Trait, that enables nicer access to timing
 /// information
 trait MortalExt: Mortal {
@@ -867,12 +951,16 @@ impl CryptoServer {
         ip_addr_port: &[u8],
     ) -> Result<HandleMsgResult> {
         let mut cookie_value = [0u8; 16];
+        match self.cookie_secret.lifecycle(&self) {
+            Lifecycle::Young => {}
+            _ => {
+                self.cookie_secret.0.randomize(&self.timebase);
+            }
+        };
+
         cookie_value.copy_from_slice(
             &hash_domains::cookie_value()?
-                .mix(
-                    self.cookie_secret
-                        .get_or_update_ellapsed(COOKIE_SECRET_EXP, Secret::randomize),
-                )?
+                .mix(self.cookie_secret.0.value.secret())?
                 .mix(&ip_addr_port)?
                 .into_value()[..16],
         );
@@ -1419,14 +1507,12 @@ where
 
     /// Calculate and append the cookie value if `cookie_key` exists (`cookie`)
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        if let Some(ih) = &peer.get(srv).handshake {
-            if let Some(cookie_key) = ih.cookie_key.get(PEER_COOKIE_VALUE_EXP) {
-                let cookie = hash_domains::cookie()?
-                    .mix(cookie_key)?
-                    .mix(self.until_cookie())?;
-                self.cookie_mut()
-                    .copy_from_slice(cookie.into_value()[..16].as_ref());
-            }
+        if let Some(cookie_key) = &peer.cv().get(srv) {
+            let cookie = hash_domains::cookie()?
+                .mix(cookie_key.value.secret())?
+                .mix(self.until_cookie())?;
+            self.cookie_mut()
+                .copy_from_slice(cookie.into_value()[..16].as_ref());
         }
         Ok(())
     }
@@ -1461,7 +1547,7 @@ impl InitiatorHandshake {
             tx_count: 0,
             tx_len: 0,
             tx_buf: MsgBuf::zero(),
-            cookie_key: CookieSecret::None,
+            cookie_value: CookieStore::new(),
         }
     }
 }
@@ -2020,21 +2106,13 @@ impl CryptoServer {
                         pidr = cr.sid()
                     ),
                 }?;
-                let mut cookie_value = Secret::zero();
+
                 let spkt = peer.get(self).spkt.secret();
                 let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
+                let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(
-                    cookie_value.secret_mut(),
-                    &cookie_key,
-                    &mac,
-                    &cr.all_bytes()[4..],
-                )?;
+                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.all_bytes()[4..])?;
 
-                peer.get_mut(self).handshake.as_mut().unwrap().cookie_key = CookieSecret::Some {
-                    value: cookie_value,
-                    last_updated: Timebase::default(),
-                };
                 Ok(peer)
             } else {
                 bail!(
@@ -2187,23 +2265,19 @@ mod test {
             a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
                 .unwrap();
 
-            assert!(a.peers[0].handshake.as_ref().unwrap().cookie_key.is_some());
+            assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
             let expected_cookie_value = hash_domains::cookie_value()
                 .unwrap()
-                .mix(b.cookie_secret.get(COOKIE_SECRET_EXP).unwrap())
+                .mix(b.cookie_secret.0.value.secret())
                 .unwrap()
                 .mix(&ip_addr_port_a)
                 .unwrap()
                 .into_value()[..16]
                 .to_vec();
+
             assert_eq!(
-                a.peers[0]
-                    .handshake
-                    .as_ref()
-                    .unwrap()
-                    .cookie_key
-                    .get(PEER_COOKIE_VALUE_EXP),
+                PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
                 Some(&expected_cookie_value[..])
             );
 

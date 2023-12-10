@@ -610,25 +610,27 @@ impl AppServer {
         rx: &[u8],
         tx: &mut [u8],
     ) -> Result<crate::protocol::HandleMsgResult> {
-        //TODO: Lookup peer through addresses (hash)
+        let socket_addr = endpoint
+            .addresses()
+            .first()
+            .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
+
+        //TODO: Modify AppPeer to store endpoints to enable O(1) search (hash) for addresses 
+        //If no endpoint matches address, return error
+        //Currently, there is no sensible mechanism to map "anonymous" endpoints to PeerPtr
         let index = self
             .peers
             .iter()
             .enumerate()
             .find(|(_num, p)| {
                 if let Some(ep) = p.endpoint() {
-                    ep.addresses() == endpoint.addresses()
+                    ep.addresses().contains(socket_addr)
                 } else {
                     false
                 }
             })
             .ok_or(anyhow::anyhow!("Received message from unknown endpoint"))?
             .0;
-
-        let socket_addr = endpoint
-            .addresses()
-            .first()
-            .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
 
         let mut len = 0;
         let mut ip_addr_port = [0u8; 18];
