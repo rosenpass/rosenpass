@@ -15,11 +15,4 @@ rosenpass-to = { workspace = true }
 anyhow = { workspace = true }
 libsodium-sys-stable = { workspace = true }
 log = { workspace = true }
-allocator-api2 = { workspace = true }
 rand = "0.8.5"
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2.150"
-
-[build-dependencies]
-libc = "0.2.150"

@@ -7,3 +7,5 @@ pub use crate::public::Public;
 
 mod secret;
 pub use crate::secret::Secret;
+
+mod allocator;

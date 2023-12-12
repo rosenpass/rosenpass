@@ -1165,9 +1165,12 @@ dependencies = [
 name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "lazy_static",
+ "libc",
  "libsodium-sys-stable",
+ "log",
  "rand",
  "rosenpass-sodium",
  "rosenpass-to",
@@ -1179,9 +1182,7 @@ dependencies = [
 name = "rosenpass-sodium"
 version = "0.1.0"
 dependencies = [
- "allocator-api2",
  "anyhow",
- "libc",
  "libsodium-sys-stable",
  "log",
  "rand",

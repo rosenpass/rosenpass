@@ -18,3 +18,11 @@ libsodium-sys-stable = { workspace = true }
 lazy_static = { workspace = true }
 zeroize = { workspace = true }
 rand = { workspace = true }
+allocator-api2 = { workspace = true }
+log = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.150"
+
+[build-dependencies]
+libc = "0.2.150"

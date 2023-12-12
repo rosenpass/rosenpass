@@ -1,8 +1,8 @@
-use crate::file::StoreSecret;
+use crate::{file::StoreSecret, allocator};
+use allocator::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
 use anyhow::Context;
 use lazy_static::lazy_static;
 use rand::{Fill as Randomize, Rng};
-use rosenpass_sodium::alloc::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
 use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
