@@ -140,7 +140,7 @@ impl SecretAlloc {
             libc::syscall(libc::SYS_memfd_secret, 0) as i32
         };
         if fd == -1 {
-            panic!(
+            log::error!(
                 "Create secret file descriptor failed {}.",
                 std::io::Error::last_os_error()
             );
@@ -151,6 +151,12 @@ impl SecretAlloc {
     }
 
     fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        if self.fd == -1 {
+            log::error!(
+                "Create secret file descriptor failed."
+            );
+            return Err(AllocError);
+        }
         let ptr = unsafe {
             let ret = libc::mmap(null_mut::<libc::c_void>(), layout.size(), libc::PROT_READ | libc::PROT_WRITE, libc::MAP_LOCKED, self.fd, 0);
             if ret == libc::MAP_FAILED {
@@ -182,6 +188,12 @@ impl SecretAlloc {
     }
 
     fn do_deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        if self.fd == -1 {
+            log::error!(
+                "Create secret file descriptor failed."
+            );
+            return;
+        }
         unsafe {
             libc::munmap(ptr.as_ptr() as *mut libc::c_void, layout.size());
         }
