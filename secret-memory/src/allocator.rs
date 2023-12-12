@@ -202,9 +202,11 @@ impl SecretAlloc {
 
 impl Drop for SecretAlloc {
     fn drop(&mut self) {
-        unsafe {
-            libc::close(self.fd);
-        }       
+        if self.fd != -1 {
+            unsafe {
+                libc::close(self.fd);
+            }       
+        }
     }
 }
 
