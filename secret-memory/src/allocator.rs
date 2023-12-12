@@ -1,9 +1,8 @@
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
-use rand::{self, Rng};
 use libc;
+use memsec;
 use std::fmt;
-use std::mem::size_of;
-use std::os::raw::c_void;
+use std::io::Error;
 use std::ptr::{NonNull, null_mut};
 
 /// A box backed by sodium_malloc
@@ -15,35 +14,40 @@ pub type Vec<T> = allocator_api2::vec::Vec<T, Alloc>;
 /// Memory allocation using sodium_malloc/sodium_free
 #[derive(Clone)]
 pub struct Alloc {
-    #[cfg(with_memfd_secret)]
-    alloc: SecretAlloc,
-    #[cfg(not(with_memfd_secret))]
-    alloc: SodiumAlloc,
+    inner: AllocInner
+}
+
+#[derive(Clone)]
+enum AllocInner {
+    SecretAlloc(SecretAlloc),
+    SodiumAlloc(SodiumAlloc),
 }
 
 impl Alloc {
-    #[cfg(with_memfd_secret)]
     pub fn new() -> Self {
         Alloc {
-            alloc: SecretAlloc::new(),
-        }
-    }
-
-    #[cfg(not(with_memfd_secret))]
-    pub fn new() -> Self {
-        Alloc {
-            alloc: SodiumAlloc::default(),
+            inner: if get_support_memfd_secret() {
+                AllocInner::SecretAlloc(SecretAlloc::new())
+            } else {
+                AllocInner::SodiumAlloc(SodiumAlloc::default())
+            }
         }
     }
 }
 
 unsafe impl Allocator for Alloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        self.alloc.do_allocate(layout)
+        match &self.inner {
+            AllocInner::SecretAlloc(alloc) => alloc.do_allocate(layout),
+            AllocInner::SodiumAlloc(alloc) => alloc.do_allocate(layout),
+        }
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        self.alloc.do_deallocate(ptr, layout);
+        match &self.inner {
+            AllocInner::SecretAlloc(alloc) => alloc.do_deallocate(ptr, layout),
+            AllocInner::SodiumAlloc(alloc) => alloc.do_deallocate(ptr, layout),
+        }
     }
 }
 
@@ -55,20 +59,35 @@ impl Default for Alloc {
 
 impl fmt::Debug for Alloc {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str("<libsodium based Rust allocator>")
+        match &self.inner {
+            AllocInner::SecretAlloc(_) => fmt.write_str("<memfd_secret based Rust allocator>"),
+            AllocInner::SodiumAlloc(_) => fmt.write_str("<memsec based Rust allocator>")
+        }
     }
 }
 
-const CANARY_SIZE: usize = 16;
-type CanaryType = [u8; CANARY_SIZE];
+#[cfg(not(unix))]
+fn get_support_memfd_secret() -> bool {
+    false
+}
 
-fn get_canary() -> &'static CanaryType {
-    static CANARY: std::sync::OnceLock<CanaryType> = std::sync::OnceLock::new();
-    // Canary is used to detect invalid write
-    // So its value is meaningless
-    // And random number is more secure to avoid attack fake it
-    CANARY.get_or_init(|| {
-        [rand::thread_rng().gen(); CANARY_SIZE]
+#[cfg(unix)]
+fn get_support_memfd_secret() -> bool {
+    static SUPPORT_MEMFD_SECRET: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *SUPPORT_MEMFD_SECRET.get_or_init(|| {
+        let fd  = unsafe {
+            libc::syscall(libc::SYS_memfd_secret, 0) as i32
+        };
+        if fd != -1 || if let Some(os_err) = Error::last_os_error().raw_os_error() { os_err != 38 } else { true } {
+            // with memfd_secret support
+            return true;
+        }
+        if fd != -1 {
+            unsafe {
+                libc::close(fd);
+            }
+        }
+        false
     })
 }
 
@@ -78,190 +97,34 @@ struct SodiumAlloc;
 impl SodiumAlloc {
     fn do_allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         // Call sodium allocator
-        let ptr = unsafe { Self::do_malloc(layout.size()) };
+        let ptr = unsafe { memsec::malloc_sized(layout.size()) };
+
+        let ptr = if let Some(p) = ptr {
+            p
+        } else {
+            log::error!(
+                "Allocation {layout:?} was requested but memsec returned a null pointer"
+            );
+            return Err(AllocError);
+        };
 
         // Ensure the right allocation is used
-        let off = ptr.align_offset(layout.align());
+        let off = (ptr.as_ptr() as *const libc::c_void).align_offset(layout.align());
         if off != 0 {
-            log::error!("Allocation {layout:?} was requested but libsodium returned allocation \
-                with offset {off} from the requested alignment. Libsodium always allocates values \
+            log::error!("Allocation {layout:?} was requested but memsec returned allocation \
+                with offset {off} from the requested alignment. Memsec always allocates values \
                 at the end of a memory page for security reasons, custom alignments are not supported. \
                 You could try allocating an oversized value.");
             return Err(AllocError);
         }
 
-        // Convert to a pointer size
-        let ptr = core::ptr::slice_from_raw_parts_mut(ptr as *mut u8, layout.size());
-
-        // Conversion to a *const u8, then to a &[u8]
-        match NonNull::new(ptr) {
-            None => {
-                log::error!(
-                    "Allocation {layout:?} was requested but libsodium returned a null pointer"
-                );
-                Err(AllocError)
-            }
-            Some(ret) => Ok(ret),
-        }
+        Ok(ptr)
     }
 
     fn do_deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         unsafe {
-            Self::do_free(ptr.as_ptr() as *mut c_void);
+            memsec::free(ptr)
         }
-    }
-
-    const PAGE_SIZE: usize = 0x10000;
-    const PAGE_MASK: usize = Self::PAGE_SIZE - 1;
-
-    // Reference libsodium, just convert to rust
-    #[cfg(with_posix_memalign)]
-    unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
-        // total memory region:
-        // |PAGE|PAGE|unprotected|PAGE|
-        let size_with_canary = size + CANARY_SIZE;
-        let unprotected_size = Self::page_round(size_with_canary);
-        let total_size = Self::PAGE_SIZE + Self::PAGE_SIZE + unprotected_size + Self::PAGE_SIZE;
-
-        if size >= (std::usize::MAX - Self::PAGE_SIZE * 4) {
-            return null_mut();
-        }
-
-        if Self::PAGE_SIZE <= CANARY_SIZE || Self::PAGE_SIZE < std::mem::size_of::<usize>() {
-            Self::do_misuse();
-        }
-
-        let base_ptr = Self::do_alloc_aligned(total_size);
-        let unprotected_ptr = base_ptr.add(Self::PAGE_SIZE * 2);
-
-        Self::do_mem_protect_noaccess(base_ptr.add(Self::PAGE_SIZE), Self::PAGE_SIZE);
-        Self::do_mem_protect_noaccess(unprotected_ptr.add(unprotected_size), Self::PAGE_SIZE);
-        Self::do_mlock(unprotected_ptr, unprotected_size);
-        let canary_ptr = unprotected_ptr.add(Self::page_round(size_with_canary)).sub(size_with_canary);
-        let user_ptr = canary_ptr.add(CANARY_SIZE);
-        unsafe {
-            libc::memcpy(canary_ptr, get_canary().as_ptr() as *const libc::c_void, CANARY_SIZE);
-            libc::memcpy(base_ptr, (&unprotected_size) as *const usize as *const libc::c_void , size_of::<usize>());
-        }
-        Self::do_mem_protect_readonly(base_ptr, Self::PAGE_SIZE);
-        assert_eq!(Self::unprotected_ptr_from_user_ptr(user_ptr), unprotected_ptr);
-        user_ptr
-    }
-
-    #[cfg(with_posix_memalign)]
-    unsafe fn do_free(ptr: *mut libc::c_void) {
-        if ptr == null_mut() {
-            return;
-        }
-        let canary_ptr = ptr.sub(CANARY_SIZE);
-        let unprotected_ptr = Self::unprotected_ptr_from_user_ptr(ptr);
-        let base_ptr = unprotected_ptr.sub(Self::PAGE_SIZE * 2);
-        let mut unprotected_size = 0;
-        libc::memcpy(&mut unprotected_size as *mut usize as *mut libc::c_void, base_ptr, size_of::<usize>());
-        let total_size = Self::PAGE_SIZE + Self::PAGE_SIZE + unprotected_size + Self::PAGE_SIZE;
-        Self::do_mem_protect_readwrite(base_ptr, total_size);
-        if libc::memcmp(canary_ptr, get_canary().as_ptr() as *const libc::c_void, CANARY_SIZE) != 0 {
-            Self::do_out_of_bounds();
-        }
-        Self::do_munlock(unprotected_ptr, unprotected_size);
-        Self::do_free_aligned(base_ptr, total_size);
-    }
-
-    #[cfg(not(with_posix_memalign))]
-    unsafe fn do_malloc(size: usize) -> *mut libc::c_void {
-        libc::malloc(size)
-    }
-
-    #[cfg(not(with_posix_memalign))]
-    unsafe fn do_free(ptr: *mut libc::c_void) {
-        libc::free(ptr);
-    }
-
-    fn page_round(size: usize) -> usize {
-        return (size + Self::PAGE_MASK) & !Self::PAGE_MASK;
-    }
-
-    fn do_misuse() {
-        panic!("Sodium malloc misuse.");
-    }
-
-    fn do_out_of_bounds() {
-        panic!("Sodium memory out of bounds.");
-    }
-
-    #[cfg(with_posix_memalign)]
-    fn do_alloc_aligned(size: usize) -> *mut libc::c_void {
-        let mut ptr = null_mut();
-        let ret = unsafe {
-            libc::posix_memalign(&mut ptr, Self::PAGE_SIZE, size)
-        };
-        if ret != 0 {
-            log::error!(
-                "posix_memalign failed."
-            );
-            return null_mut();
-        }
-        ptr
-    }
-
-    fn do_free_aligned(ptr: *mut libc::c_void, _size: usize) {
-        unsafe {
-            libc::free(ptr);
-        }
-    }
-
-    fn do_mem_protect_noaccess(ptr: *mut libc::c_void, size: usize) {
-        let ret = unsafe {
-            libc::mprotect(ptr, size, libc::PROT_NONE)
-        };
-        if ret != 0 {
-            log::error!(
-                "mprotect PROT_NONE failed."
-            );
-        }
-    }
-
-    fn do_mem_protect_readonly(ptr: *mut libc::c_void, size: usize) {
-        let ret = unsafe {
-            libc::mprotect(ptr, size, libc::PROT_READ)
-        };
-        if ret != 0 {
-            log::error!(
-                "mprotect PROT_READ failed."
-            );
-        }
-    }
-
-    fn do_mem_protect_readwrite(ptr: *mut libc::c_void, size: usize) {
-        let ret = unsafe {
-            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE)
-        };
-        if ret != 0 {
-            log::error!(
-                "mprotect PROT_READ | PROT_WRITE failed."
-            );
-        }
-    }
-
-    fn do_mlock(ptr: *mut libc::c_void, size: usize) -> i32 {
-        unsafe {
-            libc::mlock(ptr, size)
-        }
-    }
-
-    fn do_munlock(ptr: *mut libc::c_void, size: usize) -> i32 {
-        unsafe {
-            libc::munlock(ptr, size)
-        }
-    }
-
-    fn unprotected_ptr_from_user_ptr(ptr: *const libc::c_void) -> *mut libc::c_void {
-        let canary_ptr = unsafe { ptr.sub(CANARY_SIZE) };
-        let unprotected_ptr_u = canary_ptr as usize & !Self::PAGE_MASK;
-        if unprotected_ptr_u <= Self::PAGE_SIZE * 2 {
-            Self::do_misuse();
-        }
-        unprotected_ptr_u as *mut libc::c_void
     }
 }
 
@@ -340,7 +203,6 @@ mod test {
     /// checks that the can malloc with libsodium
     #[test]
     fn sodium_allocation() {
-        crate::init().unwrap();
         let alloc = Alloc::new();
         sodium_allocation_impl::<0>(&alloc);
         sodium_allocation_impl::<7>(&alloc);
@@ -350,7 +212,6 @@ mod test {
     }
 
     fn sodium_allocation_impl<const N: usize>(alloc: &Alloc) {
-        crate::init().unwrap();
         let layout = Layout::new::<[u8; N]>();
         let mem = alloc.allocate(layout).unwrap();
 
