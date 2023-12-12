@@ -49,6 +49,8 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_lenses::{lense, LenseView};
+pub const MSG_SIZE_LEN: usize = 1;
+pub const RESERVED_LEN: usize = 3;
 pub const MAC_SIZE: usize = 16;
 pub const COOKIE_SIZE: usize = 16;
 pub const SID_LEN: usize = 4;
@@ -57,9 +59,9 @@ pub const SID_LEN: usize = 4;
 
 lense! { Envelope<M> :=
     /// [MsgType] of this message
-    msg_type: 1,
+    msg_type: MSG_SIZE_LEN,
     /// Reserved for future use
-    reserved: 3,
+    reserved: RESERVED_LEN,
     /// The actual Paylod
     payload: M::LEN,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
@@ -131,6 +133,10 @@ lense! { DataMsg :=
 }
 
 lense! { CookieReply :=
+    /// [MsgType] of this message
+    msg_type: MSG_SIZE_LEN,
+    /// Reserved for future use
+    reserved: RESERVED_LEN,
     /// Session ID of the sender (initiator)
     sid: SID_LEN,
     /// Nonce
@@ -138,7 +144,7 @@ lense! { CookieReply :=
     /// Encrypted cookie with authenticated initiator `mac`
     cookie_encrypted: MAC_SIZE + xaead::TAG_LEN,
     /// Padding (make it same size as InitHello)
-    padding:  (SID_LEN + EphemeralKem::PK_LEN + StaticKem::CT_LEN + aead::TAG_LEN + aead::TAG_LEN + 32) - (SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN)
+    padding:  (MSG_SIZE_LEN + RESERVED_LEN + SID_LEN + EphemeralKem::PK_LEN + StaticKem::CT_LEN + aead::TAG_LEN + aead::TAG_LEN + 32 +  MAC_SIZE + MAC_SIZE) - (MSG_SIZE_LEN + RESERVED_LEN + SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN)
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -184,6 +190,12 @@ impl TryFrom<u8> for MsgType {
             0x86 => MsgType::CookieReply,
             _ => return Err(RosenpassError::InvalidMessageType(value)),
         })
+    }
+}
+
+impl Into<u8> for MsgType {
+    fn into(self) -> u8 {
+        self as u8
     }
 }
 

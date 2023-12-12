@@ -864,7 +864,6 @@ impl CryptoServer {
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        peer: PeerPtr,
         ip_addr_port: &[u8],
     ) -> Result<HandleMsgResult> {
         let mut cookie_value = [0u8; 16];
@@ -928,30 +927,40 @@ impl CryptoServer {
         }
         //Otherwise send cookie reply
         else {
-            let mut msg_out = tx_buf.envelope_truncating::<CookieReply<&mut [u8]>>()?;
+            let mut msg_out = tx_buf.cookie_reply_truncating()?;
             let cookie_key = hash_domains::cookie_key()?
                 .mix(self.spkm.secret())?
                 .into_value();
 
-            let mut cookie_reply_lens = msg_out.payload_mut().cookie_reply()?;
             let nonce_val = XAEADNonce::random();
 
+            {
+                let msg_type_slice: [u8; 1] = [MsgType::CookieReply.into()];
+                let msg_type = msg_out.msg_type_mut();
+                msg_type.copy_from_slice(&msg_type_slice);
+            }
             // Copy sender's session id to cookie reply message
             {
-                let sid = cookie_reply_lens.sid_mut();
+                let sid = msg_out.sid_mut();
                 sid.copy_from_slice(&rx_sid[..]);
             }
 
             // Generate random nonce, copy it to message and nonce_val
             {
-                let nonce = cookie_reply_lens.nonce_mut();
+                let nonce = msg_out.nonce_mut();
                 nonce.copy_from_slice(&nonce_val.value);
             }
 
             // Encrypt cookie
             {
-                let cookie_ciphertext = &mut cookie_reply_lens.all_bytes_mut()
-                    [SID_LEN..SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN];
+                let cookie_ciphertext =
+                    &mut msg_out.all_bytes_mut()[MSG_SIZE_LEN + RESERVED_LEN + SID_LEN
+                        ..MSG_SIZE_LEN
+                            + RESERVED_LEN
+                            + SID_LEN
+                            + xaead::NONCE_LEN
+                            + MAC_SIZE
+                            + xaead::TAG_LEN];
                 xaead::encrypt(
                     cookie_ciphertext,
                     &cookie_key,
@@ -962,7 +971,7 @@ impl CryptoServer {
             }
 
             // length of the response
-            let len = Some(self.seal_and_commit_msg(peer, MsgType::CookieReply, msg_out)?);
+            let len = Some(CookieReply::<&mut [u8]>::LEN);
 
             Ok(HandleMsgResult {
                 exchanged_with: None,
@@ -1057,10 +1066,8 @@ impl CryptoServer {
             }
             Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
             Ok(MsgType::CookieReply) => {
-                let msg_in = rx_buf.envelope::<CookieReply<&[u8]>>()?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
-
-                let peer = self.handle_cookie_reply(msg_in.payload().cookie_reply()?)?;
+                let msg_in = rx_buf.cookie_reply()?;
+                let peer = self.handle_cookie_reply(msg_in)?;
                 len = 0;
                 peer
             }
@@ -2042,8 +2049,13 @@ impl CryptoServer {
                     cookie_value,
                     &cookie_key,
                     &mac,
-                    &cr.all_bytes()
-                        [SID_LEN..SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN],
+                    &cr.all_bytes()[MSG_SIZE_LEN + RESERVED_LEN + SID_LEN
+                        ..MSG_SIZE_LEN
+                            + RESERVED_LEN
+                            + SID_LEN
+                            + xaead::NONCE_LEN
+                            + MAC_SIZE
+                            + xaead::TAG_LEN],
                 )?;
 
                 // Immediately retransmit on recieving a cookie reply message
@@ -2190,7 +2202,6 @@ mod test {
                 .handle_msg_under_load(
                     &a_to_b_buf.as_slice()[..init_hello_len],
                     &mut *b_to_a_buf,
-                    PeerPtr(0),
                     &ip_addr_port_a,
                 )
                 .unwrap();
@@ -2237,7 +2248,6 @@ mod test {
                 .handle_msg_under_load(
                     &a_to_b_buf.as_slice()[..retx_init_hello_len],
                     &mut *b_to_a_buf,
-                    PeerPtr(0),
                     &ip_addr_port_a,
                 )
                 .unwrap();
@@ -2299,7 +2309,6 @@ mod test {
                 .handle_msg_under_load(
                     &b_to_a_buf[..resp_hello_len],
                     &mut *a_to_b_buf,
-                    PeerPtr(0),
                     &ip_addr_port_b[..ip_addr_port_b_len]
                 )
                 .is_err());
