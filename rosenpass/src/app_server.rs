@@ -4,6 +4,7 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
+use rosenpass_util::file::fopen_w;
 
 use std::cell::Cell;
 use std::io::Write;
@@ -22,12 +23,12 @@ use std::slice;
 use std::thread;
 use std::time::Duration;
 
-use crate::util::fopen_w;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-    util::{b64_writer, fmt_b64},
 };
+use rosenpass_util::attempt;
+use rosenpass_util::b64::{b64_writer, fmt_b64};
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);

@@ -19,22 +19,23 @@
 //! [CryptoServer].
 //!
 //! ```
+//! use rosenpass_cipher_traits::Kem;
+//! use rosenpass_ciphers::kem::StaticKem;
 //! use rosenpass::{
-//!     pqkem::{StaticKEM, KEM},
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> anyhow::Result<()> {
 //!
-//! // always init libsodium before anything
-//! rosenpass::sodium::sodium_init()?;
+//! // always initialize libsodium before anything
+//! rosenpass_sodium::init()?;
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
-//! StaticKEM::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
+//! StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
 //!
 //! // ... and for peer b
 //! let (mut peer_b_sk, mut peer_b_pk) = (SSk::zero(), SPk::zero());
-//! StaticKEM::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
+//! StaticKem::keygen(peer_b_sk.secret_mut(), peer_b_pk.secret_mut())?;
 //!
 //! // initialize server and a pre-shared key
 //! let psk = SymKey::random();
@@ -67,20 +68,20 @@
 //! # }
 //! ```
 
-use crate::{
-    coloring::*,
-    labeled_prf as lprf,
-    msgs::*,
-    pqkem::*,
-    prftree::{SecretPrfTree, SecretPrfTreeBranch},
-    sodium::*,
-    util::*,
-};
+use crate::{hash_domains, msgs::*};
 use anyhow::{bail, ensure, Context, Result};
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
+use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_lenses::LenseView;
+use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
+use std::convert::Infallible;
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -139,19 +140,19 @@ pub fn has_happened(ev: Timing, now: Timing) -> bool {
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 
-pub type SPk = Secret<{ StaticKEM::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
-pub type SSk = Secret<{ StaticKEM::SK_LEN }>;
-pub type EPk = Public<{ EphemeralKEM::PK_LEN }>;
-pub type ESk = Secret<{ EphemeralKEM::SK_LEN }>;
+pub type SPk = Secret<{ StaticKem::PK_LEN }>; // Just Secret<> instead of Public<> so it gets allocated on the heap
+pub type SSk = Secret<{ StaticKem::SK_LEN }>;
+pub type EPk = Public<{ EphemeralKem::PK_LEN }>;
+pub type ESk = Secret<{ EphemeralKem::SK_LEN }>;
 
-pub type SymKey = Secret<KEY_SIZE>;
-pub type SymHash = Public<KEY_SIZE>;
+pub type SymKey = Secret<KEY_LEN>;
+pub type SymHash = Public<KEY_LEN>;
 
-pub type PeerId = Public<KEY_SIZE>;
+pub type PeerId = Public<KEY_LEN>;
 pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
-pub type XAEADNonce = Public<XAEAD_NONCE_LEN>;
+pub type XAEADNonce = Public<{ xaead::NONCE_LEN }>;
 
 pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
 
@@ -233,7 +234,7 @@ pub struct HandshakeState {
     /// Session ID of Responder
     pub sidr: SessionId,
     /// Chaining Key
-    pub ck: SecretPrfTreeBranch,
+    pub ck: SecretHashDomainNamespace, // TODO: We should probably add an abstr
 }
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
@@ -285,7 +286,7 @@ pub struct Session {
     pub sidt: SessionId,
     pub handshake_role: HandshakeRole,
     // Crypto
-    pub ck: SecretPrfTreeBranch,
+    pub ck: SecretHashDomainNamespace,
     /// Key for Transmission ("transmission key mine")
     pub txkm: SymKey,
     /// Key for Reception ("transmission key theirs")
@@ -460,7 +461,7 @@ impl CryptoServer {
     #[rustfmt::skip]
     pub fn pidm(&self) -> Result<PeerId> {
         Ok(Public::new(
-            lprf::peerid()?
+            hash_domains::peerid()?
                 .mix(self.spkm.secret())?
                 .into_value()))
     }
@@ -590,7 +591,7 @@ impl Peer {
     #[rustfmt::skip]
     pub fn pidt(&self) -> Result<PeerId> {
         Ok(Public::new(
-            lprf::peerid()?
+            hash_domains::peerid()?
                 .mix(self.spkt.secret())?
                 .into_value()))
     }
@@ -603,7 +604,7 @@ impl Session {
             sidm: SessionId::zero(),
             sidt: SessionId::zero(),
             handshake_role: HandshakeRole::Initiator,
-            ck: SecretPrfTree::zero().dup(),
+            ck: SecretHashDomain::zero().dup(),
             txkm: SymKey::zero(),
             txkt: SymKey::zero(),
             txnm: 0,
@@ -1154,7 +1155,7 @@ impl IniHsPtr {
                         .min(ih.tx_count as f64),
                 )
                 * RETRANSMIT_DELAY_JITTER
-                * (rand_f64() + 1.0);
+                * (rand::random::<f64>() + 1.0); // TODO: Replace with the rand crate
         ih.tx_count += 1;
         Ok(())
     }
@@ -1174,7 +1175,7 @@ where
 {
     /// Calculate the message authentication code (`mac`)
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        let mac = lprf::mac()?
+        let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(self.until_mac())?;
         self.mac_mut()
@@ -1189,8 +1190,13 @@ where
 {
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
-        let expected = lprf::mac()?.mix(srv.spkm.secret())?.mix(self.until_mac())?;
-        Ok(sodium_memcmp(self.mac(), &expected.into_value()[..16]))
+        let expected = hash_domains::mac()?
+            .mix(srv.spkm.secret())?
+            .mix(self.until_mac())?;
+        Ok(rosenpass_sodium::helpers::memcmp(
+            self.mac(),
+            &expected.into_value()[..16],
+        ))
     }
 }
 
@@ -1216,38 +1222,38 @@ impl HandshakeState {
         Self {
             sidi: SessionId::zero(),
             sidr: SessionId::zero(),
-            ck: SecretPrfTree::zero().dup(),
+            ck: SecretHashDomain::zero().dup(),
         }
     }
 
     pub fn erase(&mut self) {
-        self.ck = SecretPrfTree::zero().dup();
+        self.ck = SecretHashDomain::zero().dup();
     }
 
     pub fn init(&mut self, spkr: &[u8]) -> Result<&mut Self> {
-        self.ck = lprf::ckinit()?.mix(spkr)?.into_secret_prf_tree().dup();
+        self.ck = hash_domains::ckinit()?.turn_secret().mix(spkr)?.dup();
         Ok(self)
     }
 
     pub fn mix(&mut self, a: &[u8]) -> Result<&mut Self> {
-        self.ck = self.ck.mix(&lprf::mix()?)?.mix(a)?.dup();
+        self.ck = self.ck.mix(&hash_domains::mix()?)?.mix(a)?.dup();
         Ok(self)
     }
 
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_enc_into(ct, k.secret(), &NONCE0, &NOTHING, pt)?;
+        let k = self.ck.mix(&hash_domains::hs_enc()?)?.into_secret();
+        aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&lprf::hs_enc()?)?.into_secret();
-        aead_dec_into(pt, k.secret(), &NONCE0, &NOTHING, ct)?;
+        let k = self.ck.mix(&hash_domains::hs_enc()?)?.into_secret();
+        aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
 
     // I loathe "error: constant expression depends on a generic parameter"
-    pub fn encaps_and_mix<T: KEM, const SHK_LEN: usize>(
+    pub fn encaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
         &mut self,
         ct: &mut [u8],
         pk: &[u8],
@@ -1257,7 +1263,7 @@ impl HandshakeState {
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
-    pub fn decaps_and_mix<T: KEM, const SHK_LEN: usize>(
+    pub fn decaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
         &mut self,
         sk: &[u8],
         pk: &[u8],
@@ -1287,14 +1293,14 @@ impl HandshakeState {
             .copy_from_slice(self.ck.clone().danger_into_secret().secret());
 
         // calculate ad contents
-        let ad = lprf::biscuit_ad()?
+        let ad = hash_domains::biscuit_ad()?
             .mix(srv.spkm.secret())?
             .mix(self.sidi.as_slice())?
             .mix(self.sidr.as_slice())?
             .into_value();
 
         // consume biscuit no
-        sodium_bigint_inc(&mut *srv.biscuit_ctr);
+        rosenpass_sodium::helpers::increment(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
@@ -1305,7 +1311,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).key.secret();
         let pt = biscuit.all_bytes();
-        xaead_enc_into(biscuit_ct, k, &*n, &ad, pt)?;
+        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -1322,7 +1328,7 @@ impl HandshakeState {
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
 
         // Calculate additional data fields
-        let ad = lprf::biscuit_ad()?
+        let ad = hash_domains::biscuit_ad()?
             .mix(srv.spkm.secret())?
             .mix(sidi.as_slice())?
             .mix(sidr.as_slice())?
@@ -1331,7 +1337,7 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // slice
-        xaead_dec_into(
+        xaead::decrypt(
             biscuit.all_bytes_mut(),
             bk.get(srv).key.secret(),
             &ad,
@@ -1340,7 +1346,7 @@ impl HandshakeState {
 
         // Reconstruct the biscuit fields
         let no = BiscuitId::from_slice(biscuit.biscuit_no());
-        let ck = SecretPrfTree::danger_from_secret(Secret::from_slice(biscuit.ck())).dup();
+        let ck = SecretHashDomain::danger_from_secret(Secret::from_slice(biscuit.ck())).dup();
         let pid = PeerId::from_slice(biscuit.pidi());
 
         // Reconstruct the handshake state
@@ -1357,7 +1363,8 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            sodium_bigint_cmp(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
+            rosenpass_sodium::helpers::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used)
+                >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1366,8 +1373,8 @@ impl HandshakeState {
 
     pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole) -> Result<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
-        let tki = ck.mix(&lprf::ini_enc()?)?.into_secret();
-        let tkr = ck.mix(&lprf::res_enc()?)?.into_secret();
+        let tki = ck.mix(&hash_domains::ini_enc()?)?.into_secret();
+        let tkr = ck.mix(&hash_domains::res_enc()?)?.into_secret();
         let created_at = srv.timebase.now();
         let (ntx, nrx) = (0, 0);
         let (mysid, peersid, ktx, krx) = match role {
@@ -1398,7 +1405,7 @@ impl CryptoServer {
             .get(self)
             .as_ref()
             .with_context(|| format!("No current session for peer {:?}", peer))?;
-        Ok(session.ck.mix(&lprf::osk()?)?.into_secret())
+        Ok(session.ck.mix(&hash_domains::osk()?)?.into_secret())
     }
 }
 
@@ -1420,7 +1427,7 @@ impl CryptoServer {
         ih.sidi_mut().copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
-        EphemeralKEM::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         ih.epki_mut().copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -1428,7 +1435,7 @@ impl CryptoServer {
 
         // IHI5
         hs.core
-            .encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+            .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
                 ih.sctr_mut(),
                 peer.get(self).spkt.secret(),
             )?;
@@ -1443,7 +1450,7 @@ impl CryptoServer {
             .mix(peer.get(self).psk.secret())?;
 
         // IHI8
-        hs.core.encrypt_and_mix(ih.auth_mut(), &NOTHING)?;
+        hs.core.encrypt_and_mix(ih.auth_mut(), &[])?;
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
@@ -1467,7 +1474,7 @@ impl CryptoServer {
         core.mix(ih.sidi())?.mix(ih.epki())?;
 
         // IHR5
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             ih.sctr(),
@@ -1497,10 +1504,10 @@ impl CryptoServer {
         core.mix(rh.sidr())?.mix(rh.sidi())?;
 
         // RHR4
-        core.encaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
+        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
 
         // RHR5
-        core.encaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             rh.scti_mut(),
             peer.get(self).spkt.secret(),
         )?;
@@ -1509,7 +1516,7 @@ impl CryptoServer {
         core.store_biscuit(self, peer, rh.biscuit_mut())?;
 
         // RHR7
-        core.encrypt_and_mix(rh.auth_mut(), &NOTHING)?;
+        core.encrypt_and_mix(rh.auth_mut(), &[])?;
 
         Ok(peer)
     }
@@ -1565,14 +1572,14 @@ impl CryptoServer {
         core.mix(rh.sidr())?.mix(rh.sidi())?;
 
         // RHI4
-        core.decaps_and_mix::<EphemeralKEM, { EphemeralKEM::SHK_LEN }>(
+        core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
             hs!().eski.secret(),
             &*hs!().epki,
             rh.ecti(),
         )?;
 
         // RHI5
-        core.decaps_and_mix::<StaticKEM, { StaticKEM::SHK_LEN }>(
+        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
             rh.scti(),
@@ -1595,7 +1602,7 @@ impl CryptoServer {
         ic.biscuit_mut().copy_from_slice(rh.biscuit());
 
         // ICI4
-        core.encrypt_and_mix(ic.auth_mut(), &NOTHING)?;
+        core.encrypt_and_mix(ic.auth_mut(), &[])?;
 
         // Split() – We move the secrets into the session; we do not
         // delete the InitiatorHandshake, just clear it's secrets because
@@ -1625,7 +1632,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; AEAD_TAG_LEN], &NOTHING)?;
+        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
 
         // ICR3
         core.mix(ic.sidi())?.mix(ic.sidr())?;
@@ -1634,7 +1641,7 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
 
         // ICR5
-        if sodium_bigint_cmp(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+        if rosenpass_sodium::helpers::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
             // ICR6
             peer.get_mut(self).biscuit_used = biscuit_no;
 
@@ -1679,9 +1686,9 @@ impl CryptoServer {
         rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]);
+        let n = cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead_enc_into(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
+        aead::encrypt(rc.auth_mut(), k, &n, &[], &[])?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -1713,12 +1720,12 @@ impl CryptoServer {
             let n = u64::from_le_bytes(rc.ctr().try_into().unwrap());
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
-            aead_dec_into(
+            aead::decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(AEAD_NONCE_LEN; rc.ctr(), &[0u8; 4]),
-                &NOTHING,
+                &cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]),
+                &[],
                 rc.auth(),
             )?;
         }
@@ -1750,7 +1757,7 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
-        crate::sodium::sodium_init().unwrap();
+        rosenpass_sodium::init().unwrap();
 
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
@@ -1808,7 +1815,7 @@ mod test {
     fn keygen() -> Result<(SSk, SPk)> {
         // TODO: Copied from the benchmark; deduplicate
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
+        StaticKem::keygen(sk.secret_mut(), pk.secret_mut())?;
         Ok((sk, pk))
     }
 
