@@ -48,7 +48,7 @@ MTX_EV( event ICRjct(InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event ResponderSession(InitConf_t, key). )
 event ConsumeBiscuit(Atom, kem_sk, kem_pk, Atom).
 
-let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t, C_in:channel) =
+let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t) =
 #if RANDOMIZED_CALL_IDS
   new call:Atom;
 #else
@@ -77,7 +77,7 @@ let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:Ini
   
 let Oinit_conf() = 
   in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));
-  Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic, C).
+  Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic).
 
 restriction biscuit_no:Atom, sskm:kem_sk, spkr:kem_pk, ad1:Atom, ad2:Atom;
   event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad1)) && event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad2))
@@ -123,7 +123,7 @@ MTX_EV( event RHSent(InitHello_t, RespHello_t, key, kem_sk, kem_pk). )
 event ConsumeSidr(SessionId, Atom).
 event ConsumeBn(Atom, kem_sk, kem_pk, Atom).
 
-let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt: kem_sk_tmpl, Septi: seed_tmpl, Sspti: seed_tmpl, ih: InitHello_t, C_in:channel) = 
+let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt: kem_sk_tmpl, Septi: seed_tmpl, Sspti: seed_tmpl, ih: InitHello_t, C_out:channel) = 
 #if RANDOMIZED_CALL_IDS
   new call:Atom;
 #else
@@ -152,7 +152,7 @@ let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:k
     MTX_EV( event RHSent(ih, rh, psk, sskr, spki); )
     rh
   /* success */ ) in (
-    out(C_in, Envelope(create_mac(spkt, RH2b(rh)), RH2b(rh)))
+    out(C_out, Envelope(create_mac(spkt, RH2b(rh)), RH2b(rh)))
 
   /* fail */ ) else (
 #if MESSAGE_TRANSMISSION_EVENTS
@@ -184,7 +184,7 @@ CK_EV( event OskOinitiator(key, key, kem_sk, kem_pk, key). )
 MTX_EV( event IHSent(InitHello_t, key, kem_sk, kem_pk). )
 event ConsumeSidi(SessionId, Atom).
 
-let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt: kem_sk_tmpl, Seski: seed_tmpl, Ssptr: seed_tmpl, C_in:channel) =
+let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt: kem_sk_tmpl, Seski: seed_tmpl, Ssptr: seed_tmpl, C_out:channel) =
   #if RANDOMIZED_CALL_IDS
     new call:Atom;
   #else
@@ -205,8 +205,8 @@ let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt:
     CK_EV( event OskOinitiator_ck(ck); ) 
     CK_EV( event OskOinitiator(ck, psk, sski, spkr, sptr); )
     MTX_EV( event IHSent(ih, psk, sski, spkr); )
-    out(C_in, Envelope(create_mac(spkt, IH2b(ih)), IH2b(ih)));
-    Oresp_hello(HS_PASS_ARGS, C).
+    out(C_out, Envelope(create_mac(spkt, IH2b(ih)), IH2b(ih)));
+    Oresp_hello(HS_PASS_ARGS, C_out).
 
 let Oinitiator() =
   in(C, Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr));
