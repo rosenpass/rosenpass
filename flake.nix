@@ -29,6 +29,7 @@
       ]
         (system:
           let
+            scoped = (scope: scope.result);
             lib = nixpkgs.lib;
 
             # normal nixpkgs
@@ -58,11 +59,35 @@
             cargoToml = builtins.fromTOML (builtins.readFile ./rosenpass/Cargo.toml);
 
             # source files relevant for rust
-            src = pkgs.lib.sources.sourceFilesBySuffices ./. [
-              ".lock"
-              ".rs"
-              ".toml"
-            ];
+            src = scoped rec {
+              # File suffices to include
+              extensions = [
+                "lock"
+                "rs"
+                "toml"
+              ];
+              # Files to explicitly include
+              files = [
+                "to/README.md"
+              ];
+
+              src = ./.;
+              filter = (path: type: scoped rec {
+                inherit (lib) any id removePrefix hasSuffix;
+                anyof = (any id);
+
+                basename = baseNameOf (toString path);
+                relative = removePrefix (toString src + "/") (toString path);
+
+                result = anyof [
+                  (type == "directory")
+                  (any (ext: hasSuffix ".${ext}" basename) extensions)
+                  (any (file: file == relative) files)
+                ];
+              });
+
+              result = pkgs.lib.sources.cleanSourceWith { inherit src filter; };
+            };
 
             # builds a bin path for all dependencies for the `rp` shellscript
             rpBinPath = p: with p; lib.makeBinPath [
@@ -266,7 +291,6 @@
               ];
               buildPhase = ''
                 export HOME=$(mktemp -d)
-                export OSFONTDIR="$(kpsewhich --var-value TEXMF)/fonts/{opentype/public/nunito,truetype/google/noto}"
                 latexmk -r tex/CI.rc
               '';
               installPhase = ''
@@ -325,7 +349,7 @@
           checks = {
             cargo-fmt = pkgs.runCommand "check-cargo-fmt"
               { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
-              cargo fmt --manifest-path=${./.}/Cargo.toml --check && touch $out
+              cargo fmt --manifest-path=${./.}/Cargo.toml --check --all && touch $out
             '';
             nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
               { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''

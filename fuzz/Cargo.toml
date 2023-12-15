@@ -1,0 +1,61 @@
+[package]
+name = "rosenpass-fuzzing"
+version = "0.0.1"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary = { workspace = true }
+libfuzzer-sys = { workspace = true }
+stacker = { workspace = true }
+rosenpass-secret-memory = { workspace = true }
+rosenpass-sodium = { workspace = true }
+rosenpass-ciphers = { workspace = true }
+rosenpass-cipher-traits = { workspace = true }
+rosenpass-to = { workspace = true }
+rosenpass = { workspace = true }
+
+[[bin]]
+name = "fuzz_handle_msg"
+path = "fuzz_targets/handle_msg.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_blake2b"
+path = "fuzz_targets/blake2b.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_aead_enc_into"
+path = "fuzz_targets/aead_enc_into.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mceliece_encaps"
+path = "fuzz_targets/mceliece_encaps.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_kyber_encaps"
+path = "fuzz_targets/kyber_encaps.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_box_sodium_alloc"
+path = "fuzz_targets/box_sodium_alloc.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vec_sodium_alloc"
+path = "fuzz_targets/vec_sodium_alloc.rs"
+test = false
+doc = false
