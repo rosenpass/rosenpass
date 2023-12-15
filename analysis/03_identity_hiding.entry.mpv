@@ -44,6 +44,7 @@
 #include "rosenpass/oracles.mpv"
 #include "crypto/kem.mpv"
 
+#define INITIATOR_TEST
 #define NEW_TRUSTED_SEED(name)            \
   new MCAT(name, _secret_seed):seed_prec; \
   name <- make_trusted_seed(MCAT(name, _secret_seed)); \
@@ -89,12 +90,18 @@ fun kem_private(kem_pk): kem_sk
     kem_private(kem_pub(sk_tmpl)) = sk_tmpl[private].
 
 let secretCommunication() =
+#ifdef INITIATOR_TEST
   initiator_pk <- choice[setup_kem_pk(make_trusted_kem_sk(initiator1)), setup_kem_pk(make_trusted_kem_sk(initiator2))];
   initiator_seed <- prepare_kem_sk(kem_private(initiator_pk)); 
+#else
+  initiator_seed <- prepare_kem_sk(trusted_kem_sk(initiator1));
+#endif
+#ifdef RESPONDER_TEST
+  responder_pk <- choice[setup_kem_pk(make_trusted_kem_sk(responder1)), setup_kem_pk(make_trusted_kem_sk(responder2))];
+  responder_seed <- prepare_kem_sk(kem_private(responder_pk));
+#else
   responder_seed <- prepare_kem_sk(trusted_kem_sk(responder1));
-  // initiator_seed <- prepare_kem_sk(trusted_kem_sk(initiator1));
-  // responder_pk <- choice[setup_kem_pk(make_trusted_kem_sk(responder1)), setup_kem_pk(make_trusted_kem_sk(responder2))];
-  // responder_seed <- prepare_kem_sk(kem_private(responder_pk));
+#endif
   secure_communication(initiator_seed, responder_seed) | !pipeChannel(D, C).
 
 let reveal_pks() =
