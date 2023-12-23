@@ -93,6 +93,15 @@ macro_rules! error {
     }}
 }
 
+macro_rules! ensure {
+    ($cond:expr $(,)?) => { ... };
+    ($cond:expr, $msg:literal $(,)?) => {{
+
+    }};
+    ($cond:expr, $err:expr $(,)?) => { ... };
+    ($cond:expr, $fmt:expr, $($arg:tt)*) => { ... };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
