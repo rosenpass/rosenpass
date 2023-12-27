@@ -1,15 +1,18 @@
-use crate::file::StoreSecret;
+use std::{collections::HashMap, convert::TryInto, fmt, path::Path, sync::Mutex};
+
 use anyhow::Context;
 use lazy_static::lazy_static;
 use rand::{Fill as Randomize, Rng};
-use rosenpass_sodium::alloc::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 use rosenpass_util::{
     b64::b64_reader,
     file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
     functional::mutating,
 };
-use std::{collections::HashMap, convert::TryInto, fmt, path::Path, sync::Mutex};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+
+use crate::alloc::{secret_box, SecretBox, SecretVec};
+use crate::file::StoreSecret;
 
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
@@ -28,7 +31,7 @@ lazy_static! {
 /// [libsodium documentation](https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations)
 #[derive(Debug)] // TODO check on Debug derive, is that clever
 struct SecretMemoryPool {
-    pool: HashMap<usize, Vec<SodiumBox<[u8]>>>,
+    pool: HashMap<usize, Vec<SecretBox<[u8]>>>,
 }
 
 impl SecretMemoryPool {
@@ -41,13 +44,13 @@ impl SecretMemoryPool {
     }
 
     /// Return secret back to the pool for future re-use
-    pub fn release<const N: usize>(&mut self, mut sec: SodiumBox<[u8; N]>) {
+    pub fn release<const N: usize>(&mut self, mut sec: SecretBox<[u8; N]>) {
         sec.zeroize();
 
         // This conversion sequence is weird but at least it guarantees
         // that the heap allocation is preserved according to the docs
-        let sec: SodiumVec<u8> = sec.into();
-        let sec: SodiumBox<[u8]> = sec.into();
+        let sec: SecretVec<u8> = sec.into();
+        let sec: SecretBox<[u8]> = sec.into();
 
         self.pool.entry(N).or_default().push(sec);
     }
@@ -56,10 +59,10 @@ impl SecretMemoryPool {
     /// chunk is found in the inventory.
     ///
     /// The secret is guaranteed to be full of nullbytes
-    pub fn take<const N: usize>(&mut self) -> SodiumBox<[u8; N]> {
+    pub fn take<const N: usize>(&mut self) -> SecretBox<[u8; N]> {
         let entry = self.pool.entry(N).or_default();
         match entry.pop() {
-            None => SodiumBox::new_in([0u8; N], SodiumAlloc::default()),
+            None => secret_box([0u8; N]),
             Some(sec) => sec.try_into().unwrap(),
         }
     }
@@ -67,7 +70,7 @@ impl SecretMemoryPool {
 
 /// Storeage for a secret backed by [rosenpass_sodium::alloc::Alloc]
 pub struct Secret<const N: usize> {
-    storage: Option<SodiumBox<[u8; N]>>,
+    storage: Option<SecretBox<[u8; N]>>,
 }
 
 impl<const N: usize> Secret<N> {
@@ -200,7 +203,7 @@ mod test {
         rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SodiumBox<[u8; N]> = pool.take();
+        let secret: SecretBox<[u8; N]> = pool.take();
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
@@ -210,7 +213,7 @@ mod test {
         rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SodiumBox<[u8; N]> = pool.take();
+        let secret: SecretBox<[u8; N]> = pool.take();
         std::mem::drop(pool);
         assert_eq!(secret.as_ref(), &[0; N]);
     }
@@ -221,14 +224,14 @@ mod test {
         rosenpass_sodium::init().unwrap();
         const N: usize = 1;
         let mut pool = SecretMemoryPool::new();
-        let mut secret: SodiumBox<[u8; N]> = pool.take();
+        let mut secret: SecretBox<[u8; N]> = pool.take();
         let old_secret_ptr = secret.as_ref().as_ptr();
 
         secret.as_mut()[0] = 0x13;
         pool.release(secret);
 
         // now check that we get the same ptr
-        let new_secret: SodiumBox<[u8; N]> = pool.take();
+        let new_secret: SecretBox<[u8; N]> = pool.take();
         assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
 
         // and that the secret was zeroized
