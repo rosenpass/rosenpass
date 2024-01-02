@@ -25,6 +25,14 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
+  rustfmt:
+    name: Rust Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Rust Formatting Script
+        run: bash format_rust_code.sh --mode check
+
   cargo-audit:
     runs-on: ubuntu-latest
     steps:
