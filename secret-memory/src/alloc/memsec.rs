@@ -6,7 +6,7 @@ use allocator_api2::alloc::{AllocError, Allocator, Layout};
 #[derive(Copy, Clone, Default)]
 struct MemsecAllocatorContents;
 
-/// Memory allocation using sodium_malloc/sodium_free
+/// Memory allocation using using the memsec crate
 #[derive(Copy, Clone, Default)]
 pub struct MemsecAllocator {
     _dummy_private_data: MemsecAllocatorContents,
