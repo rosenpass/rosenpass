@@ -98,9 +98,6 @@ impl<T: Zeroize + ?Sized> DerefMut for ZeroizingSecretBox<T> {
 /// Allocation of secret memory is expensive. Thus, this struct provides a
 /// pool of secret memory, readily available to yield protected, slices of
 /// memory.
-///
-/// Further information about the protection in place can be found in in the
-/// [libsodium documentation](https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations)
 #[derive(Debug)] // TODO check on Debug derive, is that clever
 struct SecretMemoryPool {
     pool: HashMap<usize, Vec<ZeroizingSecretBox<[u8]>>>,
@@ -144,7 +141,7 @@ impl SecretMemoryPool {
     }
 }
 
-/// Storeage for a secret backed by [rosenpass_sodium::alloc::Alloc]
+/// Storage for secret data
 pub struct Secret<const N: usize> {
     storage: Option<ZeroizingSecretBox<[u8; N]>>,
 }
@@ -287,20 +284,18 @@ mod test {
     /// check that we can alloc using the magic pool
     #[test]
     fn secret_memory_pool_take() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SecretBox<[u8; N]> = pool.take();
+        let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
     /// check that a secrete lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SecretBox<[u8; N]> = pool.take();
+        let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         std::mem::drop(pool);
         assert_eq!(secret.as_ref(), &[0; N]);
     }
@@ -308,17 +303,16 @@ mod test {
     /// check that a secrete can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 1;
         let mut pool = SecretMemoryPool::new();
-        let mut secret: SecretBox<[u8; N]> = pool.take();
+        let mut secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         let old_secret_ptr = secret.as_ref().as_ptr();
 
         secret.as_mut()[0] = 0x13;
         pool.release(secret);
 
         // now check that we get the same ptr
-        let new_secret: SecretBox<[u8; N]> = pool.take();
+        let new_secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
 
         // and that the secret was zeroized
