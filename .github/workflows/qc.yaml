@@ -101,7 +101,7 @@ jobs:
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
-      - run: RUST_MIN_STACK=8388608 cargo test
+      - run: RUST_MIN_STACK=8388608 cargo test --workspace
 
   cargo-test-nix-devshell-x86_64-linux:
     runs-on:
@@ -124,7 +124,7 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - run: nix develop --command cargo test
+      - run: nix develop --command cargo test --workspace
 
   cargo-fuzz:
     runs-on: ubuntu-latest
