@@ -1770,14 +1770,10 @@ mod test {
 
             // Process the entire handshake
             let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
-            loop {
-                if let Some(l) = msglen {
-                    std::mem::swap(&mut me, &mut they);
-                    std::mem::swap(&mut msgbuf, &mut resbuf);
-                    msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
-                } else {
-                    break;
-                }
+            while let Some(l) = msglen {
+                std::mem::swap(&mut me, &mut they);
+                std::mem::swap(&mut msgbuf, &mut resbuf);
+                msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
             }
 
             assert_eq!(
@@ -1804,8 +1800,8 @@ mod test {
             }
 
             let res = srv.handle_msg(&msgbuf[..l], resbuf);
-            assert!(matches!(res, Err(_))); // handle_msg should raise an error
-            assert!(!resbuf.iter().find(|x| **x != 0).is_some()); // resbuf should not have been changed
+            assert!(res.is_err()); // handle_msg should raise an error
+            assert!(!resbuf.iter().any(|x| *x != 0)); // resbuf should not have been changed
         }
 
         // Apply the proper handle_msg operation

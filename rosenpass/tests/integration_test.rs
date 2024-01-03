@@ -30,11 +30,8 @@ fn generate_keys() {
 
 fn find_udp_socket() -> u16 {
     for port in 1025..=u16::MAX {
-        match UdpSocket::bind(("127.0.0.1", port)) {
-            Ok(_) => {
-                return port;
-            }
-            _ => {}
+        if UdpSocket::bind(("127.0.0.1", port)).is_ok() {
+            return port;
         }
     }
     panic!("no free UDP port found");
@@ -54,9 +51,9 @@ fn check_exchange() {
     for (secret_key_path, pub_key_path) in secret_key_paths.iter().zip(public_key_paths.iter()) {
         let output = test_bin::get_test_bin(BIN)
             .args(["gen-keys", "--secret-key"])
-            .arg(&secret_key_path)
+            .arg(secret_key_path)
             .arg("--public-key")
-            .arg(&pub_key_path)
+            .arg(pub_key_path)
             .output()
             .expect("Failed to start {BIN}");
 
