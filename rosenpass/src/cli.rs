@@ -138,7 +138,7 @@ impl Cli {
                 // Manual arg parsing, since clap wants to prefix flags with "--"
                 let mut args = args.into_iter();
                 loop {
-                    match (args.next().as_ref().map(String::as_str), args.next()) {
+                    match (args.next().as_deref(), args.next()) {
                         (Some("private-key"), Some(opt)) | (Some("secret-key"), Some(opt)) => {
                             secret_key = Some(opt.into());
                         }
