@@ -1,3 +1,34 @@
+/*
+  This identity hiding process tests whether the rosenpass protocol is able to protect the identity of an initiator or responder.
+  The participants in the test are trusted initiators, trusted responders and compromised initiators and responders.
+  The test consists of two phases. In the first phase all of the participants can communicate with each other using the rosenpass protocol.
+  An attacker observes the first phase and is able to intercept and modify messages and choose participants to communicate with each other
+
+  In the second phase if the anonymity of an initiator is being tested then one of two trusted initiators is chosen.
+  The chosen initiator communicates directly with a trusted responder.
+  If an attacker can determine which initiator was chosen then the anonymity of the initiator has been compromised.
+  Otherwise the protocol has successfully protected the initiators’ identity.
+
+  If the anonymity of a responder is being tested then one of two trusted responders is chosen instead.
+  Then an initiator communicates directly with the chosen responder.
+  If an attacker can determine which responder was chosen then the anonymity of the responder is compromised.
+  Otherwise the protocol successfully protects the identity of a responder.
+
+  The Proverif code treats the public key as synonymous with identity.
+  In the above test when a responder or initiator is chosen what is actually chosen is the public/private key pair to use for communication.
+  Traditionally when a responder or initiator is chosen they would be chosen randomly.
+  The way Proverif makes a "choice" is by simulating multiple processes, one process per choice
+  Then the processes are compared and if an association between a public key and a process can be made the test fails.
+  As the choice is at least as bad as choosing the worst possible option the credibility of the test is maintained.
+  The drawback is that Proverif is only able to tell if the identity can be brute forced but misses any probabilistic associations.
+  As usual Proverif also assumes perfect encryption and in particular assumes encryption cannot be linked to identity.
+
+  One of the tradeoffs made here is that the choice function in Proverif is slow but this is in favour of being able to write more precise tests.
+  Another issue is the choice function does not work with queries so a test needs to be run for each set of assumptions.
+  In this case the test uses secure rng and a fresh secure biscuit key.
+*/
+
+
 #include "config.mpv"
 
 #define CHAINING_KEY_EVENTS 1
