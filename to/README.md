@@ -12,15 +12,17 @@ The crate provides chained functions to simplify allocating the destination para
 For now this crate is experimental; patch releases are guaranteed not to contain any breaking changes, but minor releases may.
 
 ```rust
-use std::ops::BitXorAssign;
-use rosenpass_to::{To, to, with_destination};
 use rosenpass_to::ops::copy_array;
+use rosenpass_to::{to, with_destination, To};
+use std::ops::BitXorAssign;
 
 // Destination functions return some value that implements the To trait.
 // Unfortunately dealing with lifetimes is a bit more finicky than it would#
 // be without destination parameters
-fn xor_slice<'a, T>(src: &'a[T]) -> impl To<[T], ()> + 'a
-        where T: BitXorAssign + Clone {
+fn xor_slice<'a, T>(src: &'a [T]) -> impl To<[T], ()> + 'a
+where
+    T: BitXorAssign + Clone,
+{
     // Custom implementations of the to trait can be created, but the easiest
     with_destination(move |dst: &mut [T]| {
         assert!(src.len() == dst.len());
@@ -65,7 +67,7 @@ assert_eq!(&dst[..], &flip01[..]);
 // The builtin function copy_array supports to_value() since its
 // destination parameter is a fixed size array, which can be allocated
 // using default()
-let dst : [u8; 4] = copy_array(flip01).to_value();
+let dst: [u8; 4] = copy_array(flip01).to_value();
 assert_eq!(&dst, flip01);
 ```
 
@@ -84,7 +86,9 @@ Functions declared like this are more cumbersome to use when the destination par
 use std::ops::BitXorAssign;
 
 fn xor_slice<T>(dst: &mut [T], src: &[T])
-        where T: BitXorAssign + Clone {
+where
+    T: BitXorAssign + Clone,
+{
     assert!(src.len() == dst.len());
     for (d, s) in dst.iter_mut().zip(src.iter()) {
         *d ^= s.clone();
@@ -114,8 +118,8 @@ assert_eq!(&dst[..], &flip01[..]);
 There are a couple of ways to use a function with destination:
 
 ```rust
-use rosenpass_to::{to, To};
 use rosenpass_to::ops::{copy_array, copy_slice_least};
+use rosenpass_to::{to, To};
 
 let mut dst = b"           ".to_vec();
 
@@ -129,7 +133,8 @@ copy_slice_least(b"This is fin").to(&mut dst[..]);
 assert_eq!(&dst[..], b"This is fin");
 
 // You can allocate the destination variable on the fly using `.to_this(...)`
-let tmp = copy_slice_least(b"This is new---").to_this(|| b"This will be overwritten".to_owned());
+let tmp =
+    copy_slice_least(b"This is new---").to_this(|| b"This will be overwritten".to_owned());
 assert_eq!(&tmp[..], b"This is new---verwritten");
 
 // You can allocate the destination variable on the fly `.collect(..)` if it implements default
@@ -147,8 +152,11 @@ assert_eq!(&tmp[..], b"Fixed");
 The to crate provides basic functions with destination for copying data between slices and arrays.
 
 ```rust
+use rosenpass_to::ops::{
+    copy_array, copy_slice, copy_slice_least, copy_slice_least_src, try_copy_slice,
+    try_copy_slice_least_src,
+};
 use rosenpass_to::{to, To};
-use rosenpass_to::ops::{copy_array, copy_slice, copy_slice_least, copy_slice_least_src, try_copy_slice, try_copy_slice_least_src};
 
 let mut dst = b"           ".to_vec();
 
@@ -161,18 +169,33 @@ to(&mut dst[4..], copy_slice_least_src(b"!!!"));
 assert_eq!(&dst[..], b"Hell!!!orld");
 
 // Copy a slice, copying as many bytes as possible
-to(&mut dst[6..], copy_slice_least(b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"));
+to(
+    &mut dst[6..],
+    copy_slice_least(b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+);
 assert_eq!(&dst[..], b"Hell!!xxxxx");
 
 // Copy a slice, will return None and abort if the sizes do not much
 assert_eq!(Some(()), to(&mut dst[..], try_copy_slice(b"Hello World")));
 assert_eq!(None, to(&mut dst[..], try_copy_slice(b"---")));
-assert_eq!(None, to(&mut dst[..], try_copy_slice(b"---------------------")));
+assert_eq!(
+    None,
+    to(&mut dst[..], try_copy_slice(b"---------------------"))
+);
 assert_eq!(&dst[..], b"Hello World");
 
 // Copy a slice, will return None and abort if source is longer than destination
-assert_eq!(Some(()), to(&mut dst[4..], try_copy_slice_least_src(b"!!!")));
-assert_eq!(None, to(&mut dst[4..], try_copy_slice_least_src(b"-------------------------")));
+assert_eq!(
+    Some(()),
+    to(&mut dst[4..], try_copy_slice_least_src(b"!!!"))
+);
+assert_eq!(
+    None,
+    to(
+        &mut dst[4..],
+        try_copy_slice_least_src(b"-------------------------")
+    )
+);
 assert_eq!(&dst[..], b"Hell!!!orld");
 
 // Copy fixed size arrays all at once
@@ -186,12 +209,14 @@ assert_eq!(&dst, b"Hello");
 The easiest way to declare a function with destination is to use the with_destination function.
 
 ```rust
-use rosenpass_to::{To, to, with_destination};
 use rosenpass_to::ops::copy_array;
+use rosenpass_to::{to, with_destination, To};
 
 /// Copy the given slice to the start of a vector, reusing its memory if possible
 fn copy_to_vec<'a, T>(src: &'a [T]) -> impl To<Vec<T>, ()> + 'a
-        where T: Clone {
+where
+    T: Clone,
+{
     with_destination(move |dst: &mut Vec<T>| {
         dst.clear();
         dst.extend_from_slice(src);
@@ -217,7 +242,9 @@ The same pattern can be implemented without `to`, at the cost of being slightly 
 ```rust
 /// Copy the given slice to the start of a vector, reusing its memory if possible
 fn copy_to_vec<T>(dst: &mut Vec<T>, src: &[T])
-        where T: Clone {
+where
+    T: Clone,
+{
     dst.clear();
     dst.extend_from_slice(src);
 }
@@ -240,11 +267,11 @@ Alternative functions are returned, that return a `to::Beside` value, containing
 destination variable and the return value.
 
 ```rust
-use std::cmp::{min, max};
-use rosenpass_to::{To, to, with_destination, Beside};
+use rosenpass_to::{to, with_destination, Beside, To};
+use std::cmp::{max, min};
 
 /// Copy an array of floats and calculate the average
-pub fn copy_and_average<'a>(src: &'a[f64]) -> impl To<[f64], f64> + 'a {
+pub fn copy_and_average<'a>(src: &'a [f64]) -> impl To<[f64], f64> + 'a {
     with_destination(move |dst: &mut [f64]| {
         assert!(src.len() == dst.len());
         let mut sum = 0f64;
@@ -300,8 +327,8 @@ assert_eq!(tmp, Beside([42f64; 3], 42f64));
 When Beside values contain a `()`, `Option<()>`, or `Result<(), Error>` return value, they expose a special method called `.condense()`; this method consumes the Beside value and condenses destination and return value into one value.
 
 ```rust
+use rosenpass_to::Beside;
 use std::result::Result;
-use rosenpass_to::{Beside};
 
 assert_eq!((), Beside((), ()).condense());
 
@@ -318,8 +345,8 @@ assert_eq!(Err(()), Beside(42, err_unit).condense());
 When condense is implemented for a type, `.to_this(|| ...)`, `.to_value()`, and `.collect::<...>()` on the `To` trait can be used even with a return value:
 
 ```rust
+use rosenpass_to::ops::try_copy_slice;
 use rosenpass_to::To;
-use rosenpass_to::ops::try_copy_slice;;
 
 let tmp = try_copy_slice(b"Hello World").collect::<[u8; 11]>();
 assert_eq!(tmp, Some(*b"Hello World"));
@@ -337,8 +364,8 @@ assert_eq!(tmp, None);
 The same naturally also works for Results, but the example is a bit harder to motivate:
 
 ```rust
+use rosenpass_to::{to, with_destination, To};
 use std::result::Result;
-use rosenpass_to::{to, To, with_destination};
 
 #[derive(PartialEq, Eq, Debug, Default)]
 struct InvalidFloat;
@@ -380,8 +407,8 @@ Condensation is implemented through a trait called CondenseBeside ([local](Conde
 If you can not implement this trait because its for an external type (see [orphan rule](https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type)), this crate welcomes contributions of new Condensation rules.
 
 ```rust
-use rosenpass_to::{To, with_destination, Beside, CondenseBeside};
 use rosenpass_to::ops::copy_slice;
+use rosenpass_to::{with_destination, Beside, CondenseBeside, To};
 
 #[derive(PartialEq, Eq, Debug, Default)]
 struct MyTuple<Left, Right>(Left, Right);
@@ -396,7 +423,10 @@ impl<Val, Right> CondenseBeside<Val> for MyTuple<(), Right> {
 }
 
 fn copy_slice_and_return_something<'a, T, U>(src: &'a [T], something: U) -> impl To<[T], U> + 'a
-        where T: Copy, U: 'a {
+where
+    T: Copy,
+    U: 'a,
+{
     with_destination(move |dst: &mut [T]| {
         copy_slice(src).to(dst);
         something
@@ -417,7 +447,7 @@ Using `with_destination(...)` is convenient, but since it uses closures it resul
 Implementing the ToTrait manual is the right choice for library use cases.
 
 ```rust
-use rosenpass_to::{to, To, with_destination};
+use rosenpass_to::{to, with_destination, To};
 
 struct TryCopySliceSource<'a, T: Copy> {
     src: &'a [T],
@@ -425,17 +455,20 @@ struct TryCopySliceSource<'a, T: Copy> {
 
 impl<'a, T: Copy> To<[T], Option<()>> for TryCopySliceSource<'a, T> {
     fn to(self, dst: &mut [T]) -> Option<()> {
-        (self.src.len() == dst.len())
-            .then(|| dst.copy_from_slice(self.src))
+        (self.src.len() == dst.len()).then(|| dst.copy_from_slice(self.src))
     }
 }
 
 fn try_copy_slice<'a, T>(src: &'a [T]) -> TryCopySliceSource<'a, T>
-        where T: Copy {
+where
+    T: Copy,
+{
     TryCopySliceSource { src }
 }
 
-let mut dst = try_copy_slice(b"Hello World").collect::<[u8; 11]>().unwrap();
+let mut dst = try_copy_slice(b"Hello World")
+    .collect::<[u8; 11]>()
+    .unwrap();
 assert_eq!(&dst[..], b"Hello World");
 assert_eq!(None, to(&mut dst[..], try_copy_slice(b"---")));
 ```
@@ -445,8 +478,8 @@ assert_eq!(None, to(&mut dst[..], try_copy_slice(b"---")));
 Destinations can also be used with methods. This example demonstrates using destinations in an extension trait for everything that implements `Borrow<[T]>` for any `T` and a concrete `To` trait implementation.
 
 ```rust
+use rosenpass_to::{to, with_destination, To};
 use std::borrow::Borrow;
-use rosenpass_to::{to, To, with_destination};
 
 struct TryCopySliceSource<'a, T: Copy> {
     src: &'a [T],
@@ -454,24 +487,24 @@ struct TryCopySliceSource<'a, T: Copy> {
 
 impl<'a, T: Copy> To<[T], Option<()>> for TryCopySliceSource<'a, T> {
     fn to(self, dst: &mut [T]) -> Option<()> {
-        (self.src.len() == dst.len())
-            .then(|| dst.copy_from_slice(self.src))
+        (self.src.len() == dst.len()).then(|| dst.copy_from_slice(self.src))
     }
 }
 
 trait TryCopySliceExt<'a, T: Copy> {
-    fn try_copy_slice(&'a self)  -> TryCopySliceSource<'a, T>;
+    fn try_copy_slice(&'a self) -> TryCopySliceSource<'a, T>;
 }
 
 impl<'a, T: 'a + Copy, Ref: 'a + Borrow<[T]>> TryCopySliceExt<'a, T> for Ref {
-    fn try_copy_slice(&'a self)  -> TryCopySliceSource<'a, T> {
-        TryCopySliceSource {
-            src: self.borrow()
-        }
+    fn try_copy_slice(&'a self) -> TryCopySliceSource<'a, T> {
+        TryCopySliceSource { src: self.borrow() }
     }
 }
 
-let mut dst = b"Hello World".try_copy_slice().collect::<[u8; 11]>().unwrap();
+let mut dst = b"Hello World"
+    .try_copy_slice()
+    .collect::<[u8; 11]>()
+    .unwrap();
 assert_eq!(&dst[..], b"Hello World");
 assert_eq!(None, to(&mut dst[..], b"---".try_copy_slice()));
 ```
