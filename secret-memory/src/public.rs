@@ -20,7 +20,7 @@ pub struct Public<const N: usize> {
 impl<const N: usize> Public<N> {
     /// Create a new [Public] from a byte slice
     pub fn from_slice(value: &[u8]) -> Self {
-        copy_slice(value).to_this(|| Self::zero())
+        copy_slice(value).to_this(Self::zero)
     }
 
     /// Create a new [Public] from a byte array

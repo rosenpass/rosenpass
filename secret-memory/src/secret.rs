@@ -83,7 +83,7 @@ impl<T: Zeroize + ?Sized> Deref for ZeroizingSecretBox<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        &self.0.as_ref().unwrap()
+        self.0.as_ref().unwrap()
     }
 }
 
@@ -177,7 +177,7 @@ impl<const N: usize> Secret<N> {
 
     /// Borrows the data
     pub fn secret(&self) -> &[u8; N] {
-        &self.storage.as_ref().unwrap()
+        self.storage.as_ref().unwrap()
     }
 
     /// Borrows the data mutably
