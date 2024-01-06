@@ -1,21 +1,96 @@
-use crate::file::StoreSecret;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::convert::TryInto;
+use std::fmt;
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
+
 use anyhow::Context;
-use lazy_static::lazy_static;
 use rand::{Fill as Randomize, Rng};
-use rosenpass_sodium::alloc::{Alloc as SodiumAlloc, Box as SodiumBox, Vec as SodiumVec};
-use rosenpass_util::{
-    b64::b64_reader,
-    file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd},
-    functional::mutating,
-};
-use std::{collections::HashMap, convert::TryInto, fmt, path::Path, sync::Mutex};
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+use rosenpass_util::b64::b64_reader;
+use rosenpass_util::file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd};
+use rosenpass_util::functional::mutating;
+
+use crate::alloc::{secret_box, SecretBox, SecretVec};
+use crate::file::StoreSecret;
 
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
 // be reused…
-lazy_static! {
-    static ref SECRET_CACHE: Mutex<SecretMemoryPool> = Mutex::new(SecretMemoryPool::new());
+thread_local! {
+    static SECRET_CACHE: RefCell<SecretMemoryPool> = RefCell::new(SecretMemoryPool::new());
+}
+
+fn with_secret_memory_pool<Fn, R>(mut f: Fn) -> R
+where
+    Fn: FnMut(Option<&mut SecretMemoryPool>) -> R,
+{
+    // This acquires the SECRET_CACHE
+    SECRET_CACHE
+        .try_with(|cell| {
+            // And acquires the inner reference
+            cell.try_borrow_mut()
+                .as_deref_mut()
+                // To call the given function
+                .map(|pool| f(Some(pool)))
+                .ok()
+        })
+        .ok()
+        .flatten()
+        // Failing that, the given function is called with None
+        .unwrap_or_else(|| f(None))
+}
+
+// Wrapper around SecretBox that applies automatic zeroization
+#[derive(Debug)]
+struct ZeroizingSecretBox<T: Zeroize + ?Sized>(Option<SecretBox<T>>);
+
+impl<T: Zeroize> ZeroizingSecretBox<T> {
+    fn new(boxed: T) -> Self {
+        ZeroizingSecretBox(Some(secret_box(boxed)))
+    }
+}
+
+impl<T: Zeroize + ?Sized> ZeroizingSecretBox<T> {
+    fn from_secret_box(inner: SecretBox<T>) -> Self {
+        Self(Some(inner))
+    }
+
+    fn take(mut self) -> SecretBox<T> {
+        self.0.take().unwrap()
+    }
+}
+
+impl<T: Zeroize + ?Sized> ZeroizeOnDrop for ZeroizingSecretBox<T> {}
+impl<T: Zeroize + ?Sized> Zeroize for ZeroizingSecretBox<T> {
+    fn zeroize(&mut self) {
+        if let Some(inner) = &mut self.0 {
+            let inner: &mut SecretBox<T> = inner; // type annotation
+            inner.zeroize()
+        }
+    }
+}
+
+impl<T: Zeroize + ?Sized> Drop for ZeroizingSecretBox<T> {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
+impl<T: Zeroize + ?Sized> Deref for ZeroizingSecretBox<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.0.as_ref().unwrap()
+    }
+}
+
+impl<T: Zeroize + ?Sized> DerefMut for ZeroizingSecretBox<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.0.as_mut().unwrap()
+    }
 }
 
 /// Pool that stores secret memory allocations
@@ -23,12 +98,9 @@ lazy_static! {
 /// Allocation of secret memory is expensive. Thus, this struct provides a
 /// pool of secret memory, readily available to yield protected, slices of
 /// memory.
-///
-/// Further information about the protection in place can be found in in the
-/// [libsodium documentation](https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations)
 #[derive(Debug)] // TODO check on Debug derive, is that clever
 struct SecretMemoryPool {
-    pool: HashMap<usize, Vec<SodiumBox<[u8]>>>,
+    pool: HashMap<usize, Vec<ZeroizingSecretBox<[u8]>>>,
 }
 
 impl SecretMemoryPool {
@@ -41,33 +113,37 @@ impl SecretMemoryPool {
     }
 
     /// Return secret back to the pool for future re-use
-    pub fn release<const N: usize>(&mut self, mut sec: SodiumBox<[u8; N]>) {
+    pub fn release<const N: usize>(&mut self, mut sec: ZeroizingSecretBox<[u8; N]>) {
         sec.zeroize();
 
         // This conversion sequence is weird but at least it guarantees
         // that the heap allocation is preserved according to the docs
-        let sec: SodiumVec<u8> = sec.into();
-        let sec: SodiumBox<[u8]> = sec.into();
+        let sec: SecretVec<u8> = sec.take().into();
+        let sec: SecretBox<[u8]> = sec.into();
 
-        self.pool.entry(N).or_default().push(sec);
+        self.pool
+            .entry(N)
+            .or_default()
+            .push(ZeroizingSecretBox::from_secret_box(sec));
     }
 
     /// Take protected memory from the pool, allocating new one if no suitable
     /// chunk is found in the inventory.
     ///
     /// The secret is guaranteed to be full of nullbytes
-    pub fn take<const N: usize>(&mut self) -> SodiumBox<[u8; N]> {
+    pub fn take<const N: usize>(&mut self) -> ZeroizingSecretBox<[u8; N]> {
         let entry = self.pool.entry(N).or_default();
-        match entry.pop() {
-            None => SodiumBox::new_in([0u8; N], SodiumAlloc::default()),
-            Some(sec) => sec.try_into().unwrap(),
-        }
+        let inner = match entry.pop() {
+            None => secret_box([0u8; N]),
+            Some(sec) => sec.take().try_into().unwrap(),
+        };
+        ZeroizingSecretBox::from_secret_box(inner)
     }
 }
 
-/// Storeage for a secret backed by [rosenpass_sodium::alloc::Alloc]
+/// Storage for secret data
 pub struct Secret<const N: usize> {
-    storage: Option<SodiumBox<[u8; N]>>,
+    storage: Option<ZeroizingSecretBox<[u8; N]>>,
 }
 
 impl<const N: usize> Secret<N> {
@@ -81,9 +157,12 @@ impl<const N: usize> Secret<N> {
     pub fn zero() -> Self {
         // Using [SecretMemoryPool] here because this operation is expensive,
         // yet it is used in hot loops
-        Self {
-            storage: Some(SECRET_CACHE.lock().unwrap().take()),
-        }
+        let buf = with_secret_memory_pool(|pool| {
+            pool.map(|p| p.take())
+                .unwrap_or_else(|| ZeroizingSecretBox::new([0u8; N]))
+        });
+
+        Self { storage: Some(buf) }
     }
 
     /// Returns a new [Secret] that is randomized
@@ -107,13 +186,6 @@ impl<const N: usize> Secret<N> {
     }
 }
 
-impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
-impl<const N: usize> Zeroize for Secret<N> {
-    fn zeroize(&mut self) {
-        self.secret_mut().zeroize();
-    }
-}
-
 impl<const N: usize> Randomize for Secret<N> {
     fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
         // Zeroize self first just to make sure the barriers from the zeroize create take
@@ -124,11 +196,26 @@ impl<const N: usize> Randomize for Secret<N> {
     }
 }
 
+impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
+impl<const N: usize> Zeroize for Secret<N> {
+    fn zeroize(&mut self) {
+        if let Some(inner) = &mut self.storage {
+            inner.zeroize()
+        }
+    }
+}
+
 impl<const N: usize> Drop for Secret<N> {
     fn drop(&mut self) {
-        self.storage
-            .take()
-            .map(|sec| SECRET_CACHE.lock().unwrap().release(sec));
+        with_secret_memory_pool(|pool| {
+            if let Some((pool, secret)) = pool.zip(self.storage.take()) {
+                pool.release(secret);
+            }
+        });
+
+        // This should be unnecessary: The pool has one item – the inner secret – which
+        // zeroizes itself on drop. Calling it should not do any harm though…
+        self.zeroize()
     }
 }
 
@@ -197,20 +284,18 @@ mod test {
     /// check that we can alloc using the magic pool
     #[test]
     fn secret_memory_pool_take() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SodiumBox<[u8; N]> = pool.take();
+        let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
     /// check that a secrete lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
-        let secret: SodiumBox<[u8; N]> = pool.take();
+        let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         std::mem::drop(pool);
         assert_eq!(secret.as_ref(), &[0; N]);
     }
@@ -218,17 +303,16 @@ mod test {
     /// check that a secrete can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
-        rosenpass_sodium::init().unwrap();
         const N: usize = 1;
         let mut pool = SecretMemoryPool::new();
-        let mut secret: SodiumBox<[u8; N]> = pool.take();
+        let mut secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         let old_secret_ptr = secret.as_ref().as_ptr();
 
         secret.as_mut()[0] = 0x13;
         pool.release(secret);
 
         // now check that we get the same ptr
-        let new_secret: SodiumBox<[u8; N]> = pool.take();
+        let new_secret: ZeroizingSecretBox<[u8; N]> = pool.take();
         assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
 
         // and that the secret was zeroized

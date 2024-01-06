@@ -2,6 +2,12 @@
 #include "crypto/kem.mpv"
 #include "rosenpass/handshake_state.mpv"
 
+fun Envelope(
+  key,
+  bits
+): bits [data].
+letfun create_mac(pk:kem_pk, payload:bits) = lprf2(MAC, kem_pk2b(pk), payload).
+
 type InitHello_t.
 fun InitHello(
   SessionId, // sidi
@@ -10,6 +16,8 @@ fun InitHello(
   bits,      // pidiC
   bits       // auth
 ) : InitHello_t [data].
+
+fun IH2b(InitHello_t) : bitstring [typeConverter].
 
 #define INITHELLO_PRODUCE()       \
   ck <- lprf1(CK_INIT, kem_pk2b(spkr)); /* IHI1 */ \
@@ -41,7 +49,9 @@ fun RespHello(
     bits       // auth
 ) : RespHello_t [data].
 
-#define RESPHELLO_PRODUCE()                   \
+fun RH2b(RespHello_t) : bitstring [typeConverter].
+
+#define RESPHELLO_PRODUCE()  \
   /* not handled here */           /* RHR1 */ \
   MIX2(sid2b(sidr), sid2b(sidi))   /* RHR3 */ \
   ENCAPS_AND_MIX(ecti, epki, epti) /* RHR4 */ \
@@ -66,6 +76,8 @@ fun InitConf(
     bits,      // biscuit
     bits       // auth
 ) : InitConf_t [data].
+
+fun IC2b(InitConf_t) : bitstring [typeConverter].
 
 #define INITCONF_PRODUCE()                  \
   MIX2(sid2b(sidi), sid2b(sidr)) /* ICI3 */ \

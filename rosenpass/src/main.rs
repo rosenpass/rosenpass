@@ -5,7 +5,8 @@ use std::process::exit;
 
 /// Catches errors, prints them through the logger, then exits
 pub fn main() {
-    env_logger::init();
+    // default to displaying warning and error log messages only
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     let res = attempt!({
         rosenpass_sodium::init()?;

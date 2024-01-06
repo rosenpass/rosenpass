@@ -2,6 +2,8 @@ pub mod debug;
 pub mod file;
 pub mod rand;
 
+pub mod alloc;
+
 mod public;
 pub use crate::public::Public;
 

@@ -373,7 +373,7 @@ mod test {
     use std::net::IpAddr;
 
     fn split_str(s: &str) -> Vec<String> {
-        s.split(" ").map(|s| s.to_string()).collect()
+        s.split(' ').map(|s| s.to_string()).collect()
     }
 
     #[test]

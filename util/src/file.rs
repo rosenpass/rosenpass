@@ -6,21 +6,21 @@ use std::{fs::OpenOptions, path::Path};
 
 /// Open a file writable
 pub fn fopen_w<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
-    Ok(OpenOptions::new()
+    OpenOptions::new()
         .read(false)
         .write(true)
         .create(true)
         .truncate(true)
-        .open(path)?)
+        .open(path)
 }
 /// Open a file readable
 pub fn fopen_r<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
-    Ok(OpenOptions::new()
+    OpenOptions::new()
         .read(true)
         .write(false)
         .create(false)
         .truncate(false)
-        .open(path)?)
+        .open(path)
 }
 
 pub trait ReadExactToEnd {

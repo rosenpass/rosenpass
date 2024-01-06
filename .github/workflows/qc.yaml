@@ -25,6 +25,34 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
+  rustfmt:
+    name: Rust Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Rust Formatting Script
+        run: bash format_rust_code.sh --mode check
+
+  cargo-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install libsodium
+        run: sudo apt-get install -y libsodium-dev
+        # liboqs requires quite a lot of stack memory, thus we adjust
+        # the default stack size picked for new threads (which is used
+        # by `cargo test`) to be _big enough_. Setting it to 8 MiB
+      - run: RUST_MIN_STACK=8388608 cargo bench --no-run --workspace
+
   cargo-audit:
     runs-on: ubuntu-latest
     steps:
@@ -93,7 +121,7 @@ jobs:
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
-      - run: RUST_MIN_STACK=8388608 cargo test
+      - run: RUST_MIN_STACK=8388608 cargo test --workspace
 
   cargo-test-nix-devshell-x86_64-linux:
     runs-on:
@@ -116,7 +144,7 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - run: nix develop --command cargo test
+      - run: nix develop --command cargo test --workspace
 
   cargo-fuzz:
     runs-on: ubuntu-latest
@@ -146,5 +174,5 @@ jobs:
           cargo fuzz run fuzz_handle_msg -- -max_total_time=5
           ulimit -s 8192000 && RUST_MIN_STACK=33554432000 && cargo fuzz run fuzz_kyber_encaps -- -max_total_time=5
           cargo fuzz run fuzz_mceliece_encaps -- -max_total_time=5
-          cargo fuzz run fuzz_box_sodium_alloc -- -max_total_time=5
-          cargo fuzz run fuzz_vec_sodium_alloc -- -max_total_time=5
+          cargo fuzz run fuzz_box_secret_alloc -- -max_total_time=5
+          cargo fuzz run fuzz_vec_secret_alloc -- -max_total_time=5

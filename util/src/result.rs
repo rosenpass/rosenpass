@@ -35,25 +35,30 @@ pub trait GuaranteedValue {
 /// ```
 /// use std::num::Wrapping;
 /// use std::result::Result;
-/// use std::convert::Infallible
+/// use std::convert::Infallible;
+/// use std::ops::Add;
 ///
-/// trait FailableAddition {
+/// use rosenpass_util::result::{Guaranteed, GuaranteedValue};
+///
+/// trait FailableAddition: Sized {
 ///   type Error;
 ///   fn failable_addition(&self, other: &Self) -> Result<Self, Self::Error>;
 /// }
 ///
+/// #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 /// struct OverflowError;
 ///
-/// impl<T> FailableAddition for Wrapping<T> {
+/// impl<T> FailableAddition for Wrapping<T>
+///   where for <'a> &'a Wrapping<T>: Add<Output = Wrapping<T>> {
 ///   type Error = Infallible;
 ///   fn failable_addition(&self, other: &Self) -> Guaranteed<Self> {
-///     self + other
+///     Ok(self + other)
 ///   }
 /// }
 ///
-/// impl<T> FailableAddition for u32 {
-///   type Error = Infallible;
-///   fn failable_addition(&self, other: &Self) -> Guaranteed<Self> {
+/// impl FailableAddition for u32 {
+///   type Error = OverflowError;
+///   fn failable_addition(&self, other: &Self) -> Result<Self, Self::Error> {
 ///     match self.checked_add(*other) {
 ///         Some(v) => Ok(v),
 ///         None => Err(OverflowError),
@@ -64,10 +69,11 @@ pub trait GuaranteedValue {
 /// fn failable_multiply<T>(a: &T, b: u32)
 ///         -> Result<T, T::Error>
 ///     where
-///         T: FailableAddition<Error> {
+///         T: FailableAddition {
+///     assert!(b >= 2); // Acceptable only because this is for demonstration purposes
 ///     let mut accu = a.failable_addition(a)?;
-///     for _ in ..(b-1) {
-///         accu.failable_addition(a)?;
+///     for _ in 2..b {
+///         accu = accu.failable_addition(a)?;
 ///     }
 ///     Ok(accu)
 /// }
@@ -75,12 +81,12 @@ pub trait GuaranteedValue {
 /// // We can use .guaranteed() with Wrapping<u32>, since the operation uses
 /// // the Infallible error type.
 /// // We can also use unwrap which just happens to not raise an error.
-/// assert_eq!(failable_multiply(&Wrapping::new(42u32), 3).guaranteed(), 126);
-/// assert_eq!(failable_multiply(&Wrapping::new(42u32), 3).unwrap(), 126);
+/// assert_eq!(failable_multiply(&Wrapping(42u32), 3).guaranteed(), Wrapping(126));
+/// assert_eq!(failable_multiply(&Wrapping(42u32), 3).unwrap(), Wrapping(126));
 ///
 /// // We can not use .guaranteed() with u32, since there can be an error.
 /// // We can however use unwrap(), which may panic
-/// assert_eq!(failable_multiply(&42u32, 3).guaranteed(), 126); // COMPILER ERROR
+/// //assert_eq!(failable_multiply(&42u32, 3).guaranteed(), 126); // COMPILER ERROR
 /// assert_eq!(failable_multiply(&42u32, 3).unwrap(), 126);
 /// ```
 pub type Guaranteed<T> = Result<T, Infallible>;
