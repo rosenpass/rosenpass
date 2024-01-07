@@ -6,6 +6,7 @@ author:
 - Benjamin Lipp = Max Planck Institute for Security and Privacy (MPI-SP)
 - Wanja Zaeske
 - Lisa Schmidt = {Scientific Illustrator – \\url{mullana.de}}
+- Prabhpreet Dua
 abstract: |
        Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, WireGuard (WG) [@wg] uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for another application. The Rosenpass protocol builds on “Post-quantum WireGuard” (PQWG) [@pqwg] and improves it by using a cookie mechanism to provide security against state disruption attacks.
 
@@ -447,7 +448,7 @@ cookie_value = lhash("cookie-value", cookie_secret, initiator_host_info)[0..16]
 cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_peer)
 ```
 
-where `cookie_secret` is a secret variable that changes every two minutes to a random value. `initiator_host_info` is used to identify the initiator host, and is a concatenation of the initiator's IP address and UDP source port, with the bytes concatenated with big endian byte order. `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
+where `cookie_secret` is a secret variable that changes every two minutes to a random value. `initiator_host_info` is used to identify the initiator host, and is implementation-specific for the client. This paramaters used to identify the host must be carefully chosen to ensure there is a unique mapping, especially when using IPv4 and IPv6 addresses to identify the host (such as taking care of IPv6 link-local addresses). `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
 
 #### Envelope `mac` Field
 
@@ -507,6 +508,10 @@ The cookie reply system does not interfere with the retransmission logic discuss
 When the initator is under load, it will ignore processing any incoming messages.
 
 When a responder is under load, the recieved handshake message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello or InitConf message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
+
+# Changelog
+
+- Added section "Denial of Service Mitigation and Cookies", and modify "Dealing with Packet Loss" for DoS cookie mechanism
 
 \printbibliography
 
