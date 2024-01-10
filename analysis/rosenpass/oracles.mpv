@@ -41,25 +41,32 @@ restriction s:seed, p1:Atom, p2:Atom, ad1:Atom, ad2:Atom;
   event(ConsumeSeed(p1, s, ad1)) && event(ConsumeSeed(p2, s, ad2))
     ==> p1 = p2 && ad1 = ad2.
 
+letfun create_mac2(k:key, msg:bits) = prf(k,msg).
+
 #include "rosenpass/responder.macro"
 fun Cinit_conf(kem_sk_tmpl, key_tmpl, kem_pk_tmpl, InitConf_t) : Atom [data].
 CK_EV(  event OskOinit_conf(key, key). )
 MTX_EV( event ICRjct(InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event ResponderSession(InitConf_t, key). )
+KEM_EV(event Oinit_conf_KemUse(SessionId, SessionId, Atom).)
+#ifdef KEM_EVENTS
+  restriction sidi:SessionId, sidr:SessionId, ad1:Atom, ad2:Atom;
+    event(Oinit_conf_KemUse(sidi, sidr, ad1)) && event(Oinit_conf_KemUse(sidi, sidr, ad2))
+      ==> ad1 = ad2.
+#endif
 event ConsumeBiscuit(Atom, kem_sk, kem_pk, Atom).
 
-let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t) =
-#if RANDOMIZED_CALL_IDS
-  new call:Atom;
-#else
-  call <- Cinit_conf(Ssskm, Spsk, Sspkt, ic);
-#endif
+fun Ccookie(key, bits) : Atom[data].
+
+let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t, call:Atom) =
 
   SETUP_HANDSHAKE_STATE()
 
   eski <- kem_sk0;
   epki <- kem_pk0;
   let try_ = (
+    let InitConf(sidi, sidr, biscuit, auth) = ic in 
+    KEM_EV(event Oinit_conf_KemUse(sidi, sidr, call);)
     INITCONF_CONSUME()
     event ConsumeBiscuit(biscuit_no, sskm, spkt, call);
     CK_EV(  event OskOinit_conf(ck_rh, osk); )
@@ -76,13 +83,19 @@ let Oinit_conf_inner(Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:Ini
   ).
   
 let Oinit_conf() = 
+
   in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));
-  Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic).
+  #if RANDOMIZED_CALL_IDS
+    new call:Atom;
+  #else
+    call <- Cinit_conf(Ssskm, Spsk, Sspkt, ic);
+  #endif
+
+  Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic, call).
 
 restriction biscuit_no:Atom, sskm:kem_sk, spkr:kem_pk, ad1:Atom, ad2:Atom;
   event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad1)) && event(ConsumeBiscuit(biscuit_no, sskm, spkr, ad2))
     ==> ad1 = ad2.
-
 // TODO: Restriction biscuit no invalidation
 
 #include "rosenpass/initiator.macro"
@@ -91,27 +104,54 @@ CK_EV(  event OskOresp_hello(key, key, key). )
 MTX_EV( event RHRjct(RespHello_t, key, kem_sk, kem_pk). )
 MTX_EV( event ICSent(RespHello_t, InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event InitiatorSession(RespHello_t, key). )
-let Oresp_hello(HS_DECL_ARGS, C_in:channel) =
-  in(C_in, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit, auth)));
-  rh <- RespHello(sidr, sidi, ecti, scti, biscuit, auth);
-  /* try */ let ic = (
-    ck_ini <- ck;
-    RESPHELLO_CONSUME()
-    ck_ih <- ck;
-    INITCONF_PRODUCE()
-    CK_EV (event OskOresp_hello(ck_ini, ck_ih, osk); ) // TODO: Queries testing that there is no duplication
-    MTX_EV( event ICSent(rh, ic, psk, sski, spkr); )
-    SES_EV( event InitiatorSession(rh, osk); )
-    ic
-  /* success */ ) in (
-    out(C_in, Envelope(create_mac(spkt, IC2b(ic)), IC2b(ic)))
-  /* fail */ ) else (
-#if MESSAGE_TRANSMISSION_EVENTS
-    event RHRjct(rh, psk, sski, spkr)
-#else
-    0
+
+KEM_EV(event Oresp_hello_KemUse(SessionId, SessionId, Atom).)
+#ifdef KEM_EVENTS
+restriction sidi:SessionId, sidr:SessionId, ad1:Atom, ad2:Atom;
+  event(Oresp_hello_KemUse(sidi, sidr, ad1)) && event(Oresp_hello_KemUse(sidi, sidr, ad2))
+    ==> ad1 = ad2.
 #endif
-  ).
+
+#ifdef COOKIE_EVENTS
+COOKIE_EVENTS(Oresp_hello)
+#endif
+let Oresp_hello(HS_DECL_ARGS, C_in:channel, call:Atom) =
+  in(C_in, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit, auth)));
+  in(C_in, mac2_key:key);
+  rh <- RespHello(sidr, sidi, ecti, scti, biscuit, auth);
+  #ifdef COOKIE_EVENTS
+    msg <- RH2b(rh);
+
+    COOKIE_PROCESS(Oresp_hello,
+  #endif
+    /* try */ let ic = (
+      ck_ini <- ck;
+      KEM_EV(event Oresp_hello_KemUse(sidi, sidr, call);)
+      RESPHELLO_CONSUME()
+      ck_ih <- ck;
+      INITCONF_PRODUCE()
+      CK_EV (event OskOresp_hello(ck_ini, ck_ih, osk); ) // TODO: Queries testing that there is no duplication
+      MTX_EV( event ICSent(rh, ic, psk, sski, spkr); )
+      SES_EV( event InitiatorSession(rh, osk); )
+      ic
+    /* success */ ) in (
+      icbits <- IC2b(ic);
+      mac_envelope <- Envelope(create_mac(spkt, icbits), icbits);
+      mac2 <- create_mac2(mac2_key, mac_envelope);
+      out(C_in, Envelope(mac2, mac_envelope))
+
+    /* fail */ ) else (
+  #if MESSAGE_TRANSMISSION_EVENTS
+      event RHRjct(rh, psk, sski, spkr)
+  #else
+      0
+  #endif
+    )
+#ifdef COOKIE_EVENTS
+  )
+#else
+  .
+#endif
 
 // TODO: Restriction: Biscuit no invalidation
 
@@ -122,13 +162,15 @@ MTX_EV( event IHRjct(InitHello_t, key, kem_sk, kem_pk). )
 MTX_EV( event RHSent(InitHello_t, RespHello_t, key, kem_sk, kem_pk). )
 event ConsumeSidr(SessionId, Atom).
 event ConsumeBn(Atom, kem_sk, kem_pk, Atom).
+KEM_EV(event Oinit_hello_KemUse(SessionId, SessionId, Atom).)
 
-let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt: kem_sk_tmpl, Septi: seed_tmpl, Sspti: seed_tmpl, ih: InitHello_t, C_out:channel) = 
-#if RANDOMIZED_CALL_IDS
-  new call:Atom;
-#else
-  call <- Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih);
+#ifdef KEM_EVENTS
+restriction sidi:SessionId, sidr:SessionId, ad1:Atom, ad2:Atom;
+  event(Oinit_hello_KemUse(sidi, sidr, ad1)) && event(Oinit_hello_KemUse(sidi, sidr, ad2))
+    ==> ad1 = ad2.
 #endif
+
+let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt: kem_sk_tmpl, Septi: seed_tmpl, Sspti: seed_tmpl, ih: InitHello_t, mac2_key:key, C_out:channel, call:Atom) = 
   // TODO: This is ugly
   let InitHello(sidi, epki, sctr, pidiC, auth) = ih in
 
@@ -145,6 +187,7 @@ let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:k
   event ConsumeSeed(Spti, setup_seed(Sspti), call);
 
   let rh = (
+    KEM_EV(event Oinit_hello_KemUse(sidi, sidr, call);)
     INITHELLO_CONSUME()
     ck_ini <- ck;
     RESPHELLO_PRODUCE()
@@ -152,7 +195,10 @@ let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:k
     MTX_EV( event RHSent(ih, rh, psk, sskr, spki); )
     rh
   /* success */ ) in (
-    out(C_out, Envelope(create_mac(spkt, RH2b(rh)), RH2b(rh)))
+    rhbits <- RH2b(rh);
+    mac_envelope <- Envelope(create_mac(spkt, rhbits), rhbits);
+    mac2 <- create_mac2(mac2_key, mac_envelope);
+    out(C_out, Envelope(mac2, mac_envelope))
 
   /* fail */ ) else (
 #if MESSAGE_TRANSMISSION_EVENTS
@@ -164,7 +210,15 @@ let Oinit_hello_inner(sidm:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:k
 
 let Oinit_hello() = 
   in(C, Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih));
-  Oinit_hello_inner(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih, C).
+  in(C, mac2_key:key);
+
+  #if RANDOMIZED_CALL_IDS
+    new call:Atom;
+  #else
+    call <- Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih);
+  #endif
+
+  Oinit_hello_inner(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih, mac2_key, C, call).
 
 restriction sid:SessionId, ad1:Atom, ad2:Atom;
   event(ConsumeSidr(sid, ad1)) && event(ConsumeSidr(sid, ad2))
@@ -182,18 +236,22 @@ fun Cinitiator(SessionId, kem_sk_tmpl, key_tmpl, kem_pk_tmpl, seed_tmpl, seed_tm
 CK_EV( event OskOinitiator_ck(key). )
 CK_EV( event OskOinitiator(key, key, kem_sk, kem_pk, key). )
 MTX_EV( event IHSent(InitHello_t, key, kem_sk, kem_pk). )
+KEM_EV(event Oinitiator_inner_KemUse(SessionId, SessionId, Atom).)
+
+#ifdef KEM_EVENTS
+restriction sidi:SessionId, sidr:SessionId, ad1:Atom, ad2:Atom;
+  event(Oinitiator_inner_KemUse(sidi, sidr, ad1)) && event(Oinitiator_inner_KemUse(sidi, sidr, ad2))
+    ==> ad1 = ad2.
+#endif
 event ConsumeSidi(SessionId, Atom).
 
-let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt: kem_sk_tmpl, Seski: seed_tmpl, Ssptr: seed_tmpl, C_out:channel) =
-  #if RANDOMIZED_CALL_IDS
-    new call:Atom;
-  #else
-    call <- Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr);
-  #endif
+let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt: kem_sk_tmpl, Seski: seed_tmpl, Ssptr: seed_tmpl, last_cookie:key, C_out:channel, call:Atom) =
 
     SETUP_HANDSHAKE_STATE()
 
     sidr <- sid0;
+
+    KEM_EV(event Oinitiator_inner_KemUse(sidi, sidr, call);)
 
     RNG_KEM_PAIR(eski, epki, Seski) // IHI3
     sptr <- rng_key(setup_seed(Ssptr)); // IHI5
@@ -205,12 +263,27 @@ let Oinitiator_inner(sidi: SessionId, Ssskm: kem_sk_tmpl, Spsk: key_tmpl, Sspkt:
     CK_EV( event OskOinitiator_ck(ck); ) 
     CK_EV( event OskOinitiator(ck, psk, sski, spkr, sptr); )
     MTX_EV( event IHSent(ih, psk, sski, spkr); )
-    out(C_out, Envelope(create_mac(spkt, IH2b(ih)), IH2b(ih)));
-    Oresp_hello(HS_PASS_ARGS, C_out).
+    
+    ihbits <- IH2b(ih);
+    mac_envelope <- Envelope(create_mac(spkt, ihbits), ihbits);
+    mac2 <- create_mac2(last_cookie, mac_envelope);
+    out(C_out, Envelope(mac2, mac_envelope));
+
+    Oresp_hello(HS_PASS_ARGS, C_out, call).
 
 let Oinitiator() =
+
   in(C, Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr));
-  Oinitiator_inner(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr, C).
+
+  #if RANDOMIZED_CALL_IDS
+    new call:Atom;
+  #else
+    call <- Cinitiator(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr);
+  #endif
+
+  in(C, last_cookie:key);
+  Oinitiator_inner(sidi, Ssskm, Spsk, Sspkt, Seski, Ssptr, last_cookie, C, call).
+
 
 restriction sid:SessionId, ad1:Atom, ad2:Atom;
   event(ConsumeSidi(sid, ad1)) && event(ConsumeSidi(sid, ad2))
@@ -231,21 +304,3 @@ let rosenpass_main() = 0
   | REP(RESPONDER_BOUND, Oinit_hello)
   | REP(RESPONDER_BOUND, Oinit_conf).
 
-nounif v:seed_prec;   attacker(prepare_seed(trusted_seed( v )))/6217[hypothesis].
-nounif v:seed;        attacker(prepare_seed( v ))/6216[hypothesis].
-nounif v:seed;        attacker(rng_kem_sk( v ))/6215[hypothesis].
-nounif v:seed;        attacker(rng_key( v ))/6214[hypothesis].
-nounif v:key_prec;    attacker(prepare_key(trusted_key( v )))/6213[hypothesis].
-nounif v:kem_sk_prec; attacker(prepare_kem_sk(trusted_kem_sk( v )))/6212[hypothesis].
-nounif v:key;         attacker(prepare_key( v ))/6211[hypothesis].
-nounif v:kem_sk;      attacker(prepare_kem_sk( v ))/6210[hypothesis].
-nounif Spk:kem_sk_tmpl;
-  attacker(Creveal_kem_pk(Spk))/6110[conclusion].
-nounif sid:SessionId, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, Seski:seed_tmpl, Ssptr:seed_tmpl;
-  attacker(Cinitiator( *sid, *Ssskm, *Spsk, *Sspkt, *Seski, *Ssptr ))/6109[conclusion].
-nounif sid:SessionId, biscuit_no:Atom, Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, Septi:seed_tmpl, Sspti:seed_tmpl, ih:InitHello_t;
-  attacker(Cinit_hello( *sid, *biscuit_no, *Ssskm, *Spsk, *Sspkt, *Septi, *Sspti, *ih ))/6108[conclusion].
-nounif rh:RespHello_t;
-  attacker(Cresp_hello( *rh ))/6107[conclusion].
-nounif Ssskm:kem_sk_tmpl, Spsk:key_tmpl, Sspkt:kem_sk_tmpl, ic:InitConf_t;
-  attacker(Cinit_conf( *Ssskm, *Spsk, *Sspkt, *ic ))/6106[conclusion].

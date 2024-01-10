@@ -59,21 +59,30 @@ free responder1, responder2:kem_sk_prec.
 let secure_init_hello(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, responder: kem_sk_tmpl) =
   NEW_TRUSTED_SEED(seski_trusted_seed)
   NEW_TRUSTED_SEED(ssptr_trusted_seed)
-  Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, D).
+  new last_cookie:key;
+  call <- Cinitiator(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed);
+
+  Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, last_cookie, D, call).
 
 let secure_resp_hello(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidr:SessionId, sidi:SessionId, biscuit_no:Atom, psk:key_tmpl) =
   in(D, Envelope(k, IH2b(InitHello(=sidi, epki, sctr, pidiC, auth))));
   ih <- InitHello(sidi, epki, sctr, pidiC, auth);
   NEW_TRUSTED_SEED(septi_trusted_seed)
   NEW_TRUSTED_SEED(sspti_trusted_seed)
-  Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, D).
+  new last_cookie:key;
+  call <- Cinit_hello(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih);
+
+  Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, last_cookie, D, call).
 
 let secure_init_conf(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, psk:key_tmpl, sidi:SessionId, sidr:SessionId) =
   in(D, Envelope(k3, IC2b(InitConf(=sidi, =sidr, biscuit, auth3))));
   ic <- InitConf(sidi,sidr,biscuit, auth3);
   NEW_TRUSTED_SEED(seski_trusted_seed)
   NEW_TRUSTED_SEED(ssptr_trusted_seed)
-  Oinit_conf_inner(initiator, psk, responder, ic).
+  new last_cookie:key;
+  call <- Cinit_conf(initiator, psk, responder, ic);
+
+  Oinit_conf_inner(initiator, psk, responder, ic, call).
 
 let secure_communication(initiator: kem_sk_tmpl, responder:kem_sk_tmpl) =
   secure_key <- prepare_key(secure_psk);

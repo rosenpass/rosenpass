@@ -85,7 +85,6 @@ fun IC2b(InitConf_t) : bitstring [typeConverter].
   ic <- InitConf(sidi, sidr, biscuit, auth);
 
 #define INITCONF_CONSUME()                        \
-  let InitConf(sidi, sidr, biscuit, auth) = ic in \
   LOAD_BISCUIT(biscuit_no, biscuit)   /* ICR1 */    \
   ENCRYPT_AND_MIX(rh_auth, empty)     /* ICIR */    \
   ck_rh <- ck;                        /* ---- */ /* TODO: Move into oracles.mpv */ \
