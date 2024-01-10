@@ -62,17 +62,6 @@ let Oinit_conf_underLoad() =
 
   COOKIE_PROCESS(Oinit_conf, Oinit_conf_inner(Ssskm, Spsk, Sspkt, ic, call))
 
-// #include "rosenpass/initiator.macro"
-// COOKIE_EVENTS(Oresp_hello)
-// let Oresp_hello_underLoad() =
-//   in(C, Cresp_hello(rh));
-//   msg <- RH2b(rh);
-//   let RespHello(sidi, sidr, ecti, scti, biscuit, auth) = rh in 
-
-//   new call:Atom;
-
-//   COOKIE_PROCESS(Oresp_hello, Oresp_hello(HS_PASS_ARGS, C, call))
-
 #include "rosenpass/responder.macro"
 COOKIE_EVENTS(Oinit_hello)
 let Oinit_hello_underLoad() =
