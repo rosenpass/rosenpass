@@ -206,11 +206,8 @@ impl SocketBoundEndpoint {
                 //Map IPv4-mapped to IPv6 addresses
                 let ip = addr.ip().to_ipv6_mapped();
                 SocketAddrV6::new(ip, addr.port(), 0, 0)
-                
             }
-            SocketAddr::V6(addr) => {
-                addr
-            }
+            SocketAddr::V6(addr) => addr,
         };
         buf.extend_from_slice(&self.socket.0.to_be_bytes());
         buf.extend_from_slice(&addr.ip().octets());
@@ -219,7 +216,6 @@ impl SocketBoundEndpoint {
         buf
     }
 }
-
 
 impl Endpoint {
     /// Start discovery from some addresses
@@ -269,7 +265,7 @@ impl Endpoint {
     fn addresses(&self) -> &[SocketAddr] {
         use Endpoint::*;
         match self {
-            SocketBoundAddress (host) => slice::from_ref(&host.addr),
+            SocketBoundAddress(host) => slice::from_ref(&host.addr),
             Discovery(host) => host.addresses(),
         }
     }
@@ -644,12 +640,13 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                let host_identification = socket.to_bytes(); 
-                self.crypt.handle_msg_under_load(&rx, &mut *tx, &host_identification)
-            },
+                let host_identification = socket.to_bytes();
+                self.crypt
+                    .handle_msg_under_load(&rx, &mut *tx, &host_identification)
+            }
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")
-            },
+            }
         }
     }
 
@@ -801,7 +798,7 @@ impl AppServer {
                     self.all_sockets_drained = false;
                     return Ok(Some((
                         n,
-                        Endpoint::SocketBoundAddress( SocketBoundEndpoint{
+                        Endpoint::SocketBoundAddress(SocketBoundEndpoint {
                             socket: SocketPtr(sock_no),
                             addr,
                         }),
