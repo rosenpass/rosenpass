@@ -175,19 +175,51 @@ pub enum Endpoint {
     /// at the same time. It also would reply on the same port RespHello was
     /// sent to when listening on multiple ports on the same interface. This
     /// may be required for some arcane firewall setups.
-    SocketBoundAddress {
-        /// The socket the address can be reached under; this is generally
-        /// determined when we actually receive an RespHello message
-        socket: SocketPtr,
-        /// Just the address
-        addr: SocketAddr,
-    },
+    SocketBoundAddress(SocketBoundEndpoint),
     // A host name or IP address; storing the hostname here instead of an
     // ip address makes sure that we look up the host name whenever we try
     // to make a connection; this may be beneficial in some setups where a host-name
     // at first can not be resolved but becomes resolvable later.
     Discovery(HostPathDiscoveryEndpoint),
 }
+
+#[derive(Debug)]
+pub struct SocketBoundEndpoint {
+    /// The socket the address can be reached under; this is generally
+    /// determined when we actually receive an RespHello message
+    pub socket: SocketPtr,
+    /// Just the address
+    pub addr: SocketAddr,
+}
+
+impl std::fmt::Display for SocketBoundEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.addr)
+    }
+}
+
+impl SocketBoundEndpoint {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(26);
+        let addr = match self.addr {
+            SocketAddr::V4(addr) => {
+                //Map IPv4-mapped to IPv6 addresses
+                let ip = addr.ip().to_ipv6_mapped();
+                SocketAddrV6::new(ip, addr.port(), 0, 0)
+                
+            }
+            SocketAddr::V6(addr) => {
+                addr
+            }
+        };
+        buf.extend_from_slice(&self.socket.0.to_be_bytes());
+        buf.extend_from_slice(&addr.ip().octets());
+        buf.extend_from_slice(&addr.port().to_be_bytes());
+        buf.extend_from_slice(&addr.scope_id().to_be_bytes());
+        buf
+    }
+}
+
 
 impl Endpoint {
     /// Start discovery from some addresses
@@ -229,7 +261,7 @@ impl Endpoint {
     pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         use Endpoint::*;
         match self {
-            SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
+            SocketBoundAddress(host) => host.socket.send_to(srv, buf, host.addr),
             Discovery(host) => host.send_scouting(srv, buf),
         }
     }
@@ -237,7 +269,7 @@ impl Endpoint {
     fn addresses(&self) -> &[SocketAddr] {
         use Endpoint::*;
         match self {
-            SocketBoundAddress { addr, .. } => slice::from_ref(addr),
+            SocketBoundAddress (host) => slice::from_ref(&host.addr),
             Discovery(host) => host.addresses(),
         }
     }
@@ -610,30 +642,15 @@ impl AppServer {
         rx: &[u8],
         tx: &mut [u8],
     ) -> Result<crate::protocol::HandleMsgResult> {
-        let socket_addr = endpoint
-            .addresses()
-            .first()
-            .ok_or(anyhow::anyhow!("No socket address for endpoint"))?;
-
-        let mut len = 0;
-        let mut ip_addr_port = [0u8; 18];
-
-        match socket_addr.ip() {
-            std::net::IpAddr::V4(ipv4) => {
-                ip_addr_port[0..4].copy_from_slice(&ipv4.octets());
-                len += 4;
-            }
-            std::net::IpAddr::V6(ipv6) => {
-                ip_addr_port[0..16].copy_from_slice(&ipv6.octets());
-                len += 16;
-            }
-        };
-
-        ip_addr_port[len..len + 2].copy_from_slice(&socket_addr.port().to_be_bytes());
-        len += 2;
-
-        self.crypt
-            .handle_msg_under_load(&rx[..len], &mut *tx, &ip_addr_port[..len])
+        match endpoint {
+            Endpoint::SocketBoundAddress(socket) => {
+                let host_identification = socket.to_bytes(); 
+                self.crypt.handle_msg_under_load(&rx, &mut *tx, &host_identification)
+            },
+            Endpoint::Discovery(_) => {
+                anyhow::bail!("Host-path discovery is not supported under load")
+            },
+        }
     }
 
     pub fn output_key(
@@ -784,10 +801,10 @@ impl AppServer {
                     self.all_sockets_drained = false;
                     return Ok(Some((
                         n,
-                        Endpoint::SocketBoundAddress {
+                        Endpoint::SocketBoundAddress( SocketBoundEndpoint{
                             socket: SocketPtr(sock_no),
                             addr,
-                        },
+                        }),
                     )));
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {

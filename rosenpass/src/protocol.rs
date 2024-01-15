@@ -864,7 +864,7 @@ impl CryptoServer {
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        ip_addr_port: &[u8],
+        host_identification: &[u8],
     ) -> Result<HandleMsgResult> {
         let mut cookie_value = [0u8; 16];
         match self.cookie_secret.lifecycle(&self) {
@@ -877,7 +877,7 @@ impl CryptoServer {
         cookie_value.copy_from_slice(
             &hash_domains::cookie_value()?
                 .mix(self.cookie_secret.0.value.secret())?
-                .mix(&ip_addr_port)?
+                .mix(&host_identification)?
                 .into_value()[..16],
         );
 
