@@ -10,6 +10,15 @@
 #include "crypto/key.mpv"
 #include "crypto/kem.mpv"
 #include "rosenpass/handshake_state.mpv"
+
+/* The cookie data structure is implemented based on the WireGuard protocol.
+ * The ip and port is based purely on the public key and the implementation of the private cookie key is intended to mirror the biscuit key.
+ * The code tests the response to a possible DOS attack by setting up alternative branches for the protocol
+ * processes: Oinit_conf, Oinit_hello and resp_hello to simulate what happens when the responder or initiator is overloaded.
+ * When under heavy load a valid cookie is required. When such a cookie is not present a cookie message is sent as a response.
+ * Queries then test to make sure that expensive KEM operations are only conducted after a cookie has been successfully validated.
+ */
+
 type CookieMsg_t.
 fun CookieMsg(
   SessionId,  // sender
@@ -17,12 +26,10 @@ fun CookieMsg(
   bits      // cookie
 ) : CookieMsg_t [data].
 
-
 #define COOKIE_EVENTS(eventLbl) \
   COOKIE_EV(event MCAT(eventLbl, _UnderLoadEV) (SessionId, SessionId, Atom).)   \
   COOKIE_EV(event MCAT(eventLbl, _CookieValidated) (SessionId, SessionId, Atom).)   \
   COOKIE_EV(event MCAT(eventLbl, _CookieSent) (SessionId, SessionId, Atom, CookieMsg_t).)
-
 
 fun cookie_key(kem_sk) : key [private].
 fun ip_and_port(kem_pk):bits.
