@@ -56,7 +56,6 @@ fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    rosenpass_sodium::init().unwrap();
     let (mut a, mut b) = make_server_pair().unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {

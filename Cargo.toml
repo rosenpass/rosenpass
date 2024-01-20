@@ -7,7 +7,6 @@ members = [
     "ciphers",
     "util",
     "constant-time",
-    "sodium",
     "oqs",
     "to",
     "fuzz",
@@ -27,7 +26,6 @@ tag-prefix = ""
 rosenpass = { path = "rosenpass" }
 rosenpass-util = { path = "util" }
 rosenpass-constant-time = { path = "constant-time" }
-rosenpass-sodium = { path = "sodium" }
 rosenpass-cipher-traits = { path = "cipher-traits" }
 rosenpass-ciphers = { path = "ciphers" }
 rosenpass-to = { path = "to" }
@@ -58,7 +56,6 @@ serde = { version = "1.0.193", features = ["derive"] }
 arbitrary = { version = "1.3.2", features = ["derive"] }
 anyhow = { version = "1.0.75", features = ["backtrace", "std"] }
 mio = { version = "0.8.9", features = ["net", "os-poll"] }
-libsodium-sys-stable= { version = "1.20.4", features = ["use-pkg-config"] }
 oqs-sys = { version = "0.8", default-features = false, features = ['classic_mceliece', 'kyber']  }
 blake2 = "0.10.6"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [ "std", "heapless" ] }

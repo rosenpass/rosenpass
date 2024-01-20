@@ -5,7 +5,6 @@ extern crate rosenpass;
 use libfuzzer_sys::fuzz_target;
 
 use rosenpass_ciphers::aead;
-use rosenpass_sodium::init as sodium_init;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {
@@ -16,8 +15,6 @@ pub struct Input {
 }
 
 fuzz_target!(|input: Input| {
-    sodium_init().unwrap();
-
     let mut ciphertext: Vec<u8> = Vec::with_capacity(input.plaintext.len() + 16);
     ciphertext.resize(input.plaintext.len() + 16, 0);
 
