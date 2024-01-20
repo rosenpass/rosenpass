@@ -5,11 +5,8 @@ use libfuzzer_sys::fuzz_target;
 
 use rosenpass::protocol::CryptoServer;
 use rosenpass_secret_memory::Secret;
-use rosenpass_sodium::init as sodium_init;
 
 fuzz_target!(|rx_buf: &[u8]| {
-    sodium_init().unwrap();
-
     let sk = Secret::from_slice(&[0; 13568]);
     let pk = Secret::from_slice(&[0; 524160]);
 
