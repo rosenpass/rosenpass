@@ -1,3 +1,5 @@
+use core::hint::black_box;
+
 use rosenpass_to::{with_destination, To};
 
 /// Xors the source into the destination
@@ -18,9 +20,9 @@ use rosenpass_to::{with_destination, To};
 #[inline]
 pub fn xor(src: &[u8]) -> impl To<[u8], ()> + '_ {
     with_destination(|dst: &mut [u8]| {
-        assert!(src.len() == dst.len());
+        assert!(black_box(src.len()) == black_box(dst.len()));
         for (dv, sv) in dst.iter_mut().zip(src.iter()) {
-            *dv ^= *sv;
+            *black_box(dv) ^= black_box(*sv);
         }
     })
 }
