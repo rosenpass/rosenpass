@@ -1,8 +1,10 @@
 use anyhow::ensure;
-use rosenpass_constant_time::xor;
-use rosenpass_sodium::hash::blake2b;
-use rosenpass_to::{ops::copy_slice, with_destination, To};
 use zeroize::Zeroizing;
+
+use rosenpass_constant_time::xor;
+use rosenpass_to::{ops::copy_slice, with_destination, To};
+
+use crate::subtle::blake2b;
 
 pub const KEY_LEN: usize = 32;
 pub const KEY_MIN: usize = KEY_LEN;
