@@ -1,12 +1,12 @@
 use zeroize::Zeroizing;
 
-use blake2::Blake2bMac;
-use blake2::digest::{OutputSizeUser, Mac, FixedOutput};
-use blake2::digest::crypto_common::KeySizeUser;
 use blake2::digest::crypto_common::generic_array::GenericArray;
 use blake2::digest::crypto_common::typenum::U32;
+use blake2::digest::crypto_common::KeySizeUser;
+use blake2::digest::{FixedOutput, Mac, OutputSizeUser};
+use blake2::Blake2bMac;
 
-use rosenpass_to::{with_destination, To, ops::copy_slice};
+use rosenpass_to::{ops::copy_slice, with_destination, To};
 use rosenpass_util::typenum2const;
 
 type Impl = Blake2bMac<U32>;
@@ -14,8 +14,8 @@ type Impl = Blake2bMac<U32>;
 type KeyLen = <Impl as KeySizeUser>::KeySize;
 type OutLen = <Impl as OutputSizeUser>::OutputSize;
 
-const KEY_LEN : usize = typenum2const! { KeyLen };
-const OUT_LEN : usize =  typenum2const! { OutLen };
+const KEY_LEN: usize = typenum2const! { KeyLen };
+const OUT_LEN: usize = typenum2const! { OutLen };
 
 pub const KEY_MIN: usize = KEY_LEN;
 pub const KEY_MAX: usize = KEY_LEN;

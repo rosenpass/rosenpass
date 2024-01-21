@@ -77,10 +77,10 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_constant_time as constant_time;
 use rosenpass_lenses::LenseView;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
-use rosenpass_constant_time as constant_time;
 
 use crate::{hash_domains, msgs::*};
 
@@ -1364,8 +1364,7 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            constant_time::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used)
-                >= 0,
+            constant_time::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 

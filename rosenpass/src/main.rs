@@ -1,6 +1,6 @@
 use log::error;
-use std::process::exit;
 use rosenpass::cli::Cli;
+use std::process::exit;
 
 /// Catches errors, prints them through the logger, then exits
 pub fn main() {
