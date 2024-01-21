@@ -1,10 +1,10 @@
-use rosenpass_to::To;
 use rosenpass_to::ops::copy_slice;
+use rosenpass_to::To;
 use rosenpass_util::typenum2const;
 
 use chacha20poly1305::aead::generic_array::GenericArray;
-use chacha20poly1305::{ChaCha20Poly1305 as AeadImpl};
-use chacha20poly1305::{AeadCore, KeySizeUser, KeyInit, AeadInPlace};
+use chacha20poly1305::ChaCha20Poly1305 as AeadImpl;
+use chacha20poly1305::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
 
 pub const KEY_LEN: usize = typenum2const! { <AeadImpl as KeySizeUser>::KeySize };
 pub const TAG_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::TagSize };

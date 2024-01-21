@@ -1,13 +1,17 @@
-use typenum::bit::{B1, B0};
-use typenum::int::{Z0, NInt, PInt};
-use typenum::uint::{UInt, UTerm};
+use typenum::bit::{B0, B1};
+use typenum::int::{NInt, PInt, Z0};
 use typenum::marker_traits as markers;
+use typenum::uint::{UInt, UTerm};
 
 /// Convenience macro to convert type numbers to constant integers
 #[macro_export]
 macro_rules! typenum2const {
-    ($val:ty) => { typenum2const!($val as _) };
-    ($val:ty as $type:ty) => { < $val as $crate::typenum::IntoConst<$type> >::VALUE };
+    ($val:ty) => {
+        typenum2const!($val as _)
+    };
+    ($val:ty as $type:ty) => {
+        <$val as $crate::typenum::IntoConst<$type>>::VALUE
+    };
 }
 
 /// Trait implemented by constant integers to facilitate conversion to constant integers
@@ -15,9 +19,15 @@ pub trait IntoConst<T> {
     const VALUE: T;
 }
 
-struct ConstApplyNegSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(*const T, *const Param);
-struct ConstApplyPosSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(*const T, *const Param);
-struct ConstLshift<T, Param: IntoConst<T>, const SHIFT : i32>(*const T, *const Param); // impl IntoConst<T>
+struct ConstApplyNegSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
+    *const T,
+    *const Param,
+);
+struct ConstApplyPosSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
+    *const T,
+    *const Param,
+);
+struct ConstLshift<T, Param: IntoConst<T>, const SHIFT: i32>(*const T, *const Param); // impl IntoConst<T>
 struct ConstAdd<T, Lhs: IntoConst<T>, Rhs: IntoConst<T>>(*const T, *const Lhs, *const Rhs); // impl IntoConst<T>
 
 /// Assigns an unsigned type to a signed type
@@ -26,28 +36,33 @@ trait AssociatedUnsigned {
 }
 
 macro_rules! impl_into_const {
-    ( $from:ty as $to:ty := $impl:expr) =>  {
+    ( $from:ty as $to:ty := $impl:expr) => {
         impl IntoConst<$to> for $from {
-            const VALUE : $to = $impl;
+            const VALUE: $to = $impl;
         }
     };
 }
 
 macro_rules! impl_numeric_into_const_common {
-    ($type:ty) =>  {
+    ($type:ty) => {
         impl_into_const! { Z0 as $type := 0 }
         impl_into_const! { B0 as $type := 0 }
         impl_into_const! { B1 as $type := 1 }
         impl_into_const! { UTerm as $type := 0 }
 
-        impl<Param: IntoConst<$type>, const SHIFT : i32> IntoConst<$type> for ConstLshift<$type, Param, SHIFT> {
-            const VALUE : $type = Param::VALUE << SHIFT;
+        impl<Param: IntoConst<$type>, const SHIFT: i32> IntoConst<$type>
+            for ConstLshift<$type, Param, SHIFT>
+        {
+            const VALUE: $type = Param::VALUE << SHIFT;
         }
 
-        impl<Lhs: IntoConst<$type>, Rhs: IntoConst<$type>> IntoConst<$type> for ConstAdd<$type, Lhs, Rhs> {
-            const VALUE: $type = <Lhs as IntoConst<$type>>::VALUE + <Rhs as IntoConst<$type>>::VALUE;
+        impl<Lhs: IntoConst<$type>, Rhs: IntoConst<$type>> IntoConst<$type>
+            for ConstAdd<$type, Lhs, Rhs>
+        {
+            const VALUE: $type =
+                <Lhs as IntoConst<$type>>::VALUE + <Rhs as IntoConst<$type>>::VALUE;
         }
-    }
+    };
 }
 
 macro_rules! impl_numeric_into_const_unsigned {
@@ -99,38 +114,38 @@ macro_rules! impl_numeric_into_const_signed {
 
 impl_into_const! { B0 as bool := false }
 impl_into_const! { B1 as bool := true }
-impl_numeric_into_const_unsigned!{ usize, u8, u16, u32, u64, u128 }
-impl_numeric_into_const_signed!{ isize : usize, i8 : u8, i16 : u16, i32 : u32, i64 : u64, i128 : u128 }
+impl_numeric_into_const_unsigned! { usize, u8, u16, u32, u64, u128 }
+impl_numeric_into_const_signed! { isize : usize, i8 : u8, i16 : u16, i32 : u32, i64 : u64, i128 : u128 }
 
 // Unsigned type numbers to const integers
 impl<Ret, Rest, Bit> IntoConst<Ret> for UInt<Rest, Bit>
-    where 
-        Rest: IntoConst<Ret>,
-        Bit: IntoConst<Ret>,
-        ConstLshift<Ret, Rest, 1>: IntoConst<Ret>,
-        ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit>: IntoConst<Ret>,
+where
+    Rest: IntoConst<Ret>,
+    Bit: IntoConst<Ret>,
+    ConstLshift<Ret, Rest, 1>: IntoConst<Ret>,
+    ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit>: IntoConst<Ret>,
 {
-    const VALUE: Ret = <
-            ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit> as IntoConst<Ret>
-        >::VALUE;
+    const VALUE: Ret = <ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit> as IntoConst<Ret>>::VALUE;
 }
 
 // Signed type numbers with positive sign to const integers
 impl<Ret, Unsigned> IntoConst<Ret> for PInt<Unsigned>
-    where 
-        Ret: AssociatedUnsigned,
-        Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
-        ConstApplyPosSign<Ret, Unsigned>: IntoConst<Ret> {
-    const VALUE: Ret = <ConstApplyPosSign::<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
+where
+    Ret: AssociatedUnsigned,
+    Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
+    ConstApplyPosSign<Ret, Unsigned>: IntoConst<Ret>,
+{
+    const VALUE: Ret = <ConstApplyPosSign<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
 }
 
 // Signed type numbers with negative sign to const integers
 impl<Ret, Unsigned> IntoConst<Ret> for NInt<Unsigned>
-    where 
-        Ret: AssociatedUnsigned,
-        Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
-        ConstApplyNegSign<Ret, Unsigned>: IntoConst<Ret> {
-    const VALUE: Ret = <ConstApplyNegSign::<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
+where
+    Ret: AssociatedUnsigned,
+    Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
+    ConstApplyNegSign<Ret, Unsigned>: IntoConst<Ret>,
+{
+    const VALUE: Ret = <ConstApplyNegSign<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
 }
 
 mod test {
