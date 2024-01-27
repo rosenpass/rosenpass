@@ -29,14 +29,13 @@ pub fn xor(src: &[u8]) -> impl To<[u8], ()> + '_ {
 
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len()
-        && unsafe { memsec::memeq(a.as_ptr() as *const u8, b.as_ptr() as *const u8, a.len()) }
+    a == b
 }
 
 #[inline]
 pub fn compare(a: &[u8], b: &[u8]) -> i32 {
     assert!(a.len() == b.len());
-    unsafe { memsec::memcmp(a.as_ptr(), b.as_ptr(), a.len()) }
+    a.cmp(b) as i32
 }
 
 /// Interpret the given slice as a little-endian unsigned integer

@@ -2,6 +2,9 @@ use log::error;
 use rosenpass::cli::Cli;
 use std::process::exit;
 
+#[cfg(target_os = "hermit")]
+use hermit as _;
+
 /// Catches errors, prints them through the logger, then exits
 pub fn main() {
     // default to displaying warning and error log messages only

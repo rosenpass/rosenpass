@@ -34,8 +34,9 @@ toml = { workspace = true }
 clap = { workspace = true }
 mio = { workspace = true }
 rand = { workspace = true }
-command-fds = { workspace = true }
-rustix = { workspace = true }
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { version = "0.8", features = ["pci", "pci-ids", "acpi", "fsgsbase", "tcp", "rtl8139"]}
 
 [build-dependencies]
 anyhow = { workspace = true }

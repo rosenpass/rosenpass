@@ -1,7 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::io::{ErrorKind, Write};
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-use std::os::unix::net::UnixStream;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, TcpStream};
 use std::path::PathBuf;
 use std::slice;
 use std::time::Duration;
@@ -353,7 +352,7 @@ impl AppServer {
         sk: SSk,
         pk: SPk,
         addrs: Vec<SocketAddr>,
-        psk_broker_socket: UnixStream,
+        psk_broker_socket: TcpStream,
         verbosity: Verbosity,
     ) -> anyhow::Result<Self> {
         // setup mio
@@ -363,7 +362,7 @@ impl AppServer {
 
         // Create the Wireguard broker connection
         let psk_broker = {
-            let mut sock = mio::net::UnixStream::from_std(psk_broker_socket);
+            let mut sock = mio::net::TcpStream::from_std(psk_broker_socket);
             mio_poll.registry().register(
                 &mut sock,
                 dispenser.get_token(),

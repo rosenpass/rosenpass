@@ -12,4 +12,3 @@ pub trait WireGuardBroker {
 }
 
 pub mod api;
-pub mod netlink;

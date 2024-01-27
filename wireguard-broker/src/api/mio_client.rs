@@ -17,7 +17,7 @@ pub struct MioBrokerClient {
 
 #[derive(Debug)]
 struct MioBrokerClientIo {
-    socket: mio::net::UnixStream,
+    socket: mio::net::TcpStream,
     send_buf: VecDeque<u8>,
     receiving_size: bool,
     recv_buf: Vec<u8>,
@@ -25,7 +25,7 @@ struct MioBrokerClientIo {
 }
 
 impl MioBrokerClient {
-    pub fn new(socket: mio::net::UnixStream) -> Self {
+    pub fn new(socket: mio::net::TcpStream) -> Self {
         let io = MioBrokerClientIo {
             socket,
             send_buf: VecDeque::new(),
@@ -155,7 +155,7 @@ impl MioBrokerClientIo {
     }
 }
 
-fn raw_send(mut socket: &mio::net::UnixStream, data: &[u8]) -> anyhow::Result<usize> {
+fn raw_send(mut socket: &mio::net::TcpStream, data: &[u8]) -> anyhow::Result<usize> {
     let mut off = 0;
 
     socket.try_io(|| {
@@ -179,7 +179,7 @@ fn raw_send(mut socket: &mio::net::UnixStream, data: &[u8]) -> anyhow::Result<us
     return Ok(off);
 }
 
-fn raw_recv(mut socket: &mio::net::UnixStream, out: &mut [u8]) -> anyhow::Result<usize> {
+fn raw_recv(mut socket: &mio::net::TcpStream, out: &mut [u8]) -> anyhow::Result<usize> {
     let mut off = 0;
 
     socket.try_io(|| {

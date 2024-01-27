@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ptr::NonNull;
 
-use allocator_api2::alloc::{AllocError, Allocator, Layout};
+use allocator_api2::alloc::{AllocError, Allocator, Layout, Global};
 
 #[derive(Copy, Clone, Default)]
 struct MemsecAllocatorContents;
@@ -9,7 +9,7 @@ struct MemsecAllocatorContents;
 /// Memory allocation using using the memsec crate
 #[derive(Copy, Clone, Default)]
 pub struct MemsecAllocator {
-    _dummy_private_data: MemsecAllocatorContents,
+    global: Global
 }
 
 /// A box backed by the memsec allocator
@@ -29,40 +29,18 @@ pub fn memsec_vec<T>() -> MemsecVec<T> {
 impl MemsecAllocator {
     pub fn new() -> Self {
         Self {
-            _dummy_private_data: MemsecAllocatorContents,
+            global: Global
         }
     }
 }
 
 unsafe impl Allocator for MemsecAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        // Call memsec allocator
-        let mem: Option<NonNull<[u8]>> = unsafe { memsec::malloc_sized(layout.size()) };
-
-        // Unwrap the option
-        let Some(mem) = mem else {
-            log::error!("Allocation {layout:?} was requested but memsec returned a null pointer");
-            return Err(AllocError);
-        };
-
-        // Ensure the right alignment is used
-        let off = (mem.as_ptr() as *const u8).align_offset(layout.align());
-        if off != 0 {
-            log::error!("Allocation {layout:?} was requested but memsec returned allocation \
-                with offset {off} from the requested alignment. Memsec always allocates values \
-                at the end of a memory page for security reasons, custom alignments are not supported. \
-                You could try allocating an oversized value.");
-            unsafe { memsec::free(mem) };
-            return Err(AllocError);
-        };
-
-        Ok(mem)
+        self.global.allocate(layout)
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
-        unsafe {
-            memsec::free(ptr);
-        }
+        unsafe { self.global.deallocate(ptr, _layout) }
     }
 }
 
