@@ -1,0 +1,29 @@
+[package]
+name = "rp"
+version = "0.2.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Build post-quantum-secure VPNs with WireGuard!"
+homepage = "https://rosenpass.eu/"
+repository = "https://github.com/rosenpass/rosenpass"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+rosenpass = { workspace = true }
+rosenpass-ciphers = { workspace = true }
+rosenpass-cipher-traits = { workspace = true }
+rosenpass-secret-memory = { workspace = true }
+rosenpass-util = { workspace = true }
+
+ctrlc-async = "3.2"
+futures = "0.3"
+futures-util = "0.3"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+wireguard-keys = "0.1"
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+rtnetlink = "0.14"
+netlink-packet-route = "0.19"
+netlink-packet-utils = "0.5"
