@@ -108,10 +108,9 @@ mod netlink {
         let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
         if let Some(res) = res {
             let res = res?;
-            match res.payload {
-                NetlinkPayload::Error(err) => return Err(err.to_io().into()),
-                _ => {}
-            };
+            if let NetlinkPayload::Error(err) = res.payload {
+                return Err(err.to_io().into());
+            }
         }
 
         Ok(())
@@ -169,9 +168,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         sk,
         pk,
         if let Some(listen) = options.listen {
-            let mut v: Vec<SocketAddr> = Vec::with_capacity(1);
-            v.push(listen);
-            v
+            vec![listen]
         } else {
             Vec::with_capacity(0)
         },
