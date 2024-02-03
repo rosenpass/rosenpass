@@ -42,7 +42,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use rtnetlink::new_connection;
     use wireguard_keys::Privkey;
 
-    let (_, netlink, _) = new_connection()?;
+    let (connection, netlink, _) = new_connection()?;
+    tokio::spawn(connection);
 
     let link_name = options.dev.unwrap_or("rosenpass0".to_string());
 
