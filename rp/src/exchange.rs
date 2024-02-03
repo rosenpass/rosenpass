@@ -28,7 +28,7 @@ pub fn exchange(_: ExchangeOptions) -> Result<()> {
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
-    use std::fs::read_to_string;
+    use std::fs::{self, read_to_string};
 
     use futures_util::{StreamExt, TryStreamExt};
     use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
@@ -168,7 +168,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             None,
             Some(WireguardOut {
                 dev: link_name.clone(),
-                pk: wgpk.to_string_lossy().to_string(),
+                pk: fs::read_to_string(wgpk)?,
                 extra_params,
             }),
             if let Some(endpoint) = peer.endpoint {
