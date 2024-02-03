@@ -68,13 +68,19 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         .unwrap()?;
 
     // up the link
-    rtnetlink.link().set(link.header.index).up().execute().await?;
+    rtnetlink
+        .link()
+        .set(link.header.index)
+        .up()
+        .execute()
+        .await?;
 
     // Deploy the classic wireguard private key
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
     tokio::spawn(connection);
 
-    let mut nlas: Vec<WgDeviceAttrs> = Vec::with_capacity(if options.listen.is_some() { 3 } else { 2 });
+    let mut nlas: Vec<WgDeviceAttrs> =
+        Vec::with_capacity(if options.listen.is_some() { 3 } else { 2 });
 
     nlas.push(WgDeviceAttrs::IfIndex(link.header.index));
 
@@ -100,10 +106,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         let res = res?;
         match res.payload {
             NetlinkPayload::Error(err) => return Err(err.to_io().into()),
-            _ => {},
+            _ => {}
         };
     }
-    
+
     ctrlc_async::set_async_handler(async move {
         rtnetlink
             .link()
