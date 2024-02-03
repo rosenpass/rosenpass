@@ -77,7 +77,9 @@ mod netlink {
     pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
         let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
         tokio::spawn(connection);
-        rtnetlink.link().del(index).execute().await?;
+
+        // We don't care if this fails, as the device may already have been auto-cleaned up.
+        let _ = rtnetlink.link().del(index).execute().await;
 
         Ok(())
     }
