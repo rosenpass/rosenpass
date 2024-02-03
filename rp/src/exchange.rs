@@ -138,7 +138,9 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
     ctrlc_async::set_async_handler(async move {
-        netlink::link_cleanup_standalone(link_index).await.expect("Failed to clean up");
+        netlink::link_cleanup_standalone(link_index)
+            .await
+            .expect("Failed to clean up");
     })?;
 
     // Deploy the classic wireguard private key
