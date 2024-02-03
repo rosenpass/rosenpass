@@ -28,13 +28,92 @@ pub fn exchange(_: ExchangeOptions) -> Result<()> {
 }
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+mod netlink {
+    use anyhow::Result;
+    use futures_util::{StreamExt as _, TryStreamExt as _};
+    use genetlink::GenetlinkHandle;
+    use netlink_packet_wireguard::nlas::WgDeviceAttrs;
+    use rtnetlink::Handle;
+
+    pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
+        // add the link
+        rtnetlink
+            .link()
+            .add()
+            .wireguard(link_name.clone())
+            .execute()
+            .await?;
+
+        // retrieve the link to be able to up it
+        let link = rtnetlink
+            .link()
+            .get()
+            .match_name(link_name.clone())
+            .execute()
+            .into_stream()
+            .into_future()
+            .await
+            .0
+            .unwrap()?;
+
+        // up the link
+        rtnetlink
+            .link()
+            .set(link.header.index)
+            .up()
+            .execute()
+            .await?;
+
+        Ok(link.header.index)
+    }
+
+    pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
+        rtnetlink
+            .link()
+            .del(index)
+            .execute()
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn wg_set(genetlink: &mut GenetlinkHandle, index: u32, attr: WgDeviceAttrs) -> Result<()> {
+        use futures_util::StreamExt as _;
+        use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+        use netlink_packet_generic::GenlMessage;
+        use netlink_packet_wireguard::{Wireguard, WireguardCmd};
+    
+        let mut nlas: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
+    
+        nlas.push(WgDeviceAttrs::IfIndex(index));
+        nlas.push(attr);
+    
+        let wgc = Wireguard {
+            cmd: WireguardCmd::SetDevice,
+            nlas,
+        };
+    
+        let genl = GenlMessage::from_payload(wgc);
+        let nlmsg = NetlinkMessage::from(genl);
+    
+        let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
+        if let Some(res) = res {
+            let res = res?;
+            match res.payload {
+                NetlinkPayload::Error(err) => return Err(err.to_io().into()),
+                _ => {}
+            };
+        }
+    
+        Ok(())
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs::{self, read_to_string};
 
-    use futures_util::{StreamExt, TryStreamExt};
-    use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
-    use netlink_packet_generic::GenlMessage;
-    use netlink_packet_wireguard::{nlas::WgDeviceAttrs, Wireguard, WireguardCmd};
+    use netlink_packet_wireguard::nlas::WgDeviceAttrs;
     use rosenpass::{
         app_server::{AppServer, WireguardOut},
         config::Verbosity,
@@ -47,78 +126,20 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     tokio::spawn(connection);
 
     let link_name = options.dev.unwrap_or("rosenpass0".to_string());
-
-    // add the link
-    rtnetlink
-        .link()
-        .add()
-        .wireguard(link_name.clone())
-        .execute()
-        .await?;
-
-    // retrieve the link to be able to up it
-    let link = rtnetlink
-        .link()
-        .get()
-        .match_name(link_name.clone())
-        .execute()
-        .into_stream()
-        .into_future()
-        .await
-        .0
-        .unwrap()?;
-
-    // up the link
-    rtnetlink
-        .link()
-        .set(link.header.index)
-        .up()
-        .execute()
-        .await?;
+    let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
     // Deploy the classic wireguard private key
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
     tokio::spawn(connection);
 
-    let mut nlas: Vec<WgDeviceAttrs> =
-        Vec::with_capacity(if options.listen.is_some() { 3 } else { 2 });
-
-    nlas.push(WgDeviceAttrs::IfIndex(link.header.index));
-
     let wgsk_path = options.private_keys_dir.join("wgsk");
     let wgsk = Privkey::from_base64(&read_to_string(wgsk_path)?)?;
 
-    nlas.push(WgDeviceAttrs::PrivateKey(*wgsk));
+    netlink::wg_set(&mut genetlink, link_index, WgDeviceAttrs::PrivateKey(*wgsk)).await?;
 
     if let Some(listen) = options.listen {
-        nlas.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
+        netlink::wg_set(&mut genetlink, link_index, WgDeviceAttrs::ListenPort(listen.port() + 1)).await?;
     }
-
-    let wgc = Wireguard {
-        cmd: WireguardCmd::SetDevice,
-        nlas,
-    };
-
-    let genl = GenlMessage::from_payload(wgc);
-    let nlmsg = NetlinkMessage::from(genl);
-
-    let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
-    if let Some(res) = res {
-        let res = res?;
-        match res.payload {
-            NetlinkPayload::Error(err) => return Err(err.to_io().into()),
-            _ => {}
-        };
-    }
-
-    ctrlc_async::set_async_handler(async move {
-        rtnetlink
-            .link()
-            .del(link.header.index)
-            .execute()
-            .await
-            .expect("Failed to bring down WireGuard network interface");
-    })?;
 
     let pqsk = options.private_keys_dir.join("pqsk");
     let pqpk = options.private_keys_dir.join("pqpk");
@@ -183,5 +204,9 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         )?;
     }
 
-    srv.event_loop()
+    let out = srv.event_loop();
+
+    netlink::link_cleanup(&rtnetlink, link_index).await?;
+
+    out
 }
