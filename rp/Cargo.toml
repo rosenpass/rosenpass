@@ -17,13 +17,13 @@ rosenpass-cipher-traits = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
 rosenpass-util = { workspace = true }
 
-ctrlc-async = "3.2"
-futures = "0.3"
-futures-util = "0.3"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 wireguard-keys = "0.1"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+ctrlc-async = "3.2"
+futures = "0.3"
+futures-util = "0.3"
 genetlink = "0.2"
 rtnetlink = "0.14"
 netlink-packet-core = "0.7"
