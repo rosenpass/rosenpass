@@ -96,11 +96,13 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let nlmsg = NetlinkMessage::from(genl);
 
     let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
-    let res = res.expect("No response received for wg netlink request")?;
-    match res.payload {
-        NetlinkPayload::Error(err) => return Err(err.to_io().into()),
-        _ => {},
-    };
+    if let Some(res) = res {
+        let res = res?;
+        match res.payload {
+            NetlinkPayload::Error(err) => return Err(err.to_io().into()),
+            _ => {},
+        };
+    }
     
     ctrlc_async::set_async_handler(async move {
         rtnetlink
