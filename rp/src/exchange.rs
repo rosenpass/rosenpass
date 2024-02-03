@@ -2,23 +2,28 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use anyhow::Result;
 
+#[derive(Default)]
 pub struct ExchangePeer {
-    public_keys_dir: PathBuf,
-    endpoint: Option<SocketAddr>,
-    persistent_keepalive: Option<u32>,
-    allowed_ips: Option<String>,
+    pub public_keys_dir: PathBuf,
+    pub endpoint: Option<SocketAddr>,
+    pub persistent_keepalive: Option<u32>,
+    pub allowed_ips: Option<String>,
 }
 
+#[derive(Default)]
 pub struct ExchangeOptions {
-    private_keys_dir: PathBuf,
-    dev: Option<String>,
-    listen: Option<SocketAddr>,
-    peers: Vec<ExchangePeer>,
+    pub private_keys_dir: PathBuf,
+    pub dev: Option<String>,
+    pub listen: Option<SocketAddr>,
+    pub peers: Vec<ExchangePeer>,
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 pub fn exchange(_: ExchangeOptions) -> Result<()> {
-    Err(anyhow!("Your system {} is not yet supported. We are happy to receive patches to address this :)", std::env::consts::OS))
+    Err(anyhow!(
+        "Your system {} is not yet supported. We are happy to receive patches to address this :)",
+        std::env::consts::OS
+    ))
 }
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
@@ -28,7 +33,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use futures_util::{StreamExt, TryStreamExt};
     use netlink_packet_route::link::LinkAttribute;
     use netlink_packet_utils::nla::DefaultNla;
-    use rosenpass::{app_server::{AppServer, WireguardOut}, config::Verbosity, protocol::{SPk, SSk, SymKey}};
+    use rosenpass::{
+        app_server::{AppServer, WireguardOut},
+        config::Verbosity,
+        protocol::{SPk, SSk, SymKey},
+    };
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
     use rtnetlink::new_connection;
     use wireguard_keys::Privkey;
@@ -38,39 +47,40 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let link_name = options.dev.unwrap_or("rosenpass0".to_string());
 
     // add the link
-    netlink.link().add()
+    netlink
+        .link()
+        .add()
         .wireguard(link_name.clone())
         .execute()
         .await?;
 
     // retrieve the link to be able to up it
-    let link = netlink.link().get()
+    let link = netlink
+        .link()
+        .get()
         .match_name(link_name.clone())
         .execute()
         .into_stream()
         .into_future()
         .await
-        .0.unwrap().unwrap();
+        .0
+        .unwrap()?;
 
     // up the link
-    netlink.link().set(link.header.index)
-        .up()
-        .execute()
-        .await?;
+    netlink.link().set(link.header.index).up().execute().await?;
 
     // Deploy the classic wireguard private key
     let mut lsr = netlink.link().set(link.header.index);
     let msg = lsr.message_mut();
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
-    
+
     let wgsk = Privkey::from_base64(&read_to_string(wgsk_path)?)?;
 
     msg.attributes.push(LinkAttribute::Other(DefaultNla::new(
         3, // PrivateKey
         wgsk.to_vec(),
     )));
-
 
     if let Some(listen) = options.listen {
         msg.attributes.push(LinkAttribute::Other(DefaultNla::new(
@@ -82,7 +92,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     lsr.execute().await?;
 
     ctrlc_async::set_async_handler(async move {
-        netlink.link().del(link.header.index).execute().await.expect("Failed to bring down WireGuard network interface");
+        netlink
+            .link()
+            .del(link.header.index)
+            .execute()
+            .await
+            .expect("Failed to bring down WireGuard network interface");
     })?;
 
     let pgsk = options.private_keys_dir.join("pgsk");
@@ -128,7 +143,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
                 Some(SymKey::load_b64(psk))
             } else {
                 None
-            }.transpose()?,
+            }
+            .transpose()?,
             SPk::load(&pqpk)?,
             None,
             Some(WireguardOut {

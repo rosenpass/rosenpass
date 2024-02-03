@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use anyhow::{anyhow, Result};
 use wireguard_keys::Privkey;
 
-use rosenpass::protocol::{SSk, SPk};
+use rosenpass::protocol::{SPk, SSk};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret as _;
@@ -51,3 +51,6 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {}
