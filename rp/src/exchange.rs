@@ -12,6 +12,7 @@ pub struct ExchangePeer {
 
 #[derive(Default)]
 pub struct ExchangeOptions {
+    pub verbose: bool,
     pub private_keys_dir: PathBuf,
     pub dev: Option<String>,
     pub listen: Option<SocketAddr>,
@@ -135,7 +136,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         } else {
             Vec::with_capacity(0)
         },
-        Verbosity::Quiet,
+        if options.verbose {
+            Verbosity::Verbose
+        } else {
+            Verbosity::Quiet
+        },
     )?);
 
     for peer in options.peers {

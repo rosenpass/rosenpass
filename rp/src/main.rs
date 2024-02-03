@@ -26,7 +26,10 @@ async fn main() {
             private_keys_dir,
             public_keys_dir,
         } => pubkey(&private_keys_dir, &public_keys_dir),
-        Command::Exchange(options) => exchange(options).await,
+        Command::Exchange(mut options) => {
+            options.verbose = cli.verbose;
+            exchange(options).await
+        }
     };
 
     match res {
