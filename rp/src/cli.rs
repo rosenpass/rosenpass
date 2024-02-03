@@ -33,7 +33,7 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
             CommandType::PubKey => Err(format!("{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR", note)),
             CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
         },
-        None => Err(format!("{}\nUsage: rp [explain] [verbose] genkey|pubkey|exchange [ARGS]...", note)),
+        None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange [ARGS]...", note)),
     }
 }
 
@@ -189,6 +189,9 @@ impl Cli {
             match x {
                 "verbose" => {
                     cli.verbose = true;
+                }
+                "explain" => {
+                    eprintln!("WARN: the explain argument is no longer supported");
                 }
                 "genkey" => {
                     if cli.command.is_some() {
