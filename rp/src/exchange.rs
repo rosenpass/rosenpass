@@ -112,8 +112,6 @@ mod netlink {
                 NetlinkPayload::Error(err) => return Err(err.to_io().into()),
                 _ => {}
             };
-        } else {
-            eprintln!("WARN: No response received for `wg set` netlink request.");
         }
 
         Ok(())
