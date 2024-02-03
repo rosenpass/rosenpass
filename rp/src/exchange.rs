@@ -74,6 +74,14 @@ mod netlink {
         Ok(())
     }
 
+    pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
+        let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
+        tokio::spawn(connection);
+        rtnetlink.link().del(index).execute().await?;
+
+        Ok(())
+    }
+
     pub async fn wg_set(
         genetlink: &mut GenetlinkHandle,
         index: u32,
@@ -128,6 +136,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     let link_name = options.dev.unwrap_or("rosenpass0".to_string());
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
+
+    ctrlc_async::set_async_handler(async move {
+        netlink::link_cleanup_standalone(link_index).await.expect("Failed to clean up");
+    })?;
 
     // Deploy the classic wireguard private key
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
