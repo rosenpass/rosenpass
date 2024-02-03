@@ -53,4 +53,53 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::fs;
+
+    use rosenpass::protocol::{SPk, SSk};
+    use rosenpass_util::file::LoadValue;
+    use tempfile::tempdir;
+    use wireguard_keys::{Privkey, Pubkey};
+
+    use crate::key::{genkey, pubkey};
+
+    #[test]
+    fn it_works() {
+        let private_keys_dir = tempdir().unwrap();
+        fs::remove_dir(private_keys_dir.path()).unwrap();
+
+        // Guranteed to have 16MB of stack size
+        stacker::grow(8 * 1024 * 1024, || {
+            assert!(genkey(private_keys_dir.path()).is_ok());
+        });
+
+        assert!(private_keys_dir.path().exists());
+        assert!(private_keys_dir.path().is_dir());
+        assert!(SPk::load(private_keys_dir.path().join("pqpk")).is_ok());
+        assert!(SSk::load(private_keys_dir.path().join("pqsk")).is_ok());
+        assert!(Privkey::from_base64(
+            &fs::read_to_string(private_keys_dir.path().join("wgsk")).unwrap()
+        )
+        .is_ok());
+
+        let public_keys_dir = tempdir().unwrap();
+        fs::remove_dir(public_keys_dir.path()).unwrap();
+
+        // Guranteed to have 16MB of stack size
+        stacker::grow(8 * 1024 * 1024, || {
+            assert!(pubkey(private_keys_dir.path(), public_keys_dir.path()).is_ok());
+        });
+
+        assert!(public_keys_dir.path().exists());
+        assert!(public_keys_dir.path().is_dir());
+        assert!(SPk::load(public_keys_dir.path().join("pqpk")).is_ok());
+        assert!(Pubkey::from_base64(
+            &fs::read_to_string(public_keys_dir.path().join("wgpk")).unwrap()
+        )
+        .is_ok());
+
+        let pk_1 = fs::read(private_keys_dir.path().join("pqpk")).unwrap();
+        let pk_2 = fs::read(public_keys_dir.path().join("pqpk")).unwrap();
+        assert_eq!(pk_1, pk_2);
+    }
+}

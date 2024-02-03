@@ -10,7 +10,7 @@ mod key;
 
 #[tokio::main]
 async fn main() {
-    let cli = match Cli::parse(std::env::args()) {
+    let cli = match Cli::parse(std::env::args().peekable()) {
         Ok(cli) => cli,
         Err(err) => {
             eprintln!("{}", err);

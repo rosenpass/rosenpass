@@ -1,5 +1,5 @@
-use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::{iter::Peekable, net::SocketAddr};
 
 use crate::exchange::{ExchangeOptions, ExchangePeer};
 
@@ -38,7 +38,7 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
 }
 
 impl ExchangePeer {
-    pub fn parse(args: &mut &mut impl Iterator<Item = String>) -> Result<Self, String> {
+    pub fn parse(args: &mut &mut Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut peer = ExchangePeer::default();
 
         if let Some(public_keys_dir) = args.next() {
@@ -50,7 +50,15 @@ impl ExchangePeer {
             );
         }
 
-        while let Some(x) = args.next() {
+        while let Some(x) = args.peek() {
+            let x = x.as_str();
+
+            // break if next peer is being defined
+            if x == "peer" {
+                break;
+            }
+
+            let x = args.next().unwrap();
             let x = x.as_str();
 
             match x {
@@ -112,7 +120,7 @@ impl ExchangePeer {
 }
 
 impl ExchangeOptions {
-    pub fn parse(mut args: &mut impl Iterator<Item = String>) -> Result<Self, String> {
+    pub fn parse(mut args: &mut Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut options = ExchangeOptions::default();
 
         if let Some(private_keys_dir) = args.next() {
@@ -170,7 +178,7 @@ impl ExchangeOptions {
 }
 
 impl Cli {
-    pub fn parse(mut args: impl Iterator<Item = String>) -> Result<Self, String> {
+    pub fn parse(mut args: Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut cli = Cli::default();
 
         let _ = args.next(); // skip executable name
@@ -243,5 +251,205 @@ impl Cli {
         }
 
         Ok(cli)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cli::{Cli, Command};
+
+    #[inline]
+    fn parse(arr: &[&str]) -> Result<Cli, String> {
+        Cli::parse(arr.into_iter().map(|x| x.to_string()).peekable())
+    }
+
+    #[inline]
+    fn parse_err(arr: &[&str]) -> bool {
+        parse(arr).is_err()
+    }
+
+    #[test]
+    fn bare_errors() {
+        assert!(parse_err(&["rp"]));
+        assert!(parse_err(&["rp", "verbose"]));
+        assert!(parse_err(&["rp", "thiscommanddoesntexist"]));
+        assert!(parse_err(&[
+            "rp",
+            "thiscommanddoesntexist",
+            "genkey",
+            "./fakedir/"
+        ]));
+    }
+
+    #[test]
+    fn genkey_errors() {
+        assert!(parse_err(&["rp", "genkey"]));
+    }
+
+    #[test]
+    fn genkey_works() {
+        let cli = parse(&["rp", "genkey", "./fakedir"]);
+
+        assert!(cli.is_ok());
+        let cli = cli.unwrap();
+
+        assert_eq!(cli.verbose, false);
+        assert!(matches!(cli.command, Some(Command::GenKey { .. })));
+
+        match cli.command {
+            Some(Command::GenKey { private_keys_dir }) => {
+                assert_eq!(private_keys_dir.to_str().unwrap(), "./fakedir");
+            }
+            _ => unreachable!(),
+        };
+    }
+
+    #[test]
+    fn pubkey_errors() {
+        assert!(parse_err(&["rp", "pubkey"]));
+        assert!(parse_err(&["rp", "pubkey", "./fakedir"]));
+    }
+
+    #[test]
+    fn pubkey_works() {
+        let cli = parse(&["rp", "pubkey", "./fakedir", "./fakedir2"]);
+
+        assert!(cli.is_ok());
+        let cli = cli.unwrap();
+
+        assert_eq!(cli.verbose, false);
+        assert!(matches!(cli.command, Some(Command::PubKey { .. })));
+
+        match cli.command {
+            Some(Command::PubKey {
+                private_keys_dir,
+                public_keys_dir,
+            }) => {
+                assert_eq!(private_keys_dir.to_str().unwrap(), "./fakedir");
+                assert_eq!(public_keys_dir.to_str().unwrap(), "./fakedir2");
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn exchange_errors() {
+        assert!(parse_err(&["rp", "exchange"]));
+        assert!(parse_err(&[
+            "rp",
+            "exchange",
+            "./fakedir",
+            "notarealoption"
+        ]));
+        assert!(parse_err(&["rp", "exchange", "./fakedir", "listen"]));
+        assert!(parse_err(&[
+            "rp",
+            "exchange",
+            "./fakedir",
+            "listen",
+            "notarealip"
+        ]));
+    }
+
+    #[test]
+    fn exchange_works() {
+        let cli = parse(&["rp", "exchange", "./fakedir"]);
+
+        assert!(cli.is_ok());
+        let cli = cli.unwrap();
+
+        assert_eq!(cli.verbose, false);
+        assert!(matches!(cli.command, Some(Command::Exchange(_))));
+
+        match cli.command {
+            Some(Command::Exchange(options)) => {
+                assert_eq!(options.private_keys_dir.to_str().unwrap(), "./fakedir");
+                assert!(options.dev.is_none());
+                assert!(options.listen.is_none());
+                assert_eq!(options.peers.len(), 0);
+            }
+            _ => unreachable!(),
+        }
+
+        let cli = parse(&[
+            "rp",
+            "exchange",
+            "./fakedir",
+            "dev",
+            "devname",
+            "listen",
+            "127.0.0.1:1234",
+        ]);
+
+        assert!(cli.is_ok());
+        let cli = cli.unwrap();
+
+        assert_eq!(cli.verbose, false);
+        assert!(matches!(cli.command, Some(Command::Exchange(_))));
+
+        match cli.command {
+            Some(Command::Exchange(options)) => {
+                assert_eq!(options.private_keys_dir.to_str().unwrap(), "./fakedir");
+                assert_eq!(options.dev, Some("devname".to_string()));
+                assert_eq!(options.listen, Some("127.0.0.1:1234".parse().unwrap()));
+                assert_eq!(options.peers.len(), 0);
+            }
+            _ => unreachable!(),
+        }
+
+        let cli = parse(&[
+            "rp",
+            "exchange",
+            "./fakedir",
+            "dev",
+            "devname",
+            "listen",
+            "127.0.0.1:1234",
+            "peer",
+            "./fakedir2",
+            "endpoint",
+            "127.0.0.1:2345",
+            "persistent-keepalive",
+            "15",
+            "allowed-ips",
+            "123.234.11.0/24,1.1.1.0/24",
+            "peer",
+            "./fakedir3",
+            "endpoint",
+            "127.0.0.1:5432",
+            "persistent-keepalive",
+            "30",
+        ]);
+
+        assert!(cli.is_ok());
+        let cli = cli.unwrap();
+
+        assert_eq!(cli.verbose, false);
+        assert!(matches!(cli.command, Some(Command::Exchange(_))));
+
+        match cli.command {
+            Some(Command::Exchange(options)) => {
+                assert_eq!(options.private_keys_dir.to_str().unwrap(), "./fakedir");
+                assert_eq!(options.dev, Some("devname".to_string()));
+                assert_eq!(options.listen, Some("127.0.0.1:1234".parse().unwrap()));
+                assert_eq!(options.peers.len(), 2);
+
+                let peer = &options.peers[0];
+                assert_eq!(peer.public_keys_dir.to_str().unwrap(), "./fakedir2");
+                assert_eq!(peer.endpoint, Some("127.0.0.1:2345".parse().unwrap()));
+                assert_eq!(peer.persistent_keepalive, Some(15));
+                assert_eq!(
+                    peer.allowed_ips,
+                    Some("123.234.11.0/24,1.1.1.0/24".to_string())
+                );
+
+                let peer = &options.peers[1];
+                assert_eq!(peer.public_keys_dir.to_str().unwrap(), "./fakedir3");
+                assert_eq!(peer.endpoint, Some("127.0.0.1:5432".parse().unwrap()));
+                assert_eq!(peer.persistent_keepalive, Some(30));
+                assert!(peer.allowed_ips.is_none());
+            }
+            _ => unreachable!(),
+        }
     }
 }
