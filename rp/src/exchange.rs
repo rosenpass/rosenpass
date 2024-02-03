@@ -31,24 +31,24 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs::read_to_string;
 
     use futures_util::{StreamExt, TryStreamExt};
-    use netlink_packet_route::link::LinkAttribute;
-    use netlink_packet_utils::nla::DefaultNla;
+    use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+    use netlink_packet_generic::GenlMessage;
+    use netlink_packet_wireguard::{nlas::WgDeviceAttrs, Wireguard, WireguardCmd};
     use rosenpass::{
         app_server::{AppServer, WireguardOut},
         config::Verbosity,
         protocol::{SPk, SSk, SymKey},
     };
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-    use rtnetlink::new_connection;
     use wireguard_keys::Privkey;
 
-    let (connection, netlink, _) = new_connection()?;
+    let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
 
     let link_name = options.dev.unwrap_or("rosenpass0".to_string());
 
     // add the link
-    netlink
+    rtnetlink
         .link()
         .add()
         .wireguard(link_name.clone())
@@ -56,7 +56,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         .await?;
 
     // retrieve the link to be able to up it
-    let link = netlink
+    let link = rtnetlink
         .link()
         .get()
         .match_name(link_name.clone())
@@ -68,32 +68,42 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         .unwrap()?;
 
     // up the link
-    netlink.link().set(link.header.index).up().execute().await?;
+    rtnetlink.link().set(link.header.index).up().execute().await?;
 
     // Deploy the classic wireguard private key
-    let mut lsr = netlink.link().set(link.header.index);
-    let msg = lsr.message_mut();
+    let (connection, mut genetlink, _) = genetlink::new_connection()?;
+    tokio::spawn(connection);
+
+    let mut nlas: Vec<WgDeviceAttrs> = Vec::with_capacity(if options.listen.is_some() { 3 } else { 2 });
+
+    nlas.push(WgDeviceAttrs::IfIndex(link.header.index));
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
-
     let wgsk = Privkey::from_base64(&read_to_string(wgsk_path)?)?;
 
-    msg.attributes.push(LinkAttribute::Other(DefaultNla::new(
-        3, // PrivateKey
-        wgsk.to_vec(),
-    )));
+    nlas.push(WgDeviceAttrs::PrivateKey(*wgsk));
 
     if let Some(listen) = options.listen {
-        msg.attributes.push(LinkAttribute::Other(DefaultNla::new(
-            6, // ListenPort
-            (listen.port() + 1).to_ne_bytes().to_vec(),
-        )));
+        nlas.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
 
-    lsr.execute().await?;
+    let wgc = Wireguard {
+        cmd: WireguardCmd::SetDevice,
+        nlas,
+    };
 
+    let genl = GenlMessage::from_payload(wgc);
+    let nlmsg = NetlinkMessage::from(genl);
+
+    let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
+    let res = res.expect("No response received for wg netlink request")?;
+    match res.payload {
+        NetlinkPayload::Error(err) => return Err(err.to_io().into()),
+        _ => {},
+    };
+    
     ctrlc_async::set_async_handler(async move {
-        netlink
+        rtnetlink
             .link()
             .del(link.header.index)
             .execute()
