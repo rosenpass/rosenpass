@@ -113,11 +113,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .expect("Failed to bring down WireGuard network interface");
     })?;
 
-    let pgsk = options.private_keys_dir.join("pgsk");
-    let pgpk = options.private_keys_dir.join("pgpk");
+    let pqsk = options.private_keys_dir.join("pqsk");
+    let pqpk = options.private_keys_dir.join("pqpk");
 
-    let sk = SSk::load(&pgpk)?;
-    let pk = SPk::load(&pgsk)?;
+    let sk = SSk::load(&pqsk)?;
+    let pk = SPk::load(&pqpk)?;
 
     let mut srv = Box::new(AppServer::new(
         sk,
