@@ -68,34 +68,34 @@ mod netlink {
     }
 
     pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
-        rtnetlink
-            .link()
-            .del(index)
-            .execute()
-            .await?;
+        rtnetlink.link().del(index).execute().await?;
 
         Ok(())
     }
 
-    pub async fn wg_set(genetlink: &mut GenetlinkHandle, index: u32, attr: WgDeviceAttrs) -> Result<()> {
+    pub async fn wg_set(
+        genetlink: &mut GenetlinkHandle,
+        index: u32,
+        attr: WgDeviceAttrs,
+    ) -> Result<()> {
         use futures_util::StreamExt as _;
         use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
         use netlink_packet_generic::GenlMessage;
         use netlink_packet_wireguard::{Wireguard, WireguardCmd};
-    
+
         let mut nlas: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
-    
+
         nlas.push(WgDeviceAttrs::IfIndex(index));
         nlas.push(attr);
-    
+
         let wgc = Wireguard {
             cmd: WireguardCmd::SetDevice,
             nlas,
         };
-    
+
         let genl = GenlMessage::from_payload(wgc);
         let nlmsg = NetlinkMessage::from(genl);
-    
+
         let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
         if let Some(res) = res {
             let res = res?;
@@ -104,7 +104,7 @@ mod netlink {
                 _ => {}
             };
         }
-    
+
         Ok(())
     }
 }
@@ -138,7 +138,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     netlink::wg_set(&mut genetlink, link_index, WgDeviceAttrs::PrivateKey(*wgsk)).await?;
 
     if let Some(listen) = options.listen {
-        netlink::wg_set(&mut genetlink, link_index, WgDeviceAttrs::ListenPort(listen.port() + 1)).await?;
+        netlink::wg_set(
+            &mut genetlink,
+            link_index,
+            WgDeviceAttrs::ListenPort(listen.port() + 1),
+        )
+        .await?;
     }
 
     let pqsk = options.private_keys_dir.join("pqsk");
