@@ -32,6 +32,7 @@ mod netlink {
     use anyhow::Result;
     use futures_util::{StreamExt as _, TryStreamExt as _};
     use genetlink::GenetlinkHandle;
+    use netlink_packet_core::{NLM_F_ACK, NLM_F_REQUEST};
     use netlink_packet_wireguard::nlas::WgDeviceAttrs;
     use rtnetlink::Handle;
 
@@ -76,25 +77,23 @@ mod netlink {
     pub async fn wg_set(
         genetlink: &mut GenetlinkHandle,
         index: u32,
-        attr: WgDeviceAttrs,
+        mut attr: Vec<WgDeviceAttrs>,
     ) -> Result<()> {
         use futures_util::StreamExt as _;
         use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
         use netlink_packet_generic::GenlMessage;
         use netlink_packet_wireguard::{Wireguard, WireguardCmd};
 
-        let mut nlas: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
-
-        nlas.push(WgDeviceAttrs::IfIndex(index));
-        nlas.push(attr);
+        attr.insert(0, WgDeviceAttrs::IfIndex(index));
 
         let wgc = Wireguard {
             cmd: WireguardCmd::SetDevice,
-            nlas,
+            nlas: attr,
         };
 
         let genl = GenlMessage::from_payload(wgc);
-        let nlmsg = NetlinkMessage::from(genl);
+        let mut nlmsg = NetlinkMessage::from(genl);
+        nlmsg.header.flags = NLM_F_REQUEST | NLM_F_ACK;
 
         let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
         if let Some(res) = res {
@@ -103,6 +102,8 @@ mod netlink {
                 NetlinkPayload::Error(err) => return Err(err.to_io().into()),
                 _ => {}
             };
+        } else {
+            eprintln!("WARN: No response received for `wg set` netlink request.");
         }
 
         Ok(())
@@ -135,16 +136,14 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let wgsk_path = options.private_keys_dir.join("wgsk");
     let wgsk = Privkey::from_base64(&read_to_string(wgsk_path)?)?;
 
-    netlink::wg_set(&mut genetlink, link_index, WgDeviceAttrs::PrivateKey(*wgsk)).await?;
+    let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
+    attr.push(WgDeviceAttrs::PrivateKey(*wgsk));
 
     if let Some(listen) = options.listen {
-        netlink::wg_set(
-            &mut genetlink,
-            link_index,
-            WgDeviceAttrs::ListenPort(listen.port() + 1),
-        )
-        .await?;
+        attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
+
+    netlink::wg_set(&mut genetlink, link_index, attr).await?;
 
     let pqsk = options.private_keys_dir.join("pqsk");
     let pqpk = options.private_keys_dir.join("pqpk");
