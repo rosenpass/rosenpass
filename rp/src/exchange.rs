@@ -151,6 +151,9 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         let mut extra_params: Vec<String> = Vec::with_capacity(6);
         if let Some(endpoint) = peer.endpoint {
             extra_params.push("endpoint".to_string());
+
+            // Peer endpoints always use (port + 1) in wg set params
+            let endpoint = SocketAddr::new(endpoint.ip(), endpoint.port() + 1);
             extra_params.push(endpoint.to_string());
         }
         if let Some(persistent_keepalive) = peer.persistent_keepalive {
@@ -176,11 +179,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
                 pk: fs::read_to_string(wgpk)?,
                 extra_params,
             }),
-            if let Some(endpoint) = peer.endpoint {
-                Some(endpoint.to_string())
-            } else {
-                None
-            },
+            peer.endpoint.map(|x| x.to_string()),
         )?;
     }
 
