@@ -34,9 +34,10 @@ use rosenpass_util::b64::{b64_writer, fmt_b64};
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
-// Using values from Linux Kernel implementation
-// TODO: Customize values for rosenpass
-const MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD: usize = 4096;
+const NORMAL_OPERATION_THRESHOLD: usize = 5;
+const UNDER_LOAD_THRESHOLD: usize = 10;
+const RESET_DURATION: Duration = Duration::from_secs(1);
+
 const LAST_UNDER_LOAD_WINDOW: Duration = Duration::from_secs(1);
 
 fn ipv4_any_binding() -> SocketAddr {
@@ -76,7 +77,7 @@ pub struct WireguardOut {
 #[derive(Debug)]
 pub enum DoSOperation {
     UnderLoad { last_under_load: Instant },
-    Normal,
+    Normal{blocked_polls: usize},
 }
 
 /// Holds the state of the application, namely the external IO
@@ -402,7 +403,7 @@ impl AppServer {
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
-        let events = mio::Events::with_capacity(8);
+        let events = mio::Events::with_capacity(20);
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
@@ -492,7 +493,7 @@ impl AppServer {
             events,
             mio_poll,
             all_sockets_drained: false,
-            under_load: DoSOperation::Normal,
+            under_load: DoSOperation::Normal{ blocked_polls: 0},
         })
     }
 
@@ -609,9 +610,13 @@ impl AppServer {
                 ReceivedMessage(len, endpoint) => {
                     let msg_result = match self.under_load {
                         DoSOperation::UnderLoad { last_under_load: _ } => {
+                            println!("Processing msg under load");
                             self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
                         }
-                        DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
+                        DoSOperation::Normal { blocked_polls: _} => {
+                            println!("Processing msg normally");
+                            self.crypt.handle_msg(&rx[..len], &mut *tx)
+                        }
                     };
                     match msg_result {
                         Err(ref e) => {
@@ -788,20 +793,36 @@ impl AppServer {
 
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
-            self.mio_poll.poll(&mut self.events, Some(timeout))?;
+            //Non blocked polling
+            self.mio_poll.poll(&mut self.events, Some(Duration::from_secs(0)))?;
 
-            let queue_length = self.events.iter().peekable().count();
-
-            if queue_length > MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD {
-                self.under_load = DoSOperation::UnderLoad {
-                    last_under_load: Instant::now(),
+            if self.events.iter().peekable().peek().is_none() {
+                // if there are no events, then we can just return
+                match self.under_load {
+                    DoSOperation::Normal { blocked_polls } => {
+                        self.under_load = DoSOperation::Normal {
+                            blocked_polls: blocked_polls + 1,
+                        }
+                    }
+                    _ => {}
                 }
+
+                self.mio_poll.poll(&mut self.events, Some(timeout))?;
             }
         }
 
-        if let DoSOperation::UnderLoad { last_under_load } = self.under_load {
-            if last_under_load.elapsed() > LAST_UNDER_LOAD_WINDOW {
-                self.under_load = DoSOperation::Normal;
+        match self.under_load {
+            DoSOperation::Normal { blocked_polls } => {
+                if blocked_polls > NORMAL_OPERATION_THRESHOLD {
+                    self.under_load = DoSOperation::UnderLoad {
+                        last_under_load: Instant::now(),
+                    }
+                }
+            }
+            DoSOperation::UnderLoad { last_under_load }  => {
+                if last_under_load.elapsed() > RESET_DURATION {
+                    self.under_load = DoSOperation::Normal { blocked_polls: 0 };
+                }
             }
         }
 
