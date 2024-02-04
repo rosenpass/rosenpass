@@ -199,15 +199,17 @@ impl std::fmt::Display for SocketBoundEndpoint {
 }
 
 impl SocketBoundEndpoint {
-
-    const SOCKET_SIZE: usize = usize::BITS as usize/8;
+    const SOCKET_SIZE: usize = usize::BITS as usize / 8;
     const IPV6_SIZE: usize = 16;
     const PORT_SIZE: usize = 2;
     const SCOPE_ID_SIZE: usize = 4;
 
-    const BUFFER_SIZE: usize = SocketBoundEndpoint::SOCKET_SIZE + SocketBoundEndpoint::IPV6_SIZE + SocketBoundEndpoint::PORT_SIZE + SocketBoundEndpoint::SCOPE_ID_SIZE;
-    pub fn to_bytes(&self) -> (usize,[u8; SocketBoundEndpoint::BUFFER_SIZE]) {
-        let mut buf = [0u8;SocketBoundEndpoint::BUFFER_SIZE];
+    const BUFFER_SIZE: usize = SocketBoundEndpoint::SOCKET_SIZE
+        + SocketBoundEndpoint::IPV6_SIZE
+        + SocketBoundEndpoint::PORT_SIZE
+        + SocketBoundEndpoint::SCOPE_ID_SIZE;
+    pub fn to_bytes(&self) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
+        let mut buf = [0u8; SocketBoundEndpoint::BUFFER_SIZE];
         let addr = match self.addr {
             SocketAddr::V4(addr) => {
                 //Map IPv4-mapped to IPv6 addresses
@@ -217,15 +219,17 @@ impl SocketBoundEndpoint {
             SocketAddr::V6(addr) => addr,
         };
         let mut len: usize = 0;
-        buf[len..len+SocketBoundEndpoint::SOCKET_SIZE].copy_from_slice(&self.socket.0.to_be_bytes());
+        buf[len..len + SocketBoundEndpoint::SOCKET_SIZE]
+            .copy_from_slice(&self.socket.0.to_be_bytes());
         len += SocketBoundEndpoint::SOCKET_SIZE;
-        buf[len..len+SocketBoundEndpoint::IPV6_SIZE].copy_from_slice(&addr.ip().octets());
+        buf[len..len + SocketBoundEndpoint::IPV6_SIZE].copy_from_slice(&addr.ip().octets());
         len += SocketBoundEndpoint::IPV6_SIZE;
-        buf[len..len+SocketBoundEndpoint::PORT_SIZE].copy_from_slice(&addr.port().to_be_bytes());
+        buf[len..len + SocketBoundEndpoint::PORT_SIZE].copy_from_slice(&addr.port().to_be_bytes());
         len += SocketBoundEndpoint::PORT_SIZE;
-        buf[len..len+SocketBoundEndpoint::SCOPE_ID_SIZE].copy_from_slice(&addr.scope_id().to_be_bytes());
+        buf[len..len + SocketBoundEndpoint::SCOPE_ID_SIZE]
+            .copy_from_slice(&addr.scope_id().to_be_bytes());
         len += SocketBoundEndpoint::SCOPE_ID_SIZE;
-        (len,buf)
+        (len, buf)
     }
 }
 
@@ -652,7 +656,7 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                let (hi_len,host_identification )= socket.to_bytes();
+                let (hi_len, host_identification) = socket.to_bytes();
                 self.crypt
                     .handle_msg_under_load(&rx, &mut *tx, &host_identification[0..hi_len])
             }
