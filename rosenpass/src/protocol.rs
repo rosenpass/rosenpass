@@ -886,7 +886,8 @@ impl CryptoServer {
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
-        match rx_buf[0].try_into() {
+        let msg_type = rx_buf[0].try_into();
+        match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
                 expected.copy_from_slice(

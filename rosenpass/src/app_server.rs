@@ -34,11 +34,14 @@ use rosenpass_util::b64::{b64_writer, fmt_b64};
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
-const NORMAL_OPERATION_THRESHOLD: usize = 5;
-const UNDER_LOAD_THRESHOLD: usize = 10;
-const RESET_DURATION: Duration = Duration::from_secs(1);
-
-const LAST_UNDER_LOAD_WINDOW: Duration = Duration::from_secs(1);
+#[cfg(feature = "integration_test")]
+const UNDER_LOAD_RATIO: f64 = 0.001;
+#[cfg(feature = "integration_test")]
+const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(10);
+#[cfg(not(feature = "integration_test"))]
+const UNDER_LOAD_RATIO: f64 = 0.5;
+#[cfg(not(feature = "integration_test"))]
+const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(100);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
@@ -74,10 +77,10 @@ pub struct WireguardOut {
     pub extra_params: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DoSOperation {
-    UnderLoad { last_under_load: Instant },
-    Normal{blocked_polls: usize},
+    UnderLoad,
+    Normal,
 }
 
 /// Holds the state of the application, namely the external IO
@@ -94,6 +97,10 @@ pub struct AppServer {
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
     pub under_load: DoSOperation,
+    pub blocking_polls_count: usize,
+    pub non_blocking_polls_count: usize,
+    pub unpolled_count: usize,
+    pub last_update_time: Instant,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -493,7 +500,11 @@ impl AppServer {
             events,
             mio_poll,
             all_sockets_drained: false,
-            under_load: DoSOperation::Normal{ blocked_polls: 0},
+            under_load: DoSOperation::Normal,
+            blocking_polls_count: 0,
+            non_blocking_polls_count: 0,
+            unpolled_count: 0,
+            last_update_time: Instant::now(),
         })
     }
 
@@ -609,14 +620,10 @@ impl AppServer {
 
                 ReceivedMessage(len, endpoint) => {
                     let msg_result = match self.under_load {
-                        DoSOperation::UnderLoad { last_under_load: _ } => {
-                            println!("Processing msg under load");
+                        DoSOperation::UnderLoad => {
                             self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
                         }
-                        DoSOperation::Normal { blocked_polls: _} => {
-                            println!("Processing msg normally");
-                            self.crypt.handle_msg(&rx[..len], &mut *tx)
-                        }
+                        DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
                     };
                     match msg_result {
                         Err(ref e) => {
@@ -794,36 +801,63 @@ impl AppServer {
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
             //Non blocked polling
-            self.mio_poll.poll(&mut self.events, Some(Duration::from_secs(0)))?;
+            self.mio_poll
+                .poll(&mut self.events, Some(Duration::from_secs(0)))?;
 
             if self.events.iter().peekable().peek().is_none() {
-                // if there are no events, then we can just return
-                match self.under_load {
-                    DoSOperation::Normal { blocked_polls } => {
-                        self.under_load = DoSOperation::Normal {
-                            blocked_polls: blocked_polls + 1,
-                        }
-                    }
-                    _ => {}
-                }
-
+                // if there are no events, then add to blocking poll count
+                self.blocking_polls_count += 1;
+                //Execute blocking poll
                 self.mio_poll.poll(&mut self.events, Some(timeout))?;
+            } else {
+                self.non_blocking_polls_count += 1;
             }
+        } else {
+            self.unpolled_count += 1;
         }
 
-        match self.under_load {
-            DoSOperation::Normal { blocked_polls } => {
-                if blocked_polls > NORMAL_OPERATION_THRESHOLD {
-                    self.under_load = DoSOperation::UnderLoad {
-                        last_under_load: Instant::now(),
+        //Reset blocking poll count if waiting for more than BLOCKING_POLL_COUNT_DURATION
+        if self.last_update_time.elapsed() > DURATION_UPDATE_UNDER_LOAD_STATUS {
+            self.last_update_time = Instant::now();
+            let total_polls = self.blocking_polls_count + self.non_blocking_polls_count;
+
+            let load_ratio = if total_polls > 0 {
+                self.non_blocking_polls_count as f64 / total_polls as f64
+            } else if self.unpolled_count > 0 {
+                //There are no polls, so we are under load
+                1.0
+            } else {
+                0.0
+            };
+
+            let prev_under_load = self.under_load;
+            if load_ratio > UNDER_LOAD_RATIO {
+                self.under_load = DoSOperation::UnderLoad;
+                //Test feature- if under load goes to normal operation, write to file
+                #[cfg(feature = "integration_test")]
+                {
+                    if (prev_under_load == DoSOperation::Normal) {
+                        let sem_name = b"/rp_integration_test_under_dos\0";
+
+                        // Create or open a semaphore
+                        let sem = unsafe {
+                            libc::sem_open(sem_name.as_ptr() as *const i8, libc::O_CREAT, 0o644, 0)
+                        };
+                        if sem == libc::SEM_FAILED {
+                            panic!("Failed to create or open semaphore");
+                        }
+
+                        // Post semaphore
+                        unsafe { libc::sem_post(sem) };
                     }
                 }
+            } else {
+                self.under_load = DoSOperation::Normal;
             }
-            DoSOperation::UnderLoad { last_under_load }  => {
-                if last_under_load.elapsed() > RESET_DURATION {
-                    self.under_load = DoSOperation::Normal { blocked_polls: 0 };
-                }
-            }
+
+            self.blocking_polls_count = 0;
+            self.non_blocking_polls_count = 0;
+            self.unpolled_count = 0;
         }
 
         // drain all sockets

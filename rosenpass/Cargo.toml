@@ -33,6 +33,7 @@ toml = { workspace = true }
 clap = { workspace = true }
 mio = { workspace = true }
 rand = { workspace = true }
+libc={workspace = true,optional=true}
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -41,3 +42,6 @@ anyhow = { workspace = true }
 criterion = { workspace = true }
 test_bin = { workspace = true }
 stacker = { workspace = true }
+
+[features]
+integration_test = ["dep:libc"]
