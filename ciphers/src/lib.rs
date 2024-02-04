@@ -9,14 +9,12 @@ const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 
 /// Authenticated encryption with associated data
 pub mod aead {
-    pub use rosenpass_sodium::aead::chacha20poly1305_ietf::{
-        decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
-    };
+    pub use crate::subtle::chacha20poly1305_ietf::{decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN};
 }
 
 /// Authenticated encryption with associated data with a constant nonce
 pub mod xaead {
-    pub use rosenpass_sodium::aead::xchacha20poly1305_ietf::{
+    pub use crate::subtle::xchacha20poly1305_ietf::{
         decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
     };
 }

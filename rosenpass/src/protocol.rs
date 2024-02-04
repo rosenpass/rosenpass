@@ -26,9 +26,6 @@
 //! };
 //! # fn main() -> anyhow::Result<()> {
 //!
-//! // always initialize libsodium before anything
-//! rosenpass_sodium::init()?;
-//!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
 //! StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.secret_mut())?;
@@ -68,20 +65,24 @@
 //! # }
 //! ```
 
-use crate::{hash_domains, msgs::*};
-use anyhow::{bail, ensure, Context, Result};
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::{aead, xaead, KEY_LEN};
-use rosenpass_lenses::LenseView;
-use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
 };
 use std::convert::Infallible;
+
+use anyhow::{bail, ensure, Context, Result};
+
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
+use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_constant_time as constant_time;
+use rosenpass_lenses::LenseView;
+use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
+
+use crate::{hash_domains, msgs::*};
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -921,7 +922,7 @@ impl CryptoServer {
         };
 
         //If valid cookie is found, process message
-        if rosenpass_sodium::helpers::memcmp(&rx_cookie, &expected) {
+        if constant_time::memcmp(&rx_cookie, &expected) {
             let result = self.handle_msg(rx_buf, tx_buf)?;
             Ok(result)
         }
@@ -1461,7 +1462,7 @@ where
         let expected = hash_domains::mac()?
             .mix(srv.spkm.secret())?
             .mix(self.until_mac())?;
-        Ok(rosenpass_sodium::helpers::memcmp(
+        Ok(constant_time::memcmp(
             self.mac(),
             &expected.into_value()[..16],
         ))
@@ -1569,7 +1570,7 @@ impl HandshakeState {
             .into_value();
 
         // consume biscuit no
-        rosenpass_sodium::helpers::increment(&mut *srv.biscuit_ctr);
+        constant_time::increment(&mut *srv.biscuit_ctr);
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
@@ -1632,8 +1633,7 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            rosenpass_sodium::helpers::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used)
-                >= 0,
+            constant_time::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1910,7 +1910,7 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
 
         // ICR5
-        if rosenpass_sodium::helpers::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+        if constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
             // ICR6
             peer.get_mut(self).biscuit_used = biscuit_no;
 
@@ -2096,8 +2096,6 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
-        rosenpass_sodium::init().unwrap();
-
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
             type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
@@ -2169,8 +2167,6 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_responder_under_load() {
-        rosenpass_sodium::init().unwrap();
-
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2257,7 +2253,6 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
-        rosenpass_sodium::init().unwrap();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
