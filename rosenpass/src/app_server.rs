@@ -836,7 +836,7 @@ impl AppServer {
                 //Test feature- if under load goes to normal operation, write to file
                 #[cfg(feature = "integration_test")]
                 {
-                    if (prev_under_load == DoSOperation::Normal) {
+                    if prev_under_load == DoSOperation::Normal {
                         let sem_name = b"/rp_integration_test_under_dos\0";
 
                         // Create or open a semaphore
