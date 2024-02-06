@@ -1,4 +1,4 @@
-use rosenpass_lenses::LenseError;
+#![feature(offset_of)]
 
 pub mod app_server;
 pub mod cli;
@@ -15,10 +15,3 @@ pub enum RosenpassError {
     InvalidMessageType(u8),
 }
 
-impl From<LenseError> for RosenpassError {
-    fn from(value: LenseError) -> Self {
-        match value {
-            LenseError::BufferSizeMismatch => RosenpassError::BufferSizeMismatch,
-        }
-    }
-}
