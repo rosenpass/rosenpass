@@ -70,7 +70,7 @@ use std::collections::hash_map::{
     HashMap,
 };
 use std::convert::Infallible;
-use std::mem::{size_of,offset_of};
+use std::mem::{offset_of, size_of};
 
 use anyhow::{bail, ensure, Context, Result};
 
@@ -90,7 +90,7 @@ use crate::{hash_domains, msgs::*, RosenpassError};
 /// Size required to fit any message in binary form
 pub const RTX_BUFFER_SIZE: usize = max_usize(
     size_of::<Envelope<InitHello>>(),
-    size_of::<Envelope<InitConf>>()
+    size_of::<Envelope<InitConf>>(),
 );
 
 /// A type for time, e.g. for backoff before re-tries
@@ -795,26 +795,22 @@ impl CryptoServer {
 
         let peer = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
-                let msg_in: Ref<&[u8], Envelope<InitHello>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<InitHello>> =
+                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
-                let peer = self.handle_init_hello(
-                    &msg_in.payload,
-                    &mut msg_out.payload,
-                )?;
+                let peer = self.handle_init_hello(&msg_in.payload, &mut msg_out.payload)?;
                 len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
                 peer
             }
             Ok(MsgType::RespHello) => {
-                let msg_in: Ref<&[u8], Envelope<RespHello>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<RespHello>> =
+                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
-                let peer = self.handle_resp_hello(
-                    &msg_in.payload,
-                    &mut msg_out.payload,
-                )?;
+                let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
                 len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
                 peer.hs()
                     .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
@@ -822,20 +818,19 @@ impl CryptoServer {
                 peer
             }
             Ok(MsgType::InitConf) => {
-                let msg_in: Ref<&[u8], Envelope<InitConf>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<InitConf>> =
+                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
-                let peer = self.handle_init_conf(
-                    &msg_in.payload,
-                    &mut msg_out.payload,
-                )?;
+                let peer = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
                 len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
                 exchanged = true;
                 peer
             }
             Ok(MsgType::EmptyData) => {
-                let msg_in: Ref<&[u8], Envelope<EmptyData>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<EmptyData>> =
+                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 self.handle_resp_conf(&msg_in.payload)?
@@ -1181,8 +1176,7 @@ where
         let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(&self.as_bytes()[..offset_of!(Self, mac)])?;
-        self.mac
-            .copy_from_slice(mac.into_value()[..16].as_ref());
+        self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
         Ok(())
     }
 }
@@ -1284,7 +1278,8 @@ impl HandshakeState {
         biscuit_ct: &mut [u8],
     ) -> Result<&mut Self> {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
-        let mut biscuit: Ref<&mut [u8], Biscuit> = Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+        let mut biscuit: Ref<&mut [u8], Biscuit> =
+            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
 
         // calculate pt contents
         biscuit
@@ -1339,7 +1334,8 @@ impl HandshakeState {
 
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
-        let mut biscuit: Ref<&mut [u8], Biscuit> = Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+        let mut biscuit: Ref<&mut [u8], Biscuit> =
+            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
         xaead::decrypt(
             biscuit.as_bytes_mut(),
             bk.get(srv).key.secret(),
@@ -1414,11 +1410,7 @@ impl CryptoServer {
 impl CryptoServer {
     /// Implementation of the cryptographic protocol using the already
     /// established primitives
-    pub fn handle_initiation(
-        &mut self,
-        peer: PeerPtr,
-        ih: &mut InitHello,
-    ) -> Result<PeerPtr> {
+    pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
 
         // IHI1
@@ -1460,11 +1452,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_init_hello(
-        &mut self,
-        ih: &InitHello,
-        rh: &mut RespHello,
-    ) -> Result<PeerPtr> {
+    pub fn handle_init_hello(&mut self, ih: &InitHello, rh: &mut RespHello) -> Result<PeerPtr> {
         let mut core = HandshakeState::zero();
 
         core.sidi = SessionId::from_slice(&ih.sidi);
@@ -1523,11 +1511,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_resp_hello(
-        &mut self,
-        rh: &RespHello,
-        ic: &mut InitConf,
-    ) -> Result<PeerPtr> {
+    pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         // RHI2
         let peer = self
             .lookup_handshake(SessionId::from_slice(&rh.sidi))
@@ -1619,11 +1603,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_init_conf(
-        &mut self,
-        ic: &InitConf,
-        rc: &mut EmptyData,
-    ) -> Result<PeerPtr> {
+    pub fn handle_init_conf(&mut self, ic: &InitConf, rc: &mut EmptyData) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
