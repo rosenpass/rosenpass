@@ -1131,7 +1131,6 @@ dependencies = [
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
- "rosenpass-lenses",
  "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-util",
@@ -1141,6 +1140,7 @@ dependencies = [
  "test_bin",
  "thiserror",
  "toml",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1183,14 +1183,6 @@ dependencies = [
  "rosenpass-secret-memory",
  "rosenpass-to",
  "stacker",
-]
-
-[[package]]
-name = "rosenpass-lenses"
-version = "0.1.0"
-dependencies = [
- "paste",
- "thiserror",
 ]
 
 [[package]]
@@ -1846,6 +1838,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "829846f3e3db426d4cee4510841b71a8e58aa2a76b1132579487ae430ccd9c7b"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.7.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74d4d3961e53fa4c9a25a8637fc2bfaf2595b3d3ae34875568a5cf64787716be"
+dependencies = [
+ "byteorder",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

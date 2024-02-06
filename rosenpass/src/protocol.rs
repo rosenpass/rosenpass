@@ -70,6 +70,7 @@ use std::collections::hash_map::{
     HashMap,
 };
 use std::convert::Infallible;
+use std::mem::{size_of,offset_of};
 
 use anyhow::{bail, ensure, Context, Result};
 
@@ -78,18 +79,18 @@ use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
-use rosenpass_lenses::LenseView;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
+use zerocopy::{AsBytes, FromBytes, Ref};
 
-use crate::{hash_domains, msgs::*};
+use crate::{hash_domains, msgs::*, RosenpassError};
 
 // CONSTANTS & SETTINGS //////////////////////////
 
 /// Size required to fit any message in binary form
 pub const RTX_BUFFER_SIZE: usize = max_usize(
-    <Envelope<(), InitHello<()>> as LenseView>::LEN,
-    <Envelope<(), InitConf<()>> as LenseView>::LEN,
+    size_of::<Envelope<InitHello>>(),
+    size_of::<Envelope<InitConf>>()
 );
 
 /// A type for time, e.g. for backoff before re-tries
@@ -739,11 +740,12 @@ impl CryptoServer {
     // TODO remove unnecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
     pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
-        let mut msg = tx_buf.envelope_truncating::<InitHello<()>>()?; // Envelope::<InitHello>::default(); // TODO
-        self.handle_initiation(peer, msg.payload_mut().init_hello()?)?;
-        let len = self.seal_and_commit_msg(peer, MsgType::InitHello, msg)?;
+        // Envelope::<InitHello>::default(); // TODO
+        let mut msg = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
+        self.handle_initiation(peer, &mut msg.payload)?;
+        let len = self.seal_and_commit_msg(peer, MsgType::InitHello, &mut msg)?;
         peer.hs()
-            .store_msg_for_retransmission(self, &tx_buf[..len])?;
+            .store_msg_for_retransmission(self, &msg.as_bytes()[..len])?;
         Ok(len)
     }
 }
@@ -793,50 +795,50 @@ impl CryptoServer {
 
         let peer = match rx_buf[0].try_into() {
             Ok(MsgType::InitHello) => {
-                let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
+                let msg_in: Ref<&[u8], Envelope<InitHello>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope_truncating::<RespHello<&mut [u8]>>()?;
+                let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
                 let peer = self.handle_init_hello(
-                    msg_in.payload().init_hello()?,
-                    msg_out.payload_mut().resp_hello()?,
+                    &msg_in.payload,
+                    &mut msg_out.payload,
                 )?;
-                len = self.seal_and_commit_msg(peer, MsgType::RespHello, msg_out)?;
+                len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
                 peer
             }
             Ok(MsgType::RespHello) => {
-                let msg_in = rx_buf.envelope::<RespHello<&[u8]>>()?;
+                let msg_in: Ref<&[u8], Envelope<RespHello>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope_truncating::<InitConf<&mut [u8]>>()?;
+                let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(
-                    msg_in.payload().resp_hello()?,
-                    msg_out.payload_mut().init_conf()?,
+                    &msg_in.payload,
+                    &mut msg_out.payload,
                 )?;
-                len = self.seal_and_commit_msg(peer, MsgType::InitConf, msg_out)?;
+                len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
                 peer.hs()
-                    .store_msg_for_retransmission(self, &tx_buf[..len])?;
+                    .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
                 exchanged = true;
                 peer
             }
             Ok(MsgType::InitConf) => {
-                let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
+                let msg_in: Ref<&[u8], Envelope<InitConf>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = tx_buf.envelope_truncating::<EmptyData<&mut [u8]>>()?;
+                let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
                 let peer = self.handle_init_conf(
-                    msg_in.payload().init_conf()?,
-                    msg_out.payload_mut().empty_data()?,
+                    &msg_in.payload,
+                    &mut msg_out.payload,
                 )?;
-                len = self.seal_and_commit_msg(peer, MsgType::EmptyData, msg_out)?;
+                len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
                 exchanged = true;
                 peer
             }
             Ok(MsgType::EmptyData) => {
-                let msg_in = rx_buf.envelope::<EmptyData<&[u8]>>()?;
+                let msg_in: Ref<&[u8], Envelope<EmptyData>> = Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                self.handle_resp_conf(msg_in.payload().empty_data()?)?
+                self.handle_resp_conf(&msg_in.payload)?
             }
             Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
             Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
@@ -856,15 +858,15 @@ impl CryptoServer {
     ///
     /// The message type is explicitly required here because it is very easy to
     /// forget setting that, which creates subtle but far ranging errors.
-    pub fn seal_and_commit_msg<M: LenseView>(
+    pub fn seal_and_commit_msg<M: AsBytes + FromBytes>(
         &mut self,
         peer: PeerPtr,
         msg_type: MsgType,
-        mut msg: Envelope<&mut [u8], M>,
+        msg: &mut Ref<&mut [u8], Envelope<M>>,
     ) -> Result<usize> {
-        msg.msg_type_mut()[0] = msg_type as u8;
+        msg.msg_type = msg_type as u8;
         msg.seal(peer, self)?;
-        Ok(<Envelope<(), M> as LenseView>::LEN)
+        Ok(size_of::<Envelope<M>>())
     }
 }
 
@@ -1170,32 +1172,32 @@ impl IniHsPtr {
 
 // CRYPTO/HANDSHAKE HANDLING /////////////////////
 
-impl<M> Envelope<&mut [u8], M>
+impl<M> Envelope<M>
 where
-    M: LenseView,
+    M: AsBytes + FromBytes,
 {
     /// Calculate the message authentication code (`mac`)
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
-            .mix(self.until_mac())?;
-        self.mac_mut()
+            .mix(&self.as_bytes()[..offset_of!(Self, mac)])?;
+        self.mac
             .copy_from_slice(mac.into_value()[..16].as_ref());
         Ok(())
     }
 }
 
-impl<M> Envelope<&[u8], M>
+impl<M> Envelope<M>
 where
-    M: LenseView,
+    M: AsBytes + FromBytes,
 {
     /// Check the message authentication code
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = hash_domains::mac()?
             .mix(srv.spkm.secret())?
-            .mix(self.until_mac())?;
+            .mix(&self.as_bytes()[..offset_of!(Self, mac)])?;
         Ok(constant_time::memcmp(
-            self.mac(),
+            &self.mac,
             &expected.into_value()[..16],
         ))
     }
@@ -1282,15 +1284,15 @@ impl HandshakeState {
         biscuit_ct: &mut [u8],
     ) -> Result<&mut Self> {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
-        let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // lens view
+        let mut biscuit: Ref<&mut [u8], Biscuit> = Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
 
         // calculate pt contents
         biscuit
-            .pidi_mut()
+            .pidi
             .copy_from_slice(peer.get(srv).pidt()?.as_slice());
-        biscuit.biscuit_no_mut().copy_from_slice(&*srv.biscuit_ctr);
+        biscuit.biscuit_no.copy_from_slice(&*srv.biscuit_ctr);
         biscuit
-            .ck_mut()
+            .ck
             .copy_from_slice(self.ck.clone().danger_into_secret().secret());
 
         // calculate ad contents
@@ -1311,7 +1313,7 @@ impl HandshakeState {
         n[0] |= (bk.0 as u8 & 0x1) << 7;
 
         let k = bk.get(srv).key.secret();
-        let pt = biscuit.all_bytes();
+        let pt = biscuit.as_bytes();
         xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
@@ -1337,18 +1339,18 @@ impl HandshakeState {
 
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
-        let mut biscuit = (&mut biscuit.secret_mut()[..]).biscuit()?; // slice
+        let mut biscuit: Ref<&mut [u8], Biscuit> = Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
         xaead::decrypt(
-            biscuit.all_bytes_mut(),
+            biscuit.as_bytes_mut(),
             bk.get(srv).key.secret(),
             &ad,
             biscuit_ct,
         )?;
 
         // Reconstruct the biscuit fields
-        let no = BiscuitId::from_slice(biscuit.biscuit_no());
-        let ck = SecretHashDomain::danger_from_secret(Secret::from_slice(biscuit.ck())).dup();
-        let pid = PeerId::from_slice(biscuit.pidi());
+        let no = BiscuitId::from_slice(&biscuit.biscuit_no);
+        let ck = SecretHashDomain::danger_from_secret(Secret::from_slice(&biscuit.ck)).dup();
+        let pid = PeerId::from_slice(&biscuit.pidi);
 
         // Reconstruct the handshake state
         let mut hs = Self { sidi, sidr, ck };
@@ -1364,7 +1366,7 @@ impl HandshakeState {
         // indicates retransmission
         // TODO: Handle retransmissions without involving the crypto code
         ensure!(
-            constant_time::compare(biscuit.biscuit_no(), &*peer.get(srv).biscuit_used) >= 0,
+            constant_time::compare(&biscuit.biscuit_no, &*peer.get(srv).biscuit_used) >= 0,
             "Rejecting biscuit: Outdated biscuit number"
         );
 
@@ -1415,7 +1417,7 @@ impl CryptoServer {
     pub fn handle_initiation(
         &mut self,
         peer: PeerPtr,
-        mut ih: InitHello<&mut [u8]>,
+        ih: &mut InitHello,
     ) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
 
@@ -1424,25 +1426,25 @@ impl CryptoServer {
 
         // IHI2
         hs.core.sidi.randomize();
-        ih.sidi_mut().copy_from_slice(&hs.core.sidi.value);
+        ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
         EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
-        ih.epki_mut().copy_from_slice(&hs.epki.value);
+        ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
-        hs.core.mix(ih.sidi())?.mix(ih.epki())?;
+        hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
 
         // IHI5
         hs.core
             .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-                ih.sctr_mut(),
+                ih.sctr.as_mut_slice(),
                 peer.get(self).spkt.secret(),
             )?;
 
         // IHI6
         hs.core
-            .encrypt_and_mix(ih.pidic_mut(), self.pidm()?.as_ref())?;
+            .encrypt_and_mix(ih.pidic.as_mut_slice(), self.pidm()?.as_ref())?;
 
         // IHI7
         hs.core
@@ -1450,7 +1452,7 @@ impl CryptoServer {
             .mix(peer.get(self).psk.secret())?;
 
         // IHI8
-        hs.core.encrypt_and_mix(ih.auth_mut(), &[])?;
+        hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
@@ -1460,30 +1462,30 @@ impl CryptoServer {
 
     pub fn handle_init_hello(
         &mut self,
-        ih: InitHello<&[u8]>,
-        mut rh: RespHello<&mut [u8]>,
+        ih: &InitHello,
+        rh: &mut RespHello,
     ) -> Result<PeerPtr> {
         let mut core = HandshakeState::zero();
 
-        core.sidi = SessionId::from_slice(ih.sidi());
+        core.sidi = SessionId::from_slice(&ih.sidi);
 
         // IHR1
         core.init(self.spkm.secret())?;
 
         // IHR4
-        core.mix(ih.sidi())?.mix(ih.epki())?;
+        core.mix(&ih.sidi)?.mix(&ih.epki)?;
 
         // IHR5
         core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
-            ih.sctr(),
+            &ih.sctr,
         )?;
 
         // IHR6
         let peer = {
             let mut peerid = PeerId::zero();
-            core.decrypt_and_mix(&mut *peerid, ih.pidic())?;
+            core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
         };
@@ -1493,46 +1495,46 @@ impl CryptoServer {
             .mix(peer.get(self).psk.secret())?;
 
         // IHR8
-        core.decrypt_and_mix(&mut [0u8; 0], ih.auth())?;
+        core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
 
         // RHR1
         core.sidr.randomize();
-        rh.sidi_mut().copy_from_slice(core.sidi.as_ref());
-        rh.sidr_mut().copy_from_slice(core.sidr.as_ref());
+        rh.sidi.copy_from_slice(core.sidi.as_ref());
+        rh.sidr.copy_from_slice(core.sidr.as_ref());
 
         // RHR3
-        core.mix(rh.sidr())?.mix(rh.sidi())?;
+        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHR4
-        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(rh.ecti_mut(), ih.epki())?;
+        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
 
         // RHR5
         core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            rh.scti_mut(),
+            &mut rh.scti,
             peer.get(self).spkt.secret(),
         )?;
 
         // RHR6
-        core.store_biscuit(self, peer, rh.biscuit_mut())?;
+        core.store_biscuit(self, peer, &mut rh.biscuit)?;
 
         // RHR7
-        core.encrypt_and_mix(rh.auth_mut(), &[])?;
+        core.encrypt_and_mix(&mut rh.auth, &[])?;
 
         Ok(peer)
     }
 
     pub fn handle_resp_hello(
         &mut self,
-        rh: RespHello<&[u8]>,
-        mut ic: InitConf<&mut [u8]>,
+        rh: &RespHello,
+        ic: &mut InitConf,
     ) -> Result<PeerPtr> {
         // RHI2
         let peer = self
-            .lookup_handshake(SessionId::from_slice(rh.sidi()))
+            .lookup_handshake(SessionId::from_slice(&rh.sidi))
             .with_context(|| {
                 format!(
                     "Got RespHello packet for non-existent session {:?}",
-                    rh.sidi()
+                    rh.sidi
                 )
             })?
             .peer();
@@ -1557,52 +1559,52 @@ impl CryptoServer {
         ensure!(
             exp == got,
             "Unexpected package in session {:?}. Expected {:?}, got {:?}.",
-            SessionId::from_slice(rh.sidi()),
+            SessionId::from_slice(&rh.sidi),
             exp,
             got
         );
 
         let mut core = hs!().core.clone();
-        core.sidr.copy_from_slice(rh.sidr());
+        core.sidr.copy_from_slice(&rh.sidr);
 
         // TODO: decaps_and_mix should take Secret<> directly
         //       to save us from the repetitive secret unwrapping
 
         // RHI3
-        core.mix(rh.sidr())?.mix(rh.sidi())?;
+        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHI4
         core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
             hs!().eski.secret(),
             &*hs!().epki,
-            rh.ecti(),
+            &rh.ecti,
         )?;
 
         // RHI5
         core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             self.sskm.secret(),
             self.spkm.secret(),
-            rh.scti(),
+            &rh.scti,
         )?;
 
         // RHI6
-        core.mix(rh.biscuit())?;
+        core.mix(&rh.biscuit)?;
 
         // RHI7
-        core.decrypt_and_mix(&mut [0u8; 0], rh.auth())?;
+        core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
 
         // TODO: We should just authenticate the entire network package up to the auth
         // tag as a pattern instead of mixing in fields separately
 
-        ic.sidi_mut().copy_from_slice(rh.sidi());
-        ic.sidr_mut().copy_from_slice(rh.sidr());
+        ic.sidi.copy_from_slice(&rh.sidi);
+        ic.sidr.copy_from_slice(&rh.sidr);
 
         // ICI3
-        core.mix(ic.sidi())?.mix(ic.sidr())?;
-        ic.biscuit_mut().copy_from_slice(rh.biscuit());
+        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+        ic.biscuit.copy_from_slice(&rh.biscuit);
 
         // ICI4
-        core.encrypt_and_mix(ic.auth_mut(), &[])?;
+        core.encrypt_and_mix(&mut ic.auth, &[])?;
 
         // Split() – We move the secrets into the session; we do not
         // delete the InitiatorHandshake, just clear it's secrets because
@@ -1619,26 +1621,26 @@ impl CryptoServer {
 
     pub fn handle_init_conf(
         &mut self,
-        ic: InitConf<&[u8]>,
-        mut rc: EmptyData<&mut [u8]>,
+        ic: &InitConf,
+        rc: &mut EmptyData,
     ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
             self,
-            ic.biscuit(),
-            SessionId::from_slice(ic.sidi()),
-            SessionId::from_slice(ic.sidr()),
+            &ic.biscuit,
+            SessionId::from_slice(&ic.sidi),
+            SessionId::from_slice(&ic.sidr),
         )?;
 
         // ICR2
         core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
 
         // ICR3
-        core.mix(ic.sidi())?.mix(ic.sidr())?;
+        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
 
         // ICR4
-        core.decrypt_and_mix(&mut [0u8; 0], ic.auth())?;
+        core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
 
         // ICR5
         if constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
@@ -1682,19 +1684,19 @@ impl CryptoServer {
             .get_mut(self)
             .as_mut()
             .context("Cannot send acknowledgement. No session.")?;
-        rc.sid_mut().copy_from_slice(&ses.sidt.value);
-        rc.ctr_mut().copy_from_slice(&ses.txnm.to_le_bytes());
+        rc.sid.copy_from_slice(&ses.sidt.value);
+        rc.ctr.copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]);
+        let n = cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead::encrypt(rc.auth_mut(), k, &n, &[], &[])?; // ct, k, n, ad, pt
+        aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
 
-    pub fn handle_resp_conf(&mut self, rc: EmptyData<&[u8]>) -> Result<PeerPtr> {
-        let sid = SessionId::from_slice(rc.sid());
+    pub fn handle_resp_conf(&mut self, rc: &EmptyData) -> Result<PeerPtr> {
+        let sid = SessionId::from_slice(&rc.sid);
         let hs = self
             .lookup_handshake(sid)
             .with_context(|| format!("Got RespConf packet for non-existent session {sid:?}"))?;
@@ -1717,16 +1719,16 @@ impl CryptoServer {
             })?;
             // the unwrap can not fail, because the slice returned by ctr() is
             // guaranteed to have the correct size
-            let n = u64::from_le_bytes(rc.ctr().try_into().unwrap());
+            let n = u64::from_le_bytes(rc.ctr.try_into().unwrap());
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
             aead::decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(aead::NONCE_LEN; rc.ctr(), &[0u8; 4]),
+                &cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]),
                 &[],
-                rc.auth(),
+                &rc.auth,
             )?;
         }
 
@@ -1735,6 +1737,10 @@ impl CryptoServer {
 
         Ok(hs.peer())
     }
+}
+
+fn truncating_cast_into<T: FromBytes>(buf: &mut [u8]) -> Result<Ref<&mut [u8], T>, RosenpassError> {
+    Ok(Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)?)
 }
 
 #[cfg(test)]
