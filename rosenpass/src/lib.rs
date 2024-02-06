@@ -14,4 +14,3 @@ pub enum RosenpassError {
     #[error("invalid message type")]
     InvalidMessageType(u8),
 }
-

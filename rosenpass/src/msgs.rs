@@ -9,14 +9,13 @@
 //! To achieve this we utilize the zerocopy library.
 
 use super::RosenpassError;
-use std::mem::size_of;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use std::mem::size_of;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 // Macro magic ////////////////////////////////////////////////////////////////
-
 
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
@@ -30,8 +29,8 @@ pub struct Envelope<M: AsBytes + FromBytes> {
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
     pub mac: [u8; 16],
-   /// Currently unused, TODO: do something with this 
-    pub cookie: [u8; 16]
+    /// Currently unused, TODO: do something with this
+    pub cookie: [u8; 16],
 }
 
 #[repr(packed)]
@@ -76,7 +75,7 @@ pub struct InitConf {
     /// Responders handshake state in encrypted form
     pub biscuit: [u8; BISCUIT_CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    pub auth: [u8; aead::TAG_LEN]
+    pub auth: [u8; aead::TAG_LEN],
 }
 
 #[repr(packed)]
@@ -87,7 +86,7 @@ pub struct EmptyData {
     /// Nonce
     pub ctr: [u8; 8],
     /// Empty encrypted message (just an auth tag)
-    pub auth: [u8; aead::TAG_LEN]
+    pub auth: [u8; aead::TAG_LEN],
 }
 
 #[repr(packed)]
@@ -98,19 +97,19 @@ pub struct Biscuit {
     /// The biscuit number (replay protection)
     pub biscuit_no: [u8; 12],
     /// Chaining key
-    pub ck: [u8; KEY_LEN]
+    pub ck: [u8; KEY_LEN],
 }
 
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct DataMsg {
-    pub dummy: [u8; 4]
+    pub dummy: [u8; 4],
 }
 
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct CookieReply {
-    pub dummy: [u8; 4]
+    pub dummy: [u8; 4],
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
