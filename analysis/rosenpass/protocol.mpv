@@ -6,7 +6,21 @@ fun Envelope(
   key,
   bits
 ): bits [data].
-letfun create_mac(pk:kem_pk, payload:bits) = lprf2(MAC, kem_pk2b(pk), payload).
+
+type mac_envelope_t.
+fun mac_envelope(
+  key,
+  bits
+) : mac_envelope_t.
+
+fun mac_envelope2b(mac_envelope_t) : bits [typeConverter].
+
+letfun create_mac(pk:kem_pk, payload:bits) = mac_envelope(lprf2(MAC, kem_pk2b(pk), payload), payload).
+
+fun mac_envelope_pk_test(mac_envelope_t, kem_pk) : bool
+  reduc forall pk:kem_pk, b:bits;
+    mac_envelope_pk_test(mac_envelope(prf(prf(prf(prf(key0,PROTOCOL),MAC),kem_pk2b(pk)),
+        b), b), pk) = true.
 
 type InitHello_t.
 fun InitHello(
@@ -85,7 +99,6 @@ fun IC2b(InitConf_t) : bitstring [typeConverter].
   ic <- InitConf(sidi, sidr, biscuit, auth);
 
 #define INITCONF_CONSUME()                        \
-  let InitConf(sidi, sidr, biscuit, auth) = ic in \
   LOAD_BISCUIT(biscuit_no, biscuit)   /* ICR1 */    \
   ENCRYPT_AND_MIX(rh_auth, empty)     /* ICIR */    \
   ck_rh <- ck;                        /* ---- */ /* TODO: Move into oracles.mpv */ \
