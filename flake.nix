@@ -112,9 +112,9 @@
 
                 # suitable Rust toolchain
                 toolchain = with inputs.fenix.packages.${system}; combine [
-                  latest.cargo
-                  latest.rustc
-                  targets.${target}.latest.rust-std
+                  stable.cargo
+                  stable.rustc
+                  targets.${target}.stable.rust-std
                 ];
 
                 # naersk with a custom toolchain
