@@ -70,10 +70,11 @@ use std::collections::hash_map::{
     HashMap,
 };
 use std::convert::Infallible;
-use std::mem::{offset_of, size_of};
+use std::mem::size_of;
 
 use anyhow::{bail, ensure, Context, Result};
 
+use memoffset::span_of;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
@@ -1175,7 +1176,7 @@ where
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
-            .mix(&self.as_bytes()[..offset_of!(Self, mac)])?;
+            .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
         Ok(())
     }
@@ -1189,7 +1190,7 @@ where
     pub fn check_seal(&self, srv: &CryptoServer) -> Result<bool> {
         let expected = hash_domains::mac()?
             .mix(srv.spkm.secret())?
-            .mix(&self.as_bytes()[..offset_of!(Self, mac)])?;
+            .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         Ok(constant_time::memcmp(
             &self.mac,
             &expected.into_value()[..16],

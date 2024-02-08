@@ -1,5 +1,3 @@
-#![feature(offset_of)]
-
 pub mod app_server;
 pub mod cli;
 pub mod config;
