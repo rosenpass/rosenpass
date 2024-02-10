@@ -240,7 +240,7 @@ impl Cli {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
-                                Ok(_) => eprintln!("{file:?} is passed all logical checks"),
+                                Ok(_) => eprintln!("{file:?} has passed all logical checks"),
                                 Err(_) => eprintln!("{file:?} contains logical errors"),
                             }
                         }
