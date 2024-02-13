@@ -10,7 +10,7 @@ pub fn main() {
     match Cli::run() {
         Ok(_) => {}
         Err(e) => {
-            error!("{e}");
+            error!("{e:?}");
             exit(1);
         }
     }
