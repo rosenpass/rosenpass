@@ -271,8 +271,13 @@ impl Cli {
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
 
-        // Spawn the psk broker and use socketpair(2) to connect with them
-        let psk_broker_socket = {
+        // Connect to the psk broker unix socket if one was specified
+        // OR OTHERWISE pawn the psk broker and use socketpair(2) to connect with them
+        let psk_broker_socket = if let Some(broker_path) = config.psk_broker {
+            let sock = UnixStream::connect(broker_path)?;
+            sock.set_nonblocking(true)?;
+            sock
+        } else {
             let (ours, theirs) = socketpair(
                 AddressFamily::UNIX,
                 SocketType::STREAM,
