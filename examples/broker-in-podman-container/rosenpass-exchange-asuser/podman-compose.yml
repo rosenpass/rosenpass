@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  rosenpass:
+    build: ../rosenpass/
+    command: rosenpass
+    ports:
+      - name: rosenpass-ipv4
+        target: 9999
+        host_ip: 127.0.0.1
+        published: 9999
+        protocol: udp
+        mode: host    
+      - name: rosenpass-ipv4
+        target: 9999
+        host_ip: '[::1]'
+        published: 9999
+        protocol: udp
+        mode: host    
+    environment:
+      RUST_LOG: info
+      #DEBUG_ENTRYPOINT: 1
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ../socket:/socket:ro
+      - ../config:/config:ro

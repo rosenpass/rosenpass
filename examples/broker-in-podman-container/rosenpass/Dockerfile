@@ -21,13 +21,12 @@ RUN cd ~rosenpass \
   && rm -R rosenpass-source
 USER root:root
 
-RUN apt-get install -y iproute2 wireguard-tools
-
-RUN setcap CAP_NET_ADMIN=+ip ~rosenpass/usr/bin/rosenpass-wireguard-broker-privileged
+# TODO: Is this proper handling of ambient capabilities?
+RUN setcap CAP_NET_ADMIN=+ep ~rosenpass/usr/bin/rosenpass-wireguard-broker-privileged
 
 VOLUME /config
-COPY entrypoint.sh /usr/local/sbin/docker_entrypoint
-COPY fd_passing.pl /usr/local/sbin/fd_passing
+COPY ./entrypoint.sh /usr/local/sbin/docker_entrypoint
+COPY ./fd_passing.pl /usr/local/sbin/fd_passing
 RUN chmod a+x /usr/local/sbin/docker_entrypoint /usr/local/sbin/fd_passing
 ENTRYPOINT ["/usr/local/sbin/docker_entrypoint"]
 

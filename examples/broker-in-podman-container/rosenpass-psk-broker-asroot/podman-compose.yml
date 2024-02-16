@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  rosenpass:
+    build: ../rosenpass
+    command: psk_broker
+    environment:
+      RUST_LOG: info
+      USER_GAINS_CAP_NET_ADMIN: 1
+      #DEBUG_ENTRYPOINT: 1
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ../socket:/socket:rw
+    network_mode: host
