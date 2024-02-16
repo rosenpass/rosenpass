@@ -24,13 +24,9 @@ pub struct Rosenpass {
 
     #[serde(skip)]
     pub config_file_path: PathBuf,
-
-    /// Path to the PSK Broker unix socket. If this is used,
-    /// rosenpass will not connect to
-    pub psk_broker: Option<PathBuf>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum Verbosity {
     Quiet,
     Verbose,
@@ -134,7 +130,6 @@ impl Rosenpass {
             verbosity: Verbosity::Quiet,
             peers: vec![],
             config_file_path: PathBuf::new(),
-            psk_broker: None,
         }
     }
 

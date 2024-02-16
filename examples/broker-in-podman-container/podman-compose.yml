@@ -2,8 +2,7 @@ version: "3.8"
 services:
   rosenpass:
     build:
-      context: ../../
-      dockerfile: ./examples/broker-in-podman-container/Dockerfile
+      dockerfile: Dockerfile
     env:
       RUST_LOG: trace
     volumes:

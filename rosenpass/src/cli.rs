@@ -5,7 +5,7 @@ use std::process::Command;
 use std::thread;
 
 use anyhow::{bail, ensure, Context};
-use clap::Parser;
+use clap::{Parser, Subcommand, ArgGroup};
 use command_fds::{CommandFdExt, FdMapping};
 use log::{error, info};
 use rustix::fd::AsRawFd;
@@ -17,6 +17,7 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_secret_memory::Public;
 use rosenpass_util::b64::b64_reader;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
+use rosenpass_util::fd::claim_fd;
 
 use crate::app_server;
 use crate::app_server::AppServer;
@@ -24,9 +25,31 @@ use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
 
+
 #[derive(Parser, Debug)]
+#[command(author, version, about)]
+#[clap(group(
+    ArgGroup::new("psk_broker_specs")
+    .args(&["psk_broker", "psk_broker_fd"]),
+))]
+pub struct Cli {
+    // Path of the wireguard_psk broker socket to connect to
+    #[arg(long)]
+    psk_broker: Option<PathBuf>,
+
+    /// When this command is called from another process, the other process can open and bind the
+    /// unix socket for the psk broker connectionto use themselves, passing it to this process. In Rust this can be achieved
+    /// using the [command-fds](https://docs.rs/command-fds/latest/command_fds/) crate.
+    #[arg(long)]
+    psk_broker_fd: Option<i32>,
+
+    #[command(subcommand)]
+    pub command: CliCommand,
+}
+
+#[derive(Subcommand, Debug)]
 #[command(author, version, about, long_about)]
-pub enum Cli {
+pub enum CliCommand {
     /// Start Rosenpass in server mode and carry on with the key exchange
     ///
     /// This will parse the configuration file and perform the key exchange
@@ -121,9 +144,9 @@ impl Cli {
     pub fn run() -> anyhow::Result<()> {
         let cli = Self::parse();
 
-        use Cli::*;
+        use CliCommand::*;
         match cli {
-            Man => {
+            Cli { command: Man, .. } => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
                     .status();
@@ -132,7 +155,7 @@ impl Cli {
                     println!(include_str!(env!("ROSENPASS_MAN")));
                 }
             }
-            GenConfig { config_file, force } => {
+            Cli { command: GenConfig { config_file, force }, .. } => {
                 ensure!(
                     force || !config_file.exists(),
                     "config file {config_file:?} already exists"
@@ -142,7 +165,7 @@ impl Cli {
             }
 
             // Deprecated - use gen-keys instead
-            Keygen { args } => {
+            Cli { command: Keygen { args }, .. } => {
                 log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
 
                 let mut public_key: Option<PathBuf> = None;
@@ -175,11 +198,14 @@ impl Cli {
                 generate_and_save_keypair(secret_key.unwrap(), public_key.unwrap())?;
             }
 
-            GenKeys {
-                config_file,
-                public_key,
-                secret_key,
-                force,
+            Cli {
+                command: GenKeys {
+                    config_file,
+                    public_key,
+                    secret_key,
+                    force,
+                },
+                .. 
             } => {
                 // figure out where the key file is specified, in the config file or directly as flag?
                 let (pkf, skf) = match (config_file, public_key, secret_key) {
@@ -219,7 +245,10 @@ impl Cli {
                 generate_and_save_keypair(skf, pkf)?;
             }
 
-            ExchangeConfig { config_file } => {
+            ref cli @ Cli {
+                command: ExchangeConfig { ref config_file },
+                .. 
+            } => {
                 ensure!(
                     config_file.exists(),
                     "config file '{config_file:?}' does not exist"
@@ -227,27 +256,31 @@ impl Cli {
 
                 let config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(&cli, &config)?;
             }
 
-            Exchange {
-                first_arg,
-                mut rest_of_args,
-                config_file,
-            } => {
-                rest_of_args.insert(0, first_arg);
-                let args = rest_of_args;
+            ref cli @ Cli {
+                command: Exchange {
+                    ref first_arg,
+                    ref rest_of_args,
+                    ref config_file,
+                },
+                ..
+            }=> {
+                let mut args = Vec::new();
+                args.push(first_arg.clone());
+                args.extend_from_slice(&rest_of_args[..]);
                 let mut config = config::Rosenpass::parse_args(args)?;
 
-                if let Some(p) = config_file {
+                if let Some(p) = &config_file {
                     config.store(&p)?;
-                    config.config_file_path = p;
+                    config.config_file_path = p.clone();
                 }
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(&cli, &config)?;
             }
 
-            Validate { config_files } => {
+            Cli { command: Validate { config_files }, .. } => {
                 for file in config_files {
                     match config::Rosenpass::load(&file) {
                         Ok(config) => {
@@ -266,15 +299,19 @@ impl Cli {
         Ok(())
     }
 
-    fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
+    fn event_loop(cli: &Cli, config: &config::Rosenpass) -> anyhow::Result<()> {
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
 
         // Connect to the psk broker unix socket if one was specified
         // OR OTHERWISE pawn the psk broker and use socketpair(2) to connect with them
-        let psk_broker_socket = if let Some(broker_path) = config.psk_broker {
+        let psk_broker_socket = if let Some(ref broker_path) = cli.psk_broker {
             let sock = UnixStream::connect(broker_path)?;
+            sock.set_nonblocking(true)?;
+            sock
+        } else if let Some(broker_fd) = cli.psk_broker_fd {
+            let sock = UnixStream::from(claim_fd(broker_fd)?);
             sock.set_nonblocking(true)?;
             sock
         } else {
@@ -291,7 +328,7 @@ impl Cli {
 
             // Start the PSK broker
             let mut child = Command::new("rosenpass-wireguard-broker-socket-handler")
-                .args(["--stream-fd", "3"])
+                .args(&["--stream-fd", "3"])
                 .fd_mappings(vec![FdMapping {
                     parent_fd: theirs.as_raw_fd(),
                     child_fd: 3,
@@ -321,19 +358,20 @@ impl Cli {
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
             sk,
             pk,
-            config.listen,
+            config.listen.clone(),
             psk_broker_socket,
-            config.verbosity,
+            config.verbosity.clone(),
         )?);
 
-        for cfg_peer in config.peers {
+        for cfg_peer in config.peers.iter().by_ref() {
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
-                cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
+                cfg_peer.pre_shared_key.as_ref().map(SymKey::load_b64).transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
-                cfg_peer.key_out,
+                cfg_peer.key_out.clone(),
                 cfg_peer
                     .wg
+                    .as_ref()
                     .map(|cfg| -> anyhow::Result<_> {
                         let b64pk = &cfg.peer;
                         let mut pk = Public::zero();
@@ -345,8 +383,8 @@ impl Cli {
 
                         Ok(app_server::WireguardOut {
                             pk,
-                            dev: cfg.device,
-                            extra_params: cfg.extra_params,
+                            dev: cfg.device.clone(),
+                            extra_params: cfg.extra_params.clone(),
                         })
                     })
                     .transpose()?,

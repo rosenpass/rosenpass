@@ -72,19 +72,10 @@ On the *local peer*, first start the broker manually:
 rm -fv broker.sock; PATH="target/debug" ./target/debug/rosenpass-wireguard-broker-socket-handler --listen-path broker.sock
 ```
 
-Now you should update your configuration to make use of the created socket. Use the `psk_broker` configuration key. Your configuration will now look something like this:
+Now you should call rosenpass while make use of the created socket. Use the `psk_broker` configuration key. Your configuration will now look something like this:
 
-```toml
-public_key = "./path/to/pk"
-secret_key = "./path/to/sk"
-listen = ["192.168.0.20:9999"]
-verbosity = "Verbose"
-psk_broker = "./broker.sock"
-
-[[peers]]
-public_key = "./path/to/peer/pk"
-device = "wgTesting"
-peer = "tdnV/wa/0Uf8Nrm3cZkKXOm4atrOEPzv1+dvaG7p7y0="
+```bash
+PATH="$PWD/target/debug:$PATH" rosenpass --psk-broker broker.sock exchange-config ./path/to/config/file.toml
 ```
 
 ### Step 2: Forward the unix socket to the rosenpass device

@@ -3,16 +3,34 @@ FROM rust:slim as build
 RUN apt-get update && apt-get install -y \
   build-essential \
   cmake \
-  pkg-config \
   libclang-dev \
-  libsodium-dev
+  libcap2-bin \
+  git \
+  inotify-tools
 
-WORKDIR /code
-COPY . /code
+RUN adduser --system --uid 768 --group rosenpass --home /var/lib/rosenpass
 
-RUN cargo install --path rosenpass --root / --bins \
-  && cargo install --path wireguard-broker --root / --bins
-# RUN apt-get install -y libcap2-bin \
-#   setcap CAP_NET_ADMIN=+eip "$(which rosenpass-wireguard-broker-privileged)"
+USER rosenpass:rosenpass
+RUN cd ~rosenpass \
+  && git clone --depth 1 "https://github.com/rosenpass/rosenpass" -b dev/broker-architecture rosenpass-source \
+  && cd rosenpass-source \
+  && mkdir -p ~rosenpass/usr \
+  && cargo install --path rosenpass --root ~rosenpass/usr --bins \
+  && cargo install --path wireguard-broker --root ~rosenpass/usr --bins \
+  && cd ~rosenpass \
+  && rm -R rosenpass-source
+USER root:root
 
-CMD rosenpass
+RUN apt-get install -y iproute2 wireguard-tools
+
+RUN setcap CAP_NET_ADMIN=+ip ~rosenpass/usr/bin/rosenpass-wireguard-broker-privileged
+
+VOLUME /config
+COPY entrypoint.sh /usr/local/sbin/docker_entrypoint
+COPY fd_passing.pl /usr/local/sbin/fd_passing
+RUN chmod a+x /usr/local/sbin/docker_entrypoint /usr/local/sbin/fd_passing
+ENTRYPOINT ["/usr/local/sbin/docker_entrypoint"]
+
+VOLUME /socket
+
+CMD rosenpass config.toml
