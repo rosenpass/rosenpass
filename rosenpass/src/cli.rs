@@ -5,7 +5,7 @@ use std::process::Command;
 use std::thread;
 
 use anyhow::{bail, ensure, Context};
-use clap::{Parser, Subcommand, ArgGroup};
+use clap::{ArgGroup, Parser, Subcommand};
 use command_fds::{CommandFdExt, FdMapping};
 use log::{error, info};
 use rustix::fd::AsRawFd;
@@ -16,15 +16,14 @@ use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_secret_memory::Public;
 use rosenpass_util::b64::b64_reader;
-use rosenpass_util::file::{LoadValue, LoadValueB64};
 use rosenpass_util::fd::claim_fd;
+use rosenpass_util::file::{LoadValue, LoadValueB64};
 
 use crate::app_server;
 use crate::app_server::AppServer;
 use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
-
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -155,7 +154,10 @@ impl Cli {
                     println!(include_str!(env!("ROSENPASS_MAN")));
                 }
             }
-            Cli { command: GenConfig { config_file, force }, .. } => {
+            Cli {
+                command: GenConfig { config_file, force },
+                ..
+            } => {
                 ensure!(
                     force || !config_file.exists(),
                     "config file {config_file:?} already exists"
@@ -165,7 +167,10 @@ impl Cli {
             }
 
             // Deprecated - use gen-keys instead
-            Cli { command: Keygen { args }, .. } => {
+            Cli {
+                command: Keygen { args },
+                ..
+            } => {
                 log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
 
                 let mut public_key: Option<PathBuf> = None;
@@ -199,13 +204,14 @@ impl Cli {
             }
 
             Cli {
-                command: GenKeys {
-                    config_file,
-                    public_key,
-                    secret_key,
-                    force,
-                },
-                .. 
+                command:
+                    GenKeys {
+                        config_file,
+                        public_key,
+                        secret_key,
+                        force,
+                    },
+                ..
             } => {
                 // figure out where the key file is specified, in the config file or directly as flag?
                 let (pkf, skf) = match (config_file, public_key, secret_key) {
@@ -247,7 +253,7 @@ impl Cli {
 
             ref cli @ Cli {
                 command: ExchangeConfig { ref config_file },
-                .. 
+                ..
             } => {
                 ensure!(
                     config_file.exists(),
@@ -260,13 +266,14 @@ impl Cli {
             }
 
             ref cli @ Cli {
-                command: Exchange {
-                    ref first_arg,
-                    ref rest_of_args,
-                    ref config_file,
-                },
+                command:
+                    Exchange {
+                        ref first_arg,
+                        ref rest_of_args,
+                        ref config_file,
+                    },
                 ..
-            }=> {
+            } => {
                 let mut args = Vec::new();
                 args.push(first_arg.clone());
                 args.extend_from_slice(&rest_of_args[..]);
@@ -280,7 +287,10 @@ impl Cli {
                 Self::event_loop(&cli, &config)?;
             }
 
-            Cli { command: Validate { config_files }, .. } => {
+            Cli {
+                command: Validate { config_files },
+                ..
+            } => {
                 for file in config_files {
                     match config::Rosenpass::load(&file) {
                         Ok(config) => {
@@ -366,7 +376,11 @@ impl Cli {
         for cfg_peer in config.peers.iter().by_ref() {
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
-                cfg_peer.pre_shared_key.as_ref().map(SymKey::load_b64).transpose()?,
+                cfg_peer
+                    .pre_shared_key
+                    .as_ref()
+                    .map(SymKey::load_b64)
+                    .transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out.clone(),
                 cfg_peer
