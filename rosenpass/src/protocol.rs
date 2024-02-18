@@ -190,7 +190,7 @@ pub struct CryptoServer {
     pub sskm: SSk,
     pub spkm: SPk,
     pub biscuit_ctr: BiscuitId,
-    pub biscuit_keys: [CookieStore<KEY_LEN>; 2],
+    pub biscuit_keys: [BiscuitKey; 2],
 
     // Peer/Handshake DB
     pub peers: Vec<Peer>,
@@ -200,7 +200,7 @@ pub struct CryptoServer {
     pub peer_poll_off: usize,
 
     // Random state which changes every COOKIE_SECRET_EPOCH seconds
-    pub cookie_secret: CookieSecret,
+    pub cookie_secrets: [CookieSecret; 2],
 }
 
 /// Container for storing cookie types: Biscuit, CookieSecret, CookieValue
@@ -211,8 +211,7 @@ pub struct CookieStore<const N: usize> {
 }
 
 /// Stores cookie secret, which is used to create a rotating the cookie value
-#[derive(Debug)]
-pub struct CookieSecret(CookieStore<COOKIE_SECRET_LEN>);
+pub type CookieSecret = CookieStore<COOKIE_SECRET_LEN>;
 
 /// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
 /// the responder doesn't store state. Instead the state is stored in a
@@ -369,6 +368,10 @@ pub struct SessionPtr(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BiscuitKeyPtr(pub usize);
 
+/// Valid index to [CryptoServer::cookie_secrets] cookie value
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct ServerCookieSecretPtr(pub usize);
+
 /// Valid index to [CryptoServer::peers] cookie value
 pub struct PeerCookieValuePtr(usize);
 
@@ -465,6 +468,16 @@ impl BiscuitKeyPtr {
     }
 }
 
+impl ServerCookieSecretPtr {
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a CookieSecret {
+        &srv.cookie_secrets[self.0]
+    }
+
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut CookieSecret {
+        &mut srv.cookie_secrets[self.0]
+    }
+}
+
 impl PeerCookieValuePtr {
     pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a CookieStore<COOKIE_SECRET_LEN>> {
         srv.peers[self.0]
@@ -508,13 +521,17 @@ impl CryptoServer {
             peers: Vec::new(),
             index: HashMap::new(),
             peer_poll_off: 0,
-            cookie_secret: CookieSecret(CookieStore::new()),
+            cookie_secrets: [CookieStore::new(), CookieStore::new()],
         }
     }
 
     /// Iterate over the many (2) biscuit keys
     pub fn biscuit_key_ptrs(&self) -> impl Iterator<Item = BiscuitKeyPtr> {
         (0..self.biscuit_keys.len()).map(BiscuitKeyPtr)
+    }
+
+    pub fn cookie_secret_ptrs(&self) -> impl Iterator<Item = ServerCookieSecretPtr> {
+        (0..self.cookie_secrets.len()).map(ServerCookieSecretPtr)
     }
 
     #[rustfmt::skip]
@@ -632,6 +649,36 @@ impl CryptoServer {
         let tb = self.timebase.clone();
         r.get_mut(self).randomize(&tb);
         r
+    }
+
+    // Return cookie secrets in order of youthfulness (youngest first)
+    pub fn active_or_retired_cookie_secrets(&mut self) -> [Option<ServerCookieSecretPtr>; 2] {
+        let (a, b) = (ServerCookieSecretPtr(0), ServerCookieSecretPtr(1));
+        let (t, u) = (a.get(self).created_at, b.get(self).created_at);
+        let mut return_arr = [None, None];
+        let mut index_top = 0;
+
+        // Add the youngest but only if it's youthful first (being added first in case of a tie)
+        let (young, old) = if t >= u { (a, b) } else { (b, a) };
+        if young.lifecycle(self) == Lifecycle::Young || young.lifecycle(self) == Lifecycle::Retired
+        {
+            return_arr[index_top] = Some(young);
+            index_top += 1;
+        }
+
+        if old.lifecycle(self) == Lifecycle::Young || old.lifecycle(self) == Lifecycle::Retired {
+            return_arr[index_top] = Some(old);
+            index_top += 1;
+        }
+
+        if index_top == 0 {
+            // Reap the oldest biscuit key and spawn a new young one
+            let tb = self.timebase.clone();
+            old.get_mut(self).randomize(&tb);
+            return_arr[index_top] = Some(old);
+        }
+
+        return_arr
     }
 }
 
@@ -762,21 +809,20 @@ impl Mortal for BiscuitKeyPtr {
     }
 }
 
-impl Mortal for CookieSecret {
-    fn created_at(&self, _srv: &CryptoServer) -> Option<Timing> {
-        if self.0.created_at < 0.0 {
+impl Mortal for ServerCookieSecretPtr {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        let t = self.get(srv).created_at;
+        if t < 0.0 {
             None
         } else {
-            Some(self.0.created_at)
+            Some(t)
         }
     }
-
     fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
-        self.die_at(srv)
-    }
-
-    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + COOKIE_SECRET_EPOCH)
+    }
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.retire_at(srv).map(|t| t + COOKIE_SECRET_EPOCH)
     }
 }
 
@@ -867,45 +913,134 @@ impl CryptoServer {
         tx_buf: &mut [u8],
         host_identification: &[u8],
     ) -> Result<HandleMsgResult> {
-        let mut cookie_value = [0u8; 16];
-        match self.cookie_secret.lifecycle(&self) {
-            Lifecycle::Young => {}
-            _ => {
-                self.cookie_secret.0.randomize(&self.timebase);
-            }
-        };
-
-        cookie_value.copy_from_slice(
-            &hash_domains::cookie_value()?
-                .mix(self.cookie_secret.0.value.secret())?
-                .mix(&host_identification)?
-                .into_value()[..16],
-        );
-
-        let mut expected = [0u8; COOKIE_SIZE];
+        let mut active_cookie_value: Option<[u8; 16]> = None;
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
+
+        for cookie_secret in self.active_or_retired_cookie_secrets() {
+            if let Some(cookie_secret) = cookie_secret {
+                let cookie_secret = cookie_secret.get(self).value.secret();
+                let mut cookie_value = [0u8; 16];
+                cookie_value.copy_from_slice(
+                    &hash_domains::cookie_value()?
+                        .mix(cookie_secret)?
+                        .mix(&host_identification)?
+                        .into_value()[..16],
+                );
+
+                //Most recently filled value is active cookie value
+                if active_cookie_value.is_none() {
+                    active_cookie_value = Some(cookie_value);
+                }
+
+                let mut expected = [0u8; COOKIE_SIZE];
+
+                CryptoServer::process_rx_buf_cookies(
+                    rx_buf,
+                    &cookie_value,
+                    &mut rx_cookie,
+                    &mut rx_mac,
+                    &mut rx_sid,
+                    &mut expected,
+                )?;
+
+                //If valid cookie is found, process message
+                if constant_time::memcmp(&rx_cookie, &expected) {
+                    let result = self.handle_msg(rx_buf, tx_buf)?;
+                    return Ok(result);
+                }
+            } else {
+                break;
+            }
+        }
+
+        //Otherwise send cookie reply
+        if active_cookie_value.is_none() {
+            bail!("No active cookie value found");
+        }
+
+        let cookie_value = active_cookie_value.unwrap();
+        let mut msg_out = tx_buf.cookie_reply_truncating()?;
+        let cookie_key = hash_domains::cookie_key()?
+            .mix(self.spkm.secret())?
+            .into_value();
+
+        let nonce_val = XAEADNonce::random();
+
+        {
+            let msg_type_slice: [u8; 1] = [MsgType::CookieReply.into()];
+            let msg_type = msg_out.msg_type_mut();
+            msg_type.copy_from_slice(&msg_type_slice);
+        }
+        // Copy sender's session id to cookie reply message
+        {
+            let sid = msg_out.sid_mut();
+            sid.copy_from_slice(&rx_sid[..]);
+        }
+
+        // Generate random nonce, copy it to message and nonce_val
+        {
+            let nonce = msg_out.nonce_mut();
+            nonce.copy_from_slice(&nonce_val.value);
+        }
+
+        // Encrypt cookie
+        {
+            let cookie_ciphertext =
+                &mut msg_out.all_bytes_mut()[MSG_SIZE_LEN + RESERVED_LEN + SID_LEN
+                    ..MSG_SIZE_LEN
+                        + RESERVED_LEN
+                        + SID_LEN
+                        + xaead::NONCE_LEN
+                        + MAC_SIZE
+                        + xaead::TAG_LEN];
+            xaead::encrypt(
+                cookie_ciphertext,
+                &cookie_key,
+                &nonce_val.value,
+                &rx_mac,
+                &cookie_value,
+            )?;
+        }
+
+        // length of the response
+        let len = Some(CookieReply::<&mut [u8]>::LEN);
+
+        Ok(HandleMsgResult {
+            exchanged_with: None,
+            resp: len,
+        })
+    }
+
+    fn process_rx_buf_cookies(
+        rx_buf: &[u8],
+        cookie_value: &[u8],
+        rx_cookie: &mut [u8],
+        rx_mac: &mut [u8],
+        rx_sid: &mut [u8],
+        expected: &mut [u8],
+    ) -> Result<()> {
         let msg_type = rx_buf[0].try_into();
         match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in = rx_buf.envelope::<InitHello<&[u8]>>()?;
                 expected.copy_from_slice(
                     &hash_domains::cookie()?
-                        .mix(&cookie_value)?
+                        .mix(cookie_value)?
                         .mix(&msg_in.until_cookie())?
                         .into_value()[..16],
                 );
-
                 rx_cookie.copy_from_slice(msg_in.cookie());
                 rx_mac.copy_from_slice(msg_in.mac());
                 rx_sid.copy_from_slice(msg_in.payload().init_hello()?.sidi());
             }
             Ok(MsgType::InitConf) => {
                 let msg_in = rx_buf.envelope::<InitConf<&[u8]>>()?;
+
                 expected.copy_from_slice(
                     &hash_domains::cookie()?
-                        .mix(&cookie_value)?
+                        .mix(cookie_value)?
                         .mix(&msg_in.until_cookie())?
                         .into_value()[..16],
                 );
@@ -921,65 +1056,7 @@ impl CryptoServer {
                 bail!("Message type not supported")
             }
         };
-
-        //If valid cookie is found, process message
-        if constant_time::memcmp(&rx_cookie, &expected) {
-            let result = self.handle_msg(rx_buf, tx_buf)?;
-            Ok(result)
-        }
-        //Otherwise send cookie reply
-        else {
-            let mut msg_out = tx_buf.cookie_reply_truncating()?;
-            let cookie_key = hash_domains::cookie_key()?
-                .mix(self.spkm.secret())?
-                .into_value();
-
-            let nonce_val = XAEADNonce::random();
-
-            {
-                let msg_type_slice: [u8; 1] = [MsgType::CookieReply.into()];
-                let msg_type = msg_out.msg_type_mut();
-                msg_type.copy_from_slice(&msg_type_slice);
-            }
-            // Copy sender's session id to cookie reply message
-            {
-                let sid = msg_out.sid_mut();
-                sid.copy_from_slice(&rx_sid[..]);
-            }
-
-            // Generate random nonce, copy it to message and nonce_val
-            {
-                let nonce = msg_out.nonce_mut();
-                nonce.copy_from_slice(&nonce_val.value);
-            }
-
-            // Encrypt cookie
-            {
-                let cookie_ciphertext =
-                    &mut msg_out.all_bytes_mut()[MSG_SIZE_LEN + RESERVED_LEN + SID_LEN
-                        ..MSG_SIZE_LEN
-                            + RESERVED_LEN
-                            + SID_LEN
-                            + xaead::NONCE_LEN
-                            + MAC_SIZE
-                            + xaead::TAG_LEN];
-                xaead::encrypt(
-                    cookie_ciphertext,
-                    &cookie_key,
-                    &nonce_val.value,
-                    &rx_mac,
-                    &cookie_value,
-                )?;
-            }
-
-            // length of the response
-            let len = Some(CookieReply::<&mut [u8]>::LEN);
-
-            Ok(HandleMsgResult {
-                exchanged_with: None,
-                resp: len,
-            })
-        }
+        Ok(())
     }
 
     /// Handle an incoming message
@@ -1291,6 +1368,7 @@ impl CryptoServer {
     pub fn poll(&mut self) -> Result<PollResult> {
         let r = begin_poll() // Poll each biscuit and peer until an event is found
             .poll_children(self, self.biscuit_key_ptrs())?
+            .poll_children(self, self.cookie_secret_ptrs())?
             .poll_children(self, self.peer_ptrs_off(self.peer_poll_off))?;
         self.peer_poll_off = match r.peer() {
             Some(p) => p.0 + 1, // Event found while polling peer p; will poll peer p+1 next
@@ -1304,6 +1382,14 @@ impl Pollable for BiscuitKeyPtr {
     fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
         begin_poll()
             .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale biscuits
+            .ok()
+    }
+}
+
+impl Pollable for ServerCookieSecretPtr {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+        begin_poll()
+            .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale cookie secrets
             .ok()
     }
 }
@@ -2209,7 +2295,13 @@ mod test {
 
             let expected_cookie_value = hash_domains::cookie_value()
                 .unwrap()
-                .mix(b.cookie_secret.0.value.secret())
+                .mix(
+                    b.active_or_retired_cookie_secrets()[0]
+                        .unwrap()
+                        .get(&b)
+                        .value
+                        .secret(),
+                )
                 .unwrap()
                 .mix(&ip_addr_port_a)
                 .unwrap()
