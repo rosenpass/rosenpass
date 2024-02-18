@@ -830,6 +830,7 @@ impl AppServer {
                 0.0
             };
 
+            #[cfg(feature = "integration_test")]
             let prev_under_load = self.under_load;
             if load_ratio > UNDER_LOAD_RATIO {
                 self.under_load = DoSOperation::UnderLoad;

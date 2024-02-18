@@ -1,4 +1,4 @@
-use std::{fs, net::UdpSocket, path::PathBuf, process::Stdio, thread::sleep, time::Duration};
+use std::{fs, net::UdpSocket, path::PathBuf, process::Stdio, time::Duration};
 
 const BIN: &str = "rosenpass";
 
@@ -28,13 +28,13 @@ fn generate_keys() {
     fs::remove_dir_all(&tmpdir).unwrap();
 }
 
-fn find_udp_socket() -> u16 {
+fn find_udp_socket() -> Option<u16> {
     for port in 1025..=u16::MAX {
         if UdpSocket::bind(("127.0.0.1", port)).is_ok() {
-            return port;
+            return Some(port);
         }
     }
-    panic!("no free UDP port found");
+    None
 }
 
 // check that we can exchange keys
@@ -63,7 +63,12 @@ fn check_exchange_under_normal() {
     }
 
     // start first process, the server
-    let port = find_udp_socket();
+    let port = loop {
+        if let Some(port) = find_udp_socket() {
+            break port;
+        }
+    };
+    
     let listen_addr = format!("localhost:{port}");
     let mut server = test_bin::get_test_bin(BIN)
         .args(["exchange", "secret-key"])
@@ -153,7 +158,11 @@ fn check_exchange_under_dos() {
     }
 
     // start first process, the server
-    let port = find_udp_socket();
+    let port = loop {
+        if let Some(port) = find_udp_socket() {
+            break port;
+        }
+    };
     let listen_addr = format!("localhost:{port}");
     let mut server = test_bin::get_test_bin(BIN)
         .args(["exchange", "secret-key"])
@@ -185,7 +194,7 @@ fn check_exchange_under_dos() {
                 .send_to(&buf, &server_addr)
                 .expect("couldn't send data");
 
-            sleep(Duration::from_micros(10));
+            std::thread::sleep(Duration::from_micros(10));
         }
     });
 
