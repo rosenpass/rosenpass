@@ -68,7 +68,7 @@ fn check_exchange_under_normal() {
             break port;
         }
     };
-    
+
     let listen_addr = format!("localhost:{port}");
     let mut server = test_bin::get_test_bin(BIN)
         .args(["exchange", "secret-key"])
