@@ -15,8 +15,6 @@ use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use std::mem::size_of;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-// Macro magic ////////////////////////////////////////////////////////////////
-
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct Envelope<M: AsBytes + FromBytes> {

@@ -746,7 +746,7 @@ impl CryptoServer {
         self.handle_initiation(peer, &mut msg.payload)?;
         let len = self.seal_and_commit_msg(peer, MsgType::InitHello, &mut msg)?;
         peer.hs()
-            .store_msg_for_retransmission(self, &msg.as_bytes()[..len])?;
+            .store_msg_for_retransmission(self, msg.as_bytes())?;
         Ok(len)
     }
 }
