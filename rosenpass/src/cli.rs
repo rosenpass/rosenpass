@@ -1,5 +1,5 @@
 use anyhow::{bail, ensure};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
@@ -12,9 +12,50 @@ use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
 
+/// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
-pub enum Cli {
+pub struct CliArgs {
+    /// lowest log level to show – log messages at higher levels will be omitted
+    #[arg(long = "log-level", value_name = "LOG_LEVEL", group = "log-level")]
+    log_level: Option<log::LevelFilter>,
+
+    /// show verbose log output – sets log level to "debug"
+    #[arg(short, long, group = "log-level")]
+    verbose: bool,
+
+    /// show no log output – sets log level to "error"
+    #[arg(short, long, group = "log-level")]
+    quiet: bool,
+
+    #[command(subcommand)]
+    pub command: CliCommand,
+}
+
+impl CliArgs {
+    /// returns the log level filter set by CLI args
+    /// returns `None` if the user did not specify any log level filter via CLI
+    ///
+    /// NOTE: the clap feature of ["argument groups"](https://docs.rs/clap/latest/clap/_derive/_tutorial/chapter_3/index.html#argument-relations)
+    /// ensures that the user can not specify more than one of the possible log level arguments.
+    /// Note the `#[arg("group")]` in the [`CliArgs`] struct.
+    pub fn get_log_level(&self) -> Option<log::LevelFilter> {
+        if self.verbose {
+            return Some(log::LevelFilter::Info);
+        }
+        if self.quiet {
+            return Some(log::LevelFilter::Error);
+        }
+        if let Some(level_filter) = self.log_level {
+            return Some(level_filter);
+        }
+        None
+    }
+}
+
+/// represents a command specified via CLI
+#[derive(Subcommand, Debug)]
+pub enum CliCommand {
     /// Start Rosenpass in server mode and carry on with the key exchange
     ///
     /// This will parse the configuration file and perform the key exchange
@@ -104,12 +145,14 @@ pub enum Cli {
     Man,
 }
 
-impl Cli {
-    pub fn run() -> anyhow::Result<()> {
-        let cli = Self::parse();
-
-        use Cli::*;
-        match cli {
+impl CliCommand {
+    /// runs the command specified via CLI
+    ///
+    /// ## TODO
+    /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
+    pub fn run(self) -> anyhow::Result<()> {
+        use CliCommand::*;
+        match self {
             Man => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
