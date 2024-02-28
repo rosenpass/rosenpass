@@ -12,6 +12,7 @@ pub fn main() {
     {
         let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
         if let Some(level) = args.get_log_level() {
+            log::debug!("setting log level to {:?} (set via CLI parameter)", level);
             log_builder.filter_level(level); // set log level filter from CLI args if available
         }
         log_builder.init();
