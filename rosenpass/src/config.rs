@@ -4,8 +4,8 @@
 //! [`Rosenpass`] which holds such a configuration.
 //!
 //! ## TODO
-//! - support `~` in (https://github.com/rosenpass/rosenpass/issues/237)
-//! - provide tooling to create config file from shell (https://github.com/rosenpass/rosenpass/issues/247)
+//! - support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
+//! - provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
 
 use std::{
     collections::HashSet,
@@ -53,7 +53,7 @@ pub struct Rosenpass {
 }
 
 /// ## TODO
-/// - replace this type with [`log::LevelFilter`], also see https://github.com/rosenpass/rosenpass/pull/246
+/// - replace this type with [`log::LevelFilter`], also see <https://github.com/rosenpass/rosenpass/pull/246>
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Verbosity {
     Quiet,
@@ -84,7 +84,7 @@ pub struct RosenpassPeer {
 
     /// ## TODO
     /// - documentation
-    /// - make this field only available on binary builds, not on library builds (https://github.com/rosenpass/rosenpass/issues/249)
+    /// - make this field only available on binary builds, not on library builds <https://github.com/rosenpass/rosenpass/issues/249>
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
 }
