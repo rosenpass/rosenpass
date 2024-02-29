@@ -1,3 +1,12 @@
+//! Configuration readable from a config file.
+//!
+//! Rosenpass supports reading its configuration from a TOML file. This module contains a struct
+//! [`Rosenpass`] which holds such a configuration.
+//!
+//! ## TODO
+//! - support `~` in (https://github.com/rosenpass/rosenpass/issues/237)
+//! - provide tooling to create config file from shell (https://github.com/rosenpass/rosenpass/issues/247)
+
 use std::{
     collections::HashSet,
     fs,
@@ -12,53 +21,97 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
+    /// path to the public key file
     pub public_key: PathBuf,
 
+    /// path to the secret key file
     pub secret_key: PathBuf,
 
+    /// list of [`SocketAddr`] to listen on
+    ///
+    /// Examples:
+    /// - `0.0.0.0:123`
     pub listen: Vec<SocketAddr>,
 
+    /// log verbosity
+    ///
+    /// This is subject to change. See [`Verbosity`] for details.
     #[serde(default)]
     pub verbosity: Verbosity,
+
+    /// list of peers
+    ///
+    /// See the [`RosenpassPeer`] type for more information and examples.
     pub peers: Vec<RosenpassPeer>,
 
+    /// path to the file which provided this configuration
+    ///
+    /// This item is of course not read from the TOML but is added by the algorithm that parses
+    /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
 }
 
+/// ## TODO
+/// - replace this type with [`log::LevelFilter`], also see https://github.com/rosenpass/rosenpass/pull/246
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Verbosity {
     Quiet,
     Verbose,
 }
 
+/// ## TODO
+/// - examples
+/// - documentation
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RosenpassPeer {
+    /// path to the public key of the peer
     pub public_key: PathBuf,
+
+    /// ## TODO
+    /// - documentation
     pub endpoint: Option<String>,
+
+    /// path to the pre-shared key with the peer
+    ///
+    /// NOTE: this item can be skipped in the config if you do not use a pre-shared key with the peer
     pub pre_shared_key: Option<PathBuf>,
 
+    /// ## TODO
+    /// - documentation
     #[serde(default)]
     pub key_out: Option<PathBuf>,
 
-    // TODO make this field only available on binary builds, not on library builds
+    /// ## TODO
+    /// - documentation
+    /// - make this field only available on binary builds, not on library builds (https://github.com/rosenpass/rosenpass/issues/249)
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
 }
 
+/// ## TODO
+/// - documentation
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireGuard {
+    /// ## TODO
+    /// - documentation
     pub device: String,
+
+    /// ## TODO
+    /// - documentation
     pub peer: String,
 
+    /// ## TODO
+    /// - documentation
     #[serde(default)]
     pub extra_params: Vec<String>,
 }
 
 impl Rosenpass {
-    /// Load a config file from a file path
+    /// load configuration from a TOML file
     ///
-    /// no validation is conducted
+    /// NOTE: no validation is conducted, e.g. the paths specified in the configuration are not
+    /// checked whether they even exist.
     pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
         let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
 
@@ -83,18 +136,22 @@ impl Rosenpass {
     }
 
     /// Validate a configuration
+    ///
+    /// ## TODO
+    /// - check that files do not just exist but are also readable
+    /// - warn if neither out_key nor exchange_command of a peer is defined (v.i.)
     pub fn validate(&self) -> anyhow::Result<()> {
-        // check the public-key file exists
+        // check the public key file exists
         ensure!(
             self.public_key.is_file(),
-            "public-key file {:?} does not exist",
+            "could not find public-key file {:?}: no such file",
             self.public_key
         );
 
         // check the secret-key file exists
         ensure!(
             self.secret_key.is_file(),
-            "secret-key file {:?} does not exist",
+            "could not find secret-key file {:?}: no such file",
             self.secret_key
         );
 
