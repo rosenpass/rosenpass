@@ -30,8 +30,7 @@ fn generate_man() -> String {
         return man;
     }
 
-    // TODO: Link to online manual here
-    "Cannot render manual page\n".into()
+    "Cannot render manual page. Please visit https://rosenpass.eu/docs/manuals/\n".into()
 }
 
 fn man() {
