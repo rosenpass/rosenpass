@@ -537,7 +537,7 @@ pub mod util {
     pub fn resolve_path_with_tilde(path: &mut PathBuf) {
         if let Some(first_segment) = path.iter().next() {
             if !path.has_root() && first_segment == "~" {
-                let home_dir = std::env::home_dir().unwrap_or_else(|| {
+                let home_dir = home::home_dir().unwrap_or_else(|| {
                     log::error!("config file contains \"~\" but can not determine home diretory");
                     std::process::exit(1);
                 });
