@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs::{self, DirBuilder}, os::unix::fs::{DirBuilderExt, PermissionsExt}, path::Path};
 
 use anyhow::{anyhow, Result};
 use base64::Engine;
@@ -9,12 +9,26 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Secret};
 
+#[cfg(not(target_family = "unix"))]
+pub fn genkey(_: &Path) -> Result<()> {
+    Err(anyhow!(
+        "Your system {} is not yet supported. We are happy to receive patches to address this :)",
+        std::env::consts::OS
+    ))
+}
+
+#[cfg(target_family = "unix")]
 pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if private_keys_dir.exists() {
-        return Err(anyhow!("Directory {:?} already exists", private_keys_dir));
+        if fs::metadata(private_keys_dir)?.permissions().mode() != 0o700 {
+            return Err(anyhow!("Directory {:?} has incorrect permissions: please use 0700 for proper security.", private_keys_dir));
+        }
+    } else {
+        DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(private_keys_dir)?;
     }
-
-    fs::create_dir_all(private_keys_dir)?;
 
     let wgsk_path = private_keys_dir.join("wgsk");
     let pqsk_path = private_keys_dir.join("pqsk");
