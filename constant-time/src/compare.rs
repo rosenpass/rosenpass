@@ -1,10 +1,11 @@
-/// compares two slices of memory content and returns an integer indicating the relationship between
-/// the slices
+/// Compares two slices of memory containing arbitrary-length little endian unsigned integers
+/// and returns an integer indicating the relationship between the slices.
 ///
 /// ## Returns
-/// - <0 if the first byte that does not match both slices has a lower value in `a` than in `b`
-/// - 0 if the contents are equal
-/// - >0 if the first byte that does not match both slices has a higher value in `a` than in `b`
+///
+/// - -1 if a < b
+/// - 0 if a = b
+/// - 1 if a > b
 ///
 /// ## Leaks
 /// If the two slices have differents lengths, the function will return immediately. This
@@ -15,6 +16,23 @@
 /// considered safe.
 ///
 /// ## Tests
+///
+/// ```rust
+/// use rosenpass_constant_time::compare;
+/// assert_eq!(compare(&[], &[]),    0);
+///
+/// assert_eq!(compare(&[0], &[1]), -1);
+/// assert_eq!(compare(&[0], &[0]), 0);
+/// assert_eq!(compare(&[1], &[0]), 1);
+///
+/// assert_eq!(compare(&[0, 0], &[1, 0]), -1);
+/// assert_eq!(compare(&[0, 0], &[0, 0]), 0);
+/// assert_eq!(compare(&[1, 0], &[0, 0]), 1);
+///
+/// assert_eq!(compare(&[1, 0], &[0, 1]), -1);
+/// assert_eq!(compare(&[0, 1], &[0, 0]), 1);
+/// ```
+///
 /// For discussion on how to ensure the constant-time execution of this function, see
 /// <https://github.com/rosenpass/rosenpass/issues/232>
 #[inline]
