@@ -95,6 +95,7 @@ jobs:
       - macos-13
     needs:
       - x86_64-darwin---rosenpass
+      - x86_64-darwin---rp
       - x86_64-darwin---rosenpass-oci-image
     steps:
       - uses: actions/checkout@v3
@@ -123,6 +124,22 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-darwin.rosenpass --print-build-logs
+  x86_64-darwin---rp:
+    name: Build x86_64-darwin.rp
+    runs-on:
+      - macos-13
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-darwin.rp --print-build-logs
   x86_64-darwin---rosenpass-oci-image:
     name: Build x86_64-darwin.rosenpass-oci-image
     runs-on:
@@ -212,6 +229,7 @@ jobs:
     needs:
       - x86_64-linux---rosenpass-static-oci-image
       - x86_64-linux---rosenpass-static
+      - x86_64-linux---rp-static
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
@@ -230,6 +248,7 @@ jobs:
     needs:
       - aarch64-linux---rosenpass-oci-image
       - aarch64-linux---rosenpass
+      - aarch64-linux---rp
     steps:
       - run: |
           DEBIAN_FRONTEND=noninteractive
@@ -283,6 +302,27 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-linux.rosenpass --print-build-logs
+  aarch64-linux---rp:
+    name: Build aarch64-linux.rp
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - run: |
+          DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            system = aarch64-linux
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.aarch64-linux.rp --print-build-logs
   x86_64-linux---rosenpass-oci-image:
     name: Build x86_64-linux.rosenpass-oci-image
     runs-on:
@@ -338,6 +378,22 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-static --print-build-logs
+  x86_64-linux---rp-static:
+    name: Build x86_64-linux.rp-static
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.x86_64-linux.rp-static --print-build-logs
   x86_64-linux---rosenpass-static-oci-image:
     name: Build x86_64-linux.rosenpass-static-oci-image
     runs-on:
