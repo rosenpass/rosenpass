@@ -34,14 +34,22 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     let pqsk_path = private_keys_dir.join("pqsk");
     let pqpk_path = private_keys_dir.join("pqpk");
 
-    let wgsk: Secret<32> = Secret::random();
-    fs::write(wgsk_path, base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()))?;
+    if !wgsk_path.exists() {
+        let wgsk: Secret<32> = Secret::random();
+        fs::write(wgsk_path, base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()))?;
+    } else {
+        eprintln!("WireGuard secret key already exists at {:#?}: not regenerating", wgsk_path);
+    }
 
-    let mut pqsk = SSk::random();
-    let mut pqpk = SPk::random();
-    StaticKem::keygen(pqsk.secret_mut(), pqpk.secret_mut())?;
-    pqsk.store_secret(pqsk_path)?;
-    pqpk.store_secret(pqpk_path)?;
+    if !pqsk_path.exists() && !pqpk_path.exists() {
+        let mut pqsk = SSk::random();
+        let mut pqpk = SPk::random();
+        StaticKem::keygen(pqsk.secret_mut(), pqpk.secret_mut())?;
+        pqsk.store_secret(pqsk_path)?;
+        pqpk.store_secret(pqpk_path)?;
+    } else {
+        eprintln!("Rosenpass keys already exist in {:#?}: not regenerating", private_keys_dir);
+    }
 
     Ok(())
 }
