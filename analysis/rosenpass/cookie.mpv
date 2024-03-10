@@ -1,0 +1,36 @@
+
+fun cookie_key(kem_sk) : key [private].
+fun ip_and_port(kem_pk):bits.
+letfun create_mac2_key(sskm:kem_sk, spkt:kem_pk) = prf(cookie_key(sskm), ip_and_port(spkt)).
+
+letfun create_cookie(sskm:kem_sk, spkm:kem_pk, spkt:kem_pk, nonce:bits, msg:bits) = xaead_enc(lprf2(COOKIE, kem_pk2b(spkm), nonce),
+    k2b(create_mac2_key(sskm, spkm)), msg).
+
+type CookieMsg_t.
+fun CookieMsg(
+  SessionId,	// sender
+  bits, 		// nonce
+  bits			// cookie
+) : CookieMsg_t [data].
+
+
+#define COOKIE_PROCESS(eventLbl, innerFunc)       \
+  in(C, Ccookie(mac1, mac2));	\
+  COOKIE_EV(event MCAT(eventLbl, _UnderLoadEV) (spkm, spkt, last_cookie);)	\
+  msgB <- Envelope(mac1, RH2b(rh));	\
+  mac2_key <- create_mac2_key(sskm, spkt)	\
+  let RespHello(sidi, sidr, ecti, scti, biscuit, auth) = rh in \
+  if Envelope(mac2_key, msgB) = mac2 then	\
+    COOKIE_EV(event MCAT(eventLbl, _CookieValidated) (spkm, last_cookie);)	\
+    innerFunc	\
+  else	\
+    new nonce:bits;	\
+    cookie <- create_cookie(sskm, spkm, spkt, nonce, msg)	\
+    cookie_msg <- CookieMsg(sidi, nonce, cookie);	\
+    COOKIE_EV(event MCAT(eventLbl, _CookieSent) (spkm, cookie, cookie_k, cookie_msg);)	\
+    out(C, cookie_msg).	
+
+#define COOKIE_EVENTS(eventLbl) \
+	COOKIE_EV(event MCAT(eventLbl, _UnderLoadEV) (kem_pk, kem_pk, bits).)		\
+	COOKIE_EV(event MCAT(eventLbl, _CookieValidated) (kem_pk, bits, key, CookieMsg_t).)		\
+	COOKIE_EV(event MCAT(eventLbl, _CookieSent) (kem_pk, bits).)		

@@ -35,24 +35,6 @@
             # normal nixpkgs
             pkgs = import nixpkgs {
               inherit system;
-
-              # TODO remove overlay once a fix for
-              # https://github.com/NixOS/nixpkgs/issues/216904 got merged
-              overlays = [
-                (
-                  final: prev: {
-                    iproute2 = prev.iproute2.overrideAttrs (old:
-                      let
-                        isStatic = prev.stdenv.hostPlatform.isStatic;
-                      in
-                      {
-                        makeFlags = old.makeFlags ++ prev.lib.optional isStatic [
-                          "TC_CONFIG_NO_XT=y"
-                        ];
-                      });
-                  }
-                )
-              ];
             };
 
             # parsed Cargo.toml
