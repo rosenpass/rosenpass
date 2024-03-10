@@ -11,6 +11,10 @@ repository = "https://github.com/rosenpass/rosenpass"
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = { workspace = true }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+zeroize = { workspace = true }
+
 rosenpass = { workspace = true }
 rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
@@ -18,7 +22,6 @@ rosenpass-secret-memory = { workspace = true }
 rosenpass-util = { workspace = true }
 
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-wireguard-keys = "0.1"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 ctrlc-async = "3.2"

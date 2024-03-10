@@ -1,12 +1,13 @@
 use std::{fs, path::Path};
 
 use anyhow::{anyhow, Result};
-use wireguard_keys::Privkey;
+use base64::Engine;
+use zeroize::Zeroize;
 
 use rosenpass::protocol::{SPk, SSk};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
-use rosenpass_secret_memory::file::StoreSecret as _;
+use rosenpass_secret_memory::{file::StoreSecret as _, Secret};
 
 pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if private_keys_dir.exists() {
@@ -19,8 +20,8 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     let pqsk_path = private_keys_dir.join("pqsk");
     let pqpk_path = private_keys_dir.join("pqpk");
 
-    let wgsk = Privkey::generate();
-    fs::write(wgsk_path, wgsk.to_base64())?;
+    let wgsk: Secret<32> = Secret::random();
+    fs::write(wgsk_path, base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()))?;
 
     let mut pqsk = SSk::random();
     let mut pqpk = SPk::random();
@@ -43,9 +44,16 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
     let private_pqpk = private_keys_dir.join("pqpk");
     let public_pqpk = public_keys_dir.join("pqpk");
 
-    let wgsk = Privkey::from_base64(&fs::read_to_string(private_wgsk)?)?;
-    let wgpk = wgsk.pubkey();
-    fs::write(public_wgpk, wgpk.to_base64())?;
+    let wgsk = Secret::from_slice(&base64::engine::general_purpose::STANDARD.decode(&fs::read_to_string(private_wgsk)?)?);
+    let mut wgpk: x25519_dalek::PublicKey = {
+        let mut secret = x25519_dalek::StaticSecret::from(wgsk.secret().clone());
+        let public = x25519_dalek::PublicKey::from(&secret);
+        secret.zeroize();
+        public
+    };
+
+    fs::write(public_wgpk, base64::engine::general_purpose::STANDARD.encode(wgpk.as_bytes()))?;
+    wgpk.zeroize();
 
     fs::copy(private_pqpk, public_pqpk)?;
 
@@ -56,10 +64,10 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
 mod tests {
     use std::fs;
 
+    use base64::Engine;
     use rosenpass::protocol::{SPk, SSk};
     use rosenpass_util::file::LoadValue;
     use tempfile::tempdir;
-    use wireguard_keys::{Privkey, Pubkey};
 
     use crate::key::{genkey, pubkey};
 
@@ -77,7 +85,7 @@ mod tests {
         assert!(private_keys_dir.path().is_dir());
         assert!(SPk::load(private_keys_dir.path().join("pqpk")).is_ok());
         assert!(SSk::load(private_keys_dir.path().join("pqsk")).is_ok());
-        assert!(Privkey::from_base64(
+        assert!(base64::engine::general_purpose::STANDARD.decode(
             &fs::read_to_string(private_keys_dir.path().join("wgsk")).unwrap()
         )
         .is_ok());
@@ -93,7 +101,7 @@ mod tests {
         assert!(public_keys_dir.path().exists());
         assert!(public_keys_dir.path().is_dir());
         assert!(SPk::load(public_keys_dir.path().join("pqpk")).is_ok());
-        assert!(Pubkey::from_base64(
+        assert!(base64::engine::general_purpose::STANDARD.decode(
             &fs::read_to_string(public_keys_dir.path().join("wgpk")).unwrap()
         )
         .is_ok());

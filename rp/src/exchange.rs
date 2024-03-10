@@ -121,14 +121,16 @@ mod netlink {
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs::{self, read_to_string};
 
-    use netlink_packet_wireguard::nlas::WgDeviceAttrs;
+    use anyhow::anyhow;
+    use base64::Engine;
+    use netlink_packet_wireguard::{constants::WG_KEY_LEN, nlas::WgDeviceAttrs};
     use rosenpass::{
         app_server::{AppServer, WireguardOut},
         config::Verbosity,
         protocol::{SPk, SSk, SymKey},
     };
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-    use wireguard_keys::Privkey;
+    use zeroize::Zeroize;
 
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
@@ -147,16 +149,20 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     tokio::spawn(connection);
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
-    let wgsk = Privkey::from_base64(&read_to_string(wgsk_path)?)?;
+    let mut wgsk: [u8; WG_KEY_LEN] = base64::engine::general_purpose::STANDARD.decode(&read_to_string(wgsk_path)?)?
+        .try_into()
+        .map_err(|_| anyhow!("WireGuard secret key is not {} bytes long.", WG_KEY_LEN))?;
 
     let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
-    attr.push(WgDeviceAttrs::PrivateKey(*wgsk));
+    attr.push(WgDeviceAttrs::PrivateKey(wgsk));
 
     if let Some(listen) = options.listen {
         attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
 
     netlink::wg_set(&mut genetlink, link_index, attr).await?;
+
+    wgsk.zeroize();
 
     let pqsk = options.private_keys_dir.join("pqsk");
     let pqpk = options.private_keys_dir.join("pqpk");
