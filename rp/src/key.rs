@@ -1,4 +1,8 @@
-use std::{fs::{self, DirBuilder}, os::unix::fs::{DirBuilderExt, PermissionsExt}, path::Path};
+use std::{
+    fs::{self, DirBuilder},
+    os::unix::fs::{DirBuilderExt, PermissionsExt},
+    path::Path,
+};
 
 use anyhow::{anyhow, Result};
 use base64::Engine;
@@ -21,7 +25,10 @@ pub fn genkey(_: &Path) -> Result<()> {
 pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if private_keys_dir.exists() {
         if fs::metadata(private_keys_dir)?.permissions().mode() != 0o700 {
-            return Err(anyhow!("Directory {:?} has incorrect permissions: please use 0700 for proper security.", private_keys_dir));
+            return Err(anyhow!(
+                "Directory {:?} has incorrect permissions: please use 0700 for proper security.",
+                private_keys_dir
+            ));
         }
     } else {
         DirBuilder::new()
@@ -36,9 +43,15 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
 
     if !wgsk_path.exists() {
         let wgsk: Secret<32> = Secret::random();
-        fs::write(wgsk_path, base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()))?;
+        fs::write(
+            wgsk_path,
+            base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()),
+        )?;
     } else {
-        eprintln!("WireGuard secret key already exists at {:#?}: not regenerating", wgsk_path);
+        eprintln!(
+            "WireGuard secret key already exists at {:#?}: not regenerating",
+            wgsk_path
+        );
     }
 
     if !pqsk_path.exists() && !pqpk_path.exists() {
@@ -48,7 +61,10 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
         pqsk.store_secret(pqsk_path)?;
         pqpk.store_secret(pqpk_path)?;
     } else {
-        eprintln!("Rosenpass keys already exist in {:#?}: not regenerating", private_keys_dir);
+        eprintln!(
+            "Rosenpass keys already exist in {:#?}: not regenerating",
+            private_keys_dir
+        );
     }
 
     Ok(())
@@ -66,7 +82,9 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
     let private_pqpk = private_keys_dir.join("pqpk");
     let public_pqpk = public_keys_dir.join("pqpk");
 
-    let wgsk = Secret::from_slice(&base64::engine::general_purpose::STANDARD.decode(&fs::read_to_string(private_wgsk)?)?);
+    let wgsk = Secret::from_slice(
+        &base64::engine::general_purpose::STANDARD.decode(&fs::read_to_string(private_wgsk)?)?,
+    );
     let mut wgpk: x25519_dalek::PublicKey = {
         let mut secret = x25519_dalek::StaticSecret::from(wgsk.secret().clone());
         let public = x25519_dalek::PublicKey::from(&secret);
@@ -74,7 +92,10 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
         public
     };
 
-    fs::write(public_wgpk, base64::engine::general_purpose::STANDARD.encode(wgpk.as_bytes()))?;
+    fs::write(
+        public_wgpk,
+        base64::engine::general_purpose::STANDARD.encode(wgpk.as_bytes()),
+    )?;
     wgpk.zeroize();
 
     fs::copy(private_pqpk, public_pqpk)?;
@@ -107,10 +128,9 @@ mod tests {
         assert!(private_keys_dir.path().is_dir());
         assert!(SPk::load(private_keys_dir.path().join("pqpk")).is_ok());
         assert!(SSk::load(private_keys_dir.path().join("pqsk")).is_ok());
-        assert!(base64::engine::general_purpose::STANDARD.decode(
-            &fs::read_to_string(private_keys_dir.path().join("wgsk")).unwrap()
-        )
-        .is_ok());
+        assert!(base64::engine::general_purpose::STANDARD
+            .decode(&fs::read_to_string(private_keys_dir.path().join("wgsk")).unwrap())
+            .is_ok());
 
         let public_keys_dir = tempdir().unwrap();
         fs::remove_dir(public_keys_dir.path()).unwrap();
@@ -123,10 +143,9 @@ mod tests {
         assert!(public_keys_dir.path().exists());
         assert!(public_keys_dir.path().is_dir());
         assert!(SPk::load(public_keys_dir.path().join("pqpk")).is_ok());
-        assert!(base64::engine::general_purpose::STANDARD.decode(
-            &fs::read_to_string(public_keys_dir.path().join("wgpk")).unwrap()
-        )
-        .is_ok());
+        assert!(base64::engine::general_purpose::STANDARD
+            .decode(&fs::read_to_string(public_keys_dir.path().join("wgpk")).unwrap())
+            .is_ok());
 
         let pk_1 = fs::read(private_keys_dir.path().join("pqpk")).unwrap();
         let pk_2 = fs::read(public_keys_dir.path().join("pqpk")).unwrap();
