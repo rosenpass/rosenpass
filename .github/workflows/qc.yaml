@@ -51,7 +51,7 @@ jobs:
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
-      - run: RUST_MIN_STACK=8388608 cargo bench --workspace
+      - run: RUST_MIN_STACK=8388608 cargo bench --workspace --exclude rosenpass-fuzzing
 
   cargo-audit:
     runs-on: ubuntu-latest
