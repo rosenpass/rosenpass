@@ -129,7 +129,7 @@ pub struct CookieReplyInner {
 #[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct CookieReply {
     pub inner: CookieReplyInner,
-    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()]
+    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],
 }
 
 // Traits /////////////////////////////////////////////////////////////////////

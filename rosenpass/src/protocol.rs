@@ -73,7 +73,7 @@ use std::convert::Infallible;
 use std::mem::size_of;
 
 use anyhow::{bail, ensure, Context, Result};
-use rand::{Fill as Randomize, Rng};
+use rand::Fill as Randomize;
 
 use memoffset::span_of;
 use rosenpass_cipher_traits::Kem;
@@ -985,10 +985,13 @@ impl CryptoServer {
             &cookie_value,
         )?;
 
-        msg_out.padding.try_fill(&mut rosenpass_secret_memory::rand::rng()).unwrap();
+        msg_out
+            .padding
+            .try_fill(&mut rosenpass_secret_memory::rand::rng())
+            .unwrap();
 
         // length of the response
-        let len = Some(size_of::<CookieReply>());
+        let _len = Some(size_of::<CookieReply>());
 
         Ok(HandleMsgResult {
             exchanged_with: None,
@@ -1007,7 +1010,8 @@ impl CryptoServer {
         let msg_type = rx_buf[0].try_into();
         match msg_type {
             Ok(MsgType::InitHello) => {
-                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
                 expected.copy_from_slice(
                     &hash_domains::cookie()?
                         .mix(cookie_value)?
@@ -1019,7 +1023,8 @@ impl CryptoServer {
                 rx_sid.copy_from_slice(&msg_in.payload.sidi);
             }
             Ok(MsgType::InitConf) => {
-                let msg_in = Ref::<&[u8], Envelope<InitConf>>::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in = Ref::<&[u8], Envelope<InitConf>>::new(rx_buf)
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 expected.copy_from_slice(
                     &hash_domains::cookie()?
@@ -1444,7 +1449,8 @@ impl IniHsPtr {
         }
 
         // Add cookie to retransmitted message
-        let mut envelope = Ref::<&mut[u8], Envelope<InitHello>>::new(tx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+        let mut envelope = Ref::<&mut [u8], Envelope<InitHello>>::new(tx_buf)
+            .ok_or(RosenpassError::BufferSizeMismatch)?;
         envelope.seal_cookie(self.peer(), srv)?;
 
         Ok(ih_tx_len)
@@ -1509,7 +1515,8 @@ where
             let cookie = hash_domains::cookie()?
                 .mix(cookie_key.value.secret())?
                 .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
-            self.cookie.copy_from_slice(cookie.into_value()[..16].as_ref());
+            self.cookie
+                .copy_from_slice(cookie.into_value()[..16].as_ref());
         }
         Ok(())
     }
@@ -2057,7 +2064,10 @@ impl CryptoServer {
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))
             .map(|v| PeerPtr(v.0))
-            .or_else(|| self.lookup_handshake(Public::new(cr.inner.sid)).map(|v| PeerPtr(v.0)));
+            .or_else(|| {
+                self.lookup_handshake(Public::new(cr.inner.sid))
+                    .map(|v| PeerPtr(v.0))
+            });
         if let Some(peer) = peer_ptr {
             // Get last transmitted handshake message
             if let Some(ih) = &peer.get(self).handshake {
@@ -2086,18 +2096,13 @@ impl CryptoServer {
                         "No last sent message for peer {pidr:?} to decrypt cookie reply.",
                         pidr = cr.inner.sid
                     ),
-                 }?;
+                }?;
 
                 let spkt = peer.get(self).spkt.secret();
                 let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(
-                    cookie_value,
-                    &cookie_key,
-                    &mac,
-                    &cr.inner.cookie_encrypted,
-                )?;
+                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
 
                 // Immediately retransmit on recieving a cookie reply message
                 peer.hs().register_immediate_retransmission(self)?;
