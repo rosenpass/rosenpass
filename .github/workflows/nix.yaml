@@ -223,6 +223,29 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.release-package --print-build-logs
+  aarch64-linux---release-package:
+    name: Build aarch64-linux.release-package
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - aarch64-linux---rosenpass-oci-image
+      - aarch64-linux---rosenpass
+    steps:
+      - run: |
+          DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            system = aarch64-linux
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.aarch64-linux.release-package --print-build-logs
   x86_64-linux---rosenpass:
     name: Build x86_64-linux.rosenpass
     runs-on:
@@ -239,6 +262,27 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass --print-build-logs
+  aarch64-linux---rosenpass:
+    name: Build aarch64-linux.rosenpass
+    runs-on:
+      - ubuntu-latest
+    needs: []
+    steps:
+      - run: |
+          DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            system = aarch64-linux
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.aarch64-linux.rosenpass --print-build-logs
   x86_64-linux---rosenpass-oci-image:
     name: Build x86_64-linux.rosenpass-oci-image
     runs-on:
@@ -256,6 +300,28 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-oci-image --print-build-logs
+  aarch64-linux---rosenpass-oci-image:
+    name: Build aarch64-linux.rosenpass-oci-image
+    runs-on:
+      - ubuntu-latest
+    needs:
+      - aarch64-linux---rosenpass
+    steps:
+      - run: |
+          DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            system = aarch64-linux
+      - uses: cachix/cachix-action@v12
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build
+        run: nix build .#packages.aarch64-linux.rosenpass-oci-image --print-build-logs
   x86_64-linux---rosenpass-static:
     name: Build x86_64-linux.rosenpass-static
     runs-on:

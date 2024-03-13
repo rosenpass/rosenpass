@@ -6,145 +6,130 @@
 //! always serialized instance of the data in question. This is closely related
 //! to the concept of lenses in function programming; more on that here:
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)
+//! To achieve this we utilize the zerocopy library.
 //!
-//! # Example
-//!
-//! The following example uses the [`lense` macro](rosenpass_lenses::lense) to create a lense that
-//! might be useful when dealing with UDP headers.
-//!
-//! ```
-//! use rosenpass_lenses::{lense, LenseView};
-//! use rosenpass::RosenpassError;
-//! # fn main() -> Result<(), RosenpassError> {
-//!
-//! lense! {UdpDatagramHeader :=
-//!     source_port: 2,
-//!     dest_port: 2,
-//!     length: 2,
-//!     checksum: 2
-//! }
-//!
-//! let mut buf = [0u8; 8];
-//!
-//! // read-only lense, no check of size:
-//! let lense = UdpDatagramHeader(&buf);
-//! assert_eq!(lense.checksum(), &[0, 0]);
-//!
-//! // mutable lense, runtime check of size
-//! let mut lense = buf.as_mut().udp_datagram_header()?;
-//! lense.source_port_mut().copy_from_slice(&53u16.to_be_bytes()); // some DNS, anyone?
-//!
-//! // the original buffer is still available
-//! assert_eq!(buf, [0, 53, 0, 0, 0, 0, 0, 0]);
-//!
-//! // read-only lense, runtime check of size
-//! let lense = buf.as_ref().udp_datagram_header()?;
-//! assert_eq!(lense.source_port(), &[0, 53]);
-//! # Ok(())
-//! # }
-//! ```
+use std::mem::size_of;
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
-use rosenpass_lenses::{lense, LenseView};
 pub const MSG_SIZE_LEN: usize = 1;
 pub const RESERVED_LEN: usize = 3;
 pub const MAC_SIZE: usize = 16;
 pub const COOKIE_SIZE: usize = 16;
 pub const SID_LEN: usize = 4;
 
-// Macro magic ////////////////////////////////////////////////////////////////
-
-lense! { Envelope<M> :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct Envelope<M: AsBytes + FromBytes> {
     /// [MsgType] of this message
-    msg_type: MSG_SIZE_LEN,
+    pub msg_type: u8,
     /// Reserved for future use
-    reserved: RESERVED_LEN,
+    pub reserved: [u8; 3],
     /// The actual Paylod
-    payload: M::LEN,
+    pub payload: M,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
-    mac: MAC_SIZE,
-    /// Cookie value
-    cookie: COOKIE_SIZE
+    pub mac: [u8; 16],
+    /// Currently unused, TODO: do something with this
+    pub cookie: [u8; 16],
 }
 
-lense! { InitHello :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct InitHello {
     /// Randomly generated connection id
-    sidi: SID_LEN,
+    pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Public Key
-    epki: EphemeralKem::PK_LEN,
+    pub epki: [u8; EphemeralKem::PK_LEN],
     /// Classic McEliece Ciphertext
-    sctr: StaticKem::CT_LEN,
+    pub sctr: [u8; StaticKem::CT_LEN],
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pidic: aead::TAG_LEN + 32,
+    pub pidic: [u8; aead::TAG_LEN + 32],
     /// Encrypted TAI64N Time Stamp (against replay attacks)
-    auth: aead::TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-lense! { RespHello :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct RespHello {
     /// Randomly generated connection id
-    sidr: SID_LEN,
+    pub sidr: [u8; 4],
     /// Copied from InitHello
-    sidi: SID_LEN,
+    pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Ciphertext
-    ecti: EphemeralKem::CT_LEN,
+    pub ecti: [u8; EphemeralKem::CT_LEN],
     /// Classic McEliece Ciphertext
-    scti: StaticKem::CT_LEN,
+    pub scti: [u8; StaticKem::CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    auth: aead::TAG_LEN,
+    pub auth: [u8; aead::TAG_LEN],
     /// Responders handshake state in encrypted form
-    biscuit: BISCUIT_CT_LEN
+    pub biscuit: [u8; BISCUIT_CT_LEN],
 }
 
-lense! { InitConf :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct InitConf {
     /// Copied from InitHello
-    sidi: SID_LEN,
+    pub sidi: [u8; 4],
     /// Copied from RespHello
-    sidr: SID_LEN,
+    pub sidr: [u8; 4],
     /// Responders handshake state in encrypted form
-    biscuit: BISCUIT_CT_LEN,
+    pub biscuit: [u8; BISCUIT_CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    auth: aead::TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-lense! { EmptyData :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct EmptyData {
     /// Copied from RespHello
-    sid: SID_LEN,
+    pub sid: [u8; 4],
     /// Nonce
-    ctr: 8,
+    pub ctr: [u8; 8],
     /// Empty encrypted message (just an auth tag)
-    auth: aead::TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-lense! { Biscuit :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct Biscuit {
     /// H(spki) – Ident ifies the initiator
-    pidi: KEY_LEN,
+    pub pidi: [u8; KEY_LEN],
     /// The biscuit number (replay protection)
-    biscuit_no: 12,
+    pub biscuit_no: [u8; 12],
     /// Chaining key
-    ck: KEY_LEN
+    pub ck: [u8; KEY_LEN],
 }
 
-lense! { DataMsg :=
-    dummy: 4
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct DataMsg {
+    pub dummy: [u8; 4],
 }
 
-lense! { CookieReply :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct CookieReplyInner {
     /// [MsgType] of this message
-    msg_type: MSG_SIZE_LEN,
+    pub msg_type: u8,
     /// Reserved for future use
-    reserved: RESERVED_LEN,
+    pub reserved: [u8; 3],
     /// Session ID of the sender (initiator)
-    sid: SID_LEN,
+    pub sid: [u8; 4],
     /// Nonce
-    nonce: xaead::NONCE_LEN,
+    pub nonce: [u8; xaead::NONCE_LEN],
     /// Encrypted cookie with authenticated initiator `mac`
-    cookie_encrypted: MAC_SIZE + xaead::TAG_LEN,
-    /// Padding (make it same size as InitHello)
-    padding:  (MSG_SIZE_LEN + RESERVED_LEN + SID_LEN + EphemeralKem::PK_LEN + StaticKem::CT_LEN + aead::TAG_LEN + aead::TAG_LEN + 32 +  MAC_SIZE + MAC_SIZE) - (MSG_SIZE_LEN + RESERVED_LEN + SID_LEN + xaead::NONCE_LEN + MAC_SIZE + xaead::TAG_LEN)
+    pub cookie_encrypted: [u8; MAC_SIZE + xaead::TAG_LEN],
+}
+
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct CookieReply {
+    pub inner: CookieReplyInner,
+    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()]
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -200,7 +185,7 @@ impl Into<u8> for MsgType {
 }
 
 /// length in bytes of an unencrypted Biscuit (plain text)
-pub const BISCUIT_PT_LEN: usize = Biscuit::<()>::LEN;
+pub const BISCUIT_PT_LEN: usize = size_of::<Biscuit>();
 
 /// Length in bytes of an encrypted Biscuit (cipher text)
 pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;

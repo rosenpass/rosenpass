@@ -1,3 +1,12 @@
+//! Configuration readable from a config file.
+//!
+//! Rosenpass supports reading its configuration from a TOML file. This module contains a struct
+//! [`Rosenpass`] which holds such a configuration.
+//!
+//! ## TODO
+//! - support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
+//! - provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
+
 use std::{
     collections::HashSet,
     fs,
@@ -12,57 +21,123 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
+    /// path to the public key file
     pub public_key: PathBuf,
 
+    /// path to the secret key file
     pub secret_key: PathBuf,
 
+    /// list of [`SocketAddr`] to listen on
+    ///
+    /// Examples:
+    /// - `0.0.0.0:123`
     pub listen: Vec<SocketAddr>,
 
+    /// log verbosity
+    ///
+    /// This is subject to change. See [`Verbosity`] for details.
     #[serde(default)]
     pub verbosity: Verbosity,
+
+    /// list of peers
+    ///
+    /// See the [`RosenpassPeer`] type for more information and examples.
     pub peers: Vec<RosenpassPeer>,
 
+    /// path to the file which provided this configuration
+    ///
+    /// This item is of course not read from the TOML but is added by the algorithm that parses
+    /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
 }
 
+/// ## TODO
+/// - replace this type with [`log::LevelFilter`], also see <https://github.com/rosenpass/rosenpass/pull/246>
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Verbosity {
     Quiet,
     Verbose,
 }
 
+/// ## TODO
+/// - examples
+/// - documentation
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RosenpassPeer {
+    /// path to the public key of the peer
     pub public_key: PathBuf,
+
+    /// ## TODO
+    /// - documentation
     pub endpoint: Option<String>,
+
+    /// path to the pre-shared key with the peer
+    ///
+    /// NOTE: this item can be skipped in the config if you do not use a pre-shared key with the peer
     pub pre_shared_key: Option<PathBuf>,
 
+    /// ## TODO
+    /// - documentation
     #[serde(default)]
     pub key_out: Option<PathBuf>,
 
-    // TODO make this field only available on binary builds, not on library builds
+    /// ## TODO
+    /// - documentation
+    /// - make this field only available on binary builds, not on library builds <https://github.com/rosenpass/rosenpass/issues/249>
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
 }
 
+/// ## TODO
+/// - documentation
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireGuard {
+    /// ## TODO
+    /// - documentation
     pub device: String,
+
+    /// ## TODO
+    /// - documentation
     pub peer: String,
 
+    /// ## TODO
+    /// - documentation
     #[serde(default)]
     pub extra_params: Vec<String>,
 }
 
 impl Rosenpass {
-    /// Load a config file from a file path
+    /// load configuration from a TOML file
     ///
-    /// no validation is conducted
+    /// NOTE: no validation is conducted, e.g. the paths specified in the configuration are not
+    /// checked whether they even exist.
+    ///
+    /// ## TODO
+    /// - consider using a different algorithm to determine home directory – the below one may
+    ///   behave unexpectedly on Windows
     pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
+        // read file and deserialize
         let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
 
+        // resolve `~` (see https://github.com/rosenpass/rosenpass/issues/237)
+        use util::resolve_path_with_tilde;
+        resolve_path_with_tilde(&mut config.public_key);
+        resolve_path_with_tilde(&mut config.secret_key);
+        for peer in config.peers.iter_mut() {
+            resolve_path_with_tilde(&mut peer.public_key);
+            if let Some(ref mut psk) = &mut peer.pre_shared_key {
+                resolve_path_with_tilde(psk);
+            }
+            if let Some(ref mut ko) = &mut peer.key_out {
+                resolve_path_with_tilde(ko);
+            }
+        }
+
+        // add path to "self"
         config.config_file_path = p.as_ref().to_owned();
+
+        // return
         Ok(config)
     }
 
@@ -83,18 +158,22 @@ impl Rosenpass {
     }
 
     /// Validate a configuration
+    ///
+    /// ## TODO
+    /// - check that files do not just exist but are also readable
+    /// - warn if neither out_key nor exchange_command of a peer is defined (v.i.)
     pub fn validate(&self) -> anyhow::Result<()> {
-        // check the public-key file exists
+        // check the public key file exists
         ensure!(
             self.public_key.is_file(),
-            "public-key file {:?} does not exist",
+            "could not find public-key file {:?}: no such file",
             self.public_key
         );
 
         // check the secret-key file exists
         ensure!(
             self.secret_key.is_file(),
-            "secret-key file {:?} does not exist",
+            "could not find secret-key file {:?}: no such file",
             self.secret_key
         );
 
@@ -439,5 +518,69 @@ mod test {
                 }
             ]
         )
+    }
+}
+
+pub mod util {
+    use std::path::PathBuf;
+    /// takes a path that can potentially start with a `~` and resolves that `~` to the user's home directory
+    ///
+    /// ## Example
+    /// ```
+    /// use rosenpass::config::util::resolve_path_with_tilde;
+    /// std::env::set_var("HOME","/home/dummy");
+    /// let mut path = std::path::PathBuf::from("~/foo.toml");
+    /// resolve_path_with_tilde(&mut path);
+    /// assert!(path == std::path::PathBuf::from("/home/dummy/foo.toml"));
+    /// ```
+    pub fn resolve_path_with_tilde(path: &mut PathBuf) {
+        if let Some(first_segment) = path.iter().next() {
+            if !path.has_root() && first_segment == "~" {
+                let home_dir = home::home_dir().unwrap_or_else(|| {
+                    log::error!("config file contains \"~\" but can not determine home diretory");
+                    std::process::exit(1);
+                });
+                let orig_path = path.clone();
+                path.clear();
+                path.push(home_dir);
+                for segment in orig_path.iter().skip(1) {
+                    path.push(segment);
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        #[test]
+        fn test_resolve_path_with_tilde() {
+            let test = |path_str: &str, resolved: &str| {
+                let mut path = PathBuf::from(path_str);
+                resolve_path_with_tilde(&mut path);
+                assert!(
+                    path == PathBuf::from(resolved),
+                    "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
+                    path_str,
+                    path,
+                    resolved
+                );
+            };
+            // set environment because otherwise the test result would depend on the system running this
+            std::env::set_var("USER", "dummy");
+            std::env::set_var("HOME", "/home/dummy");
+
+            // should resolve
+            test("~/foo.toml", "/home/dummy/foo.toml");
+            test("~//foo", "/home/dummy/foo");
+            test("~/../other_user/foo", "/home/dummy/../other_user/foo");
+
+            // should _not_ resolve
+            test("~foo/bar", "~foo/bar");
+            test(".~/foo", ".~/foo");
+            test("/~/foo.toml", "/~/foo.toml");
+            test(r"~\foo", r"~\foo");
+            test(r"C:\~\foo.toml", r"C:\~\foo.toml");
+        }
     }
 }
