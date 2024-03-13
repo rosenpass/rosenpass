@@ -119,10 +119,8 @@ pub struct CookieReplyInner {
     pub reserved: [u8; 3],
     /// Session ID of the sender (initiator)
     pub sid: [u8; 4],
-    /// Nonce
-    pub nonce: [u8; xaead::NONCE_LEN],
     /// Encrypted cookie with authenticated initiator `mac`
-    pub cookie_encrypted: [u8; MAC_SIZE + xaead::TAG_LEN],
+    pub cookie_encrypted: [u8; xaead::NONCE_LEN + COOKIE_SIZE + xaead::TAG_LEN],
 }
 
 #[repr(packed)]

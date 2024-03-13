@@ -917,7 +917,7 @@ impl CryptoServer {
         tx_buf: &mut [u8],
         host_identification: &[u8],
     ) -> Result<HandleMsgResult> {
-        let mut active_cookie_value: Option<[u8; 16]> = None;
+        let mut active_cookie_value: Option<[u8; COOKIE_SIZE]> = None;
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
@@ -975,10 +975,9 @@ impl CryptoServer {
 
         msg_out.inner.msg_type = MsgType::CookieReply.into();
         msg_out.inner.sid = rx_sid;
-        msg_out.inner.nonce = nonce.value;
 
         xaead::encrypt(
-            &mut msg_out.inner.cookie_encrypted,
+            &mut msg_out.inner.cookie_encrypted[..],
             &cookie_key,
             &nonce.value,
             &rx_mac,
@@ -1449,8 +1448,7 @@ impl IniHsPtr {
         }
 
         // Add cookie to retransmitted message
-        let mut envelope = Ref::<&mut [u8], Envelope<InitHello>>::new(tx_buf)
-            .ok_or(RosenpassError::BufferSizeMismatch)?;
+        let mut envelope = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
         envelope.seal_cookie(self.peer(), srv)?;
 
         Ok(ih_tx_len)
