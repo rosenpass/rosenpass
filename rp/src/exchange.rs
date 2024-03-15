@@ -158,6 +158,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     attr.push(WgDeviceAttrs::PrivateKey(wgsk));
 
     if let Some(listen) = options.listen {
+        if listen.port() == u16::MAX {
+            return Err(anyhow!("You may not use {} as the listen port.", u16::MAX));
+        }
+
         attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
 
