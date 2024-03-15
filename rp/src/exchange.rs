@@ -130,7 +130,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         protocol::{SPk, SSk, SymKey},
     };
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-    use zeroize::Zeroize;
+    use zeroize::{Zeroize, ZeroizeOnDrop};
 
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
@@ -156,7 +156,15 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     wgsk_b64.zeroize();
 
-    let mut wgsk: [u8; WG_KEY_LEN] = wgsk_maybe?.try_into().map_err(|_| anyhow!("WireGuard secret key is not {} bytes long.", WG_KEY_LEN))?;
+    let wgsk_maybe = wgsk_maybe?;
+
+    let mut wgsk: [u8; WG_KEY_LEN] = match wgsk_maybe.try_into() {
+        Ok(x) => x,
+        Err(mut wgsk_maybe) => {
+            wgsk_maybe.zeroize();
+            return Err(anyhow!("WireGuard secret key is not {} bytes long.", WG_KEY_LEN));
+        }
+    };
 
     let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
     attr.push(WgDeviceAttrs::PrivateKey(wgsk));
@@ -169,7 +177,13 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
 
-    netlink::wg_set(&mut genetlink, link_index, attr).await?;
+    match netlink::wg_set(&mut genetlink, link_index, attr).await {
+        Ok(_) => {},
+        Err(e) => {
+            wgsk.zeroize();
+            return Err(e);
+        }
+    }
 
     wgsk.zeroize();
 
