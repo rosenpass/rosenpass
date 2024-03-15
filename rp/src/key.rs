@@ -1,6 +1,7 @@
 use std::{
-    fs::{self, DirBuilder},
-    os::unix::fs::{DirBuilderExt, PermissionsExt},
+    fs::{self, DirBuilder, OpenOptions},
+    io::Write,
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
 
@@ -43,9 +44,17 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
 
     if !wgsk_path.exists() {
         let wgsk: Secret<32> = Secret::random();
-        fs::write(
-            wgsk_path,
-            base64::engine::general_purpose::STANDARD.encode(&wgsk.secret()),
+
+        let mut wgsk_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .mode(0o600)
+            .open(wgsk_path)?;
+
+        wgsk_file.write_all(
+            base64::engine::general_purpose::STANDARD
+                .encode(&wgsk.secret())
+                .as_bytes(),
         )?;
     } else {
         eprintln!(
@@ -58,8 +67,15 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
         let mut pqsk = SSk::random();
         let mut pqpk = SPk::random();
         StaticKem::keygen(pqsk.secret_mut(), pqpk.secret_mut())?;
-        pqsk.store_secret(pqsk_path)?;
         pqpk.store_secret(pqpk_path)?;
+
+        let mut pqsk_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .mode(0o600)
+            .open(pqsk_path)?;
+
+        pqsk_file.write_all(pqsk.secret())?;
     } else {
         eprintln!(
             "Rosenpass keys already exist in {:#?}: not regenerating",
