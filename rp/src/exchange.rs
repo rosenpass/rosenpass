@@ -149,10 +149,14 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     tokio::spawn(connection);
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
-    let mut wgsk: [u8; WG_KEY_LEN] = base64::engine::general_purpose::STANDARD
-        .decode(&read_to_string(wgsk_path)?)?
-        .try_into()
-        .map_err(|_| anyhow!("WireGuard secret key is not {} bytes long.", WG_KEY_LEN))?;
+
+    let mut wgsk_b64 = read_to_string(wgsk_path)?;
+
+    let wgsk_maybe = base64::engine::general_purpose::STANDARD.decode(&wgsk_b64);
+
+    wgsk_b64.zeroize();
+
+    let mut wgsk: [u8; WG_KEY_LEN] = wgsk_maybe?.try_into().map_err(|_| anyhow!("WireGuard secret key is not {} bytes long.", WG_KEY_LEN))?;
 
     let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
     attr.push(WgDeviceAttrs::PrivateKey(wgsk));
