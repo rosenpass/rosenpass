@@ -334,5 +334,5 @@ fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow
     let mut spk = crate::protocol::SPk::random();
     StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
     ssk.store_secret(secret_key)?;
-    spk.store_secret(public_key)
+    spk.store(public_key)
 }

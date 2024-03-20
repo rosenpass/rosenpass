@@ -16,6 +16,8 @@ use rosenpass_util::functional::mutating;
 use crate::alloc::{secret_box, SecretBox, SecretVec};
 use crate::file::StoreSecret;
 
+use rosenpass_util::file::{fopen_w, Visibility};
+use std::io::Write;
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
 // be reused…
@@ -272,7 +274,12 @@ impl<const N: usize> StoreSecret for Secret<N> {
     type Error = anyhow::Error;
 
     fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
+        fopen_w(path, Visibility::Secret)?.write_all(self.secret())?;
+        Ok(())
+    }
+
+    fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        fopen_w(path, Visibility::Public)?.write_all(self.secret())?;
         Ok(())
     }
 }
