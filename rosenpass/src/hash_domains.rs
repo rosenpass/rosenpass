@@ -31,6 +31,8 @@ pub fn protocol() -> Result<HashDomain> {
 
 hash_domain_ns!(protocol, mac, "mac");
 hash_domain_ns!(protocol, cookie, "cookie");
+hash_domain_ns!(protocol, cookie_value, "cookie-value");
+hash_domain_ns!(protocol, cookie_key, "cookie-key");
 hash_domain_ns!(protocol, peerid, "peer id");
 hash_domain_ns!(protocol, biscuit_ad, "biscuit additional data");
 hash_domain_ns!(protocol, ckinit, "chaining key init");
