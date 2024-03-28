@@ -71,17 +71,9 @@
               result = pkgs.lib.sources.cleanSourceWith { inherit src filter; };
             };
 
-            # builds a bin path for all dependencies for the `rp` shellscript
-            rpBinPath = p: with p; lib.makeBinPath [
-              coreutils
-              findutils
-              gawk
-              wireguard-tools
-            ];
-
             # a function to generate a nix derivation for rosenpass against any
             # given set of nixpkgs
-            rpDerivation = p:
+            rosenpassDerivation = p:
               let
                 # whether we want to build a statically linked binary
                 isStatic = p.targetPlatform.isStatic;
@@ -127,7 +119,6 @@
                     p.stdenv.cc
                     cmake # for oqs build in the oqs-sys crate
                     mandoc # for the built-in manual
-                    makeWrapper # for the rp shellscript
                     pkg-config # let libsodium-sys-stable find libsodium
                     removeReferencesTo
                     rustPlatform.bindgenHook # for C-bindings in the crypto libs
@@ -159,11 +150,112 @@
                     preBuild = (lib.optionalString isStatic ''
                       NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -lc"
                     '');
+                  };
 
-                    preInstall = ''
-                      install -D ${./rp} $out/bin/rp
-                      wrapProgram $out/bin/rp --prefix PATH : "${ rpBinPath p }"
-                    '';
+                  # We want to build for a specific target...
+                  CARGO_BUILD_TARGET = target;
+
+                  # ... which might require a non-default linker:
+                  "CARGO_TARGET_${shout target}_LINKER" =
+                    let
+                      inherit (p.stdenv) cc;
+                    in
+                    "${cc}/bin/${cc.targetPrefix}cc";
+
+                  meta = with pkgs.lib;
+                    {
+                      inherit (cargoToml.package) description homepage;
+                      license = with licenses; [ mit asl20 ];
+                      maintainers = [ maintainers.wucke13 ];
+                      platforms = platforms.all;
+                    };
+                } // (lib.mkIf isStatic {
+                # otherwise pkg-config tries to link non-existent dynamic libs
+                # documented here: https://docs.rs/pkg-config/latest/pkg_config/
+                PKG_CONFIG_ALL_STATIC = true;
+
+                # tell rust to build everything statically linked
+                CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+              });
+            # a function to generate a nix derivation for the rp helper against any
+            # given set of nixpkgs
+            rpDerivation = p:
+              let
+                # whether we want to build a statically linked binary
+                isStatic = p.targetPlatform.isStatic;
+
+                # the rust target of `p`
+                target = p.rust.toRustTargetSpec p.targetPlatform;
+
+                # convert a string to shout case
+                shout = string: builtins.replaceStrings [ "-" ] [ "_" ] (pkgs.lib.toUpper string);
+
+                # suitable Rust toolchain
+                toolchain = with inputs.fenix.packages.${system}; combine [
+                  stable.cargo
+                  stable.rustc
+                  targets.${target}.stable.rust-std
+                ];
+
+                # naersk with a custom toolchain
+                naersk = pkgs.callPackage inputs.naersk {
+                  cargo = toolchain;
+                  rustc = toolchain;
+                };
+
+                # used to trick the build.rs into believing that CMake was ran **again**
+                fakecmake = pkgs.writeScriptBin "cmake" ''
+                  #! ${pkgs.stdenv.shell} -e
+                  true
+                '';
+              in
+              naersk.buildPackage
+                {
+                  # metadata and source
+                  name = cargoToml.package.name;
+                  version = cargoToml.package.version;
+                  inherit src;
+
+                  cargoBuildOptions = x: x ++ [ "-p" "rp" ];
+                  cargoTestOptions = x: x ++ [ "-p" "rp" ];
+
+                  doCheck = true;
+
+                  nativeBuildInputs = with pkgs; [
+                    p.stdenv.cc
+                    cmake # for oqs build in the oqs-sys crate
+                    mandoc # for the built-in manual
+                    pkg-config # let libsodium-sys-stable find libsodium
+                    removeReferencesTo
+                    rustPlatform.bindgenHook # for C-bindings in the crypto libs
+                  ];
+                  buildInputs = with p; [ bash libsodium ];
+
+                  override = x: {
+                    preBuild =
+                      # nix defaults to building for aarch64 _without_ the armv8-a crypto
+                      # extensions, but liboqs depens on these
+                      (lib.optionalString (system == "aarch64-linux") ''
+                        NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
+                      ''
+                      );
+
+                    # fortify is only compatible with dynamic linking
+                    hardeningDisable = lib.optional isStatic "fortify";
+                  };
+
+                  overrideMain = x: {
+                    # CMake detects that it was served a _foreign_ target dir, and CMake
+                    # would be executed again upon the second build step of naersk.
+                    # By adding our specially optimized CMake version, we reduce the cost
+                    # of recompilation by 99 % while, while avoiding any CMake errors.
+                    nativeBuildInputs = [ (lib.hiPrio fakecmake) ] ++ x.nativeBuildInputs;
+
+                    # make sure that libc is linked, under musl this is not the case per
+                    # default
+                    preBuild = (lib.optionalString isStatic ''
+                      NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -lc"
+                    '');
                   };
 
                   # We want to build for a specific target...
@@ -205,7 +297,8 @@
           rec {
             packages = rec {
               default = rosenpass;
-              rosenpass = rpDerivation pkgs;
+              rosenpass = rosenpassDerivation pkgs;
+              rp = rpDerivation pkgs;
               rosenpass-oci-image = rosenpassOCI "rosenpass";
 
               # derivation for the release
@@ -216,6 +309,10 @@
                     if pkgs.hostPlatform.isLinux then
                       packages.rosenpass-static
                     else packages.rosenpass;
+                  rp =
+                    if pkgs.hostPlatform.isLinux then
+                      packages.rp-static
+                    else packages.rp;
                   oci-image =
                     if pkgs.hostPlatform.isLinux then
                       packages.rosenpass-static-oci-image
@@ -224,14 +321,15 @@
                 pkgs.runCommandNoCC "lace-result" { }
                   ''
                     mkdir {bin,$out}
-                    cp ${./.}/rp bin/
-                    tar -cvf $out/rosenpass-${system}-${version}.tar bin/rp \
-                      -C ${package} bin/rosenpass
+                    tar -cvf $out/rosenpass-${system}-${version}.tar \
+                      -C ${package} bin/rosenpass \
+                      -C ${rp} bin/rp
                     cp ${oci-image} \
                       $out/rosenpass-oci-image-${system}-${version}.tar.gz
                   '';
             } // (if pkgs.stdenv.isLinux then rec {
-              rosenpass-static = rpDerivation pkgs.pkgsStatic;
+              rosenpass-static = rosenpassDerivation pkgs.pkgsStatic;
+              rp-static = rpDerivation pkgs.pkgsStatic;
               rosenpass-static-oci-image = rosenpassOCI "rosenpass-static";
             } else { });
           }
