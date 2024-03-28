@@ -130,7 +130,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         protocol::{SPk, SSk, SymKey},
     };
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-    use zeroize::{Zeroize, ZeroizeOnDrop};
+    use zeroize::Zeroize;
 
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
