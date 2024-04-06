@@ -210,8 +210,8 @@ jobs:
     runs-on:
       - ubuntu-latest
     needs:
-      - x86_64-linux---rosenpass-static-oci-image
       - x86_64-linux---rosenpass-static
+      - x86_64-linux---rosenpass-static-oci-image
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
