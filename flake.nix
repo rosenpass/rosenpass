@@ -319,6 +319,7 @@
               cargo-release
               clippy
               nodePackages.prettier
+              nushell # for the .ci/gen-workflow-files.nu script
               rustfmt
               packages.proverif-patched
             ];
