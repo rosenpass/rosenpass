@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-use log *
+use std log
 
 # cd to git root
 cd (git rev-parse --show-toplevel)
@@ -116,6 +116,7 @@ for system in ($targets | columns) {
       } }
       | filter {|it| $it.needed}
       | each {|it| job-id $system $it.name}
+      | sort
     )
 
     mut new_job = {
