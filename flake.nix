@@ -1,5 +1,6 @@
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     flake-utils.url = "github:numtide/flake-utils";
 
     # for quicker rust builds
@@ -318,6 +319,7 @@
               cargo-release
               clippy
               nodePackages.prettier
+              nushell # for the .ci/gen-workflow-files.nu script
               rustfmt
               packages.proverif-patched
             ];
