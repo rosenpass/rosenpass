@@ -1,39 +1,33 @@
 // For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
 // https://github.com/microsoft/vscode-dev-containers/tree/master/containers/docker-existing-dockerfile
 {
-    "name": "devcontainer-project",
-    "dockerFile": "Dockerfile",
-    "context": "${localWorkspaceFolder}",
-    "build": {
-        "args": {
-            "USER_UID": "${localEnv:USER_UID}",
-            "USER_GID": "${localEnv:USER_GID}"
-        }
-    },
-
-    // run arguments passed to docker
-    "runArgs": [
-        "--security-opt",
-        "label=disable"
-    ],
-
-    // disable command overriding and updating remote user ID
-    "overrideCommand": false,
-    "userEnvProbe": "loginShell",
-    "updateRemoteUserUID": false,
-
-    // build development environment on creation, make sure you already have shell.nix
-    "onCreateCommand": "nix develop",
-
-    // Use 'forwardPorts' to make a list of ports inside the container available locally.
-    "forwardPorts": [],
-
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "rust-lang.rust-analyzer",
-                "tamasfe.even-better-toml"
-            ]
-        }
+  "name": "devcontainer-project",
+  "dockerFile": "Dockerfile",
+  "context": "${localWorkspaceFolder}",
+  "build": {
+    "args": {
+      "USER_UID": "${localEnv:USER_UID}",
+      "USER_GID": "${localEnv:USER_GID}"
     }
+  },
+
+  // run arguments passed to docker
+  "runArgs": ["--security-opt", "label=disable"],
+
+  // disable command overriding and updating remote user ID
+  "overrideCommand": false,
+  "userEnvProbe": "loginShell",
+  "updateRemoteUserUID": false,
+
+  // build development environment on creation, make sure you already have shell.nix
+  "onCreateCommand": "nix develop",
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  "forwardPorts": [],
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer", "tamasfe.even-better-toml"]
+    }
+  }
 }
