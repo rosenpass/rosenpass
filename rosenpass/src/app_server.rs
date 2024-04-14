@@ -4,7 +4,7 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
-use rosenpass_util::file::fopen_w;
+use rosenpass_util::file::{fopen_w, Visibility};
 
 use std::cell::Cell;
 use std::io::Write;
@@ -703,7 +703,7 @@ impl AppServer {
             // data will linger in the linux page cache anyways with the current
             // implementation, going to great length to erase the secret here is
             // not worth it right now.
-            b64_writer(fopen_w(of)?).write_all(key.secret())?;
+            b64_writer(fopen_w(of, Visibility::Secret)?).write_all(key.secret())?;
             let why = match why {
                 KeyOutputReason::Exchanged => "exchanged",
                 KeyOutputReason::Stale => "stale",

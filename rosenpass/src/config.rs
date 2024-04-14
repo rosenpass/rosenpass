@@ -16,7 +16,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure};
-use rosenpass_util::file::fopen_w;
+use rosenpass_util::file::{fopen_w, Visibility};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -151,7 +151,7 @@ impl Rosenpass {
 
     /// Commit the configuration to where it came from, overwriting the original file
     pub fn commit(&self) -> anyhow::Result<()> {
-        let mut f = fopen_w(&self.config_file_path)?;
+        let mut f = fopen_w(&self.config_file_path, Visibility::Public)?;
         f.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
 
         self.store(&self.config_file_path)

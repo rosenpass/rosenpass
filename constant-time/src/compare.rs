@@ -1,3 +1,18 @@
+use core::ptr;
+
+/// Little endian memcmp version of quinier/memsec
+/// https://github.com/quininer/memsec/blob/bbc647967ff6d20d6dccf1c85f5d9037fcadd3b0/src/lib.rs#L30
+#[inline(never)]
+pub unsafe fn memcmp_le(b1: *const u8, b2: *const u8, len: usize) -> i32 {
+    let mut res = 0;
+    for i in 0..len {
+        let diff =
+            i32::from(ptr::read_volatile(b1.add(i))) - i32::from(ptr::read_volatile(b2.add(i)));
+        res = (res & (((diff - 1) & !diff) >> 8)) | diff;
+    }
+    ((res - 1) >> 8) + (res >> 8) + 1
+}
+
 /// compares two slices of memory content and returns an integer indicating the relationship between
 /// the slices
 ///
@@ -20,5 +35,5 @@
 #[inline]
 pub fn compare(a: &[u8], b: &[u8]) -> i32 {
     assert!(a.len() == b.len());
-    unsafe { memsec::memcmp(a.as_ptr(), b.as_ptr(), a.len()) }
+    unsafe { memcmp_le(a.as_ptr(), b.as_ptr(), a.len()) }
 }
