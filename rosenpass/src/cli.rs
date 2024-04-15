@@ -6,8 +6,8 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use std::path::PathBuf;
 
-use crate::app_server::{self, AppServerTestFlags};
 use crate::app_server::AppServer;
+use crate::app_server::{self, AppServerTestFlags};
 use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
@@ -307,7 +307,7 @@ impl CliCommand {
             pk,
             config.listen,
             config.verbosity,
-            test_flags
+            test_flags,
         )?);
 
         for cfg_peer in config.peers {

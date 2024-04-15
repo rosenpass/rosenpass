@@ -507,7 +507,7 @@ impl AppServer {
             non_blocking_polls_count: 0,
             unpolled_count: 0,
             last_update_time: Instant::now(),
-            test_flags
+            test_flags,
         })
     }
 

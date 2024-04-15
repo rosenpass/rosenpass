@@ -166,7 +166,8 @@ fn check_exchange_under_dos() {
 
     let mut server_cmd = std::process::Command::new(BIN);
 
-    server_cmd.args(["exchange", "secret-key"])
+    server_cmd
+        .args(["exchange", "secret-key"])
         .arg(&secret_key_paths[0])
         .arg("public-key")
         .arg(&public_key_paths[0])
@@ -175,22 +176,24 @@ fn check_exchange_under_dos() {
         .arg("outfile")
         .arg(&shared_key_paths[0]);
 
-
-    let server_cmd: Vec<String> = server_cmd
-        .get_args()
-        .into_iter()
-        .fold(vec![BIN.to_string()], |mut acc, x| {
-            if let Some(s) = x.to_str() {
-                acc.push(s.to_string());
-            }
-            acc
-        });
+    let server_cmd: Vec<String> =
+        server_cmd
+            .get_args()
+            .into_iter()
+            .fold(vec![BIN.to_string()], |mut acc, x| {
+                if let Some(s) = x.to_str() {
+                    acc.push(s.to_string());
+                }
+                acc
+            });
 
     let mut server = procspawn::spawn(server_cmd, |server_cmd: Vec<String>| {
         let cli = CliArgs::try_parse_from(server_cmd.iter()).unwrap();
-        cli.command.run(AppServerTestFlags {
-            enable_dos_permanently: true,
-        }).unwrap();
+        cli.command
+            .run(AppServerTestFlags {
+                enable_dos_permanently: true,
+            })
+            .unwrap();
     });
 
     // start second process, the client
