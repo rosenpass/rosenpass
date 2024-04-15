@@ -34,13 +34,13 @@ use rosenpass_util::b64::{b64_writer, fmt_b64};
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
-#[cfg(feature = "integration_test")]
+#[cfg(feature = "integration_test_dos_exchange")]
 const UNDER_LOAD_RATIO: f64 = 0.001;
-#[cfg(feature = "integration_test")]
+#[cfg(feature = "integration_test_dos_exchange")]
 const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(10);
-#[cfg(not(feature = "integration_test"))]
+#[cfg(not(feature = "integration_test_dos_exchange"))]
 const UNDER_LOAD_RATIO: f64 = 0.5;
-#[cfg(not(feature = "integration_test"))]
+#[cfg(not(feature = "integration_test_dos_exchange"))]
 const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(100);
 
 fn ipv4_any_binding() -> SocketAddr {
@@ -830,12 +830,12 @@ impl AppServer {
                 0.0
             };
 
-            #[cfg(feature = "integration_test")]
+            #[cfg(feature = "integration_test_dos_exchange")]
             let prev_under_load = self.under_load;
             if load_ratio > UNDER_LOAD_RATIO {
                 self.under_load = DoSOperation::UnderLoad;
                 //Test feature- if under load goes to normal operation, write to file
-                #[cfg(feature = "integration_test")]
+                #[cfg(feature = "integration_test_dos_exchange")]
                 {
                     if prev_under_load == DoSOperation::Normal {
                         let sem_name = b"/rp_integration_test_under_dos\0";
@@ -853,7 +853,10 @@ impl AppServer {
                     }
                 }
             } else {
-                self.under_load = DoSOperation::Normal;
+                // Don't switch to normal operation if executing integration test for DoS exchange
+                if cfg!(not(feature = "integration_test_dos_exchange")) {
+                    self.under_load = DoSOperation::Normal;
+                }
             }
 
             self.blocking_polls_count = 0;

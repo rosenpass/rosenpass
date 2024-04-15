@@ -123,10 +123,23 @@ fn check_exchange_under_normal() {
     fs::remove_dir_all(&tmpdir).unwrap();
 }
 
-// check that we can exchange keys
-#[cfg(feature = "integration_test")]
+// check that we can trigger a DoS condition  and we can exchange keys under DoS
+// This test creates a responder (server) with the feature flag "integration_test_dos_exchange". The feature flag posts a semaphore
+// (linux) to indicate that the server is under load condition. It also modifies the responders behaviour to be permanently under DoS condition
+// once triggered, and makes the DoS mechanism more sensitive to be easily triggered.
+// The test also creates a thread to send UDP packets to the server to trigger the DoS condition. The test waits for the server to
+// be under load condition and then stops the DoS attack. The test then starts the client (initiator) to exchange keys. The test checks that the keys are exchanged successfully under load condition.
 #[test]
 fn check_exchange_under_dos() {
+    //Generate binary with responder with feature integration_test
+    let server_test_bin = test_binary::TestBinary::relative_to_parent(
+        "rp-it-dos",
+        &PathBuf::from_iter(["Cargo.toml"]),
+    )
+    .with_feature("integration_test_dos_exchange")
+    .build()
+    .unwrap();
+
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("exchange-dos");
     fs::create_dir_all(&tmpdir).unwrap();
 
@@ -164,7 +177,8 @@ fn check_exchange_under_dos() {
         }
     };
     let listen_addr = format!("localhost:{port}");
-    let mut server = test_bin::get_test_bin(BIN)
+    let mut server = std::process::Command::new(server_test_bin)
+        .args(["--log-level", "debug"])
         .args(["exchange", "secret-key"])
         .arg(&secret_key_paths[0])
         .arg("public-key")
@@ -226,8 +240,12 @@ fn check_exchange_under_dos() {
         panic!("Failed to wait for semaphore- load condition not reached");
     }
 
+    //Stop DoS attack
+    stop_dos_handle.store(true, std::sync::atomic::Ordering::Relaxed);
+
     // start second process, the client
     let mut client = test_bin::get_test_bin(BIN)
+        .args(["--log-level", "debug"])
         .args(["exchange", "secret-key"])
         .arg(&secret_key_paths[1])
         .arg("public-key")
@@ -248,7 +266,6 @@ fn check_exchange_under_dos() {
     // time's up, kill the childs
     server.kill().unwrap();
     client.kill().unwrap();
-    stop_dos_handle.store(true, std::sync::atomic::Ordering::Relaxed);
     dos_attack.join().unwrap();
 
     // read the shared keys they created

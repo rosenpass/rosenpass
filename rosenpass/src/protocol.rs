@@ -1498,12 +1498,13 @@ impl<M> Envelope<M>
 where
     M: AsBytes + FromBytes,
 {
-    /// Calculate the message authentication code (`mac`)
+    /// Calculate the message authentication code (`mac`) and also append cookie value
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         let mac = hash_domains::mac()?
             .mix(peer.get(srv).spkt.secret())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
+        self.seal_cookie(peer, srv)?;
         Ok(())
     }
 
