@@ -34,13 +34,7 @@ use rosenpass_util::b64::{b64_writer, fmt_b64};
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
-#[cfg(feature = "integration_test_dos_exchange")]
-const UNDER_LOAD_RATIO: f64 = 0.001;
-#[cfg(feature = "integration_test_dos_exchange")]
-const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(10);
-#[cfg(not(feature = "integration_test_dos_exchange"))]
 const UNDER_LOAD_RATIO: f64 = 0.5;
-#[cfg(not(feature = "integration_test_dos_exchange"))]
 const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(100);
 
 fn ipv4_any_binding() -> SocketAddr {
@@ -82,6 +76,12 @@ pub enum DoSOperation {
     UnderLoad,
     Normal,
 }
+/// Integration test flags for AppServer
+#[derive(Debug, Default)]
+pub struct AppServerTestFlags {
+    /// Enable DoS operation permanently
+    pub enable_dos_permanently: bool,
+}
 
 /// Holds the state of the application, namely the external IO
 ///
@@ -101,6 +101,7 @@ pub struct AppServer {
     pub non_blocking_polls_count: usize,
     pub unpolled_count: usize,
     pub last_update_time: Instant,
+    pub test_flags: AppServerTestFlags,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -407,6 +408,7 @@ impl AppServer {
         pk: SPk,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
+        test_flags: AppServerTestFlags,
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
@@ -505,6 +507,7 @@ impl AppServer {
             non_blocking_polls_count: 0,
             unpolled_count: 0,
             last_update_time: Instant::now(),
+            test_flags
         })
     }
 
@@ -816,52 +819,33 @@ impl AppServer {
             self.unpolled_count += 1;
         }
 
-        //Reset blocking poll count if waiting for more than BLOCKING_POLL_COUNT_DURATION
-        if self.last_update_time.elapsed() > DURATION_UPDATE_UNDER_LOAD_STATUS {
-            self.last_update_time = Instant::now();
-            let total_polls = self.blocking_polls_count + self.non_blocking_polls_count;
+        if self.test_flags.enable_dos_permanently {
+            self.under_load = DoSOperation::UnderLoad;
+        } else {
+            //Reset blocking poll count if waiting for more than BLOCKING_POLL_COUNT_DURATION
+            if self.last_update_time.elapsed() > DURATION_UPDATE_UNDER_LOAD_STATUS {
+                self.last_update_time = Instant::now();
+                let total_polls = self.blocking_polls_count + self.non_blocking_polls_count;
 
-            let load_ratio = if total_polls > 0 {
-                self.non_blocking_polls_count as f64 / total_polls as f64
-            } else if self.unpolled_count > 0 {
-                //There are no polls, so we are under load
-                1.0
-            } else {
-                0.0
-            };
+                let load_ratio = if total_polls > 0 {
+                    self.non_blocking_polls_count as f64 / total_polls as f64
+                } else if self.unpolled_count > 0 {
+                    //There are no polls, so we are under load
+                    1.0
+                } else {
+                    0.0
+                };
 
-            #[cfg(feature = "integration_test_dos_exchange")]
-            let prev_under_load = self.under_load;
-            if load_ratio > UNDER_LOAD_RATIO {
-                self.under_load = DoSOperation::UnderLoad;
-                //Test feature- if under load goes to normal operation, write to file
-                #[cfg(feature = "integration_test_dos_exchange")]
-                {
-                    if prev_under_load == DoSOperation::Normal {
-                        let sem_name = b"/rp_integration_test_under_dos\0";
-
-                        // Create or open a semaphore
-                        let sem = unsafe {
-                            libc::sem_open(sem_name.as_ptr() as *const i8, libc::O_CREAT, 0o644, 0)
-                        };
-                        if sem == libc::SEM_FAILED {
-                            panic!("Failed to create or open semaphore");
-                        }
-
-                        // Post semaphore
-                        unsafe { libc::sem_post(sem) };
-                    }
-                }
-            } else {
-                // Don't switch to normal operation if executing integration test for DoS exchange
-                if cfg!(not(feature = "integration_test_dos_exchange")) {
+                if load_ratio > UNDER_LOAD_RATIO {
+                    self.under_load = DoSOperation::UnderLoad;
+                } else {
                     self.under_load = DoSOperation::Normal;
                 }
-            }
 
-            self.blocking_polls_count = 0;
-            self.non_blocking_polls_count = 0;
-            self.unpolled_count = 0;
+                self.blocking_polls_count = 0;
+                self.non_blocking_polls_count = 0;
+                self.unpolled_count = 0;
+            }
         }
 
         // drain all sockets

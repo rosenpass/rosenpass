@@ -1,6 +1,6 @@
 use clap::Parser;
 use log::error;
-use rosenpass::cli::CliArgs;
+use rosenpass::{app_server::AppServerTestFlags, cli::CliArgs};
 use std::process::exit;
 
 /// Catches errors, prints them through the logger, then exits
@@ -26,7 +26,7 @@ pub fn main() {
         // error!("error dummy");
     }
 
-    match args.command.run() {
+    match args.command.run(AppServerTestFlags::default()) {
         Ok(_) => {}
         Err(e) => {
             error!("{e}");

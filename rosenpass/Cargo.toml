@@ -13,11 +13,6 @@ readme = "readme.md"
 name = "rosenpass"
 path = "src/main.rs"
 
-[[bin]]
-name = "rp-it-dos"
-required-features = ["integration_test_dos_exchange"]
-path = "src/main.rs"
-
 [[bench]]
 name = "handshake"
 harness = false
@@ -41,7 +36,6 @@ toml = { workspace = true }
 clap = { workspace = true }
 mio = { workspace = true }
 rand = { workspace = true }
-libc={workspace = true,optional=true}
 zerocopy = { workspace = true }
 home = { workspace = true }
 
@@ -51,9 +45,5 @@ anyhow = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 test_bin = { workspace = true }
-test-binary = { workspace = true }
 stacker = { workspace = true }
-libc = { workspace = true}
-
-[features]
-integration_test_dos_exchange = ["dep:libc"]
+procspawn = {workspace = true}

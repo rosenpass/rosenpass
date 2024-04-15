@@ -6,7 +6,7 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use std::path::PathBuf;
 
-use crate::app_server;
+use crate::app_server::{self, AppServerTestFlags};
 use crate::app_server::AppServer;
 use crate::protocol::{SPk, SSk, SymKey};
 
@@ -150,7 +150,7 @@ impl CliCommand {
     ///
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
-    pub fn run(self) -> anyhow::Result<()> {
+    pub fn run(self, test_flags: AppServerTestFlags) -> anyhow::Result<()> {
         use CliCommand::*;
         match self {
             Man => {
@@ -257,7 +257,7 @@ impl CliCommand {
 
                 let config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(config, test_flags)?;
             }
 
             Exchange {
@@ -274,7 +274,7 @@ impl CliCommand {
                     config.config_file_path = p;
                 }
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(config, test_flags)?;
             }
 
             Validate { config_files } => {
@@ -296,7 +296,7 @@ impl CliCommand {
         Ok(())
     }
 
-    fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
+    fn event_loop(config: config::Rosenpass, test_flags: AppServerTestFlags) -> anyhow::Result<()> {
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -307,6 +307,7 @@ impl CliCommand {
             pk,
             config.listen,
             config.verbosity,
+            test_flags
         )?);
 
         for cfg_peer in config.peers {
