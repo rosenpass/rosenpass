@@ -2,6 +2,7 @@ use std::{fs, net::UdpSocket, path::PathBuf, process::Stdio, time::Duration};
 
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestFlags, cli::CliArgs};
+use serial_test::serial;
 
 const BIN: &str = "rosenpass";
 
@@ -42,6 +43,7 @@ fn find_udp_socket() -> Option<u16> {
 
 // check that we can exchange keys
 #[test]
+#[serial]
 fn check_exchange_under_normal() {
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("exchange");
     fs::create_dir_all(&tmpdir).unwrap();
@@ -129,6 +131,7 @@ fn check_exchange_under_normal() {
 // check that we can trigger a DoS condition  and we can exchange keys under DoS
 // This test creates a responder (server) with the feature flag "integration_test_always_under_load" to always be under load condition for the test.
 #[test]
+#[serial]
 fn check_exchange_under_dos() {
     procspawn::init();
 
