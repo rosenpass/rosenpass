@@ -1,7 +1,13 @@
-use std::{fs, net::UdpSocket, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    fs, net::UdpSocket, os::unix::thread::JoinHandleExt, path::PathBuf, process::Stdio,
+    time::Duration,
+};
 
 use clap::Parser;
-use rosenpass::{app_server::AppServerTestFlags, cli::CliArgs};
+use rosenpass::{
+    app_server::{AppServerTest, AppServerTestBuilder},
+    cli::CliArgs,
+};
 use serial_test::serial;
 
 const BIN: &str = "rosenpass";
@@ -190,12 +196,18 @@ fn check_exchange_under_dos() {
                 acc
             });
 
-    let mut server = procspawn::spawn(server_cmd, |server_cmd: Vec<String>| {
+    let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
+
+    let mut server = std::thread::spawn(move || {
         let cli = CliArgs::try_parse_from(server_cmd.iter()).unwrap();
         cli.command
-            .run(AppServerTestFlags {
-                enable_dos_permanently: true,
-            })
+            .run(Some(
+                AppServerTestBuilder::default()
+                    .enable_dos_permanently(true)
+                    .terminate(Some(server_terminate_rx))
+                    .build()
+                    .unwrap(),
+            ))
             .unwrap();
     });
 
@@ -219,7 +231,7 @@ fn check_exchange_under_dos() {
     std::thread::sleep(Duration::from_secs(10));
 
     // time's up, kill the childs
-    server.kill().unwrap();
+    server_terminate.send(()).unwrap();
     client.kill().unwrap();
 
     // read the shared keys they created

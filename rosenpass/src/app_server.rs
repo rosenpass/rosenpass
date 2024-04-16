@@ -1,6 +1,7 @@
 use anyhow::bail;
 
 use anyhow::Result;
+use derive_builder::Builder;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
@@ -76,11 +77,14 @@ pub enum DoSOperation {
     UnderLoad,
     Normal,
 }
-/// Integration test flags for AppServer
-#[derive(Debug, Default)]
-pub struct AppServerTestFlags {
+/// Integration test helpers for AppServer
+#[derive(Debug, Builder)]
+#[builder(pattern = "owned")]
+pub struct AppServerTest {
     /// Enable DoS operation permanently
     pub enable_dos_permanently: bool,
+    /// Terminate application signal
+    pub terminate: Option<std::sync::mpsc::Receiver<()>>,
 }
 
 /// Holds the state of the application, namely the external IO
@@ -101,7 +105,7 @@ pub struct AppServer {
     pub non_blocking_polls_count: usize,
     pub unpolled_count: usize,
     pub last_update_time: Instant,
-    pub test_flags: AppServerTestFlags,
+    pub test_helpers: Option<AppServerTest>,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -408,7 +412,7 @@ impl AppServer {
         pk: SPk,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
-        test_flags: AppServerTestFlags,
+        test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
@@ -507,7 +511,7 @@ impl AppServer {
             non_blocking_polls_count: 0,
             unpolled_count: 0,
             last_update_time: Instant::now(),
-            test_flags,
+            test_helpers,
         })
     }
 
@@ -598,6 +602,17 @@ impl AppServer {
             use crate::protocol::HandleMsgResult;
             use AppPollResult::*;
             use KeyOutputReason::*;
+
+            if let Some(AppServerTest {
+                terminate: Some(terminate),
+                ..
+            }) = &self.test_helpers
+            {
+                if let Ok(_) = terminate.try_recv() {
+                    return Ok(());
+                }
+            }
+
             match self.poll(&mut *rx)? {
                 #[allow(clippy::redundant_closure_call)]
                 SendInitiation(peer) => tx_maybe_with!(peer, || self
@@ -819,7 +834,11 @@ impl AppServer {
             self.unpolled_count += 1;
         }
 
-        if self.test_flags.enable_dos_permanently {
+        if let Some(AppServerTest {
+            enable_dos_permanently: true,
+            ..
+        }) = self.test_helpers
+        {
             self.under_load = DoSOperation::UnderLoad;
         } else {
             //Reset blocking poll count if waiting for more than BLOCKING_POLL_COUNT_DURATION
