@@ -435,7 +435,7 @@ impl HostPathDiscoveryEndpoint {
                     .to_string()
                     .starts_with("Address family not supported by protocol");
                 if !ignore {
-                    warn!("Socket #{} refusing to send to {}: ", sock_no, addr);
+                    warn!("Socket #{} refusing to send to {}: {}", sock_no, addr, err);
                 }
             }
         }
