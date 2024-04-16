@@ -35,7 +35,7 @@ fn generate_keys() {
 
 fn find_udp_socket() -> Option<u16> {
     for port in 1025..=u16::MAX {
-        if UdpSocket::bind(("0.0.0.0", port)).is_ok() {
+        if UdpSocket::bind(("::1", port)).is_ok() {
             return Some(port);
         }
     }
@@ -150,7 +150,7 @@ fn check_exchange_under_normal() {
         }
     };
 
-    let listen_addr = format!("0.0.0.0:{port}");
+    let listen_addr = format!("::1:{port}");
     let mut server_cmd = std::process::Command::new(BIN);
 
     server_cmd
@@ -223,7 +223,7 @@ fn check_exchange_under_dos() {
         }
     };
 
-    let listen_addr = format!("0.0.0.0:{port}");
+    let listen_addr = format!("::1:{port}");
 
     let mut server_cmd = std::process::Command::new(BIN);
 
