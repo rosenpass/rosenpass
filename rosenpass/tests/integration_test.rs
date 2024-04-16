@@ -199,6 +199,8 @@ fn check_exchange_under_dos() {
             .unwrap();
     });
 
+    std::thread::sleep(Duration::from_millis(500));
+
     // start second process, the client
     let mut client = test_bin::get_test_bin(BIN)
         .args(["exchange", "secret-key"])
