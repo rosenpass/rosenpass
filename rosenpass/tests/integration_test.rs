@@ -1,4 +1,10 @@
-use std::{fs::{self, write}, net::UdpSocket, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    fs::{self, write},
+    net::UdpSocket,
+    path::PathBuf,
+    process::Stdio,
+    time::Duration,
+};
 
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
@@ -137,9 +143,15 @@ fn check_exchange_under_dos() {
     let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
     log_builder.filter_level(log::LevelFilter::Debug);
     log_builder.format_timestamp_nanos();
-    log_builder.format(|buf, record|  {
+    log_builder.format(|buf, record| {
         let ts_format = buf.timestamp_nanos().to_string();
-        writeln!(buf, "\x1b[1m{:?}\x1b[0m {}: {}", std::thread::current().id(), &ts_format[18..], record.args())
+        writeln!(
+            buf,
+            "\x1b[1m{:?}\x1b[0m {}: {}",
+            std::thread::current().id(),
+            &ts_format[18..],
+            record.args()
+        )
     });
 
     let _ = log_builder.try_init();

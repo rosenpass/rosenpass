@@ -218,7 +218,7 @@ pub struct SocketBoundEndpoint {
     /// Just the address
     addr: SocketAddr,
     /// identifier
-    bytes: (usize,[u8;SocketBoundEndpoint::BUFFER_SIZE])
+    bytes: (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]),
 }
 
 impl std::fmt::Display for SocketBoundEndpoint {
@@ -237,7 +237,7 @@ impl SocketBoundEndpoint {
         + SocketBoundEndpoint::IPV6_SIZE
         + SocketBoundEndpoint::PORT_SIZE
         + SocketBoundEndpoint::SCOPE_ID_SIZE;
-    
+
     pub fn new(socket: SocketPtr, addr: SocketAddr) -> Self {
         let bytes = Self::to_bytes(&socket, &addr);
         Self {
@@ -247,7 +247,10 @@ impl SocketBoundEndpoint {
         }
     }
 
-    fn to_bytes(socket: &SocketPtr, addr: &SocketAddr) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
+    fn to_bytes(
+        socket: &SocketPtr,
+        addr: &SocketAddr,
+    ) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
         let mut buf = [0u8; SocketBoundEndpoint::BUFFER_SIZE];
         let addr = match addr {
             SocketAddr::V4(addr) => {
@@ -258,8 +261,7 @@ impl SocketBoundEndpoint {
             SocketAddr::V6(addr) => addr.clone(),
         };
         let mut len: usize = 0;
-        buf[len..len + SocketBoundEndpoint::SOCKET_SIZE]
-            .copy_from_slice(&socket.0.to_be_bytes());
+        buf[len..len + SocketBoundEndpoint::SOCKET_SIZE].copy_from_slice(&socket.0.to_be_bytes());
         len += SocketBoundEndpoint::SOCKET_SIZE;
         buf[len..len + SocketBoundEndpoint::IPV6_SIZE].copy_from_slice(&addr.ip().octets());
         len += SocketBoundEndpoint::IPV6_SIZE;
@@ -724,8 +726,7 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                self.crypt
-                    .handle_msg_under_load(&rx, &mut *tx, socket)
+                self.crypt.handle_msg_under_load(&rx, &mut *tx, socket)
             }
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")

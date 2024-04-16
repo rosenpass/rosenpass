@@ -932,7 +932,7 @@ impl CryptoServer {
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
-        let msg_type : Result<MsgType,_> = rx_buf[0].try_into();
+        let msg_type: Result<MsgType, _> = rx_buf[0].try_into();
 
         for cookie_secret in self.active_or_retired_cookie_secrets() {
             if let Some(cookie_secret) = cookie_secret {
@@ -963,7 +963,11 @@ impl CryptoServer {
 
                 //If valid cookie is found, process message
                 if constant_time::memcmp(&rx_cookie, &expected) {
-                    log::debug!("Rx {:?} from {} under load, valid cookie", msg_type, host_identification);
+                    log::debug!(
+                        "Rx {:?} from {} under load, valid cookie",
+                        msg_type,
+                        host_identification
+                    );
                     let result = self.handle_msg(rx_buf, tx_buf)?;
                     return Ok(result);
                 }
@@ -977,7 +981,11 @@ impl CryptoServer {
             bail!("No active cookie value found");
         }
 
-        log::debug!("Rx {:?} from {} under load, tx cookie reply message", msg_type, host_identification);
+        log::debug!(
+            "Rx {:?} from {} under load, tx cookie reply message",
+            msg_type,
+            host_identification
+        );
 
         let cookie_value = active_cookie_value.unwrap();
         let cookie_key = hash_domains::cookie_key()?
