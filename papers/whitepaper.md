@@ -431,17 +431,17 @@ ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This i
 
 ### Denial of Service Mitigation and Cookies
 
-Rosenpass derives its cookie-based DoS mitigation technique for a responder from Wireguard [@wg]. 
+Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from Wireguard [@wg]. 
 
-When the responder is under load, it may choose to not process further handshake messages, but instead to respond with a cookie reply message (see Figure \ref{img:MessageTypes}). 
+When the responder is under load, it may choose to not process further InitHello handshake messages, but instead to respond with a cookie reply message (see Figure \ref{img:MessageTypes}).
 
 The sender of the exchange then uses this cookie in order to resend the message and have it accepted the following time by the reciever. 
 
-For an initiator, Rosenpass ignores the message when under load.
+For an initiator, Rosenpass ignores all messages when under load.
 
 #### Cookie Reply Message
 
-The cookie reply message is sent by the responder when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field which consists of the following:
+The cookie reply message is sent by the responder on receiving an InitHello message when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field which consists of the following:
 
 ```pseudorust
 cookie_value = lhash("cookie-value", cookie_secret, initiator_host_info)[0..16]
@@ -464,7 +464,7 @@ If a client receives an invalid `mac` value for any message, it will discard the
 
 #### Envelope cookie field
 
-The initiator, on receiving a CookieReply message, decrypts `cookie_encrypted` and stores the `cookie_value` for the session into `peer[sid].cookie_value` for a limited time (120 seconds). This value is then used to set `cookie` field set for subsequent messages and retransmissions to the responderas follows:
+The initiator, on receiving a CookieReply message, decrypts `cookie_encrypted` and stores the `cookie_value` for the session into `peer[sid].cookie_value` for a limited time (120 seconds). This value is then used to set `cookie` field set for subsequent messages and retransmissions to the responder as follows:
 
 ```pseudorust
 if (peer.cookie_value.is_none()  ||  seconds_since_update(peer[sid].cookie_value) >= 120) {
@@ -478,7 +478,7 @@ else {
 Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
 
 The inititator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
-However, when the responder is under load, it may reject messages with the invalid `cookie` value, and issue a cookie reply message. 
+However, when the responder is under load, it may reject InitHello messages with the invalid `cookie` value, and issue a cookie reply message. 
 
 ### Conditions to trigger DoS Mechanism
 
@@ -507,7 +507,9 @@ The cookie reply system does not interfere with the retransmission logic discuss
 
 When the initator is under load, it will ignore processing any incoming messages.
 
-When a responder is under load, the recieved handshake message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello or InitConf message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
+When a responder is under load and it receives an InitHello handshake message, the InitHello message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
+
+When the responder is under load and it recieves an InitConf message, the message will be directly processed without checking the validity of the cookie field.
 
 # Changelog
 
