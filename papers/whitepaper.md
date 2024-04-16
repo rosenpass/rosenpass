@@ -219,6 +219,7 @@ The server needs to store the following variables:
 * `spkm`
 * `biscuit_key` – Randomly chosen key used to encrypt biscuits
 * `biscuit_ctr` – Retransmission protection for biscuits
+* `cookie_secret`- A randomized cookie secret to derive cookies sent to peer when under load. This secret changes every 120 seconds
 
 Not mandated per se, but required in practice:
 
@@ -244,6 +245,7 @@ The initiator stores the following local state for each ongoing handshake:
 * `ck` – The chaining key
 * `eski` – The initiator's ephemeral secret key
 * `epki` – The initiator's ephemeral public key
+* `cookie_value`- Cookie value sent by an initiator peer under load, used to compute cookie field in outgoing handshake to peer under load. This value expires 120 seconds from when a peer sends this value using the CookieReply message
 
 The responder stores no state. While the responder has access to all of the above variables except for `eski`, the responder discards them after generating the RespHello message. Instead, the responder state is contained inside a cookie called a biscuit. This value is returned to the responder inside the InitConf packet. The biscuit consists of:
 
