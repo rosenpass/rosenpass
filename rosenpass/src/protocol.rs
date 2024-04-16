@@ -65,14 +65,18 @@
 //! # }
 //! ```
 
-use std::collections::hash_map::{
-    Entry::{Occupied, Vacant},
-    HashMap,
-};
 use std::convert::Infallible;
 use std::mem::size_of;
+use std::{
+    collections::hash_map::{
+        Entry::{Occupied, Vacant},
+        HashMap,
+    },
+    fmt::Display,
+};
 
 use anyhow::{bail, ensure, Context, Result};
+use mio::net::SocketAddr;
 use rand::Fill as Randomize;
 
 use memoffset::span_of;
@@ -902,6 +906,12 @@ pub struct HandleMsgResult {
     pub resp: Option<usize>,
 }
 
+/// Trait for host identification types
+pub trait HostIdentification: Display {
+    // Byte slice representing the host identification encoding
+    fn encode(&self) -> &[u8];
+}
+
 impl CryptoServer {
     /// Process a message under load
     /// This is one of the main entry point for the protocol.
@@ -911,16 +921,18 @@ impl CryptoServer {
     /// message for sender to process and verify for messages part of the handshake phase
     /// (i.e. InitHello, InitConf messages only). Bails on messages sent by responder and
     /// non-handshake messages.
-    pub fn handle_msg_under_load(
+
+    pub fn handle_msg_under_load<H: HostIdentification>(
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        host_identification: &[u8],
+        host_identification: &H,
     ) -> Result<HandleMsgResult> {
         let mut active_cookie_value: Option<[u8; COOKIE_SIZE]> = None;
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
+        let msg_type : Result<MsgType,_> = rx_buf[0].try_into();
 
         for cookie_secret in self.active_or_retired_cookie_secrets() {
             if let Some(cookie_secret) = cookie_secret {
@@ -929,7 +941,7 @@ impl CryptoServer {
                 cookie_value.copy_from_slice(
                     &hash_domains::cookie_value()?
                         .mix(cookie_secret)?
-                        .mix(&host_identification)?
+                        .mix(host_identification.encode())?
                         .into_value()[..16],
                 );
 
@@ -951,6 +963,7 @@ impl CryptoServer {
 
                 //If valid cookie is found, process message
                 if constant_time::memcmp(&rx_cookie, &expected) {
+                    log::debug!("Rx {:?} from {} under load, valid cookie", msg_type, host_identification);
                     let result = self.handle_msg(rx_buf, tx_buf)?;
                     return Ok(result);
                 }
@@ -963,6 +976,8 @@ impl CryptoServer {
         if active_cookie_value.is_none() {
             bail!("No active cookie value found");
         }
+
+        log::debug!("Rx {:?} from {} under load, tx cookie reply message", msg_type, host_identification);
 
         let cookie_value = active_cookie_value.unwrap();
         let cookie_key = hash_domains::cookie_key()?
@@ -1083,7 +1098,11 @@ impl CryptoServer {
 
         ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
 
-        let peer = match rx_buf[0].try_into() {
+        let msg_type = rx_buf[0].try_into();
+
+        log::debug!("Rx {:?}, processing", msg_type);
+
+        let peer = match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
                     Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
@@ -2134,6 +2153,26 @@ mod test {
 
     use super::*;
 
+    struct VecHostIdentifier(Vec<u8>);
+
+    impl HostIdentification for VecHostIdentifier {
+        fn encode(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl Display for VecHostIdentifier {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self.0)
+        }
+    }
+
+    impl From<Vec<u8>> for VecHostIdentifier {
+        fn from(v: Vec<u8>) -> Self {
+            VecHostIdentifier(v)
+        }
+    }
+
     #[test]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
@@ -2243,6 +2282,8 @@ mod test {
 
             ip_addr_port_a.extend_from_slice(&socket_addr_a.port().to_be_bytes());
 
+            let ip_addr_port_a: VecHostIdentifier = ip_addr_port_a.into();
+
             //B handles handshake under load, should send cookie reply message with invalid cookie
             let HandleMsgResult { resp, .. } = b
                 .handle_msg_under_load(
@@ -2270,7 +2311,7 @@ mod test {
                         .secret(),
                 )
                 .unwrap()
-                .mix(&ip_addr_port_a)
+                .mix(&ip_addr_port_a.encode())
                 .unwrap()
                 .into_value()[..16]
                 .to_vec();
@@ -2355,12 +2396,15 @@ mod test {
                 .copy_from_slice(&socket_addr_b.port().to_be_bytes());
             ip_addr_port_b_len += 2;
 
+            let ip_addr_port_b: VecHostIdentifier =
+                ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
+
             //A handles RespHello message under load, should not send cookie reply
             assert!(a
                 .handle_msg_under_load(
                     &b_to_a_buf[..resp_hello_len],
                     &mut *a_to_b_buf,
-                    &ip_addr_port_b[..ip_addr_port_b_len]
+                    &ip_addr_port_b
                 )
                 .is_err());
         });

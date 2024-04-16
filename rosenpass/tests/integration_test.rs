@@ -1,14 +1,9 @@
-use std::{
-    fs, net::UdpSocket, os::unix::thread::JoinHandleExt, path::PathBuf, process::Stdio,
-    time::Duration,
-};
+use std::{fs::{self, write}, net::UdpSocket, path::PathBuf, process::Stdio, time::Duration};
 
 use clap::Parser;
-use rosenpass::{
-    app_server::{AppServerTest, AppServerTestBuilder},
-    cli::CliArgs,
-};
+use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
 use serial_test::serial;
+use std::io::Write;
 
 const BIN: &str = "rosenpass";
 
@@ -139,7 +134,15 @@ fn check_exchange_under_normal() {
 #[test]
 #[serial]
 fn check_exchange_under_dos() {
-    procspawn::init();
+    let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
+    log_builder.filter_level(log::LevelFilter::Debug);
+    log_builder.format_timestamp_nanos();
+    log_builder.format(|buf, record|  {
+        let ts_format = buf.timestamp_nanos().to_string();
+        writeln!(buf, "\x1b[1m{:?}\x1b[0m {}: {}", std::thread::current().id(), &ts_format[18..], record.args())
+    });
+
+    let _ = log_builder.try_init();
 
     //Generate binary with responder with feature integration_test
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("exchange-dos");
@@ -185,26 +188,21 @@ fn check_exchange_under_dos() {
         .arg("outfile")
         .arg(&shared_key_paths[0]);
 
-    let server_cmd: Vec<String> =
-        server_cmd
-            .get_args()
-            .into_iter()
-            .fold(vec![BIN.to_string()], |mut acc, x| {
-                if let Some(s) = x.to_str() {
-                    acc.push(s.to_string());
-                }
-                acc
-            });
-
     let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
 
-    let mut server = std::thread::spawn(move || {
-        let cli = CliArgs::try_parse_from(server_cmd.iter()).unwrap();
+    let cli = CliArgs::try_parse_from(
+        [server_cmd.get_program()]
+            .into_iter()
+            .chain(server_cmd.get_args()),
+    )
+    .unwrap();
+
+    std::thread::spawn(move || {
         cli.command
             .run(Some(
                 AppServerTestBuilder::default()
                     .enable_dos_permanently(true)
-                    .terminate(Some(server_terminate_rx))
+                    .termination_handler(Some(server_terminate_rx))
                     .build()
                     .unwrap(),
             ))
@@ -214,7 +212,8 @@ fn check_exchange_under_dos() {
     std::thread::sleep(Duration::from_millis(500));
 
     // start second process, the client
-    let mut client = test_bin::get_test_bin(BIN)
+    let mut client_cmd = std::process::Command::new(BIN);
+    client_cmd
         .args(["exchange", "secret-key"])
         .arg(&secret_key_paths[1])
         .arg("public-key")
@@ -223,16 +222,34 @@ fn check_exchange_under_dos() {
         .arg(&public_key_paths[0])
         .args(["endpoint", &listen_addr])
         .arg("outfile")
-        .arg(&shared_key_paths[1])
-        .spawn()
-        .expect("Failed to start {BIN}");
+        .arg(&shared_key_paths[1]);
+
+    let (client_terminate, client_terminate_rx) = std::sync::mpsc::channel();
+
+    let cli = CliArgs::try_parse_from(
+        [client_cmd.get_program()]
+            .into_iter()
+            .chain(client_cmd.get_args()),
+    )
+    .unwrap();
+
+    std::thread::spawn(move || {
+        cli.command
+            .run(Some(
+                AppServerTestBuilder::default()
+                    .termination_handler(Some(client_terminate_rx))
+                    .build()
+                    .unwrap(),
+            ))
+            .unwrap();
+    });
 
     // give them some time to do the key exchange under load
     std::thread::sleep(Duration::from_secs(10));
 
     // time's up, kill the childs
     server_terminate.send(()).unwrap();
-    client.kill().unwrap();
+    client_terminate.send(()).unwrap();
 
     // read the shared keys they created
     let shared_keys: Vec<_> = shared_key_paths

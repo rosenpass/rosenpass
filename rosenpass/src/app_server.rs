@@ -1,6 +1,7 @@
 use anyhow::bail;
 
 use anyhow::Result;
+use clap::builder;
 use derive_builder::Builder;
 use log::{debug, error, info, warn};
 use mio::Interest;
@@ -17,6 +18,7 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
 use std::net::ToSocketAddrs;
+use std::path::Display;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -25,6 +27,7 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::protocol::HostIdentification;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
@@ -82,9 +85,11 @@ pub enum DoSOperation {
 #[builder(pattern = "owned")]
 pub struct AppServerTest {
     /// Enable DoS operation permanently
+    #[builder(default = "false")]
     pub enable_dos_permanently: bool,
     /// Terminate application signal
-    pub terminate: Option<std::sync::mpsc::Receiver<()>>,
+    #[builder(default = "None")]
+    pub termination_handler: Option<std::sync::mpsc::Receiver<()>>,
 }
 
 /// Holds the state of the application, namely the external IO
@@ -196,13 +201,24 @@ pub enum Endpoint {
     Discovery(HostPathDiscoveryEndpoint),
 }
 
+impl std::fmt::Display for Endpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Endpoint::SocketBoundAddress(host) => write!(f, "{}", host),
+            Endpoint::Discovery(host) => write!(f, "{}", host),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SocketBoundEndpoint {
     /// The socket the address can be reached under; this is generally
     /// determined when we actually receive an RespHello message
-    pub socket: SocketPtr,
+    socket: SocketPtr,
     /// Just the address
-    pub addr: SocketAddr,
+    addr: SocketAddr,
+    /// identifier
+    bytes: (usize,[u8;SocketBoundEndpoint::BUFFER_SIZE])
 }
 
 impl std::fmt::Display for SocketBoundEndpoint {
@@ -221,19 +237,29 @@ impl SocketBoundEndpoint {
         + SocketBoundEndpoint::IPV6_SIZE
         + SocketBoundEndpoint::PORT_SIZE
         + SocketBoundEndpoint::SCOPE_ID_SIZE;
-    pub fn to_bytes(&self) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
+    
+    pub fn new(socket: SocketPtr, addr: SocketAddr) -> Self {
+        let bytes = Self::to_bytes(&socket, &addr);
+        Self {
+            socket,
+            addr,
+            bytes,
+        }
+    }
+
+    fn to_bytes(socket: &SocketPtr, addr: &SocketAddr) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
         let mut buf = [0u8; SocketBoundEndpoint::BUFFER_SIZE];
-        let addr = match self.addr {
+        let addr = match addr {
             SocketAddr::V4(addr) => {
                 //Map IPv4-mapped to IPv6 addresses
                 let ip = addr.ip().to_ipv6_mapped();
                 SocketAddrV6::new(ip, addr.port(), 0, 0)
             }
-            SocketAddr::V6(addr) => addr,
+            SocketAddr::V6(addr) => addr.clone(),
         };
         let mut len: usize = 0;
         buf[len..len + SocketBoundEndpoint::SOCKET_SIZE]
-            .copy_from_slice(&self.socket.0.to_be_bytes());
+            .copy_from_slice(&socket.0.to_be_bytes());
         len += SocketBoundEndpoint::SOCKET_SIZE;
         buf[len..len + SocketBoundEndpoint::IPV6_SIZE].copy_from_slice(&addr.ip().octets());
         len += SocketBoundEndpoint::IPV6_SIZE;
@@ -243,6 +269,12 @@ impl SocketBoundEndpoint {
             .copy_from_slice(&addr.scope_id().to_be_bytes());
         len += SocketBoundEndpoint::SCOPE_ID_SIZE;
         (len, buf)
+    }
+}
+
+impl HostIdentification for SocketBoundEndpoint {
+    fn encode(&self) -> &[u8] {
+        &self.bytes.1[0..self.bytes.0]
     }
 }
 
@@ -330,6 +362,12 @@ impl Endpoint {
 pub struct HostPathDiscoveryEndpoint {
     scouting_state: Cell<(usize, usize)>, // addr_off, sock_off
     addresses: Vec<SocketAddr>,
+}
+
+impl std::fmt::Display for HostPathDiscoveryEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.addresses)
+    }
 }
 
 impl HostPathDiscoveryEndpoint {
@@ -604,7 +642,7 @@ impl AppServer {
             use KeyOutputReason::*;
 
             if let Some(AppServerTest {
-                terminate: Some(terminate),
+                termination_handler: Some(terminate),
                 ..
             }) = &self.test_helpers
             {
@@ -647,7 +685,7 @@ impl AppServer {
                         Err(ref e) => {
                             self.verbose().then(|| {
                                 info!(
-                                    "error processing incoming message from {:?}: {:?} {}",
+                                    "error processing incoming message from {}: {:?} {}",
                                     endpoint,
                                     e,
                                     e.backtrace()
@@ -686,9 +724,8 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                let (hi_len, host_identification) = socket.to_bytes();
                 self.crypt
-                    .handle_msg_under_load(&rx, &mut *tx, &host_identification[0..hi_len])
+                    .handle_msg_under_load(&rx, &mut *tx, socket)
             }
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")
@@ -876,10 +913,10 @@ impl AppServer {
                     self.all_sockets_drained = false;
                     return Ok(Some((
                         n,
-                        Endpoint::SocketBoundAddress(SocketBoundEndpoint {
-                            socket: SocketPtr(sock_no),
+                        Endpoint::SocketBoundAddress(SocketBoundEndpoint::new(
+                            SocketPtr(sock_no),
                             addr,
-                        }),
+                        )),
                     )));
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
