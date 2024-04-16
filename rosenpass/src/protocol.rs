@@ -76,7 +76,6 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context, Result};
-use mio::net::SocketAddr;
 use rand::Fill as Randomize;
 
 use memoffset::span_of;

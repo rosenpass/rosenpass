@@ -1,10 +1,4 @@
-use std::{
-    fs::{self, write},
-    net::UdpSocket,
-    path::PathBuf,
-    process::Stdio,
-    time::Duration,
-};
+use std::{fs, net::UdpSocket, path::PathBuf, time::Duration};
 
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
@@ -58,7 +52,7 @@ fn setup_logging() {
             buf,
             "\x1b[1m{:?}\x1b[0m {}: {}",
             std::thread::current().id(),
-            &ts_format[18..],
+            &ts_format[14..],
             record.args()
         )
     });
@@ -156,7 +150,7 @@ fn check_exchange_under_normal() {
         }
     };
 
-    let listen_addr = format!("localhost:{port}");
+    let listen_addr = format!("127.0.0.1:{port}");
     let mut server_cmd = std::process::Command::new(BIN);
 
     server_cmd
@@ -229,7 +223,7 @@ fn check_exchange_under_dos() {
         }
     };
 
-    let listen_addr = format!("localhost:{port}");
+    let listen_addr = format!("127.0.0.1:{port}");
 
     let mut server_cmd = std::process::Command::new(BIN);
 

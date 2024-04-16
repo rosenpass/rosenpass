@@ -1,7 +1,6 @@
 use anyhow::bail;
 
 use anyhow::Result;
-use clap::builder;
 use derive_builder::Builder;
 use log::{debug, error, info, warn};
 use mio::Interest;
@@ -18,7 +17,6 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
 use std::net::ToSocketAddrs;
-use std::path::Display;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -39,7 +37,7 @@ const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 
 const UNDER_LOAD_RATIO: f64 = 0.5;
-const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(100);
+const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(500);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
