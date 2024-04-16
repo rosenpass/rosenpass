@@ -915,11 +915,12 @@ impl CryptoServer {
     /// Process a message under load
     /// This is one of the main entry point for the protocol.
     /// Keeps track of messages processed, and qualifies messages using
-    /// cookie based DoS mitigation. Dispatches message for further processing
-    /// to `process_msg` handler if cookie is valid, otherwise sends a cookie reply
+    /// cookie based DoS mitigation.
+    /// If recieving a InitHello message, it dispatches message for further processing
+    /// to `process_msg` handler if cookie is valid otherwise sends a cookie reply
     /// message for sender to process and verify for messages part of the handshake phase
-    /// (i.e. InitHello, InitConf messages only). Bails on messages sent by responder and
-    /// non-handshake messages.
+    /// Directly processes InitConf messages.
+    /// Bails on messages sent by responder and non-handshake messages.
 
     pub fn handle_msg_under_load<H: HostIdentification>(
         &mut self,
@@ -932,6 +933,26 @@ impl CryptoServer {
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
         let msg_type: Result<MsgType, _> = rx_buf[0].try_into();
+        match msg_type {
+            Ok(MsgType::InitConf) => {
+                log::debug!(
+                    "Rx {:?} from {} under load, skip cookie validation",
+                    msg_type,
+                    host_identification
+                );
+                return self.handle_msg(rx_buf, tx_buf);
+            }
+            Ok(MsgType::InitHello) => {
+                //Process message (continued below)
+            }
+            _ => {
+                bail!(
+                    "Rx {:?} from {} is not processed under load",
+                    msg_type,
+                    host_identification
+                );
+            }
+        }
 
         for cookie_secret in self.active_or_retired_cookie_secrets() {
             if let Some(cookie_secret) = cookie_secret {
@@ -951,14 +972,18 @@ impl CryptoServer {
 
                 let mut expected = [0u8; COOKIE_SIZE];
 
-                CryptoServer::process_rx_buf_cookies(
-                    rx_buf,
-                    &cookie_value,
-                    &mut rx_cookie,
-                    &mut rx_mac,
-                    &mut rx_sid,
-                    &mut expected,
-                )?;
+                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
+                expected.copy_from_slice(
+                    &hash_domains::cookie()?
+                        .mix(&cookie_value)?
+                        .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
+                        .into_value()[..16],
+                );
+
+                rx_cookie.copy_from_slice(&msg_in.cookie);
+                rx_mac.copy_from_slice(&msg_in.mac);
+                rx_sid.copy_from_slice(&msg_in.payload.sidi);
 
                 //If valid cookie is found, process message
                 if constant_time::memcmp(&rx_cookie, &expected) {
@@ -1018,54 +1043,6 @@ impl CryptoServer {
             exchanged_with: None,
             resp: Some(size_of::<CookieReply>()),
         })
-    }
-
-    fn process_rx_buf_cookies(
-        rx_buf: &[u8],
-        cookie_value: &[u8],
-        rx_cookie: &mut [u8],
-        rx_mac: &mut [u8],
-        rx_sid: &mut [u8],
-        expected: &mut [u8],
-    ) -> Result<()> {
-        let msg_type = rx_buf[0].try_into();
-        match msg_type {
-            Ok(MsgType::InitHello) => {
-                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
-                    .ok_or(RosenpassError::BufferSizeMismatch)?;
-                expected.copy_from_slice(
-                    &hash_domains::cookie()?
-                        .mix(cookie_value)?
-                        .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
-                        .into_value()[..16],
-                );
-                rx_cookie.copy_from_slice(&msg_in.cookie);
-                rx_mac.copy_from_slice(&msg_in.mac);
-                rx_sid.copy_from_slice(&msg_in.payload.sidi);
-            }
-            Ok(MsgType::InitConf) => {
-                let msg_in = Ref::<&[u8], Envelope<InitConf>>::new(rx_buf)
-                    .ok_or(RosenpassError::BufferSizeMismatch)?;
-
-                expected.copy_from_slice(
-                    &hash_domains::cookie()?
-                        .mix(cookie_value)?
-                        .mix(&msg_in.as_bytes()[span_of!(Envelope<InitConf>, msg_type..cookie)])?
-                        .into_value()[..16],
-                );
-
-                rx_cookie.copy_from_slice(&msg_in.cookie);
-                rx_mac.copy_from_slice(&msg_in.mac);
-                rx_sid.copy_from_slice(&msg_in.payload.sidi);
-            }
-            Ok(_) => {
-                bail!("Message did not contain cookie or could not be sent a cookie reply message (responder sent-message or non-handshake)")
-            }
-            Err(_) => {
-                bail!("Message type not supported")
-            }
-        };
-        Ok(())
     }
 
     /// Handle an incoming message
