@@ -6,6 +6,7 @@ author:
 - Benjamin Lipp = Max Planck Institute for Security and Privacy (MPI-SP)
 - Wanja Zaeske
 - Lisa Schmidt = {Scientific Illustrator – \\url{mullana.de}}
+- Prabhpreet Dua
 abstract: |
        Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, WireGuard (WG) [@wg] uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for another application. The Rosenpass protocol builds on “Post-quantum WireGuard” (PQWG) [@pqwg] and improves it by using a cookie mechanism to provide security against state disruption attacks.
 
@@ -218,6 +219,7 @@ The server needs to store the following variables:
 * `spkm`
 * `biscuit_key` – Randomly chosen key used to encrypt biscuits
 * `biscuit_ctr` – Retransmission protection for biscuits
+* `cookie_secret`- A randomized cookie secret to derive cookies sent to peer when under load. This secret changes every 120 seconds
 
 Not mandated per se, but required in practice:
 
@@ -243,6 +245,7 @@ The initiator stores the following local state for each ongoing handshake:
 * `ck` – The chaining key
 * `eski` – The initiator's ephemeral secret key
 * `epki` – The initiator's ephemeral public key
+* `cookie_value`- Cookie value sent by an initiator peer under load, used to compute cookie field in outgoing handshake to peer under load. This value expires 120 seconds from when a peer sends this value using the CookieReply message
 
 The responder stores no state. While the responder has access to all of the above variables except for `eski`, the responder discards them after generating the RespHello message. Instead, the responder state is contained inside a cookie called a biscuit. This value is returned to the responder inside the InitConf packet. The biscuit consists of:
 
@@ -428,11 +431,91 @@ The responder code handling InitConf needs to deal with the biscuits and package
 
 ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This is not handled in `load_biscuit()` itself because there is the case that `biscuit_no = biscuit_used` which needs to be dealt with for retransmission handling.
 
+### Denial of Service Mitigation and Cookies
+
+Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from Wireguard [@wg]. 
+
+When the responder is under load, it may choose to not process further InitHello handshake messages, but instead to respond with a cookie reply message (see Figure \ref{img:MessageTypes}).
+
+The sender of the exchange then uses this cookie in order to resend the message and have it accepted the following time by the reciever. 
+
+For an initiator, Rosenpass ignores all messages when under load.
+
+#### Cookie Reply Message
+
+The cookie reply message is sent by the responder on receiving an InitHello message when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field which consists of the following:
+
+```pseudorust
+cookie_value = lhash("cookie-value", cookie_secret, initiator_host_info)[0..16]
+cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_peer)
+```
+
+where `cookie_secret` is a secret variable that changes every two minutes to a random value. `initiator_host_info` is used to identify the initiator host, and is implementation-specific for the client. This paramaters used to identify the host must be carefully chosen to ensure there is a unique mapping, especially when using IPv4 and IPv6 addresses to identify the host (such as taking care of IPv6 link-local addresses). `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.  
+
+#### Envelope `mac` Field
+
+Similar to `mac.1` in Wireguard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
+
+```pseudorust
+mac = lhash("mac", spkt, MAC_WIRE_DATA)[0..16]
+```
+
+where `MAC_WIRE_DATA` represents all bytes of msg prior to `mac` field in the envelope.
+
+If a client receives an invalid `mac` value for any message, it will discard the message.
+
+#### Envelope cookie field
+
+The initiator, on receiving a CookieReply message, decrypts `cookie_encrypted` and stores the `cookie_value` for the session into `peer[sid].cookie_value` for a limited time (120 seconds). This value is then used to set `cookie` field set for subsequent messages and retransmissions to the responder as follows:
+
+```pseudorust
+if (peer.cookie_value.is_none()  ||  seconds_since_update(peer[sid].cookie_value) >= 120) {
+    cookie.zeroize(); //zeroed out 16 bytes bitstring
+}
+else {
+    cookie = lhash("cookie",peer.cookie_value.unwrap(),COOKIE_WIRE_DATA)
+}
+```
+
+Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
+
+The inititator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
+However, when the responder is under load, it may reject InitHello messages with the invalid `cookie` value, and issue a cookie reply message. 
+
+### Conditions to trigger DoS Mechanism
+
+This whitepaper does not mandate any specific mechanism to detect responder contention (also mentioned as the under load condition) that would trigger use of the cookie mechanism.
+
+For the reference implemenation, Rosenpass has derived inspiration from the linux implementation of Wireguard.  This implementation suggests that the reciever keep track of the number of messages it is processing at a given time. 
+
+On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When recieving subsequent messages, if the client is still in an under load state, the client will check if the time ellpased since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
+
+Currently, the following constants are derived from the Linux kernel implementation of Wireguard:
+
+```pseudorust
+MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD = 4096
+LAST_UNDER_LOAD_WINDOW = 1 //seconds
+```
+
 ## Dealing with Packet Loss
 
 The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
 
 The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
+
+### Interaction with cookie reply system
+
+The cookie reply system does not interfere with the retransmission logic discussed above. 
+
+When the initator is under load, it will ignore processing any incoming messages.
+
+When a responder is under load and it receives an InitHello handshake message, the InitHello message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process. 
+
+When the responder is under load and it recieves an InitConf message, the message will be directly processed without checking the validity of the cookie field.
+
+# Changelog
+
+- Added section "Denial of Service Mitigation and Cookies", and modify "Dealing with Packet Loss" for DoS cookie mechanism
 
 \printbibliography
 

@@ -7,13 +7,19 @@
 //! to the concept of lenses in function programming; more on that here:
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)
 //! To achieve this we utilize the zerocopy library.
+//!
+use std::mem::size_of;
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
-use std::mem::size_of;
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+pub const MSG_SIZE_LEN: usize = 1;
+pub const RESERVED_LEN: usize = 3;
+pub const MAC_SIZE: usize = 16;
+pub const COOKIE_SIZE: usize = 16;
+pub const SID_LEN: usize = 4;
 
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
@@ -106,8 +112,22 @@ pub struct DataMsg {
 
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct CookieReplyInner {
+    /// [MsgType] of this message
+    pub msg_type: u8,
+    /// Reserved for future use
+    pub reserved: [u8; 3],
+    /// Session ID of the sender (initiator)
+    pub sid: [u8; 4],
+    /// Encrypted cookie with authenticated initiator `mac`
+    pub cookie_encrypted: [u8; xaead::NONCE_LEN + COOKIE_SIZE + xaead::TAG_LEN],
+}
+
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct CookieReply {
-    pub dummy: [u8; 4],
+    pub inner: CookieReplyInner,
+    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -153,6 +173,12 @@ impl TryFrom<u8> for MsgType {
             0x86 => MsgType::CookieReply,
             _ => return Err(RosenpassError::InvalidMessageType(value)),
         })
+    }
+}
+
+impl Into<u8> for MsgType {
+    fn into(self) -> u8 {
+        self as u8
     }
 }
 

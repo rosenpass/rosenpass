@@ -26,7 +26,7 @@ pub fn main() {
         // error!("error dummy");
     }
 
-    match args.command.run() {
+    match args.command.run(None) {
         Ok(_) => {}
         Err(e) => {
             error!("{e}");

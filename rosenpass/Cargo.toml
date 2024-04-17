@@ -9,6 +9,10 @@ homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
+[[bin]]
+name = "rosenpass"
+path = "src/main.rs"
+
 [[bench]]
 name = "handshake"
 harness = false
@@ -34,6 +38,7 @@ mio = { workspace = true }
 rand = { workspace = true }
 zerocopy = { workspace = true }
 home = { workspace = true }
+derive_builder = {workspace = true}
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -42,3 +47,4 @@ anyhow = { workspace = true }
 criterion = { workspace = true }
 test_bin = { workspace = true }
 stacker = { workspace = true }
+serial_test = {workspace = true}
