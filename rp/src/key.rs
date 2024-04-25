@@ -95,7 +95,7 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
         &base64::engine::general_purpose::STANDARD.decode(fs::read_to_string(private_wgsk)?)?,
     );
     let mut wgpk: x25519_dalek::PublicKey = {
-        let mut secret = x25519_dalek::StaticSecret::from(wgsk.secret().clone());
+        let mut secret = x25519_dalek::StaticSecret::from(*wgsk.secret());
         let public = x25519_dalek::PublicKey::from(&secret);
         secret.zeroize();
         public
