@@ -2043,7 +2043,7 @@ impl CryptoServer {
             })?;
             // the unwrap can not fail, because the slice returned by ctr() is
             // guaranteed to have the correct size
-            let n = u64::from_le_bytes(rc.ctr.try_into().unwrap());
+            let n = u64::from_le_bytes(rc.ctr);
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
             aead::decrypt(
