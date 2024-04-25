@@ -724,7 +724,7 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                self.crypt.handle_msg_under_load(&rx, &mut *tx, socket)
+                self.crypt.handle_msg_under_load(rx, &mut *tx, socket)
             }
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")
