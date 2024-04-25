@@ -16,8 +16,7 @@
 /// see <https://github.com/rosenpass/rosenpass/issues/232>
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len()
-        && unsafe { memsec::memeq(a.as_ptr() as *const u8, b.as_ptr() as *const u8, a.len()) }
+    a.len() == b.len() && unsafe { memsec::memeq(a.as_ptr(), b.as_ptr(), a.len()) }
 }
 
 #[cfg(all(test, feature = "constant_time_tests"))]

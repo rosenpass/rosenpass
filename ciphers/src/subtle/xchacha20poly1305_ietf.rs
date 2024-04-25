@@ -23,7 +23,7 @@ pub fn encrypt(
     let (ct, mac) = ct_mac.split_at_mut(ct_mac.len() - TAG_LEN);
     copy_slice(nonce).to(n);
     copy_slice(plaintext).to(ct);
-    let mac_value = AeadImpl::new_from_slice(key)?.encrypt_in_place_detached(&nonce, ad, ct)?;
+    let mac_value = AeadImpl::new_from_slice(key)?.encrypt_in_place_detached(nonce, ad, ct)?;
     copy_slice(&mac_value[..]).to(mac);
     Ok(())
 }
@@ -40,6 +40,6 @@ pub fn decrypt(
     let nonce = GenericArray::from_slice(n);
     let tag = GenericArray::from_slice(mac);
     copy_slice(ct).to(plaintext);
-    AeadImpl::new_from_slice(key)?.decrypt_in_place_detached(&nonce, ad, plaintext, tag)?;
+    AeadImpl::new_from_slice(key)?.decrypt_in_place_detached(nonce, ad, plaintext, tag)?;
     Ok(())
 }

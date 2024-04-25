@@ -176,9 +176,9 @@ impl TryFrom<u8> for MsgType {
     }
 }
 
-impl Into<u8> for MsgType {
-    fn into(self) -> u8 {
-        self as u8
+impl From<MsgType> for u8 {
+    fn from(val: MsgType) -> Self {
+        val as u8
     }
 }
 

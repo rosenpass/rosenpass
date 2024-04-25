@@ -148,6 +148,7 @@ where
     const VALUE: Ret = <ConstApplyNegSign<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
 }
 
+#[allow(clippy::identity_op)]
 mod test {
     use static_assertions::const_assert_eq;
     use typenum::consts::*;

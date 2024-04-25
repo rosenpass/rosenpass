@@ -2043,7 +2043,7 @@ impl CryptoServer {
             })?;
             // the unwrap can not fail, because the slice returned by ctr() is
             // guaranteed to have the correct size
-            let n = u64::from_le_bytes(rc.ctr.try_into().unwrap());
+            let n = u64::from_le_bytes(rc.ctr);
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
             aead::decrypt(
@@ -2123,12 +2123,12 @@ impl CryptoServer {
 }
 
 fn truncating_cast_into<T: FromBytes>(buf: &mut [u8]) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ok(Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)?)
+    Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
 }
 
 // TODO: This is bad…
 fn truncating_cast_into_nomut<T: FromBytes>(buf: &[u8]) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ok(Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)?)
+    Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
 }
 
 #[cfg(test)]

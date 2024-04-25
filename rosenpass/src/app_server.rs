@@ -256,7 +256,7 @@ impl SocketBoundEndpoint {
                 let ip = addr.ip().to_ipv6_mapped();
                 SocketAddrV6::new(ip, addr.port(), 0, 0)
             }
-            SocketAddr::V6(addr) => addr.clone(),
+            SocketAddr::V6(addr) => *addr,
         };
         let mut len: usize = 0;
         buf[len..len + SocketBoundEndpoint::SOCKET_SIZE].copy_from_slice(&socket.0.to_be_bytes());
@@ -646,7 +646,7 @@ impl AppServer {
                 ..
             }) = &self.test_helpers
             {
-                if let Ok(_) = terminate.try_recv() {
+                if terminate.try_recv().is_ok() {
                     return Ok(());
                 }
             }
@@ -724,7 +724,7 @@ impl AppServer {
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
             Endpoint::SocketBoundAddress(socket) => {
-                self.crypt.handle_msg_under_load(&rx, &mut *tx, socket)
+                self.crypt.handle_msg_under_load(rx, &mut *tx, socket)
             }
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")
