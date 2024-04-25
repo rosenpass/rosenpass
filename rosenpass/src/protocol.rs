@@ -2123,12 +2123,12 @@ impl CryptoServer {
 }
 
 fn truncating_cast_into<T: FromBytes>(buf: &mut [u8]) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ok(Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)?)
+    Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
 }
 
 // TODO: This is bad…
 fn truncating_cast_into_nomut<T: FromBytes>(buf: &[u8]) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ok(Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)?)
+    Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
 }
 
 #[cfg(test)]
