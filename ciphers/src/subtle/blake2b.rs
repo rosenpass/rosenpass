@@ -33,8 +33,8 @@ pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<(
         // out the right way to use the imports while allowing for zeroization.
         // An API based on slices might actually be simpler.
         let mut tmp = Zeroizing::new([0u8; OUT_LEN]);
-        let mut tmp = GenericArray::from_mut_slice(tmp.as_mut());
-        h.finalize_into(&mut tmp);
+        let tmp = GenericArray::from_mut_slice(tmp.as_mut());
+        h.finalize_into(tmp);
         copy_slice(tmp.as_ref()).to(out);
 
         Ok(())
