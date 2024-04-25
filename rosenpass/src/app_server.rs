@@ -256,7 +256,7 @@ impl SocketBoundEndpoint {
                 let ip = addr.ip().to_ipv6_mapped();
                 SocketAddrV6::new(ip, addr.port(), 0, 0)
             }
-            SocketAddr::V6(addr) => addr.clone(),
+            SocketAddr::V6(addr) => *addr,
         };
         let mut len: usize = 0;
         buf[len..len + SocketBoundEndpoint::SOCKET_SIZE].copy_from_slice(&socket.0.to_be_bytes());
