@@ -646,7 +646,7 @@ impl AppServer {
                 ..
             }) = &self.test_helpers
             {
-                if let Ok(_) = terminate.try_recv() {
+                if terminate.try_recv().is_ok() {
                     return Ok(());
                 }
             }
