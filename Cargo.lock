@@ -970,6 +970,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnet"
+version = "2.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
+
+[[package]]
 name = "is-terminal"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1674,6 +1680,7 @@ dependencies = [
  "futures",
  "futures-util",
  "genetlink",
+ "ipnet",
  "netlink-packet-core",
  "netlink-packet-generic",
  "netlink-packet-wireguard",
@@ -1686,6 +1693,7 @@ dependencies = [
  "stacker",
  "tempfile",
  "tokio",
+ "wireguard-nt",
  "x25519-dalek",
  "zeroize",
 ]
@@ -2180,6 +2188,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "widestring"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c168940144dd21fd8046987c16a46a33d5fc84eec29ef9dcddc2ac9e31526b7c"
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2415,6 +2429,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "829846f3e3db426d4cee4510841b71a8e58aa2a76b1132579487ae430ccd9c7b"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "wireguard-nt"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc6a4a61a48f5ea6243616c97d992f0c1fa505cd29e4583d4eff558fffccab09"
+dependencies = [
+ "bitflags 1.3.2",
+ "ipnet",
+ "libloading",
+ "log",
+ "rand",
+ "widestring",
+ "winapi",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use anyhow::ensure;
 use std::fs::File;
 use std::io::Read;
-use std::os::unix::fs::OpenOptionsExt;
+
 use std::result::Result;
 use std::{fs::OpenOptions, path::Path};
 
@@ -14,10 +14,17 @@ pub enum Visibility {
 pub fn fopen_w<P: AsRef<Path>>(path: P, visibility: Visibility) -> std::io::Result<File> {
     let mut options = OpenOptions::new();
     options.create(true).write(true).read(false).truncate(true);
-    match visibility {
-        Visibility::Public => options.mode(0o644),
-        Visibility::Secret => options.mode(0o600),
-    };
+
+    //TODO: Visibilty for windows target family
+
+    #[cfg(target_family = "unix")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        match visibility {
+            Visibility::Public => options.mode(0o644),
+            Visibility::Secret => options.mode(0o600),
+        };
+    }
     options.open(path)
 }
 /// Open a file readable

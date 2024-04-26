@@ -1,9 +1,11 @@
 use std::{
     fs::{self, DirBuilder, OpenOptions},
     io::Write,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
+
+#[cfg(target_family = "unix")]
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 
 use anyhow::{anyhow, Result};
 use base64::Engine;
@@ -14,12 +16,69 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Secret};
 
-#[cfg(not(target_family = "unix"))]
+#[cfg(not(any(target_family = "unix",target_family="windows")))]
 pub fn genkey(_: &Path) -> Result<()> {
     Err(anyhow!(
         "Your system {} is not yet supported. We are happy to receive patches to address this :)",
         std::env::consts::OS
     ))
+}
+
+#[cfg(target_family = "windows")]
+pub fn genkey(private_keys_dir: &Path) -> Result<()> {
+    if private_keys_dir.exists() {
+        /* 
+        if fs::metadata(private_keys_dir)?.permissions().mode() != 0o700 {
+            return Err(anyhow!(
+                "Directory {:?} has incorrect permissions: please use 0700 for proper security.",
+                private_keys_dir
+            ));
+        }
+        */
+    } else {
+        DirBuilder::new()
+            .recursive(true)
+            .create(private_keys_dir)?;
+    }
+
+    let wgsk_path = private_keys_dir.join("wgsk");
+    let pqsk_path = private_keys_dir.join("pqsk");
+    let pqpk_path = private_keys_dir.join("pqpk");
+
+    if !wgsk_path.exists() {
+        let wgsk: Secret<32> = Secret::random();
+
+        let mut wgsk_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(wgsk_path)?;
+
+        wgsk_file.write_all(
+            base64::engine::general_purpose::STANDARD
+                .encode(wgsk.secret())
+                .as_bytes(),
+        )?;
+    } else {
+        eprintln!(
+            "WireGuard secret key already exists at {:#?}: not regenerating",
+            wgsk_path
+        );
+    }
+
+    if !pqsk_path.exists() && !pqpk_path.exists() {
+        let mut pqsk = SSk::random();
+        let mut pqpk = SPk::random();
+        StaticKem::keygen(pqsk.secret_mut(), pqpk.secret_mut())?;
+        pqpk.store_secret(pqpk_path)?;
+        pqsk.store_secret(pqsk_path)?;
+    } else {
+        eprintln!(
+            "Rosenpass keys already exist in {:#?}: not regenerating",
+            private_keys_dir
+        );
+    }
+
+    Ok(())
 }
 
 #[cfg(target_family = "unix")]

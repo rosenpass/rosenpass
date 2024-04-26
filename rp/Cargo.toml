@@ -33,6 +33,11 @@ netlink-packet-core = "0.7"
 netlink-packet-generic = "0.3"
 netlink-packet-wireguard = "0.2"
 
+[target.'cfg(windows)'.dependencies]
+wireguard-nt = "0.4.0"
+ipnet = {workspace = true}
+
 [dev-dependencies]
 tempfile = "3"
 stacker = "0.1.15"
+

@@ -49,15 +49,19 @@ fn ipv6_any_binding() -> SocketAddr {
     SocketAddr::V6(SocketAddrV6::new(IPV6_ANY_ADDR, 0, 0, 0))
 }
 
+pub trait WgPeerAdapter: Sized {
+    fn update_wg_psk(&mut self, key: &rosenpass_secret_memory::Secret<32>) -> anyhow::Result<()>;
+}
+
 #[derive(Default, Debug)]
-pub struct AppPeer {
+pub struct AppPeer<W: WgPeerAdapter> {
     pub outfile: Option<PathBuf>,
-    pub outwg: Option<WireguardOut>, // TODO make this a generic command
+    pub adapter: Option<W>, 
     pub initial_endpoint: Option<Endpoint>,
     pub current_endpoint: Option<Endpoint>,
 }
 
-impl AppPeer {
+impl<W:WgPeerAdapter> AppPeer<W> {
     pub fn endpoint(&self) -> Option<&Endpoint> {
         self.current_endpoint
             .as_ref()
@@ -66,11 +70,52 @@ impl AppPeer {
 }
 
 #[derive(Default, Debug)]
-pub struct WireguardOut {
+pub struct UnixWireguardOut {
     // impl KeyOutput
     pub dev: String,
     pub pk: String,
     pub extra_params: Vec<String>,
+}
+
+impl WgPeerAdapter for UnixWireguardOut {
+    fn update_wg_psk(&mut self, key: &rosenpass_secret_memory::Secret<32>) -> anyhow::Result<()>{
+            let mut child = match Command::new("wg")
+                .arg("set")
+                .arg(&self.dev)
+                .arg("peer")
+                .arg(&self.pk)
+                .arg("preshared-key")
+                .arg("/dev/stdin")
+                .stdin(Stdio::piped())
+                .args(&self.extra_params)
+                .spawn()
+            {
+                Ok(x) => x,
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::NotFound {
+                        anyhow::bail!("Could not find wg command");
+                    } else {
+                        return Err(anyhow::Error::new(e));
+                    }
+                }
+            };
+            b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
+
+            thread::spawn(move || {
+                let status = child.wait();
+
+                if let Ok(status) = status {
+                    if status.success() {
+                        debug!("successfully passed psk to wg")
+                    } else {
+                        error!("could not pass psk to wg {:?}", status)
+                    }
+                } else {
+                    error!("wait failed: {:?}", status)
+                }
+            });
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -95,12 +140,12 @@ pub struct AppServerTest {
 /// Responsible for file IO, network IO
 // TODO add user control via unix domain socket and stdin/stdout
 #[derive(Debug)]
-pub struct AppServer {
+pub struct AppServer<W: WgPeerAdapter> {
     pub crypt: CryptoServer,
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
     pub mio_poll: mio::Poll,
-    pub peers: Vec<AppPeer>,
+    pub peers: Vec<AppPeer<W>>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
     pub under_load: DoSOperation,
@@ -121,15 +166,15 @@ pub struct AppServer {
 pub struct SocketPtr(pub usize);
 
 impl SocketPtr {
-    pub fn get<'a>(&self, srv: &'a AppServer) -> &'a mio::net::UdpSocket {
+    pub fn get<'a,W: WgPeerAdapter>(&self, srv: &'a AppServer<W>) -> &'a mio::net::UdpSocket {
         &srv.sockets[self.0]
     }
 
-    pub fn get_mut<'a>(&self, srv: &'a mut AppServer) -> &'a mut mio::net::UdpSocket {
+    pub fn get_mut<'a,W: WgPeerAdapter>(&self, srv: &'a mut AppServer<W>) -> &'a mut mio::net::UdpSocket {
         &mut srv.sockets[self.0]
     }
 
-    pub fn send_to(&self, srv: &AppServer, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
+    pub fn send_to<W: WgPeerAdapter>(&self, srv: &AppServer<W>, buf: &[u8], addr: SocketAddr) -> anyhow::Result<()> {
         self.get(srv).send_to(buf, addr)?;
         Ok(())
     }
@@ -150,11 +195,11 @@ impl AppPeerPtr {
         PeerPtr(self.0)
     }
 
-    pub fn get_app<'a>(&self, srv: &'a AppServer) -> &'a AppPeer {
+    pub fn get_app<'a, W: WgPeerAdapter>(&self, srv: &'a AppServer<W>) -> &'a AppPeer<W> {
         &srv.peers[self.0]
     }
 
-    pub fn get_app_mut<'a>(&self, srv: &'a mut AppServer) -> &'a mut AppPeer {
+    pub fn get_app_mut<'a, W: WgPeerAdapter>(&self, srv: &'a mut AppServer<W>) -> &'a mut AppPeer<W> {
         &mut srv.peers[self.0]
     }
 }
@@ -315,7 +360,7 @@ impl Endpoint {
         Some(Self::discovery_from_addresses(addrs))
     }
 
-    pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send<W: WgPeerAdapter>(&self, srv: &AppServer<W>, buf: &[u8]) -> anyhow::Result<()> {
         use Endpoint::*;
         match self {
             SocketBoundAddress(host) => host.socket.send_to(srv, buf, host.addr),
@@ -391,7 +436,7 @@ impl HostPathDiscoveryEndpoint {
         &self.addresses
     }
 
-    fn insert_next_scout_offset(&self, srv: &AppServer, addr_no: usize, sock_no: usize) {
+    fn insert_next_scout_offset<W: WgPeerAdapter>(&self, srv: &AppServer<W>, addr_no: usize, sock_no: usize) {
         self.scouting_state.set((
             (addr_no + 1) % self.addresses.len(),
             (sock_no + 1) % srv.sockets.len(),
@@ -401,7 +446,7 @@ impl HostPathDiscoveryEndpoint {
     /// Attempt to reach the host
     ///
     /// Will round-robin-try different socket-ip-combinations on each call.
-    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+    pub fn send_scouting<W: WgPeerAdapter>(&self, srv: &AppServer<W>, buf: &[u8]) -> anyhow::Result<()> {
         let (addr_off, sock_off) = self.scouting_state.get();
 
         let mut addrs = (self.addresses)
@@ -444,7 +489,7 @@ impl HostPathDiscoveryEndpoint {
     }
 }
 
-impl AppServer {
+impl<W: WgPeerAdapter> AppServer<W> {
     pub fn new(
         sk: SSk,
         pk: SPk,
@@ -509,6 +554,7 @@ impl AppServer {
 
             let v6 = try_register_socket!("IPv6", ipv6_any_binding());
 
+            /* 
             let need_v4 = match v6.map(|no| sockets[no].only_v6()) {
                 Some(Ok(v)) => v,
                 None => true,
@@ -517,6 +563,9 @@ impl AppServer {
                     true
                 }
             };
+            */
+            //TEMP
+            let need_v4 = true;
 
             if need_v4 {
                 try_register_socket!("IPv4", ipv4_any_binding());
@@ -562,7 +611,7 @@ impl AppServer {
         psk: Option<SymKey>,
         pk: SPk,
         outfile: Option<PathBuf>,
-        outwg: Option<WireguardOut>,
+        adapter: Option<W>,
         hostname: Option<String>,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
@@ -573,7 +622,7 @@ impl AppServer {
         let current_endpoint = None;
         self.peers.push(AppPeer {
             outfile,
-            outwg,
+            adapter,
             initial_endpoint,
             current_endpoint,
         });
@@ -733,14 +782,12 @@ impl AppServer {
     }
 
     pub fn output_key(
-        &self,
+        &mut self,
         peer: AppPeerPtr,
         why: KeyOutputReason,
         key: &SymKey,
     ) -> anyhow::Result<()> {
         let peerid = peer.lower().get(&self.crypt).pidt()?;
-        let ap = peer.get_app(self);
-
         if self.verbose() {
             let msg = match why {
                 KeyOutputReason::Exchanged => "Exchanged key with peer",
@@ -749,6 +796,7 @@ impl AppServer {
             info!("{} {}", msg, fmt_b64(&*peerid));
         }
 
+        let ap = peer.get_app_mut(self);
         if let Some(of) = ap.outfile.as_ref() {
             // This might leave some fragments of the secret on the stack;
             // in practice this is likely not a problem because the stack likely
@@ -771,42 +819,8 @@ impl AppServer {
             );
         }
 
-        if let Some(owg) = ap.outwg.as_ref() {
-            let mut child = match Command::new("wg")
-                .arg("set")
-                .arg(&owg.dev)
-                .arg("peer")
-                .arg(&owg.pk)
-                .arg("preshared-key")
-                .arg("/dev/stdin")
-                .stdin(Stdio::piped())
-                .args(&owg.extra_params)
-                .spawn()
-            {
-                Ok(x) => x,
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::NotFound {
-                        anyhow::bail!("Could not find wg command");
-                    } else {
-                        return Err(anyhow::Error::new(e));
-                    }
-                }
-            };
-            b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
-
-            thread::spawn(move || {
-                let status = child.wait();
-
-                if let Ok(status) = status {
-                    if status.success() {
-                        debug!("successfully passed psk to wg")
-                    } else {
-                        error!("could not pass psk to wg {:?}", status)
-                    }
-                } else {
-                    error!("wait failed: {:?}", status)
-                }
-            });
+        if let Some(adapter ) = ap.adapter.as_mut() {
+            adapter.update_wg_psk(key)?;
         }
 
         Ok(())
@@ -942,3 +956,4 @@ impl AppServer {
         Ok(None)
     }
 }
+

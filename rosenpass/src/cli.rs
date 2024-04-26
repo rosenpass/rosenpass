@@ -6,7 +6,7 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use std::path::PathBuf;
 
-use crate::app_server::AppServer;
+use crate::app_server::{AppServer, UnixWireguardOut};
 use crate::app_server::{self, AppServerTest};
 use crate::protocol::{SPk, SSk, SymKey};
 
@@ -305,7 +305,7 @@ impl CliCommand {
         let pk = SPk::load(&config.public_key)?;
 
         // start an application server
-        let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
+        let mut srv = std::boxed::Box::<AppServer::<UnixWireguardOut>>::new(AppServer::new(
             sk,
             pk,
             config.listen,
@@ -319,7 +319,7 @@ impl CliCommand {
                 cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
-                cfg_peer.wg.map(|cfg| app_server::WireguardOut {
+                cfg_peer.wg.map(|cfg| app_server::UnixWireguardOut {
                     dev: cfg.device,
                     pk: cfg.peer,
                     extra_params: cfg.extra_params,
