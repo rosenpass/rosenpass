@@ -1,10 +1,8 @@
 use anyhow::Result;
-use rosenpass::pqkem::KEM;
-use rosenpass::{
-    pqkem::StaticKEM,
-    protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
-    sodium::sodium_init,
-};
+use rosenpass::protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey};
+
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::StaticKem;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -41,7 +39,7 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
 
 fn keygen() -> Result<(SSk, SPk)> {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-    StaticKEM::keygen(sk.secret_mut(), pk.secret_mut())?;
+    StaticKem::keygen(sk.secret_mut(), pk.secret_mut())?;
     Ok((sk, pk))
 }
 
@@ -58,7 +56,6 @@ fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    sodium_init().unwrap();
     let (mut a, mut b) = make_server_pair().unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {

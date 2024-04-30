@@ -1,0 +1,22 @@
+[package]
+name = "rosenpass-constant-time"
+version = "0.1.0"
+authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Rosenpass internal utilities for constant time crypto implementations"
+homepage = "https://rosenpass.eu/"
+repository = "https://github.com/rosenpass/rosenpass"
+readme = "readme.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+constant_time_tests = []
+
+[dependencies]
+rosenpass-to = { workspace = true }
+memsec = { workspace = true }
+
+[dev-dependencies]
+rand = "0.8.5"

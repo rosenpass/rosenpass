@@ -1,0 +1,155 @@
+/*
+  This identity hiding process tests whether the rosenpass protocol is able to protect the identity of an initiator or responder.
+  The participants in the test are trusted initiators, trusted responders and compromised initiators and responders.
+  The test consists of two phases. In the first phase all of the participants can communicate with each other using the rosenpass protocol.
+  An attacker observes the first phase and is able to intercept and modify messages and choose participants to communicate with each other
+
+  In the second phase if the anonymity of an initiator is being tested then one of two trusted initiators is chosen.
+  The chosen initiator communicates directly with a trusted responder.
+  If an attacker can determine which initiator was chosen then the anonymity of the initiator has been compromised.
+  Otherwise the protocol has successfully protected the initiators’ identity.
+
+  If the anonymity of a responder is being tested then one of two trusted responders is chosen instead.
+  Then an initiator communicates directly with the chosen responder.
+  If an attacker can determine which responder was chosen then the anonymity of the responder is compromised.
+  Otherwise the protocol successfully protects the identity of a responder.
+
+  The Proverif code treats the public key as synonymous with identity.
+  In the above test when a responder or initiator is chosen what is actually chosen is the public/private key pair to use for communication.
+  Traditionally when a responder or initiator is chosen they would be chosen randomly.
+  The way Proverif makes a "choice" is by simulating multiple processes, one process per choice
+  Then the processes are compared and if an association between a public key and a process can be made the test fails.
+  As the choice is at least as bad as choosing the worst possible option the credibility of the test is maintained.
+  The drawback is that Proverif is only able to tell if the identity can be brute forced but misses any probabilistic associations.
+  As usual Proverif also assumes perfect encryption and in particular assumes encryption cannot be linked to identity.
+
+  One of the tradeoffs made here is that the choice function in Proverif is slow but this is in favour of being able to write more precise tests.
+  Another issue is the choice function does not work with queries so a test needs to be run for each set of assumptions.
+  In this case the test uses secure rng and a fresh secure biscuit key.
+*/
+
+#include "config.mpv"
+
+#define CHAINING_KEY_EVENTS 1
+#define MESSAGE_TRANSMISSION_EVENTS 1
+#define SESSION_START_EVENTS 0
+#define RANDOMIZED_CALL_IDS 0
+#undef FULL_MODEL
+#undef SIMPLE_MODEL
+#define SIMPLE_MODEL 1
+
+#include "prelude/basic.mpv"
+#include "crypto/key.mpv"
+#include "rosenpass/oracles.mpv"
+#include "crypto/kem.mpv"
+
+#define NEW_TRUSTED_SEED(name)            \
+  new MCAT(name, _secret_seed):seed_prec; \
+  name <- make_trusted_seed(MCAT(name, _secret_seed)); \
+
+free D:channel [private].
+free secure_biscuit_no:Atom [private].
+free secure_sidi,secure_sidr:SessionId [private].
+free secure_psk:key [private].
+free initiator1, initiator2:kem_sk_prec.
+free responder1, responder2:kem_sk_prec.
+
+let secure_init_hello(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, responder: kem_sk_tmpl) =
+
+  new epkit:kem_pk;    // epki
+  new sctrt:bits;      // sctr 
+  new pidiCt:bits;      // pidiC
+  new autht:bits;       // auth
+
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  new last_cookie:key;
+  new call:Atom;
+
+  Oinitiator_inner(sidi, initiator, psk, responder, seski_trusted_seed, ssptr_trusted_seed, last_cookie, D, call).
+
+let secure_resp_hello(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidi:SessionId, sidr:SessionId, biscuit_no:Atom, psk:key_tmpl) =
+
+  in(D, InitHello(=secure_sidi, epki, sctr, pidiC, auth));
+
+  ih <- InitHello(sidi, epki, sctr, pidiC, auth);
+  NEW_TRUSTED_SEED(septi_trusted_seed)
+  NEW_TRUSTED_SEED(sspti_trusted_seed)
+  new last_cookie:key;
+  new call:Atom;
+
+  Oinit_hello_inner(sidr, biscuit_no, responder, psk, initiator, septi_trusted_seed, sspti_trusted_seed, ih, last_cookie, D, call).
+
+let secure_init_conf(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, psk:key_tmpl, sidi:SessionId, sidr:SessionId) =
+  in(D,  InitConf(=sidi, =sidr, biscuit, auth3));
+  ic <- InitConf(sidi,sidr,biscuit, auth3);
+  NEW_TRUSTED_SEED(seski_trusted_seed)
+  NEW_TRUSTED_SEED(ssptr_trusted_seed)
+  new last_cookie:key;
+  call <- Cinit_conf(initiator, psk, responder, ic);
+
+  Oinit_conf_inner(initiator, psk, responder, ic, call).
+
+let secure_communication(initiator: kem_sk_tmpl, responder:kem_sk_tmpl, key:key) =
+  key_tmpl <- prepare_key(key);
+  (!secure_init_hello(initiator, secure_sidi, key_tmpl, responder))
+  | !secure_resp_hello(initiator, responder, secure_sidi, secure_sidr, secure_biscuit_no, key_tmpl)
+  | !(secure_init_conf(initiator, responder, key_tmpl, secure_sidi, secure_sidr)).
+
+let participant_communication_initiator(participant:kem_sk_tmpl) =
+  in(C, responder:kem_sk_tmpl);
+  in(C, k:key);
+  secure_communication(participant, responder, k).
+
+let participant_communication_responder(participant:kem_sk_tmpl) =
+  in(C, initiator:kem_sk_tmpl);
+  in(C, k:key);
+  secure_communication(initiator, participant, k).
+
+let participants_communication() =
+  initiator1_tmpl <- make_trusted_kem_sk(initiator1);
+  initiator2_tmpl <- make_trusted_kem_sk(initiator2);
+  responder1_tmpl <- make_trusted_kem_sk(responder1);
+  responder2_tmpl <- make_trusted_kem_sk(responder2);
+
+  !participant_communication_initiator(initiator1_tmpl) | !participant_communication_responder(initiator1_tmpl)
+  | !participant_communication_initiator(initiator2_tmpl) | !participant_communication_responder(initiator2_tmpl)
+  | !participant_communication_initiator(responder1_tmpl) | !participant_communication_responder(responder1_tmpl)
+  | !participant_communication_initiator(responder2_tmpl) | !participant_communication_responder(responder2_tmpl).
+
+let pipeChannel(D:channel, C:channel) =
+  in(D, b:bits);
+  out(C, b).
+
+let secretCommunication() =
+
+#ifdef INITIATOR_TEST
+  initiator_seed <- choice[make_trusted_kem_sk(initiator1), make_trusted_kem_sk(initiator2)];
+#else
+  initiator_seed <- make_trusted_kem_sk(initiator1);
+#endif
+#ifdef RESPONDER_TEST
+  responder_seed <- choice[make_trusted_kem_sk(responder1), make_trusted_kem_sk(responder2)];
+#else
+  responder_seed <- make_trusted_kem_sk(responder1);
+#endif
+
+  secure_communication(initiator_seed, responder_seed, secure_psk) | !pipeChannel(D, C).
+
+let reveal_pks() =
+  out(C, setup_kem_pk(make_trusted_kem_sk(responder1)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(responder2)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(initiator1)));
+  out(C, setup_kem_pk(make_trusted_kem_sk(initiator2))).
+
+let rosenpass_main2() = 
+  REP(INITIATOR_BOUND, Oinitiator)
+  | REP(RESPONDER_BOUND, Oinit_hello)
+  | REP(RESPONDER_BOUND, Oinit_conf).
+
+let identity_hiding_main() = 
+  0 | reveal_pks() | rosenpass_main2() | participants_communication() | phase 1; secretCommunication().
+
+#ifndef CUSTOM_MAIN
+let main = identity_hiding_main.
+#endif 

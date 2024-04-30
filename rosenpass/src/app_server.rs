@@ -1,9 +1,11 @@
 use anyhow::bail;
 
 use anyhow::Result;
+use derive_builder::Builder;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
+use rosenpass_util::file::{fopen_w, Visibility};
 
 use std::cell::Cell;
 use std::io::Write;
@@ -21,16 +23,21 @@ use std::process::Stdio;
 use std::slice;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
-use crate::util::fopen_w;
+use crate::protocol::HostIdentification;
 use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-    util::{b64_writer, fmt_b64},
 };
+use rosenpass_util::attempt;
+use rosenpass_util::b64::{b64_writer, fmt_b64};
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
+
+const UNDER_LOAD_RATIO: f64 = 0.5;
+const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(500);
 
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
@@ -66,6 +73,23 @@ pub struct WireguardOut {
     pub extra_params: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DoSOperation {
+    UnderLoad,
+    Normal,
+}
+/// Integration test helpers for AppServer
+#[derive(Debug, Builder)]
+#[builder(pattern = "owned")]
+pub struct AppServerTest {
+    /// Enable DoS operation permanently
+    #[builder(default = "false")]
+    pub enable_dos_permanently: bool,
+    /// Terminate application signal
+    #[builder(default = "None")]
+    pub termination_handler: Option<std::sync::mpsc::Receiver<()>>,
+}
+
 /// Holds the state of the application, namely the external IO
 ///
 /// Responsible for file IO, network IO
@@ -79,6 +103,12 @@ pub struct AppServer {
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
+    pub under_load: DoSOperation,
+    pub blocking_polls_count: usize,
+    pub non_blocking_polls_count: usize,
+    pub unpolled_count: usize,
+    pub last_update_time: Instant,
+    pub test_helpers: Option<AppServerTest>,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -161,18 +191,91 @@ pub enum Endpoint {
     /// at the same time. It also would reply on the same port RespHello was
     /// sent to when listening on multiple ports on the same interface. This
     /// may be required for some arcane firewall setups.
-    SocketBoundAddress {
-        /// The socket the address can be reached under; this is generally
-        /// determined when we actually receive an RespHello message
-        socket: SocketPtr,
-        /// Just the address
-        addr: SocketAddr,
-    },
+    SocketBoundAddress(SocketBoundEndpoint),
     // A host name or IP address; storing the hostname here instead of an
     // ip address makes sure that we look up the host name whenever we try
     // to make a connection; this may be beneficial in some setups where a host-name
     // at first can not be resolved but becomes resolvable later.
     Discovery(HostPathDiscoveryEndpoint),
+}
+
+impl std::fmt::Display for Endpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Endpoint::SocketBoundAddress(host) => write!(f, "{}", host),
+            Endpoint::Discovery(host) => write!(f, "{}", host),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SocketBoundEndpoint {
+    /// The socket the address can be reached under; this is generally
+    /// determined when we actually receive an RespHello message
+    socket: SocketPtr,
+    /// Just the address
+    addr: SocketAddr,
+    /// identifier
+    bytes: (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]),
+}
+
+impl std::fmt::Display for SocketBoundEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.addr)
+    }
+}
+
+impl SocketBoundEndpoint {
+    const SOCKET_SIZE: usize = usize::BITS as usize / 8;
+    const IPV6_SIZE: usize = 16;
+    const PORT_SIZE: usize = 2;
+    const SCOPE_ID_SIZE: usize = 4;
+
+    const BUFFER_SIZE: usize = SocketBoundEndpoint::SOCKET_SIZE
+        + SocketBoundEndpoint::IPV6_SIZE
+        + SocketBoundEndpoint::PORT_SIZE
+        + SocketBoundEndpoint::SCOPE_ID_SIZE;
+
+    pub fn new(socket: SocketPtr, addr: SocketAddr) -> Self {
+        let bytes = Self::to_bytes(&socket, &addr);
+        Self {
+            socket,
+            addr,
+            bytes,
+        }
+    }
+
+    fn to_bytes(
+        socket: &SocketPtr,
+        addr: &SocketAddr,
+    ) -> (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]) {
+        let mut buf = [0u8; SocketBoundEndpoint::BUFFER_SIZE];
+        let addr = match addr {
+            SocketAddr::V4(addr) => {
+                //Map IPv4-mapped to IPv6 addresses
+                let ip = addr.ip().to_ipv6_mapped();
+                SocketAddrV6::new(ip, addr.port(), 0, 0)
+            }
+            SocketAddr::V6(addr) => *addr,
+        };
+        let mut len: usize = 0;
+        buf[len..len + SocketBoundEndpoint::SOCKET_SIZE].copy_from_slice(&socket.0.to_be_bytes());
+        len += SocketBoundEndpoint::SOCKET_SIZE;
+        buf[len..len + SocketBoundEndpoint::IPV6_SIZE].copy_from_slice(&addr.ip().octets());
+        len += SocketBoundEndpoint::IPV6_SIZE;
+        buf[len..len + SocketBoundEndpoint::PORT_SIZE].copy_from_slice(&addr.port().to_be_bytes());
+        len += SocketBoundEndpoint::PORT_SIZE;
+        buf[len..len + SocketBoundEndpoint::SCOPE_ID_SIZE]
+            .copy_from_slice(&addr.scope_id().to_be_bytes());
+        len += SocketBoundEndpoint::SCOPE_ID_SIZE;
+        (len, buf)
+    }
+}
+
+impl HostIdentification for SocketBoundEndpoint {
+    fn encode(&self) -> &[u8] {
+        &self.bytes.1[0..self.bytes.0]
+    }
 }
 
 impl Endpoint {
@@ -215,7 +318,7 @@ impl Endpoint {
     pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         use Endpoint::*;
         match self {
-            SocketBoundAddress { socket, addr } => socket.send_to(srv, buf, *addr),
+            SocketBoundAddress(host) => host.socket.send_to(srv, buf, host.addr),
             Discovery(host) => host.send_scouting(srv, buf),
         }
     }
@@ -223,7 +326,7 @@ impl Endpoint {
     fn addresses(&self) -> &[SocketAddr] {
         use Endpoint::*;
         match self {
-            SocketBoundAddress { addr, .. } => slice::from_ref(addr),
+            SocketBoundAddress(host) => slice::from_ref(&host.addr),
             Discovery(host) => host.addresses(),
         }
     }
@@ -259,6 +362,12 @@ impl Endpoint {
 pub struct HostPathDiscoveryEndpoint {
     scouting_state: Cell<(usize, usize)>, // addr_off, sock_off
     addresses: Vec<SocketAddr>,
+}
+
+impl std::fmt::Display for HostPathDiscoveryEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.addresses)
+    }
 }
 
 impl HostPathDiscoveryEndpoint {
@@ -326,7 +435,7 @@ impl HostPathDiscoveryEndpoint {
                     .to_string()
                     .starts_with("Address family not supported by protocol");
                 if !ignore {
-                    warn!("Socket #{} refusing to send to {}: ", sock_no, addr);
+                    warn!("Socket #{} refusing to send to {}: {}", sock_no, addr, err);
                 }
             }
         }
@@ -341,10 +450,11 @@ impl AppServer {
         pk: SPk,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
+        test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<Self> {
         // setup mio
         let mio_poll = mio::Poll::new()?;
-        let events = mio::Events::with_capacity(8);
+        let events = mio::Events::with_capacity(20);
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
@@ -434,6 +544,12 @@ impl AppServer {
             events,
             mio_poll,
             all_sockets_drained: false,
+            under_load: DoSOperation::Normal,
+            blocking_polls_count: 0,
+            non_blocking_polls_count: 0,
+            unpolled_count: 0,
+            last_update_time: Instant::now(),
+            test_helpers,
         })
     }
 
@@ -524,6 +640,17 @@ impl AppServer {
             use crate::protocol::HandleMsgResult;
             use AppPollResult::*;
             use KeyOutputReason::*;
+
+            if let Some(AppServerTest {
+                termination_handler: Some(terminate),
+                ..
+            }) = &self.test_helpers
+            {
+                if terminate.try_recv().is_ok() {
+                    return Ok(());
+                }
+            }
+
             match self.poll(&mut *rx)? {
                 #[allow(clippy::redundant_closure_call)]
                 SendInitiation(peer) => tx_maybe_with!(peer, || self
@@ -548,11 +675,17 @@ impl AppServer {
                 }
 
                 ReceivedMessage(len, endpoint) => {
-                    match self.crypt.handle_msg(&rx[..len], &mut *tx) {
+                    let msg_result = match self.under_load {
+                        DoSOperation::UnderLoad => {
+                            self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
+                        }
+                        DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
+                    };
+                    match msg_result {
                         Err(ref e) => {
                             self.verbose().then(|| {
                                 info!(
-                                    "error processing incoming message from {:?}: {:?} {}",
+                                    "error processing incoming message from {}: {:?} {}",
                                     endpoint,
                                     e,
                                     e.backtrace()
@@ -583,6 +716,22 @@ impl AppServer {
         }
     }
 
+    fn handle_msg_under_load(
+        &mut self,
+        endpoint: &Endpoint,
+        rx: &[u8],
+        tx: &mut [u8],
+    ) -> Result<crate::protocol::HandleMsgResult> {
+        match endpoint {
+            Endpoint::SocketBoundAddress(socket) => {
+                self.crypt.handle_msg_under_load(rx, &mut *tx, socket)
+            }
+            Endpoint::Discovery(_) => {
+                anyhow::bail!("Host-path discovery is not supported under load")
+            }
+        }
+    }
+
     pub fn output_key(
         &self,
         peer: AppPeerPtr,
@@ -608,7 +757,7 @@ impl AppServer {
             // data will linger in the linux page cache anyways with the current
             // implementation, going to great length to erase the secret here is
             // not worth it right now.
-            b64_writer(fopen_w(of)?).write_all(key.secret())?;
+            b64_writer(fopen_w(of, Visibility::Secret)?).write_all(key.secret())?;
             let why = match why {
                 KeyOutputReason::Exchanged => "exchanged",
                 KeyOutputReason::Stale => "stale",
@@ -623,7 +772,7 @@ impl AppServer {
         }
 
         if let Some(owg) = ap.outwg.as_ref() {
-            let mut child = Command::new("wg")
+            let mut child = match Command::new("wg")
                 .arg("set")
                 .arg(&owg.dev)
                 .arg("peer")
@@ -632,7 +781,17 @@ impl AppServer {
                 .arg("/dev/stdin")
                 .stdin(Stdio::piped())
                 .args(&owg.extra_params)
-                .spawn()?;
+                .spawn()
+            {
+                Ok(x) => x,
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::NotFound {
+                        anyhow::bail!("Could not find wg command");
+                    } else {
+                        return Err(anyhow::Error::new(e));
+                    }
+                }
+            };
             b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
 
             thread::spawn(move || {
@@ -705,9 +864,56 @@ impl AppServer {
 
         // only poll if we drained all sockets before
         if self.all_sockets_drained {
-            self.mio_poll.poll(&mut self.events, Some(timeout))?;
+            //Non blocked polling
+            self.mio_poll
+                .poll(&mut self.events, Some(Duration::from_secs(0)))?;
+
+            if self.events.iter().peekable().peek().is_none() {
+                // if there are no events, then add to blocking poll count
+                self.blocking_polls_count += 1;
+                //Execute blocking poll
+                self.mio_poll.poll(&mut self.events, Some(timeout))?;
+            } else {
+                self.non_blocking_polls_count += 1;
+            }
+        } else {
+            self.unpolled_count += 1;
         }
 
+        if let Some(AppServerTest {
+            enable_dos_permanently: true,
+            ..
+        }) = self.test_helpers
+        {
+            self.under_load = DoSOperation::UnderLoad;
+        } else {
+            //Reset blocking poll count if waiting for more than BLOCKING_POLL_COUNT_DURATION
+            if self.last_update_time.elapsed() > DURATION_UPDATE_UNDER_LOAD_STATUS {
+                self.last_update_time = Instant::now();
+                let total_polls = self.blocking_polls_count + self.non_blocking_polls_count;
+
+                let load_ratio = if total_polls > 0 {
+                    self.non_blocking_polls_count as f64 / total_polls as f64
+                } else if self.unpolled_count > 0 {
+                    //There are no polls, so we are under load
+                    1.0
+                } else {
+                    0.0
+                };
+
+                if load_ratio > UNDER_LOAD_RATIO {
+                    self.under_load = DoSOperation::UnderLoad;
+                } else {
+                    self.under_load = DoSOperation::Normal;
+                }
+
+                self.blocking_polls_count = 0;
+                self.non_blocking_polls_count = 0;
+                self.unpolled_count = 0;
+            }
+        }
+
+        // drain all sockets
         let mut would_block_count = 0;
         for (sock_no, socket) in self.sockets.iter_mut().enumerate() {
             match socket.recv_from(buf) {
@@ -716,10 +922,10 @@ impl AppServer {
                     self.all_sockets_drained = false;
                     return Ok(Some((
                         n,
-                        Endpoint::SocketBoundAddress {
-                            socket: SocketPtr(sock_no),
+                        Endpoint::SocketBoundAddress(SocketBoundEndpoint::new(
+                            SocketPtr(sock_no),
                             addr,
-                        },
+                        )),
                     )));
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {

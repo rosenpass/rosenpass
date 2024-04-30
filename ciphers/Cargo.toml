@@ -1,0 +1,22 @@
+[package]
+name = "rosenpass-ciphers"
+authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Rosenpass internal ciphers and other cryptographic primitives used by rosenpass."
+homepage = "https://rosenpass.eu/"
+repository = "https://github.com/rosenpass/rosenpass"
+readme = "readme.md"
+
+[dependencies]
+anyhow = { workspace = true }
+rosenpass-to = { workspace = true }
+rosenpass-constant-time = { workspace = true }
+rosenpass-secret-memory = { workspace = true }
+rosenpass-oqs = { workspace = true }
+rosenpass-util = { workspace = true }
+static_assertions = { workspace = true }
+zeroize = { workspace = true }
+chacha20poly1305 = { workspace = true }
+blake2 = { workspace = true }

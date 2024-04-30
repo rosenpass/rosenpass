@@ -23,7 +23,7 @@ If you are not specifically tasked with developing post-quantum secure systems,
 you probably do not need this tool.
 .Ss COMMANDS
 .Bl -tag -width Ds
-.It Ar keygen private-key <file-path> public-key <file-path>
+.It Ar gen-keys --secret-key <file-path> --public-key <file-path>
 Generate a keypair to use in the exchange command later.
 Send the public-key file to your communication partner and keep the private-key
 file secret!
@@ -91,9 +91,18 @@ This makes it possible to add peers entirely from
 .Sh SEE ALSO
 .Xr rp 1 ,
 .Xr wg 1
+.Rs
+.%A Karolin Varner
+.%A Benjamin Lipp
+.%A Wanja Zaeske
+.%A Lisa Schmidt
+.%D 2023
+.%T Rosenpass
+.%U https://rosenpass.eu/whitepaper.pdf
+.Re
 .Sh STANDARDS
-This tool is the reference implementation of the Rosenpass protocol, written
-by Karolin Varner, Benjamin Lipp, Wanja Zaeske, and Lisa Schmidt.
+This tool is the reference implementation of the Rosenpass protocol, as
+specified within the whitepaper referenced above.
 .Sh AUTHORS
 Rosenpass was created by Karolin Varner, Benjamin Lipp, Wanja Zaeske,
 Marei Peischl, Stephan Ajuvo, and Lisa Schmidt.

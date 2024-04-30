@@ -6,332 +6,128 @@
 //! always serialized instance of the data in question. This is closely related
 //! to the concept of lenses in function programming; more on that here:
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)
+//! To achieve this we utilize the zerocopy library.
 //!
-//! # Example
-//!
-//! The following example uses the [`data_lense` macro](crate::data_lense) to create a lense that
-//! might be useful when dealing with UDP headers.
-//!
-//! ```
-//! use rosenpass::{data_lense, RosenpassError, msgs::LenseView};
-//! # fn main() -> Result<(), RosenpassError> {
-//!
-//! data_lense! {UdpDatagramHeader :=
-//!     source_port: 2,
-//!     dest_port: 2,
-//!     length: 2,
-//!     checksum: 2
-//! }
-//!
-//! let mut buf = [0u8; 8];
-//!
-//! // read-only lense, no check of size:
-//! let lense = UdpDatagramHeader(&buf);
-//! assert_eq!(lense.checksum(), &[0, 0]);
-//!
-//! // mutable lense, runtime check of size
-//! let mut lense = buf.as_mut().udp_datagram_header()?;
-//! lense.source_port_mut().copy_from_slice(&53u16.to_be_bytes()); // some DNS, anyone?
-//!
-//! // the original buffer is still available
-//! assert_eq!(buf, [0, 53, 0, 0, 0, 0, 0, 0]);
-//!
-//! // read-only lense, runtime check of size
-//! let lense = buf.as_ref().udp_datagram_header()?;
-//! assert_eq!(lense.source_port(), &[0, 53]);
-//! # Ok(())
-//! # }
-//! ```
+use std::mem::size_of;
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
-use crate::{pqkem::*, sodium};
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
+use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+pub const MSG_SIZE_LEN: usize = 1;
+pub const RESERVED_LEN: usize = 3;
+pub const MAC_SIZE: usize = 16;
+pub const COOKIE_SIZE: usize = 16;
+pub const SID_LEN: usize = 4;
 
-// Macro magic ////////////////////////////////////////////////////////////////
-
-/// A macro to create data lenses. Refer to the [`msgs` mod](crate::msgs) for
-/// an example and further elaboration
-// TODO implement TryFrom<[u8]> and From<[u8; Self::len()]>
-#[macro_export]
-macro_rules! data_lense(
-    // prefix          @ offset       ; optional meta    ; field name   : field length, ...
-    (token_muncher_ref @ $offset:expr ; $( $attr:meta )* ; $field:ident : $len:expr $(, $( $tail:tt )+ )?) =>  {
-        ::paste::paste!{
-
-        #[allow(rustdoc::broken_intra_doc_links)]
-        $( #[ $attr ] )*
-        ///
-        #[doc = data_lense!(maybe_docstring_link $len)]
-        /// bytes long
-        pub fn $field(&self) -> &__ContainerType::Output {
-            &self.0[$offset .. $offset + $len]
-        }
-
-        /// The bytes until the
-        #[doc = data_lense!(maybe_docstring_link Self::$field)]
-        /// field
-        pub fn [< until_ $field >](&self) -> &__ContainerType::Output {
-            &self.0[0 .. $offset]
-        }
-
-        // if the tail exits, consume it as well
-        $(
-        data_lense!{token_muncher_ref @ $offset + $len ; $( $tail )+ }
-        )?
-        }
-    };
-
-    // prefix          @ offset       ; optional meta    ; field name   : field length, ...
-    (token_muncher_mut @ $offset:expr ; $( $attr:meta )* ; $field:ident : $len:expr $(, $( $tail:tt )+ )?) =>  {
-        ::paste::paste!{
-
-        #[allow(rustdoc::broken_intra_doc_links)]
-        $( #[ $attr ] )*
-        ///
-        #[doc = data_lense!(maybe_docstring_link $len)]
-        /// bytes long
-        pub fn [< $field _mut >](&mut self) -> &mut __ContainerType::Output {
-            &mut self.0[$offset .. $offset + $len]
-        }
-
-        // if the tail exits, consume it as well
-        $(
-        data_lense!{token_muncher_mut @ $offset + $len ; $( $tail )+ }
-        )?
-        }
-    };
-
-    // switch that yields literals unchanged, but creates docstring links to
-    // constants
-    // TODO the doc string link doesn't work if $x is taken from a generic,
-    (maybe_docstring_link $x:literal) => (stringify!($x));
-    (maybe_docstring_link $x:expr) => (stringify!([$x]));
-
-    // struct name  < optional generics     >    := optional doc string      field name   : field length, ...
-    ($type:ident $( < $( $generic:ident ),+ > )? := $( $( #[ $attr:meta ] )* $field:ident : $len:expr ),+) => (::paste::paste!{
-
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// A data lense to manipulate byte slices.
-        ///
-        //// # Fields
-        ///
-        $(
-        /// - `
-        #[doc = stringify!($field)]
-        /// `:
-        #[doc = data_lense!(maybe_docstring_link $len)]
-        /// bytes
-        )+
-        pub struct $type<__ContainerType $(, $( $generic ),+ )? > (
-            __ContainerType,
-            // The phantom data is required, since all generics declared on a
-            // type need to be used on the type.
-            // https://doc.rust-lang.org/stable/error_codes/E0392.html
-            $( $( ::core::marker::PhantomData<$generic> ),+ )?
-        );
-
-        impl<__ContainerType $(, $( $generic: LenseView ),+ )? > $type<__ContainerType $(, $( $generic ),+ )? >{
-            $(
-            /// Size in bytes of the field `
-            #[doc = !($field)]
-            /// `
-            pub const fn [< $field _len >]() -> usize{
-                $len
-            }
-            )+
-
-            /// Verify that `len` is sufficiently long to hold [Self]
-            pub fn check_size(len: usize) -> Result<(), RosenpassError>{
-                let required_size = $( $len + )+ 0;
-                let actual_size = len;
-                if required_size != actual_size {
-                    Err(RosenpassError::BufferSizeMismatch {
-                        required_size,
-                        actual_size,
-                    })
-                }else{
-                    Ok(())
-                }
-            }
-        }
-
-        // read-only accessor functions
-        impl<'a, __ContainerType $(, $( $generic: LenseView ),+ )?> $type<&'a __ContainerType $(, $( $generic ),+ )?>
-        where
-            __ContainerType: std::ops::Index<std::ops::Range<usize>> + ?Sized,
-        {
-            data_lense!{token_muncher_ref @ 0 ; $( $( $attr )* ; $field : $len ),+ }
-
-            /// View into all bytes belonging to this Lense
-            pub fn all_bytes(&self) -> &__ContainerType::Output {
-                &self.0[0..Self::LEN]
-            }
-        }
-
-        // mutable accessor functions
-        impl<'a, __ContainerType $(, $( $generic: LenseView ),+ )?> $type<&'a mut __ContainerType $(, $( $generic ),+ )?>
-        where
-            __ContainerType: std::ops::IndexMut<std::ops::Range<usize>> + ?Sized,
-        {
-            data_lense!{token_muncher_ref @ 0 ; $( $( $attr )* ; $field : $len ),+ }
-            data_lense!{token_muncher_mut @ 0 ; $( $( $attr )* ; $field : $len ),+ }
-
-            /// View into all bytes belonging to this Lense
-            pub fn all_bytes(&self) -> &__ContainerType::Output {
-                &self.0[0..Self::LEN]
-            }
-
-            /// View into all bytes belonging to this Lense
-            pub fn all_bytes_mut(&mut self) -> &mut __ContainerType::Output {
-                &mut self.0[0..Self::LEN]
-            }
-        }
-
-        // lense trait, allowing us to know the implementing lenses size
-        impl<__ContainerType $(, $( $generic: LenseView ),+ )? > LenseView for $type<__ContainerType $(, $( $generic ),+ )? >{
-            /// Number of bytes required to store this type in binary format
-            const LEN: usize = $( $len + )+ 0;
-        }
-
-        /// Extension trait to allow checked creation of a lense over
-        /// some byte slice that contains a
-        #[doc = data_lense!(maybe_docstring_link $type)]
-        pub trait [< $type Ext >] {
-            type __ContainerType;
-
-            /// Create a lense to the byte slice
-            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError>;
-
-            /// Create a lense to the byte slice, automatically truncating oversized buffers
-            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError>;
-        }
-
-        impl<'a> [< $type Ext >] for &'a [u8] {
-            type __ContainerType = &'a [u8];
-
-            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
-                $type::<Self::__ContainerType, $( $($generic),+ )? >::check_size(self.len())?;
-                Ok($type ( self, $( $( ::core::marker::PhantomData::<$generic>  ),+ )? ))
-            }
-
-            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
-                let required_size = $( $len + )+ 0;
-                let actual_size = self.len();
-                if actual_size < required_size {
-                    return Err(RosenpassError::BufferSizeMismatch {
-                        required_size,
-                        actual_size,
-                    });
-                }
-
-                [< $type Ext >]::[< $type:snake >](&self[..required_size])
-            }
-        }
-
-        impl<'a> [< $type Ext >] for &'a mut [u8] {
-            type __ContainerType = &'a mut [u8];
-            fn [< $type:snake >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
-                $type::<Self::__ContainerType, $( $($generic),+ )? >::check_size(self.len())?;
-                Ok($type ( self, $( $( ::core::marker::PhantomData::<$generic>  ),+ )? ))
-            }
-
-            fn [< $type:snake _ truncating >] $(< $($generic : LenseView),* >)? (self) -> Result< $type<Self::__ContainerType, $( $($generic),+ )? >, RosenpassError> {
-                let required_size = $( $len + )+ 0;
-                let actual_size = self.len();
-                if actual_size < required_size {
-                    return Err(RosenpassError::BufferSizeMismatch {
-                        required_size,
-                        actual_size,
-                    });
-                }
-
-                [< $type Ext >]::[< $type:snake >](&mut self[..required_size])
-            }
-        }
-    });
-);
-
-/// Common trait shared by all Lenses
-pub trait LenseView {
-    const LEN: usize;
-}
-
-data_lense! { Envelope<M> :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct Envelope<M: AsBytes + FromBytes> {
     /// [MsgType] of this message
-    msg_type: 1,
+    pub msg_type: u8,
     /// Reserved for future use
-    reserved: 3,
+    pub reserved: [u8; 3],
     /// The actual Paylod
-    payload: M::LEN,
+    pub payload: M,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
-    mac: sodium::MAC_SIZE,
+    pub mac: [u8; 16],
     /// Currently unused, TODO: do something with this
-    cookie: sodium::MAC_SIZE
+    pub cookie: [u8; 16],
 }
 
-data_lense! { InitHello :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct InitHello {
     /// Randomly generated connection id
-    sidi: 4,
+    pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Public Key
-    epki: EphemeralKEM::PK_LEN,
+    pub epki: [u8; EphemeralKem::PK_LEN],
     /// Classic McEliece Ciphertext
-    sctr: StaticKEM::CT_LEN,
+    pub sctr: [u8; StaticKem::CT_LEN],
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pidic: sodium::AEAD_TAG_LEN + 32,
+    pub pidic: [u8; aead::TAG_LEN + 32],
     /// Encrypted TAI64N Time Stamp (against replay attacks)
-    auth: sodium::AEAD_TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-data_lense! { RespHello :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct RespHello {
     /// Randomly generated connection id
-    sidr: 4,
+    pub sidr: [u8; 4],
     /// Copied from InitHello
-    sidi: 4,
+    pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Ciphertext
-    ecti: EphemeralKEM::CT_LEN,
+    pub ecti: [u8; EphemeralKem::CT_LEN],
     /// Classic McEliece Ciphertext
-    scti: StaticKEM::CT_LEN,
+    pub scti: [u8; StaticKem::CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN,
+    pub auth: [u8; aead::TAG_LEN],
     /// Responders handshake state in encrypted form
-    biscuit: BISCUIT_CT_LEN
+    pub biscuit: [u8; BISCUIT_CT_LEN],
 }
 
-data_lense! { InitConf :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct InitConf {
     /// Copied from InitHello
-    sidi: 4,
+    pub sidi: [u8; 4],
     /// Copied from RespHello
-    sidr: 4,
+    pub sidr: [u8; 4],
     /// Responders handshake state in encrypted form
-    biscuit: BISCUIT_CT_LEN,
+    pub biscuit: [u8; BISCUIT_CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-data_lense! { EmptyData :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct EmptyData {
     /// Copied from RespHello
-    sid: 4,
+    pub sid: [u8; 4],
     /// Nonce
-    ctr: 8,
+    pub ctr: [u8; 8],
     /// Empty encrypted message (just an auth tag)
-    auth: sodium::AEAD_TAG_LEN
+    pub auth: [u8; aead::TAG_LEN],
 }
 
-data_lense! { Biscuit :=
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct Biscuit {
     /// H(spki) – Ident ifies the initiator
-    pidi: sodium::KEY_SIZE,
+    pub pidi: [u8; KEY_LEN],
     /// The biscuit number (replay protection)
-    biscuit_no: 12,
+    pub biscuit_no: [u8; 12],
     /// Chaining key
-    ck: sodium::KEY_SIZE
+    pub ck: [u8; KEY_LEN],
 }
 
-data_lense! { DataMsg :=
-    dummy: 4
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct DataMsg {
+    pub dummy: [u8; 4],
 }
 
-data_lense! { CookieReply :=
-    dummy: 4
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct CookieReplyInner {
+    /// [MsgType] of this message
+    pub msg_type: u8,
+    /// Reserved for future use
+    pub reserved: [u8; 3],
+    /// Session ID of the sender (initiator)
+    pub sid: [u8; 4],
+    /// Encrypted cookie with authenticated initiator `mac`
+    pub cookie_encrypted: [u8; xaead::NONCE_LEN + COOKIE_SIZE + xaead::TAG_LEN],
+}
+
+#[repr(packed)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct CookieReply {
+    pub inner: CookieReplyInner,
+    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
@@ -380,34 +176,38 @@ impl TryFrom<u8> for MsgType {
     }
 }
 
+impl From<MsgType> for u8 {
+    fn from(val: MsgType) -> Self {
+        val as u8
+    }
+}
+
 /// length in bytes of an unencrypted Biscuit (plain text)
-pub const BISCUIT_PT_LEN: usize = Biscuit::<()>::LEN;
+pub const BISCUIT_PT_LEN: usize = size_of::<Biscuit>();
 
 /// Length in bytes of an encrypted Biscuit (cipher text)
-pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN;
+pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
 
 #[cfg(test)]
 mod test_constants {
-    use crate::{
-        msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN},
-        sodium,
-    };
+    use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
+    use rosenpass_ciphers::{xaead, KEY_LEN};
 
     #[test]
     fn sodium_keysize() {
-        assert_eq!(sodium::KEY_SIZE, 32);
+        assert_eq!(KEY_LEN, 32);
     }
 
     #[test]
     fn biscuit_pt_len() {
-        assert_eq!(BISCUIT_PT_LEN, 2 * sodium::KEY_SIZE + 12);
+        assert_eq!(BISCUIT_PT_LEN, 2 * KEY_LEN + 12);
     }
 
     #[test]
     fn biscuit_ct_len() {
         assert_eq!(
             BISCUIT_CT_LEN,
-            BISCUIT_PT_LEN + sodium::XAEAD_NONCE_LEN + sodium::XAEAD_TAG_LEN
+            BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN
         );
     }
 }

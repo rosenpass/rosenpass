@@ -1,22 +1,61 @@
 use anyhow::{bail, ensure};
-use clap::Parser;
-use std::path::{Path, PathBuf};
+use clap::{Parser, Subcommand};
+use rosenpass_cipher_traits::Kem;
+use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_secret_memory::file::StoreSecret;
+use rosenpass_util::file::{LoadValue, LoadValueB64};
+use std::path::PathBuf;
 
-use crate::app_server;
 use crate::app_server::AppServer;
-use crate::util::{LoadValue, LoadValueB64};
-use crate::{
-    // app_server::{AppServer, LoadValue, LoadValueB64},
-    coloring::Secret,
-    pqkem::{StaticKEM, KEM},
-    protocol::{SPk, SSk, SymKey},
-};
+use crate::app_server::{self, AppServerTest};
+use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
 
+/// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
-pub enum Cli {
+pub struct CliArgs {
+    /// lowest log level to show – log messages at higher levels will be omitted
+    #[arg(long = "log-level", value_name = "LOG_LEVEL", group = "log-level")]
+    log_level: Option<log::LevelFilter>,
+
+    /// show verbose log output – sets log level to "debug"
+    #[arg(short, long, group = "log-level")]
+    verbose: bool,
+
+    /// show no log output – sets log level to "error"
+    #[arg(short, long, group = "log-level")]
+    quiet: bool,
+
+    #[command(subcommand)]
+    pub command: CliCommand,
+}
+
+impl CliArgs {
+    /// returns the log level filter set by CLI args
+    /// returns `None` if the user did not specify any log level filter via CLI
+    ///
+    /// NOTE: the clap feature of ["argument groups"](https://docs.rs/clap/latest/clap/_derive/_tutorial/chapter_3/index.html#argument-relations)
+    /// ensures that the user can not specify more than one of the possible log level arguments.
+    /// Note the `#[arg("group")]` in the [`CliArgs`] struct.
+    pub fn get_log_level(&self) -> Option<log::LevelFilter> {
+        if self.verbose {
+            return Some(log::LevelFilter::Info);
+        }
+        if self.quiet {
+            return Some(log::LevelFilter::Error);
+        }
+        if let Some(level_filter) = self.log_level {
+            return Some(level_filter);
+        }
+        None
+    }
+}
+
+/// represents a command specified via CLI
+#[derive(Subcommand, Debug)]
+pub enum CliCommand {
     /// Start Rosenpass in server mode and carry on with the key exchange
     ///
     /// This will parse the configuration file and perform the key exchange
@@ -89,6 +128,15 @@ pub enum Cli {
         force: bool,
     },
 
+    /// Deprecated - use gen-keys instead
+    #[allow(rustdoc::broken_intra_doc_links)]
+    #[allow(rustdoc::invalid_html_tags)]
+    Keygen {
+        // NOTE yes, the legacy keygen argument initially really accepted "privet-key", not "secret-key"!
+        /// public-key <PATH> private-key <PATH>
+        args: Vec<String>,
+    },
+
     /// Validate a configuration
     Validate { config_files: Vec<PathBuf> },
 
@@ -97,12 +145,14 @@ pub enum Cli {
     Man,
 }
 
-impl Cli {
-    pub fn run() -> anyhow::Result<()> {
-        let cli = Self::parse();
-
-        use Cli::*;
-        match cli {
+impl CliCommand {
+    /// runs the command specified via CLI
+    ///
+    /// ## TODO
+    /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
+    pub fn run(self, test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
+        use CliCommand::*;
+        match self {
             Man => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
@@ -119,6 +169,40 @@ impl Cli {
                 );
 
                 config::Rosenpass::example_config().store(config_file)?;
+            }
+
+            // Deprecated - use gen-keys instead
+            Keygen { args } => {
+                log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
+
+                let mut public_key: Option<PathBuf> = None;
+                let mut secret_key: Option<PathBuf> = None;
+
+                // Manual arg parsing, since clap wants to prefix flags with "--"
+                let mut args = args.into_iter();
+                loop {
+                    match (args.next().as_deref(), args.next()) {
+                        (Some("private-key"), Some(opt)) | (Some("secret-key"), Some(opt)) => {
+                            secret_key = Some(opt.into());
+                        }
+                        (Some("public-key"), Some(opt)) => {
+                            public_key = Some(opt.into());
+                        }
+                        (Some(flag), _) => {
+                            bail!("Unknown option `{}`", flag);
+                        }
+                        (_, _) => break,
+                    };
+                }
+
+                if secret_key.is_none() {
+                    bail!("private-key is required");
+                }
+                if public_key.is_none() {
+                    bail!("public-key is required");
+                }
+
+                generate_and_save_keypair(secret_key.unwrap(), public_key.unwrap())?;
             }
 
             GenKeys {
@@ -162,12 +246,7 @@ impl Cli {
                 }
 
                 // generate the keys and store them in files
-                let mut ssk = crate::protocol::SSk::random();
-                let mut spk = crate::protocol::SPk::random();
-                StaticKEM::keygen(ssk.secret_mut(), spk.secret_mut())?;
-
-                ssk.store_secret(skf)?;
-                spk.store_secret(pkf)?;
+                generate_and_save_keypair(skf, pkf)?;
             }
 
             ExchangeConfig { config_file } => {
@@ -178,7 +257,7 @@ impl Cli {
 
                 let config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(config, test_helpers)?;
             }
 
             Exchange {
@@ -195,7 +274,7 @@ impl Cli {
                     config.config_file_path = p;
                 }
                 config.validate()?;
-                Self::event_loop(config)?;
+                Self::event_loop(config, test_helpers)?;
             }
 
             Validate { config_files } => {
@@ -204,7 +283,7 @@ impl Cli {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
-                                Ok(_) => eprintln!("{file:?} is passed all logical checks"),
+                                Ok(_) => eprintln!("{file:?} has passed all logical checks"),
                                 Err(_) => eprintln!("{file:?} contains logical errors"),
                             }
                         }
@@ -217,7 +296,10 @@ impl Cli {
         Ok(())
     }
 
-    fn event_loop(config: config::Rosenpass) -> anyhow::Result<()> {
+    fn event_loop(
+        config: config::Rosenpass,
+        test_helpers: Option<AppServerTest>,
+    ) -> anyhow::Result<()> {
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -228,6 +310,7 @@ impl Cli {
             pk,
             config.listen,
             config.verbosity,
+            test_helpers,
         )?);
 
         for cfg_peer in config.peers {
@@ -249,13 +332,11 @@ impl Cli {
     }
 }
 
-trait StoreSecret {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()>;
-}
-
-impl<const N: usize> StoreSecret for Secret<N> {
-    fn store_secret<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, self.secret())?;
-        Ok(())
-    }
+/// generate secret and public keys, store in files according to the paths passed as arguments
+fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
+    let mut ssk = crate::protocol::SSk::random();
+    let mut spk = crate::protocol::SPk::random();
+    StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
+    ssk.store_secret(secret_key)?;
+    spk.store(public_key)
 }
