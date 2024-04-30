@@ -5,10 +5,9 @@ use derive_builder::Builder;
 use log::{debug, error, info, warn};
 use mio::Interest;
 use mio::Token;
-use rosenpass_util::file::{fopen_w, Visibility};
+use rosenpass_util::file::{StoreValueB64, StoreValueB64Writer};
 
 use std::cell::Cell;
-use std::io::Write;
 
 use std::io::ErrorKind;
 use std::net::Ipv4Addr;
@@ -31,7 +30,10 @@ use crate::{
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
 };
 use rosenpass_util::attempt;
-use rosenpass_util::b64::{b64_writer, fmt_b64};
+use rosenpass_util::b64::B64Display;
+
+const MAX_B64_KEY_SIZE: usize = 1000;
+const MAX_B64_PEER_ID_SIZE: usize = 1000;
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
@@ -746,7 +748,7 @@ impl AppServer {
                 KeyOutputReason::Exchanged => "Exchanged key with peer",
                 KeyOutputReason::Stale => "Erasing outdated key from peer",
             };
-            info!("{} {}", msg, fmt_b64(&*peerid));
+            info!("{} {}", msg, peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>());
         }
 
         if let Some(of) = ap.outfile.as_ref() {
@@ -757,7 +759,7 @@ impl AppServer {
             // data will linger in the linux page cache anyways with the current
             // implementation, going to great length to erase the secret here is
             // not worth it right now.
-            b64_writer(fopen_w(of, Visibility::Secret)?).write_all(key.secret())?;
+            key.store_b64::<MAX_B64_KEY_SIZE, _>(of)?;
             let why = match why {
                 KeyOutputReason::Exchanged => "exchanged",
                 KeyOutputReason::Stale => "stale",
@@ -767,7 +769,7 @@ impl AppServer {
             // it is meant to allow external detection of a successful key-exchange
             println!(
                 "output-key peer {} key-file {of:?} {why}",
-                fmt_b64(&*peerid)
+                peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>()
             );
         }
 
@@ -792,7 +794,7 @@ impl AppServer {
                     }
                 }
             };
-            b64_writer(child.stdin.take().unwrap()).write_all(key.secret())?;
+            key.store_b64_writer::<MAX_B64_KEY_SIZE, _>(child.stdin.take().unwrap());
 
             thread::spawn(move || {
                 let status = child.wait();

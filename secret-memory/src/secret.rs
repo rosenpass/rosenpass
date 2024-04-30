@@ -9,8 +9,11 @@ use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use rosenpass_util::b64::b64_reader;
-use rosenpass_util::file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd};
+use rosenpass_util::b64::{b64_decode, b64_encode};
+use rosenpass_util::file::{
+    fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64,
+    StoreValueB64Writer,
+};
 use rosenpass_util::functional::mutating;
 
 use crate::alloc::{secret_box, SecretBox, SecretVec};
@@ -251,22 +254,54 @@ impl<const N: usize> LoadValue for Secret<N> {
 impl<const N: usize> LoadValueB64 for Secret<N> {
     type Error = anyhow::Error;
 
-    fn load_b64<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        use std::io::Read;
-
+    fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let mut f: Secret<F> = Secret::random();
         let mut v = Self::random();
         let p = path.as_ref();
-        // This might leave some fragments of the secret on the stack;
-        // in practice this is likely not a problem because the stack likely
-        // will be overwritten by something else soon but this is not exactly
-        // guaranteed. It would be possible to remedy this, but since the secret
-        // data will linger in the Linux page cache anyways with the current
-        // implementation, going to great length to erase the secret here is
-        // not worth it right now.
-        b64_reader(&mut fopen_r(p)?)
-            .read_exact(v.secret_mut())
-            .with_context(|| format!("Could not load base64 file {p:?}"))?;
+
+        fopen_r(p)?
+            .read_slice_to_end(f.secret_mut())
+            .with_context(|| format!("Could not load file {p:?}"))?;
+
+        b64_decode(f.secret(), v.secret_mut())
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
+
         Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValueB64 for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        let p = path.as_ref();
+
+        let mut f: Secret<F> = Secret::random();
+        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+
+        fopen_w(p, Visibility::Secret)?
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write file {p:?}"))?;
+        f.zeroize();
+
+        Ok(())
+    }
+}
+
+impl<const N: usize> StoreValueB64Writer for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64_writer<const F: usize, W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
+        let mut f: Secret<F> = Secret::random();
+        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+            .with_context(|| format!("Could not encode secret to base64"))?;
+
+        writer
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write base64 to writer"))?;
+        f.zeroize();
+        Ok(())
     }
 }
 

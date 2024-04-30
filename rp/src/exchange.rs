@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use anyhow::Result;
 
+use crate::key::WG_B64_LEN;
 #[derive(Default)]
 pub struct ExchangePeer {
     pub public_keys_dir: PathBuf,
@@ -160,7 +161,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
 
-    let wgsk = Secret::<WG_KEY_LEN>::load_b64(wgsk_path)?;
+    let wgsk = Secret::<WG_KEY_LEN>::load_b64::<WG_B64_LEN, _>(wgsk_path)?;
 
     let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
     attr.push(WgDeviceAttrs::PrivateKey(*wgsk.secret()));
@@ -221,7 +222,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
         srv.add_peer(
             if psk.exists() {
-                Some(SymKey::load_b64(psk))
+                Some(SymKey::load_b64::<WG_B64_LEN, _>(psk))
             } else {
                 None
             }

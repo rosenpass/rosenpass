@@ -1,10 +1,16 @@
 use crate::debug::debug_crypto_array;
+use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
 use rosenpass_to::{ops::copy_slice, To};
-use rosenpass_util::file::{fopen_r, LoadValue, ReadExactToEnd, StoreValue};
+use rosenpass_util::b64::{b64_decode, b64_encode};
+use rosenpass_util::file::{
+    fopen_r, fopen_w, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue,
+    StoreValueB64, Visibility,
+};
 use rosenpass_util::functional::mutating;
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
+use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
@@ -107,6 +113,43 @@ impl<const N: usize> StoreValue for Public<N> {
 
     fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         std::fs::write(path, **self)?;
+        Ok(())
+    }
+}
+
+impl<const N: usize> LoadValueB64 for Public<N> {
+    type Error = anyhow::Error;
+
+    fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        let mut f = [0u8; F];
+        let mut v = Public::zero();
+        let p = path.as_ref();
+
+        fopen_r(p)?
+            .read_slice_to_end(&mut f)
+            .with_context(|| format!("Could not load file {p:?}"))?;
+
+        b64_decode(&f, &mut v.value)
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
+
+        Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValueB64 for Public<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        let p = path.as_ref();
+        let mut f = [0u8; F];
+        let encoded_str = b64_encode(&self.value, &mut f)
+            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+        fopen_w(p, Visibility::Public)?
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write file {p:?}"))?;
         Ok(())
     }
 }
