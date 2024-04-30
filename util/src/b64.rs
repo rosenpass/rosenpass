@@ -1,8 +1,4 @@
-use base64ct::{
-    Base64,
-    Decoder as B64Reader,
-    Encoder as B64Writer,
-};
+use base64ct::{Base64, Decoder as B64Reader, Encoder as B64Writer};
 use zeroize::Zeroize;
 
 use std::fmt::Display;
