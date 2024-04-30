@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use base64::Engine;
+use rosenpass_util::file::LoadValueB64;
 use zeroize::Zeroize;
 
 use rosenpass::protocol::{SPk, SSk};
@@ -91,9 +92,7 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
     let private_pqpk = private_keys_dir.join("pqpk");
     let public_pqpk = public_keys_dir.join("pqpk");
 
-    let wgsk = Secret::from_slice(
-        &base64::engine::general_purpose::STANDARD.decode(fs::read_to_string(private_wgsk)?)?,
-    );
+    let wgsk = Secret::load_b64(private_wgsk)?;
     let mut wgpk: x25519_dalek::PublicKey = {
         let mut secret = x25519_dalek::StaticSecret::from(*wgsk.secret());
         let public = x25519_dalek::PublicKey::from(&secret);
