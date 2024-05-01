@@ -176,7 +176,7 @@ jobs:
           cargo fuzz run fuzz_mceliece_encaps -- -max_total_time=5
           cargo fuzz run fuzz_box_secret_alloc -- -max_total_time=5
           cargo fuzz run fuzz_vec_secret_alloc -- -max_total_time=5
-  
+
   codecov:
     runs-on: ubuntu-latest
     steps:
@@ -184,7 +184,7 @@ jobs:
       - run: rustup component add llvm-tools-preview
       - run: |
           cargo install cargo-llvm-cov || true
-          cargo llvm-cov --lcov --output-path coverage.lcov 
+          cargo llvm-cov --lcov --output-path coverage.lcov
       # If using tarapulin
       #- run: cargo install cargo-tarpaulin
       #- run: cargo tarpaulin --out Xml
