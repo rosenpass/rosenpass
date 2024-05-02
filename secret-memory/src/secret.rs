@@ -259,11 +259,11 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
         let mut v = Self::random();
         let p = path.as_ref();
 
-        fopen_r(p)?
+        let len = fopen_r(p)?
             .read_slice_to_end(f.secret_mut())
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(f.secret(), v.secret_mut())
+        b64_decode(&f.secret()[0..len], v.secret_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -322,6 +322,8 @@ impl<const N: usize> StoreSecret for Secret<N> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use tempfile::tempdir;
 
     /// check that we can alloc using the magic pool
     #[test]
@@ -332,7 +334,7 @@ mod test {
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
-    /// check that a secrete lives, even if its [SecretMemoryPool] is deleted
+    /// check that a secret lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
         const N: usize = 0x100;
@@ -342,7 +344,7 @@ mod test {
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
-    /// check that a secrete can be reborn, freshly initialized with zero
+    /// check that a secret can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
         const N: usize = 1;
@@ -359,5 +361,93 @@ mod test {
 
         // and that the secret was zeroized
         assert_eq!(new_secret.as_ref(), &[0; N]);
+    }
+
+    /// test loading a secret from an example file, and then storing it again in a different file
+    #[test]
+    fn test_secret_load_store() {
+        const N: usize = 100;
+
+        // Generate original random bytes
+        let original_bytes: [u8; N] = [rand::random(); N];
+
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+
+        // Store the original secret to an example file in the temporary directory
+        let example_file = temp_dir.path().join("example_file");
+        std::fs::write(example_file.clone(), &original_bytes).unwrap();
+
+        // Load the secret from the example file
+        let loaded_secret = Secret::load(&example_file).unwrap();
+
+        // Check that the loaded secret matches the original bytes
+        assert_eq!(loaded_secret.secret(), &original_bytes);
+
+        // Store the loaded secret to a different file in the temporary directory
+        let new_file = temp_dir.path().join("new_file");
+        loaded_secret.store(&new_file).unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+    }
+
+    /// test loading a base64 encoded secret from an example file, and then storing it again in a different file
+    #[test]
+    fn test_secret_load_store_base64() {
+        const N: usize = 100;
+        // Generate original random bytes
+        let original_bytes: [u8; N] = [rand::random(); N];
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+        let example_file = temp_dir.path().join("example_file");
+        let mut encoded_secret = [0u8; N * 2];
+        let encoded_secret = b64_encode(&original_bytes, &mut encoded_secret).unwrap();
+
+        std::fs::write(&example_file, encoded_secret).unwrap();
+
+        // Load the secret from the example file
+        let loaded_secret = Secret::load_b64::<{ N * 2 }, _>(&example_file).unwrap();
+        // Check that the loaded secret matches the original bytes
+        assert_eq!(loaded_secret.secret(), &original_bytes);
+
+        // Store the loaded secret to a different file in the temporary directory
+        let new_file = temp_dir.path().join("new_file");
+        loaded_secret.store_b64::<{ N * 2 }, _>(&new_file).unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+
+        //Check new file permissions are secret
+        let metadata = fs::metadata(&new_file).unwrap();
+        assert_eq!(metadata.permissions().mode() & 0o000777, 0o600);
+
+        // Store the loaded secret to a different file in the temporary directory for a second time
+        let new_file = temp_dir.path().join("new_file_writer");
+        let new_file_writer = fopen_w(new_file.clone(), Visibility::Secret).unwrap();
+        loaded_secret
+            .store_b64_writer::<{ N * 2 }, _>(&new_file_writer)
+            .unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+
+        //Check new file permissions are secret
+        let metadata = fs::metadata(&new_file).unwrap();
+        assert_eq!(metadata.permissions().mode() & 0o000777, 0o600);
     }
 }

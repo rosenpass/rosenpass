@@ -32,8 +32,8 @@ use crate::{
 use rosenpass_util::attempt;
 use rosenpass_util::b64::B64Display;
 
-const MAX_B64_KEY_SIZE: usize = 1000;
-const MAX_B64_PEER_ID_SIZE: usize = 1000;
+const MAX_B64_KEY_SIZE: usize = 32 * 5 / 3;
+const MAX_B64_PEER_ID_SIZE: usize = 32 * 5 / 3;
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
@@ -794,7 +794,10 @@ impl AppServer {
                     }
                 }
             };
-            key.store_b64_writer::<MAX_B64_KEY_SIZE, _>(child.stdin.take().unwrap());
+            if let Err(e) = key.store_b64_writer::<MAX_B64_KEY_SIZE, _>(child.stdin.take().unwrap())
+            {
+                error!("could not write psk to wg: {:?}", e);
+            }
 
             thread::spawn(move || {
                 let status = child.wait();

@@ -13,7 +13,7 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
 
-pub const WG_B64_LEN: usize = 44;
+pub const WG_B64_LEN: usize = 32 * 5 / 3;
 
 #[cfg(not(target_family = "unix"))]
 pub fn genkey(_: &Path) -> Result<()> {
