@@ -9,12 +9,12 @@ use rosenpass_ciphers::kem::EphemeralKem;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {
-    pub pk: [u8; 800],
+    pub pk: [u8; EphemeralKem::PK_LEN],
 }
 
 fuzz_target!(|input: Input| {
-    let mut ciphertext = [0u8; 768];
-    let mut shared_secret = [0u8; 32];
+    let mut ciphertext = [0u8; EphemeralKem::CT_LEN];
+    let mut shared_secret = [0u8; EphemeralKem::SK_LEN];
 
     EphemeralKem::encaps(&mut shared_secret, &mut ciphertext, &input.pk).unwrap();
 });
