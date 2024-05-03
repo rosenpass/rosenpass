@@ -1,0 +1,41 @@
+[package]
+name = "rosenpass-wireguard-broker"
+authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Rosenpass internal broker that runs as root and supplies exchanged keys to the kernel."
+homepage = "https://rosenpass.eu/"
+repository = "https://github.com/rosenpass/rosenpass"
+readme = "readme.md"
+
+[dependencies]
+thiserror = { workspace = true }
+zerocopy = { workspace = true }
+
+# Privileged only
+wireguard-uapi = { workspace = true }
+
+# Socket handler only
+rosenpass-to = { workspace = true }
+tokio = { version = "1.34.0", features = ["sync", "full", "mio"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+
+# Mio broker client
+mio = { workspace = true }
+rosenpass-util = { workspace = true }
+
+[[bin]]
+name = "rosenpass-wireguard-broker-privileged"
+path = "src/bin/priviledged.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rosenpass-wireguard-broker-socket-handler"
+test = false
+path = "src/bin/socket_handler.rs"
+doc = false
