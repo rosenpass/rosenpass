@@ -166,10 +166,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "base64"
-version = "0.21.7"
+name = "base64ct"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
 name = "bindgen"
@@ -1639,11 +1639,13 @@ dependencies = [
  "allocator-api2",
  "allocator-api2-tests",
  "anyhow",
+ "base64ct",
  "log",
  "memsec",
  "rand",
  "rosenpass-to",
  "rosenpass-util",
+ "tempfile",
  "zeroize",
 ]
 
@@ -1659,9 +1661,10 @@ name = "rosenpass-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64",
+ "base64ct",
  "static_assertions",
  "typenum",
+ "zeroize",
 ]
 
 [[package]]
@@ -1669,7 +1672,7 @@ name = "rp"
 version = "0.2.1"
 dependencies = [
  "anyhow",
- "base64",
+ "base64ct",
  "ctrlc-async",
  "futures",
  "futures-util",

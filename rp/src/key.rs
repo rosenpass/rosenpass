@@ -1,19 +1,19 @@
 use std::{
-    fs::{self, DirBuilder, OpenOptions},
-    io::Write,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    fs::{self, DirBuilder},
+    os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::Path,
 };
 
 use anyhow::{anyhow, Result};
-use base64::Engine;
-use rosenpass_util::file::LoadValueB64;
+use rosenpass_util::file::{LoadValueB64, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::{SPk, SSk};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
-use rosenpass_secret_memory::{file::StoreSecret as _, Secret};
+use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
+
+pub const WG_B64_LEN: usize = 32 * 5 / 3;
 
 #[cfg(not(target_family = "unix"))]
 pub fn genkey(_: &Path) -> Result<()> {
@@ -45,18 +45,7 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
 
     if !wgsk_path.exists() {
         let wgsk: Secret<32> = Secret::random();
-
-        let mut wgsk_file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .mode(0o600)
-            .open(wgsk_path)?;
-
-        wgsk_file.write_all(
-            base64::engine::general_purpose::STANDARD
-                .encode(wgsk.secret())
-                .as_bytes(),
-        )?;
+        wgsk.store_b64::<WG_B64_LEN, _>(wgsk_path)?;
     } else {
         eprintln!(
             "WireGuard secret key already exists at {:#?}: not regenerating",
@@ -92,18 +81,15 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
     let private_pqpk = private_keys_dir.join("pqpk");
     let public_pqpk = public_keys_dir.join("pqpk");
 
-    let wgsk = Secret::load_b64(private_wgsk)?;
-    let mut wgpk: x25519_dalek::PublicKey = {
+    let wgsk = Secret::load_b64::<WG_B64_LEN, _>(private_wgsk)?;
+    let mut wgpk: Public<32> = {
         let mut secret = x25519_dalek::StaticSecret::from(*wgsk.secret());
         let public = x25519_dalek::PublicKey::from(&secret);
         secret.zeroize();
-        public
+        Public::from_slice(public.as_bytes())
     };
 
-    fs::write(
-        public_wgpk,
-        base64::engine::general_purpose::STANDARD.encode(wgpk.as_bytes()),
-    )?;
+    wgpk.store_b64::<WG_B64_LEN, _>(public_wgpk)?;
     wgpk.zeroize();
 
     fs::copy(private_pqpk, public_pqpk)?;
@@ -115,12 +101,13 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
 mod tests {
     use std::fs;
 
-    use base64::Engine;
     use rosenpass::protocol::{SPk, SSk};
+    use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::LoadValue;
+    use rosenpass_util::file::LoadValueB64;
     use tempfile::tempdir;
 
-    use crate::key::{genkey, pubkey};
+    use crate::key::{genkey, pubkey, WG_B64_LEN};
 
     #[test]
     fn it_works() {
@@ -136,9 +123,9 @@ mod tests {
         assert!(private_keys_dir.path().is_dir());
         assert!(SPk::load(private_keys_dir.path().join("pqpk")).is_ok());
         assert!(SSk::load(private_keys_dir.path().join("pqsk")).is_ok());
-        assert!(base64::engine::general_purpose::STANDARD
-            .decode(&fs::read_to_string(private_keys_dir.path().join("wgsk")).unwrap())
-            .is_ok());
+        assert!(
+            Secret::<32>::load_b64::<WG_B64_LEN, _>(private_keys_dir.path().join("wgsk")).is_ok()
+        );
 
         let public_keys_dir = tempdir().unwrap();
         fs::remove_dir(public_keys_dir.path()).unwrap();
@@ -151,9 +138,9 @@ mod tests {
         assert!(public_keys_dir.path().exists());
         assert!(public_keys_dir.path().is_dir());
         assert!(SPk::load(public_keys_dir.path().join("pqpk")).is_ok());
-        assert!(base64::engine::general_purpose::STANDARD
-            .decode(&fs::read_to_string(public_keys_dir.path().join("wgpk")).unwrap())
-            .is_ok());
+        assert!(
+            Secret::<32>::load_b64::<WG_B64_LEN, _>(public_keys_dir.path().join("wgpk")).is_ok()
+        );
 
         let pk_1 = fs::read(private_keys_dir.path().join("pqpk")).unwrap();
         let pk_2 = fs::read(public_keys_dir.path().join("pqpk")).unwrap();

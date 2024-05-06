@@ -32,12 +32,8 @@ rosenpass-ciphers = { path = "ciphers" }
 rosenpass-to = { path = "to" }
 rosenpass-secret-memory = { path = "secret-memory" }
 rosenpass-oqs = { path = "oqs" }
-criterion = "0.4.0"
-test_bin = "0.4.0"
-libfuzzer-sys = "0.4"
-stacker = "0.1.15"
 doc-comment = "0.3.3"
-base64 = "0.21.7"
+base64ct = {version = "1.6.0", default-features=false}
 zeroize = "1.7.0"
 memoffset = "0.9.1"
 thiserror = "1.0.59"
@@ -46,7 +42,6 @@ env_logger = "0.10.2"
 toml = "0.7.8"
 static_assertions = "1.1.0"
 allocator-api2 = "0.2.14"
-allocator-api2-tests = "0.2.15"
 memsec = "0.6.3"
 rand = "0.8.5"
 typenum = "1.17.0"
@@ -61,5 +56,13 @@ blake2 = "0.10.6"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [ "std", "heapless" ] }
 zerocopy = { version = "0.7.32", features = ["derive"] }
 home = "0.5.9"
-serial_test = "3.1.1"
 derive_builder = "0.20.0"
+
+#Dev dependencies
+serial_test = "3.1.1"
+tempfile="3"
+stacker = "0.1.15"
+libfuzzer-sys = "0.4"
+test_bin = "0.4.0"
+criterion = "0.4.0"
+allocator-api2-tests = "0.2.15"

@@ -11,7 +11,7 @@ repository = "https://github.com/rosenpass/rosenpass"
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = { workspace = true }
+base64ct = { workspace = true }
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 zeroize = { workspace = true }
 
@@ -34,5 +34,5 @@ netlink-packet-generic = "0.3"
 netlink-packet-wireguard = "0.2"
 
 [dev-dependencies]
-tempfile = "3"
-stacker = "0.1.15"
+tempfile = {workspace = true}
+stacker = {workspace = true}
