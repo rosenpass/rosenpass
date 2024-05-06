@@ -300,6 +300,7 @@ impl CliCommand {
         config: config::Rosenpass,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
+        const MAX_PSK_SIZE: usize = 1000;
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -316,7 +317,10 @@ impl CliCommand {
         for cfg_peer in config.peers {
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
-                cfg_peer.pre_shared_key.map(SymKey::load_b64).transpose()?,
+                cfg_peer
+                    .pre_shared_key
+                    .map(SymKey::load_b64::<MAX_PSK_SIZE, _>)
+                    .transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
                 cfg_peer.wg.map(|cfg| app_server::WireguardOut {

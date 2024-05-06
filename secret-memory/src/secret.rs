@@ -9,8 +9,11 @@ use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use rosenpass_util::b64::b64_reader;
-use rosenpass_util::file::{fopen_r, LoadValue, LoadValueB64, ReadExactToEnd};
+use rosenpass_util::b64::{b64_decode, b64_encode};
+use rosenpass_util::file::{
+    fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64,
+    StoreValueB64Writer,
+};
 use rosenpass_util::functional::mutating;
 
 use crate::alloc::{secret_box, SecretBox, SecretVec};
@@ -251,22 +254,54 @@ impl<const N: usize> LoadValue for Secret<N> {
 impl<const N: usize> LoadValueB64 for Secret<N> {
     type Error = anyhow::Error;
 
-    fn load_b64<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        use std::io::Read;
-
+    fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let mut f: Secret<F> = Secret::random();
         let mut v = Self::random();
         let p = path.as_ref();
-        // This might leave some fragments of the secret on the stack;
-        // in practice this is likely not a problem because the stack likely
-        // will be overwritten by something else soon but this is not exactly
-        // guaranteed. It would be possible to remedy this, but since the secret
-        // data will linger in the Linux page cache anyways with the current
-        // implementation, going to great length to erase the secret here is
-        // not worth it right now.
-        b64_reader(&mut fopen_r(p)?)
-            .read_exact(v.secret_mut())
-            .with_context(|| format!("Could not load base64 file {p:?}"))?;
+
+        let len = fopen_r(p)?
+            .read_slice_to_end(f.secret_mut())
+            .with_context(|| format!("Could not load file {p:?}"))?;
+
+        b64_decode(&f.secret()[0..len], v.secret_mut())
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
+
         Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValueB64 for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        let p = path.as_ref();
+
+        let mut f: Secret<F> = Secret::random();
+        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+
+        fopen_w(p, Visibility::Secret)?
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write file {p:?}"))?;
+        f.zeroize();
+
+        Ok(())
+    }
+}
+
+impl<const N: usize> StoreValueB64Writer for Secret<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64_writer<const F: usize, W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
+        let mut f: Secret<F> = Secret::random();
+        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+            .with_context(|| format!("Could not encode secret to base64"))?;
+
+        writer
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write base64 to writer"))?;
+        f.zeroize();
+        Ok(())
     }
 }
 
@@ -287,6 +322,8 @@ impl<const N: usize> StoreSecret for Secret<N> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use tempfile::tempdir;
 
     /// check that we can alloc using the magic pool
     #[test]
@@ -297,7 +334,7 @@ mod test {
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
-    /// check that a secrete lives, even if its [SecretMemoryPool] is deleted
+    /// check that a secret lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
         const N: usize = 0x100;
@@ -307,7 +344,7 @@ mod test {
         assert_eq!(secret.as_ref(), &[0; N]);
     }
 
-    /// check that a secrete can be reborn, freshly initialized with zero
+    /// check that a secret can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
         const N: usize = 1;
@@ -324,5 +361,93 @@ mod test {
 
         // and that the secret was zeroized
         assert_eq!(new_secret.as_ref(), &[0; N]);
+    }
+
+    /// test loading a secret from an example file, and then storing it again in a different file
+    #[test]
+    fn test_secret_load_store() {
+        const N: usize = 100;
+
+        // Generate original random bytes
+        let original_bytes: [u8; N] = [rand::random(); N];
+
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+
+        // Store the original secret to an example file in the temporary directory
+        let example_file = temp_dir.path().join("example_file");
+        std::fs::write(example_file.clone(), &original_bytes).unwrap();
+
+        // Load the secret from the example file
+        let loaded_secret = Secret::load(&example_file).unwrap();
+
+        // Check that the loaded secret matches the original bytes
+        assert_eq!(loaded_secret.secret(), &original_bytes);
+
+        // Store the loaded secret to a different file in the temporary directory
+        let new_file = temp_dir.path().join("new_file");
+        loaded_secret.store(&new_file).unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+    }
+
+    /// test loading a base64 encoded secret from an example file, and then storing it again in a different file
+    #[test]
+    fn test_secret_load_store_base64() {
+        const N: usize = 100;
+        // Generate original random bytes
+        let original_bytes: [u8; N] = [rand::random(); N];
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+        let example_file = temp_dir.path().join("example_file");
+        let mut encoded_secret = [0u8; N * 2];
+        let encoded_secret = b64_encode(&original_bytes, &mut encoded_secret).unwrap();
+
+        std::fs::write(&example_file, encoded_secret).unwrap();
+
+        // Load the secret from the example file
+        let loaded_secret = Secret::load_b64::<{ N * 2 }, _>(&example_file).unwrap();
+        // Check that the loaded secret matches the original bytes
+        assert_eq!(loaded_secret.secret(), &original_bytes);
+
+        // Store the loaded secret to a different file in the temporary directory
+        let new_file = temp_dir.path().join("new_file");
+        loaded_secret.store_b64::<{ N * 2 }, _>(&new_file).unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+
+        //Check new file permissions are secret
+        let metadata = fs::metadata(&new_file).unwrap();
+        assert_eq!(metadata.permissions().mode() & 0o000777, 0o600);
+
+        // Store the loaded secret to a different file in the temporary directory for a second time
+        let new_file = temp_dir.path().join("new_file_writer");
+        let new_file_writer = fopen_w(new_file.clone(), Visibility::Secret).unwrap();
+        loaded_secret
+            .store_b64_writer::<{ N * 2 }, _>(&new_file_writer)
+            .unwrap();
+
+        // Read the contents of the new file
+        let new_file_contents = fs::read(&new_file).unwrap();
+        // Read the contents of the original file
+        let original_file_contents = fs::read(&example_file).unwrap();
+        // Check that the contents of the new file match the original file
+        assert_eq!(new_file_contents, original_file_contents);
+
+        //Check new file permissions are secret
+        let metadata = fs::metadata(&new_file).unwrap();
+        assert_eq!(metadata.permissions().mode() & 0o000777, 0o600);
     }
 }
