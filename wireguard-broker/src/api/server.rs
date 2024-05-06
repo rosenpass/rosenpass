@@ -1,5 +1,4 @@
 use std::borrow::BorrowMut;
-use std::marker::PhantomData;
 use std::result::Result;
 
 use crate::api::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
@@ -20,27 +19,21 @@ impl From<msgs::InvalidMessageTypeError> for BrokerServerError {
     }
 }
 
-pub struct BrokerServer<'a, Err, Inner, Ref>
+pub struct BrokerServer<Err, Inner>
 where
     msgs::SetPskError: From<Err>,
     Inner: WireGuardBroker<Error = Err>,
-    Ref: BorrowMut<Inner> + 'a,
 {
-    inner: Ref,
-    _phantom: PhantomData<&'a mut Inner>,
+    inner: Inner,
 }
 
-impl<'a, Err, Inner, Ref> BrokerServer<'a, Err, Inner, Ref>
+impl<Err, Inner> BrokerServer<Err, Inner>
 where
     msgs::SetPskError: From<Err>,
     Inner: WireGuardBroker<Error = Err>,
-    Ref: 'a + BorrowMut<Inner>,
 {
-    pub fn new(inner: Ref) -> Self {
-        Self {
-            inner,
-            _phantom: PhantomData,
-        }
+    pub fn new(inner: Inner) -> Self {
+        Self { inner }
     }
 
     pub fn handle_message(

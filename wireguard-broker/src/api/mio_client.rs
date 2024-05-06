@@ -8,20 +8,30 @@ use crate::WireGuardBroker;
 use super::client::{
     BrokerClient, BrokerClientIo, BrokerClientPollResponseError, BrokerClientSetPskError,
 };
-use super::msgs;
+use super::msgs::{self, RESPONSE_MSG_BUFFER_SIZE};
 
 #[derive(Debug)]
 pub struct MioBrokerClient {
-    inner: BrokerClient<'static, MioBrokerClientIo, MioBrokerClientIo>,
+    inner: BrokerClient<MioBrokerClientIo>,
 }
+
+const LEN_SIZE: usize = 8;
+const RECV_BUF_SIZE: usize = RESPONSE_MSG_BUFFER_SIZE;
 
 #[derive(Debug)]
 struct MioBrokerClientIo {
     socket: mio::net::UnixStream,
     send_buf: VecDeque<u8>,
-    receiving_size: bool,
-    recv_buf: Vec<u8>,
-    recv_off: usize,
+    recv_state: RxState,
+    expected_state: RxState,
+    recv_buf: [u8; RECV_BUF_SIZE],
+}
+
+#[derive(Debug, Clone, Copy)]
+enum RxState {
+    //Recieving size with buffer offset
+    RxSize(usize),
+    RxBuffer(usize),
 }
 
 impl MioBrokerClient {
@@ -29,9 +39,9 @@ impl MioBrokerClient {
         let io = MioBrokerClientIo {
             socket,
             send_buf: VecDeque::new(),
-            receiving_size: false,
-            recv_buf: Vec::new(),
-            recv_off: 0,
+            recv_state: RxState::RxSize(0),
+            recv_buf: [0u8; RECV_BUF_SIZE],
+            expected_state: RxState::RxSize(LEN_SIZE),
         };
         let inner = BrokerClient::new(io);
         Self { inner }
@@ -84,42 +94,58 @@ impl BrokerClientIo for MioBrokerClientIo {
     }
 
     fn recv_msg(&mut self) -> Result<Option<&[u8]>, Self::RecvError> {
-        // Stale message in receive buffer. Reset!
-        if self.recv_off == self.recv_buf.len() {
-            self.receiving_size = true;
-            self.recv_off = 0;
-            self.recv_buf.resize(8, 0);
+        loop {
+            match (self.recv_state, self.expected_state) {
+                //Stale Buffer state or recieved everything
+                (RxState::RxSize(x), RxState::RxSize(y))
+                | (RxState::RxBuffer(x), RxState::RxBuffer(y))
+                    if x == y =>
+                {
+                    match self.recv_state {
+                        RxState::RxSize(s) => {
+                            let len: &[u8; LEN_SIZE] = self.recv_buf[0..s].try_into().unwrap();
+                            let len: usize = u64::from_le_bytes(*len) as usize;
+
+                            ensure!(
+                                len <= msgs::RESPONSE_MSG_BUFFER_SIZE,
+                                "Oversized buffer ({len}) in psk buffer response."
+                            );
+
+                            self.recv_state = RxState::RxBuffer(0);
+                            self.expected_state = RxState::RxBuffer(len);
+                            continue;
+                        }
+                        RxState::RxBuffer(s) => {
+                            self.recv_state = RxState::RxSize(0);
+                            self.recv_state = RxState::RxSize(LEN_SIZE);
+                            return Ok(Some(&self.recv_buf[0..s]));
+                        }
+                    }
+                }
+
+                //Recieve if x < y
+                (RxState::RxSize(x), RxState::RxSize(y))
+                | (RxState::RxBuffer(x), RxState::RxBuffer(y))
+                    if x < y =>
+                {
+                    let bytes = raw_recv(&self.socket, &mut self.recv_buf[x..y])?;
+
+                    if x + bytes == y {
+                        return Ok(Some(&self.recv_buf[0..y]));
+                    }
+                    //We didn't recieve everything so let's assume something went wrong
+                    self.recv_state = RxState::RxSize(0);
+                    self.expected_state = RxState::RxSize(LEN_SIZE);
+                    bail!("Invalid state");
+                }
+                _ => {
+                    //Reset states
+                    self.recv_state = RxState::RxSize(0);
+                    self.expected_state = RxState::RxSize(LEN_SIZE);
+                    bail!("Invalid state");
+                }
+            };
         }
-
-        // Try filling the receive buffer
-        self.recv_off += raw_recv(&self.socket, &mut self.recv_buf[self.recv_off..])?;
-        if self.recv_off < self.recv_buf.len() {
-            return Ok(None);
-        }
-
-        // Received size, now start receiving
-        if self.receiving_size {
-            // Received the size
-            // Parse the received length
-            let len: &[u8; 8] = self.recv_buf[..].try_into().unwrap();
-            let len: usize = u64::from_le_bytes(*len) as usize;
-
-            ensure!(
-                len <= msgs::RESPONSE_MSG_BUFFER_SIZE,
-                "Oversized buffer ({len}) in psk buffer response."
-            );
-
-            // Prepare the message buffer for receiving an actual message of the given size
-            self.receiving_size = false;
-            self.recv_off = 0;
-            self.recv_buf.resize(len, 0);
-
-            // Try to receive the message
-            return self.recv_msg();
-        }
-
-        // Received an actual message
-        return Ok(Some(&self.recv_buf[..]));
     }
 }
 

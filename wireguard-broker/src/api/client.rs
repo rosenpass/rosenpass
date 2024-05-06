@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, marker::PhantomData};
+use std::borrow::BorrowMut;
 
 use crate::{
     api::msgs::{self, REQUEST_MSG_BUFFER_SIZE},
@@ -49,32 +49,26 @@ pub trait BrokerClientIo {
 }
 
 #[derive(Debug)]
-pub struct BrokerClient<'a, Io, IoRef>
+pub struct BrokerClient<Io>
 where
     Io: BrokerClientIo,
-    IoRef: 'a + BorrowMut<Io>,
 {
-    io: IoRef,
-    _phantom_io: PhantomData<&'a mut Io>,
+    io: Io,
 }
 
-impl<'a, Io, IoRef> BrokerClient<'a, Io, IoRef>
+impl<Io> BrokerClient<Io>
 where
     Io: BrokerClientIo,
-    IoRef: 'a + BorrowMut<Io>,
 {
-    pub fn new(io: IoRef) -> Self {
-        Self {
-            io,
-            _phantom_io: PhantomData,
-        }
+    pub fn new(io: Io) -> Self {
+        Self { io }
     }
 
-    pub fn io(&self) -> &IoRef {
+    pub fn io(&self) -> &Io {
         &self.io
     }
 
-    pub fn io_mut(&mut self) -> &mut IoRef {
+    pub fn io_mut(&mut self) -> &mut Io {
         &mut self.io
     }
 
@@ -103,10 +97,9 @@ where
     }
 }
 
-impl<'a, Io, IoRef> WireGuardBroker for BrokerClient<'a, Io, IoRef>
+impl<Io> WireGuardBroker for BrokerClient<Io>
 where
     Io: BrokerClientIo,
-    IoRef: 'a + BorrowMut<Io>,
 {
     type Error = BrokerClientSetPskError<Io::SendError>;
 
