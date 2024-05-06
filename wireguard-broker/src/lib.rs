@@ -1,5 +1,7 @@
+#[cfg(feature = "enable_broker")]
 use std::result::Result;
 
+#[cfg(feature = "enable_broker")]
 pub trait WireGuardBroker {
     type Error;
 
@@ -11,5 +13,7 @@ pub trait WireGuardBroker {
     ) -> Result<(), Self::Error>;
 }
 
+#[cfg(feature = "enable_broker")]
 pub mod api;
+#[cfg(feature = "enable_broker")]
 pub mod netlink;

@@ -28,14 +28,19 @@ log = { workspace = true }
 mio = { workspace = true }
 rosenpass-util = { workspace = true }
 
+[features]
+enable_broker=[]
+
 [[bin]]
 name = "rosenpass-wireguard-broker-privileged"
 path = "src/bin/priviledged.rs"
 test = false
 doc = false
+required-features=["enable_broker"]
 
 [[bin]]
 name = "rosenpass-wireguard-broker-socket-handler"
 test = false
 path = "src/bin/socket_handler.rs"
 doc = false
+required-features=["enable_broker"]
