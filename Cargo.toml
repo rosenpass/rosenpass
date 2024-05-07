@@ -12,11 +12,13 @@ members = [
     "fuzz",
     "secret-memory",
     "rp",
+    "wireguard-broker"
 ]
 
 default-members = [
     "rosenpass",
     "rp",
+    "wireguard-broker",
 ]
 
 [workspace.metadata.release]
@@ -57,6 +59,7 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [ 
 zerocopy = { version = "0.7.33", features = ["derive"] }
 home = "0.5.9"
 derive_builder = "0.20.0"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 
 #Dev dependencies
 serial_test = "3.1.1"
@@ -66,3 +69,8 @@ libfuzzer-sys = "0.4"
 test_bin = "0.4.0"
 criterion = "0.4.0"
 allocator-api2-tests = "0.2.15"
+
+#Broker dependencies (might need cleanup or changes)
+wireguard-uapi = "3.0.0"
+command-fds = "0.2.3"
+rustix = { version = "0.38.27", features = ["net"] }
