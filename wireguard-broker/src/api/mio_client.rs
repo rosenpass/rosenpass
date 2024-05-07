@@ -117,7 +117,7 @@ impl BrokerClientIo for MioBrokerClientIo {
                         }
                         RxState::RxBuffer(s) => {
                             self.recv_state = RxState::RxSize(0);
-                            self.recv_state = RxState::RxSize(LEN_SIZE);
+                            self.expected_state = RxState::RxSize(LEN_SIZE);
                             return Ok(Some(&self.recv_buf[0..s]));
                         }
                     }
