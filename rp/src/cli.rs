@@ -191,9 +191,6 @@ impl Cli {
                 "verbose" => {
                     cli.verbose = true;
                 }
-                "explain" => {
-                    eprintln!("WARN: the explain argument is no longer supported");
-                }
                 "genkey" => {
                     if cli.command.is_some() {
                         return fatal("Too many commands supplied", None);
