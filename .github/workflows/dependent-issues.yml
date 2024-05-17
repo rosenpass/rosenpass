@@ -25,10 +25,6 @@ on:
 
 jobs:
   check:
-    permissions:
-      issues: write
-      pull-requests: write
-      statuses: write
     runs-on: ubuntu-latest
     steps:
       - uses: z0al/dependent-issues@v1
