@@ -8,7 +8,7 @@ pub struct B64DisplayHelper<'a, const F: usize>(&'a [u8]);
 impl<const F: usize> Display for B64DisplayHelper<'_, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut bytes = [0u8; F];
-        let string = b64_encode(&self.0, &mut bytes).map_err(|_| std::fmt::Error)?;
+        let string = b64_encode(self.0, &mut bytes).map_err(|_| std::fmt::Error)?;
         let result = f.write_str(string);
         bytes.zeroize();
         result
@@ -16,17 +16,17 @@ impl<const F: usize> Display for B64DisplayHelper<'_, F> {
 }
 
 pub trait B64Display {
-    fn fmt_b64<'o, const F: usize>(&'o self) -> B64DisplayHelper<'o, F>;
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F>;
 }
 
 impl B64Display for [u8] {
-    fn fmt_b64<'o, const F: usize>(&'o self) -> B64DisplayHelper<'o, F> {
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F> {
         B64DisplayHelper(self)
     }
 }
 
 impl<T: AsRef<[u8]>> B64Display for T {
-    fn fmt_b64<'o, const F: usize>(&'o self) -> B64DisplayHelper<'o, F> {
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F> {
         B64DisplayHelper(self.as_ref())
     }
 }

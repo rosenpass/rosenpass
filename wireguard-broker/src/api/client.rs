@@ -1,11 +1,17 @@
-use std::borrow::BorrowMut;
+use std::{borrow::BorrowMut, fmt::Debug};
 
 use crate::{
-    api::msgs::{self, REQUEST_MSG_BUFFER_SIZE},
-    WireGuardBroker,
+    api::{
+        config::NetworkBrokerConfig,
+        msgs::{self, REQUEST_MSG_BUFFER_SIZE},
+    },
+    SerializedBrokerConfig, WireGuardBroker,
 };
 
-use super::msgs::{Envelope, SetPskResponse};
+use super::{
+    config::NetworkBrokerConfigErr,
+    msgs::{Envelope, SetPskResponse},
+};
 
 #[derive(thiserror::Error, Debug, Clone, Eq, PartialEq)]
 pub enum BrokerClientPollResponseError<RecvError> {
@@ -34,6 +40,8 @@ fn invalid_msg_poller<RecvError>() -> BrokerClientPollResponseError<RecvError> {
 pub enum BrokerClientSetPskError<SendError> {
     #[error("Error with encoding/decoding message")]
     MsgError,
+    #[error("Network Broker Config error: {0}")]
+    BrokerError(NetworkBrokerConfigErr),
     #[error(transparent)]
     IoError(SendError),
     #[error("Interface name out of bounds")]
@@ -51,14 +59,14 @@ pub trait BrokerClientIo {
 #[derive(Debug)]
 pub struct BrokerClient<Io>
 where
-    Io: BrokerClientIo,
+    Io: BrokerClientIo + Debug,
 {
     io: Io,
 }
 
 impl<Io> BrokerClient<Io>
 where
-    Io: BrokerClientIo,
+    Io: BrokerClientIo + Debug,
 {
     pub fn new(io: Io) -> Self {
         Self { io }
@@ -99,16 +107,14 @@ where
 
 impl<Io> WireGuardBroker for BrokerClient<Io>
 where
-    Io: BrokerClientIo,
+    Io: BrokerClientIo + Debug,
 {
     type Error = BrokerClientSetPskError<Io::SendError>;
 
-    fn set_psk(
-        &mut self,
-        iface: &str,
-        peer_id: [u8; 32],
-        psk: [u8; 32],
-    ) -> Result<(), Self::Error> {
+    fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
+        let config: Result<NetworkBrokerConfig, NetworkBrokerConfigErr> = config.try_into();
+        let config = config.map_err(|e| BrokerClientSetPskError::BrokerError(e))?;
+
         use BrokerClientSetPskError::*;
         const BUF_SIZE: usize = REQUEST_MSG_BUFFER_SIZE;
 
@@ -126,9 +132,10 @@ where
             let req = &mut req.payload;
 
             // Populate payload
-            req.peer_id.copy_from_slice(&peer_id);
-            req.psk.copy_from_slice(&psk);
-            req.set_iface(iface).ok_or(IfaceOutOfBounds)?;
+            req.peer_id.copy_from_slice(&config.peer_id.value);
+            req.psk.copy_from_slice(config.psk.secret());
+            req.set_iface(config.iface.as_ref())
+                .ok_or(IfaceOutOfBounds)?;
         }
 
         // Send message

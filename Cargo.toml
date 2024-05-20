@@ -34,6 +34,7 @@ rosenpass-ciphers = { path = "ciphers" }
 rosenpass-to = { path = "to" }
 rosenpass-secret-memory = { path = "secret-memory" }
 rosenpass-oqs = { path = "oqs" }
+rosenpass-wireguard-broker = { path = "wireguard-broker" }
 doc-comment = "0.3.3"
 base64ct = {version = "1.6.0", default-features=false}
 zeroize = "1.7.0"
@@ -60,6 +61,7 @@ zerocopy = { version = "0.7.34", features = ["derive"] }
 home = "0.5.9"
 derive_builder = "0.20.0"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+postcard= {version = "1.0.8", features = ["alloc"]}
 
 #Dev dependencies
 serial_test = "3.1.1"

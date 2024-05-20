@@ -1,7 +1,10 @@
+use std::fmt::Debug;
+
 use wireguard_uapi::linux as wg;
 
+use crate::api::config::NetworkBrokerConfig;
 use crate::api::msgs;
-use crate::WireGuardBroker;
+use crate::{SerializedBrokerConfig, WireGuardBroker};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConnectError {
@@ -61,39 +64,45 @@ impl NetlinkWireGuardBroker {
     }
 }
 
+impl Debug for NetlinkWireGuardBroker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        //TODO: Add useful info in Debug
+        f.debug_struct("NetlinkWireGuardBroker").finish()
+    }
+}
+
 impl WireGuardBroker for NetlinkWireGuardBroker {
     type Error = SetPskError;
 
-    fn set_psk(
-        &mut self,
-        interface: &str,
-        peer_id: [u8; 32],
-        psk: [u8; 32],
-    ) -> Result<(), Self::Error> {
+    fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
+        let config: NetworkBrokerConfig = config
+            .try_into()
+            .map_err(|e| SetPskError::NoSuchInterface)?;
         // Ensure that the peer exists by querying the device configuration
         // TODO: Use InvalidInterfaceError
+
         let state = self
             .sock
-            .get_device(wg::DeviceInterface::from_name(interface.to_owned()))?;
+            .get_device(wg::DeviceInterface::from_name(config.iface))?;
 
         if state
             .peers
             .iter()
-            .find(|p| &p.public_key == &peer_id)
+            .find(|p| &p.public_key == &config.peer_id.value)
             .is_none()
         {
             return Err(SetPskError::NoSuchPeer);
         }
 
         // Peer update description
-        let mut set_peer = wireguard_uapi::set::Peer::from_public_key(&peer_id);
+        let mut set_peer = wireguard_uapi::set::Peer::from_public_key(&config.peer_id);
         set_peer
             .flags
             .push(wireguard_uapi::linux::set::WgPeerF::UpdateOnly);
-        set_peer.preshared_key = Some(&psk);
+        set_peer.preshared_key = Some(&config.psk.secret());
 
         // Device update description
-        let mut set_dev = wireguard_uapi::set::Device::from_ifname(interface.to_owned());
+        let mut set_dev = wireguard_uapi::set::Device::from_ifname(config.iface);
         set_dev.peers.push(set_peer);
 
         self.sock.set_device(set_dev)?;

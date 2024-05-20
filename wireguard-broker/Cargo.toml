@@ -12,6 +12,7 @@ readme = "readme.md"
 [dependencies]
 thiserror = { workspace = true }
 zerocopy = { workspace = true }
+rosenpass-secret-memory = {workspace = true}
 
 # Privileged only
 wireguard-uapi = { workspace = true }
@@ -23,6 +24,8 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+derive_builder = {workspace = true}
+postcard = {workspace = true}
 
 # Mio broker client
 mio = { workspace = true }
@@ -32,18 +35,18 @@ rosenpass-util = { workspace = true }
 rand = {workspace = true}
 
 [features]
-enable_broker=[]
+enable_broker_api=[]
 
 [[bin]]
 name = "rosenpass-wireguard-broker-privileged"
 path = "src/bin/priviledged.rs"
 test = false
 doc = false
-required-features=["enable_broker"]
+required-features=["enable_broker_api"]
 
 [[bin]]
 name = "rosenpass-wireguard-broker-socket-handler"
 test = false
 path = "src/bin/socket_handler.rs"
 doc = false
-required-features=["enable_broker"]
+required-features=["enable_broker_api"]

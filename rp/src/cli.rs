@@ -267,7 +267,7 @@ mod tests {
 
     #[inline]
     fn parse(arr: &[&str]) -> Result<Cli, String> {
-        Cli::parse(arr.into_iter().map(|x| x.to_string()).peekable())
+        Cli::parse(arr.iter().map(|x| x.to_string()).peekable())
     }
 
     #[inline]
@@ -300,7 +300,7 @@ mod tests {
         assert!(cli.is_ok());
         let cli = cli.unwrap();
 
-        assert_eq!(cli.verbose, false);
+        assert!(!cli.verbose);
         assert!(matches!(cli.command, Some(Command::GenKey { .. })));
 
         match cli.command {
@@ -324,7 +324,7 @@ mod tests {
         assert!(cli.is_ok());
         let cli = cli.unwrap();
 
-        assert_eq!(cli.verbose, false);
+        assert!(!cli.verbose);
         assert!(matches!(cli.command, Some(Command::PubKey { .. })));
 
         match cli.command {
@@ -365,7 +365,7 @@ mod tests {
         assert!(cli.is_ok());
         let cli = cli.unwrap();
 
-        assert_eq!(cli.verbose, false);
+        assert!(!cli.verbose);
         assert!(matches!(cli.command, Some(Command::Exchange(_))));
 
         match cli.command {
@@ -391,7 +391,7 @@ mod tests {
         assert!(cli.is_ok());
         let cli = cli.unwrap();
 
-        assert_eq!(cli.verbose, false);
+        assert!(!cli.verbose);
         assert!(matches!(cli.command, Some(Command::Exchange(_))));
 
         match cli.command {
@@ -431,7 +431,7 @@ mod tests {
         assert!(cli.is_ok());
         let cli = cli.unwrap();
 
-        assert_eq!(cli.verbose, false);
+        assert!(!cli.verbose);
         assert!(matches!(cli.command, Some(Command::Exchange(_))));
 
         match cli.command {

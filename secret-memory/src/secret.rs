@@ -295,11 +295,11 @@ impl<const N: usize> StoreValueB64Writer for Secret<N> {
     fn store_b64_writer<const F: usize, W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
         let mut f: Secret<F> = Secret::random();
         let encoded_str = b64_encode(self.secret(), f.secret_mut())
-            .with_context(|| format!("Could not encode secret to base64"))?;
+            .with_context(|| "Could not encode secret to base64")?;
 
         writer
             .write_all(encoded_str.as_bytes())
-            .with_context(|| format!("Could not write base64 to writer"))?;
+            .with_context(|| "Could not write base64 to writer")?;
         f.zeroize();
         Ok(())
     }

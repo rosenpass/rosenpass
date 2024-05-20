@@ -1,8 +1,12 @@
 use std::borrow::BorrowMut;
 use std::result::Result;
 
+use rosenpass_secret_memory::{Public, Secret};
+
 use crate::api::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
 use crate::WireGuardBroker;
+
+use super::config::{NetworkBrokerConfigBuilder, NetworkBrokerConfigErr};
 
 #[derive(thiserror::Error, Debug, Clone, Eq, PartialEq)]
 pub enum BrokerServerError {
@@ -10,6 +14,8 @@ pub enum BrokerServerError {
     NoSuchRequestType(u8),
     #[error("Invalid message received.")]
     InvalidMessage,
+    #[error("Network Broker Config error: {0}")]
+    BrokerError(NetworkBrokerConfigErr),
 }
 
 impl From<msgs::InvalidMessageTypeError> for BrokerServerError {
@@ -21,16 +27,16 @@ impl From<msgs::InvalidMessageTypeError> for BrokerServerError {
 
 pub struct BrokerServer<Err, Inner>
 where
-    msgs::SetPskError: From<Err>,
     Inner: WireGuardBroker<Error = Err>,
+    msgs::SetPskError: From<Err>,
 {
     inner: Inner,
 }
 
 impl<Err, Inner> BrokerServer<Err, Inner>
 where
-    msgs::SetPskError: From<Err>,
     Inner: WireGuardBroker<Error = Err>,
+    msgs::SetPskError: From<Err>,
 {
     pub fn new(inner: Inner) -> Self {
         Self { inner }
@@ -64,12 +70,20 @@ where
     ) -> Result<(), BrokerServerError> {
         // Using unwrap here since lenses can not return fixed-size arrays
         // TODO: Slices should give access to fixed size arrays
-        let r: Result<(), Err> = self.inner.borrow_mut().set_psk(
-            req.iface()
-                .map_err(|_e| BrokerServerError::InvalidMessage)?,
-            req.peer_id.try_into().unwrap(),
-            req.psk.try_into().unwrap(),
-        );
+        let peer_id = Public::from_slice(&req.peer_id);
+        let psk = Secret::from_slice(&req.psk);
+
+        let interface = req
+            .iface()
+            .map_err(|_e| BrokerServerError::InvalidMessage)?;
+
+        let config = NetworkBrokerConfigBuilder::default()
+            .peer_id(&peer_id)
+            .psk(&psk)
+            .iface(interface)
+            .build()
+            .unwrap();
+        let r: Result<(), Err> = self.inner.borrow_mut().set_psk(config.into());
         let r: msgs::SetPskResult = r.map_err(|e| e.into());
         let r: msgs::SetPskResponseReturnCode = r.into();
         res.return_code = r as u8;
