@@ -135,7 +135,7 @@ impl Rosenpass {
         }
 
         // add path to "self"
-        config.config_file_path = p.as_ref().to_owned();
+        p.as_ref().clone_into(&mut config.config_file_path);
 
         // return
         Ok(config)

@@ -163,11 +163,11 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
     ) -> Result<(), Self::Error> {
         let mut f = [0u8; F];
         let encoded_str = b64_encode(&self.value, &mut f)
-            .with_context(|| format!("Could not encode secret to base64"))?;
+            .with_context(|| "Could not encode secret to base64")?;
 
         writer
             .write_all(encoded_str.as_bytes())
-            .with_context(|| format!("Could not write base64 to writer"))?;
+            .with_context(|| "Could not write base64 to writer")?;
         Ok(())
     }
 }

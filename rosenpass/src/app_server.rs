@@ -2,13 +2,20 @@ use anyhow::bail;
 
 use anyhow::Result;
 use derive_builder::Builder;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use mio::Interest;
 use mio::Token;
-use rosenpass_util::file::{StoreValueB64, StoreValueB64Writer};
+use rosenpass_secret_memory::Public;
+use rosenpass_secret_memory::Secret;
+use rosenpass_util::file::StoreValueB64;
+use rosenpass_wireguard_broker::WireguardBrokerMio;
+use rosenpass_wireguard_broker::{WireguardBrokerCfg, WG_KEY_LEN};
+use zerocopy::AsBytes;
 
 use std::cell::Cell;
 
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::io::ErrorKind;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
@@ -17,10 +24,7 @@ use std::net::SocketAddrV4;
 use std::net::SocketAddrV6;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
 use std::slice;
-use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -41,6 +45,8 @@ const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
 const UNDER_LOAD_RATIO: f64 = 0.5;
 const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(500);
 
+const BROKER_ID_BYTES: usize = 8;
+
 fn ipv4_any_binding() -> SocketAddr {
     // addr, port
     SocketAddr::V4(SocketAddrV4::new(IPV4_ANY_ADDR, 0))
@@ -51,10 +57,50 @@ fn ipv6_any_binding() -> SocketAddr {
     SocketAddr::V6(SocketAddrV6::new(IPV6_ANY_ADDR, 0, 0, 0))
 }
 
+#[derive(Debug, Default)]
+pub struct MioTokenDispenser {
+    counter: usize,
+}
+
+impl MioTokenDispenser {
+    fn dispense(&mut self) -> Token {
+        let r = self.counter;
+        self.counter += 1;
+        Token(r)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct BrokerStore {
+    store: HashMap<
+        Public<BROKER_ID_BYTES>,
+        Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error>>,
+    >,
+}
+
+#[derive(Debug, Clone)]
+pub struct BrokerStorePtr(pub Public<BROKER_ID_BYTES>);
+
+#[derive(Debug)]
+pub struct BrokerPeer {
+    ptr: BrokerStorePtr,
+    peer_cfg: Box<dyn WireguardBrokerCfg>,
+}
+
+impl BrokerPeer {
+    pub fn new(ptr: BrokerStorePtr, peer_cfg: Box<dyn WireguardBrokerCfg>) -> Self {
+        Self { ptr, peer_cfg }
+    }
+
+    pub fn ptr(&self) -> &BrokerStorePtr {
+        &self.ptr
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct AppPeer {
     pub outfile: Option<PathBuf>,
-    pub outwg: Option<WireguardOut>, // TODO make this a generic command
+    pub broker_peer: Option<BrokerPeer>,
     pub initial_endpoint: Option<Endpoint>,
     pub current_endpoint: Option<Endpoint>,
 }
@@ -102,6 +148,8 @@ pub struct AppServer {
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
     pub mio_poll: mio::Poll,
+    pub mio_token_dispenser: MioTokenDispenser,
+    pub brokers: BrokerStore,
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
     pub all_sockets_drained: bool,
@@ -158,6 +206,17 @@ impl AppPeerPtr {
 
     pub fn get_app_mut<'a>(&self, srv: &'a mut AppServer) -> &'a mut AppPeer {
         &mut srv.peers[self.0]
+    }
+
+    pub fn set_psk(&self, server: &mut AppServer, psk: &Secret<WG_KEY_LEN>) -> anyhow::Result<()> {
+        if let Some(broker) = server.peers[self.0].broker_peer.as_ref() {
+            let config = broker.peer_cfg.create_config(psk);
+            let broker = server.brokers.store.get_mut(&broker.ptr().0).unwrap();
+            broker.set_psk(config)?;
+        } else {
+            log::warn!("No broker peer found for peer {}", self.0);
+        }
+        Ok(())
     }
 }
 
@@ -457,6 +516,7 @@ impl AppServer {
         // setup mio
         let mio_poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(20);
+        let mut mio_token_dispenser = MioTokenDispenser::default();
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
@@ -530,10 +590,12 @@ impl AppServer {
         }
 
         // register all sockets to mio
-        for (i, socket) in sockets.iter_mut().enumerate() {
-            mio_poll
-                .registry()
-                .register(socket, Token(i), Interest::READABLE)?;
+        for socket in sockets.iter_mut() {
+            mio_poll.registry().register(
+                socket,
+                mio_token_dispenser.dispense(),
+                Interest::READABLE,
+            )?;
         }
 
         // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
@@ -545,6 +607,8 @@ impl AppServer {
             sockets,
             events,
             mio_poll,
+            mio_token_dispenser,
+            brokers: BrokerStore::default(),
             all_sockets_drained: false,
             under_load: DoSOperation::Normal,
             blocking_polls_count: 0,
@@ -559,12 +623,50 @@ impl AppServer {
         matches!(self.verbosity, Verbosity::Verbose)
     }
 
+    pub fn register_broker(
+        &mut self,
+        broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error>>,
+    ) -> Result<BrokerStorePtr> {
+        let ptr = Public::from_slice((self.brokers.store.len() as u64).as_bytes());
+
+        if self.brokers.store.insert(ptr, broker).is_some() {
+            bail!("Broker already registered");
+        }
+        //Register broker
+        self.brokers
+            .store
+            .get_mut(&ptr)
+            .ok_or(anyhow::format_err!("Broker wasn't added to registry"))?
+            .register(
+                self.mio_poll.registry(),
+                self.mio_token_dispenser.dispense(),
+            )?;
+
+        Ok(BrokerStorePtr(ptr))
+    }
+
+    pub fn unregister_broker(&mut self, ptr: BrokerStorePtr) -> Result<()> {
+        //Unregister broker
+        self.brokers
+            .store
+            .get_mut(&ptr.0)
+            .ok_or_else(|| anyhow::anyhow!("Broker not found"))?
+            .unregister(self.mio_poll.registry())?;
+
+        //Remove broker from store
+        self.brokers
+            .store
+            .remove(&ptr.0)
+            .ok_or_else(|| anyhow::anyhow!("Broker not found"))?;
+        Ok(())
+    }
+
     pub fn add_peer(
         &mut self,
         psk: Option<SymKey>,
         pk: SPk,
         outfile: Option<PathBuf>,
-        outwg: Option<WireguardOut>,
+        broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
@@ -575,7 +677,7 @@ impl AppServer {
         let current_endpoint = None;
         self.peers.push(AppPeer {
             outfile,
-            outwg,
+            broker_peer,
             initial_endpoint,
             current_endpoint,
         });
@@ -735,13 +837,12 @@ impl AppServer {
     }
 
     pub fn output_key(
-        &self,
+        &mut self,
         peer: AppPeerPtr,
         why: KeyOutputReason,
         key: &SymKey,
     ) -> anyhow::Result<()> {
         let peerid = peer.lower().get(&self.crypt).pidt()?;
-        let ap = peer.get_app(self);
 
         if self.verbose() {
             let msg = match why {
@@ -750,6 +851,8 @@ impl AppServer {
             };
             info!("{} {}", msg, peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>());
         }
+
+        let ap = peer.get_app(self);
 
         if let Some(of) = ap.outfile.as_ref() {
             // This might leave some fragments of the secret on the stack;
@@ -773,46 +876,7 @@ impl AppServer {
             );
         }
 
-        if let Some(owg) = ap.outwg.as_ref() {
-            let mut child = match Command::new("wg")
-                .arg("set")
-                .arg(&owg.dev)
-                .arg("peer")
-                .arg(&owg.pk)
-                .arg("preshared-key")
-                .arg("/dev/stdin")
-                .stdin(Stdio::piped())
-                .args(&owg.extra_params)
-                .spawn()
-            {
-                Ok(x) => x,
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::NotFound {
-                        anyhow::bail!("Could not find wg command");
-                    } else {
-                        return Err(anyhow::Error::new(e));
-                    }
-                }
-            };
-            if let Err(e) = key.store_b64_writer::<MAX_B64_KEY_SIZE, _>(child.stdin.take().unwrap())
-            {
-                error!("could not write psk to wg: {:?}", e);
-            }
-
-            thread::spawn(move || {
-                let status = child.wait();
-
-                if let Ok(status) = status {
-                    if status.success() {
-                        debug!("successfully passed psk to wg")
-                    } else {
-                        error!("could not pass psk to wg {:?}", status)
-                    }
-                } else {
-                    error!("wait failed: {:?}", status)
-                }
-            });
-        }
+        peer.set_psk(self, key)?;
 
         Ok(())
     }
@@ -943,6 +1007,11 @@ impl AppServer {
 
         // if each socket returned WouldBlock, then we drained them all at least once indeed
         self.all_sockets_drained = would_block_count == self.sockets.len();
+
+        // Process brokers poll
+        for (_, broker) in self.brokers.store.iter_mut() {
+            broker.process_poll()?;
+        }
 
         Ok(None)
     }

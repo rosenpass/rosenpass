@@ -1,24 +1,28 @@
-#[cfg(feature = "enable_broker")]
+#[cfg(feature = "enable_broker_api")]
 #[cfg(test)]
 mod integration_tests {
 
     use rand::Rng;
-    use rosenpass_wireguard_broker::api::mio_client::MioBrokerClient;
+    use rosenpass_secret_memory::{Public, Secret};
     use rosenpass_wireguard_broker::api::msgs::{
         SetPskError, REQUEST_MSG_BUFFER_SIZE, RESPONSE_MSG_BUFFER_SIZE,
     };
     use rosenpass_wireguard_broker::api::server::{BrokerServer, BrokerServerError};
-    use rosenpass_wireguard_broker::WireGuardBroker;
+    use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
+    use rosenpass_wireguard_broker::WG_KEY_LEN;
+    use rosenpass_wireguard_broker::WG_PEER_LEN;
+    use rosenpass_wireguard_broker::{SerializedBrokerConfig, WireGuardBroker};
     use std::io::Read;
     use std::sync::{Arc, Mutex};
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     struct MockServerBrokerInner {
-        psk: Option<[u8; 32]>,
-        peer_id: Option<[u8; 32]>,
+        psk: Option<Secret<WG_KEY_LEN>>,
+        peer_id: Option<Public<WG_PEER_LEN>>,
         interface: Option<String>,
     }
 
+    #[derive(Debug)]
     struct MockServerBroker {
         inner: Arc<Mutex<MockServerBrokerInner>>,
     }
@@ -32,20 +36,15 @@ mod integration_tests {
     impl WireGuardBroker for MockServerBroker {
         type Error = SetPskError;
 
-        fn set_psk(
-            &mut self,
-            interface: &str,
-            peer_id: [u8; 32],
-            psk: [u8; 32],
-        ) -> Result<(), Self::Error> {
+        fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
             loop {
                 let mut lock = self.inner.try_lock();
 
                 if let Ok(ref mut mutex) = lock {
                     **mutex = MockServerBrokerInner {
-                        psk: Some(psk),
-                        peer_id: Some(peer_id),
-                        interface: Some(interface.to_string()),
+                        psk: Some(config.psk.clone()),
+                        peer_id: Some(config.peer_id.clone()),
+                        interface: Some(std::str::from_utf8(config.interface).unwrap().to_string()),
                     };
                     break;
                 }
@@ -91,25 +90,34 @@ mod integration_tests {
 
         for _ in 0..TEST_RUNS {
             //Create psk of random 32 bytes
-            let mut psk: [u8; 32] = [0; 32];
-            rand::thread_rng().fill(&mut psk);
-            let mut peer_id: [u8; 32] = [0; 32];
-            rand::thread_rng().fill(&mut peer_id);
+            let psk = Secret::random();
+            let peer_id = Public::random();
             let interface = "test";
-            client.set_psk(&interface, peer_id, psk).unwrap();
+            let config = SerializedBrokerConfig {
+                psk: &psk,
+                peer_id: &peer_id,
+                interface: interface.as_bytes(),
+                additional_params: &[],
+            };
+            client.set_psk(config).unwrap();
 
             //Sleep for a while to allow the server to process the message
             std::thread::sleep(std::time::Duration::from_millis(
                 rand::thread_rng().gen_range(100..500),
             ));
 
+            let psk = psk.secret().to_owned();
+
             loop {
                 let mut lock = server_broker_inner.try_lock();
 
                 if let Ok(ref mut inner) = lock {
                     // Check if the psk is received by the server
-                    let received_psk = inner.psk;
-                    assert_eq!(received_psk, Some(psk));
+                    let received_psk = &inner.psk;
+                    assert_eq!(
+                        received_psk.as_ref().map(|psk| psk.secret().to_owned()),
+                        Some(psk)
+                    );
 
                     let recieved_peer_id = inner.peer_id;
                     assert_eq!(recieved_peer_id, Some(peer_id));

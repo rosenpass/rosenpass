@@ -4,10 +4,13 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
+use rosenpass_wireguard_broker::brokers::native_unix::{
+    NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
+};
 use std::path::PathBuf;
 
-use crate::app_server::AppServer;
-use crate::app_server::{self, AppServerTest};
+use crate::app_server::AppServerTest;
+use crate::app_server::{AppServer, BrokerPeer};
 use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
@@ -314,7 +317,28 @@ impl CliCommand {
             test_helpers,
         )?);
 
+        let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
+
+        fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
+            anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
+        }
+
         for cfg_peer in config.peers {
+            let broker_peer = if let Some(wg) = &cfg_peer.wg {
+                let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
+                    .peer_id_b64(&wg.peer)?
+                    .interface(wg.device.clone())
+                    .extra_params_ser(&wg.extra_params)?
+                    .build()
+                    .map_err(cfg_err_map)?;
+
+                let broker_peer = BrokerPeer::new(broker_store_ptr.clone(), Box::new(peer_cfg));
+
+                Some(broker_peer)
+            } else {
+                None
+            };
+
             srv.add_peer(
                 // psk, pk, outfile, outwg, tx_addr
                 cfg_peer
@@ -323,11 +347,7 @@ impl CliCommand {
                     .transpose()?,
                 SPk::load(&cfg_peer.public_key)?,
                 cfg_peer.key_out,
-                cfg_peer.wg.map(|cfg| app_server::WireguardOut {
-                    dev: cfg.device,
-                    pk: cfg.peer,
-                    extra_params: cfg.extra_params,
-                }),
+                broker_peer,
                 cfg_peer.endpoint.clone(),
             )?;
         }

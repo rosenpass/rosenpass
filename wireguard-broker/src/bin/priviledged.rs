@@ -3,7 +3,7 @@ use std::result::Result;
 
 use rosenpass_wireguard_broker::api::msgs;
 use rosenpass_wireguard_broker::api::server::BrokerServer;
-use rosenpass_wireguard_broker::netlink as wg;
+use rosenpass_wireguard_broker::brokers::netlink as wg;
 
 #[derive(thiserror::Error, Debug)]
 pub enum BrokerAppError {

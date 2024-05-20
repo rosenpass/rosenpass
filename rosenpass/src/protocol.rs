@@ -2295,7 +2295,7 @@ mod test {
                         .secret(),
                 )
                 .unwrap()
-                .mix(&ip_addr_port_a.encode())
+                .mix(ip_addr_port_a.encode())
                 .unwrap()
                 .into_value()[..16]
                 .to_vec();

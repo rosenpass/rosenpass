@@ -1,14 +1,14 @@
+use anyhow::{bail, ensure};
+use mio::Interest;
 use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
 
-use anyhow::{bail, ensure};
+use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 
-use crate::WireGuardBroker;
-
-use super::client::{
+use crate::api::client::{
     BrokerClient, BrokerClientIo, BrokerClientPollResponseError, BrokerClientSetPskError,
 };
-use super::msgs::{self, RESPONSE_MSG_BUFFER_SIZE};
+use crate::api::msgs::{self, RESPONSE_MSG_BUFFER_SIZE};
 
 #[derive(Debug)]
 pub struct MioBrokerClient {
@@ -47,7 +47,7 @@ impl MioBrokerClient {
         Self { inner }
     }
 
-    pub fn poll(&mut self) -> anyhow::Result<Option<msgs::SetPskResult>> {
+    fn poll(&mut self) -> anyhow::Result<Option<msgs::SetPskResult>> {
         self.inner.io_mut().flush()?;
 
         // This sucks
@@ -68,15 +68,43 @@ impl MioBrokerClient {
 impl WireGuardBroker for MioBrokerClient {
     type Error = anyhow::Error;
 
-    fn set_psk(&mut self, iface: &str, peer_id: [u8; 32], psk: [u8; 32]) -> anyhow::Result<()> {
+    fn set_psk<'a>(&mut self, config: SerializedBrokerConfig<'a>) -> anyhow::Result<()> {
         use BrokerClientSetPskError::*;
-        let e = self.inner.set_psk(iface, peer_id, psk);
+        let e = self.inner.set_psk(config);
         match e {
             Ok(()) => Ok(()),
             Err(IoError(e)) => Err(e),
             Err(IfaceOutOfBounds) => bail!("Interface name size is out of bounds."),
             Err(MsgError) => bail!("Error with encoding/decoding message."),
+            Err(BrokerError(e)) => bail!("Broker error: {:?}", e),
         }
+    }
+}
+
+impl WireguardBrokerMio for MioBrokerClient {
+    type MioError = anyhow::Error;
+
+    fn register(
+        &mut self,
+        registry: &mio::Registry,
+        token: mio::Token,
+    ) -> Result<(), Self::MioError> {
+        registry.register(
+            &mut self.inner.io_mut().socket,
+            token,
+            Interest::READABLE | Interest::WRITABLE,
+        )?;
+        Ok(())
+    }
+
+    fn process_poll(&mut self) -> Result<(), Self::MioError> {
+        self.poll()?;
+        Ok(())
+    }
+
+    fn unregister(&mut self, registry: &mio::Registry) -> Result<(), Self::MioError> {
+        registry.deregister(&mut self.inner.io_mut().socket)?;
+        Ok(())
     }
 }
 

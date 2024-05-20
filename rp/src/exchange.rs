@@ -136,12 +136,15 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use anyhow::anyhow;
     use netlink_packet_wireguard::{constants::WG_KEY_LEN, nlas::WgDeviceAttrs};
     use rosenpass::{
-        app_server::{AppServer, WireguardOut},
+        app_server::{AppServer, BrokerPeer},
         config::Verbosity,
         protocol::{SPk, SSk, SymKey},
     };
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
+    use rosenpass_wireguard_broker::brokers::native_unix::{
+        NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
+    };
 
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
@@ -198,6 +201,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         None,
     )?);
 
+    let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
+
+    fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
+        anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
+    }
+
     for peer in options.peers {
         let wgpk = peer.public_keys_dir.join("wgpk");
         let pqpk = peer.public_keys_dir.join("pqpk");
@@ -220,6 +229,18 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             extra_params.push(allowed_ips.clone());
         }
 
+        let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
+            .peer_id_b64(&fs::read_to_string(wgpk)?)?
+            .interface(link_name.clone())
+            .extra_params_ser(&extra_params)?
+            .build()
+            .map_err(cfg_err_map)?;
+
+        let broker_peer = Some(BrokerPeer::new(
+            broker_store_ptr.clone(),
+            Box::new(peer_cfg),
+        ));
+
         srv.add_peer(
             if psk.exists() {
                 Some(SymKey::load_b64::<WG_B64_LEN, _>(psk))
@@ -229,11 +250,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .transpose()?,
             SPk::load(&pqpk)?,
             None,
-            Some(WireguardOut {
-                dev: link_name.clone(),
-                pk: fs::read_to_string(wgpk)?,
-                extra_params,
-            }),
+            broker_peer,
             peer.endpoint.map(|x| x.to_string()),
         )?;
     }

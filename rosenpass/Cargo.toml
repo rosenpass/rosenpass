@@ -39,6 +39,7 @@ rand = { workspace = true }
 zerocopy = { workspace = true }
 home = { workspace = true }
 derive_builder = {workspace = true}
+rosenpass-wireguard-broker = {workspace = true}
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -48,3 +49,6 @@ criterion = { workspace = true }
 test_bin = { workspace = true }
 stacker = { workspace = true }
 serial_test = {workspace = true}
+
+[features]
+enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
