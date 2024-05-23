@@ -1,5 +1,7 @@
-use std::fmt;
+use core::slice;
+use std::process::abort;
 use std::ptr::NonNull;
+use std::{fmt, path::Display};
 
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
 
@@ -34,10 +36,49 @@ impl MemsecAllocator {
     }
 }
 
+#[repr(u8)]
+enum MemsecAllocType {
+    Malloc = 0,
+    MemfdSecret = 1,
+}
+
+impl std::fmt::Display for MemsecAllocType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MemsecAllocType::Malloc => write!(f, "memsec malloc()"),
+            MemsecAllocType::MemfdSecret => write!(f, "memsec memfd_secret()"),
+        }
+    }
+}
+
 unsafe impl Allocator for MemsecAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        // Call memsec allocator
-        let mem: Option<NonNull<[u8]>> = unsafe { memsec::malloc_sized(layout.size()) };
+        let alloc_type_bytes = if layout.align() > 0 {
+            layout.align()
+        } else {
+            1
+        };
+        let mem_size = alloc_type_bytes + layout.size();
+
+        let mut alloc_type;
+
+        #[cfg(target_os = "linux")]
+        let mem: Option<NonNull<[u8]>> = {
+            // Try allocation with memfd_secret
+            alloc_type = MemsecAllocType::MemfdSecret;
+            let mut mem = unsafe { memsec::memfd_secret_sized(mem_size) };
+            if mem.is_none() {
+                alloc_type = MemsecAllocType::Malloc;
+                log::warn!("memfd failed, trying malloc based allocation");
+                mem = unsafe { memsec::malloc_sized(mem_size) };
+            }
+            mem
+        };
+        #[cfg(not(target_os = "linux"))]
+        let mut mem = {
+            alloc_type = MemsecAllocType::Malloc;
+            unsafe { memsec::malloc_sized(mem_size) }
+        };
 
         // Unwrap the option
         let Some(mem) = mem else {
@@ -52,16 +93,55 @@ unsafe impl Allocator for MemsecAllocator {
                 with offset {off} from the requested alignment. Memsec always allocates values \
                 at the end of a memory page for security reasons, custom alignments are not supported. \
                 You could try allocating an oversized value.");
-            unsafe { memsec::free(mem) };
+            match alloc_type {
+                #[cfg(target_os = "linux")]
+                MemsecAllocType::Malloc => unsafe { memsec::free_memfd_secret(mem) },
+                MemsecAllocType::MemfdSecret => unsafe { memsec::free(mem) },
+            }
             return Err(AllocError);
         };
 
+        // Add the allocation type to the start of the allocation
+        let alloc_type_ptr = mem.as_ptr() as *mut u8;
+        unsafe { alloc_type_ptr.write(alloc_type as u8) };
+        let mem_ptr = unsafe { ((*mem.as_ptr())[alloc_type_bytes..]).as_ptr() } as *mut u8;
+
+        let mem = unsafe {
+            NonNull::new_unchecked(slice::from_raw_parts_mut(
+                mem_ptr,
+                mem.len() - alloc_type_bytes,
+            ))
+        };
         Ok(mem)
     }
 
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
-        unsafe {
-            memsec::free(ptr);
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        let alloc_type_bytes = if layout.align() > 0 {
+            layout.align()
+        } else {
+            1
+        };
+
+        let alloc_type_ptr = ptr.as_ptr().sub(alloc_type_bytes);
+
+        let mem = unsafe {
+            NonNull::new_unchecked(slice::from_raw_parts_mut(
+                alloc_type_ptr,
+                layout.size() + alloc_type_bytes,
+            ))
+        };
+
+        match *alloc_type_ptr {
+            v if v == MemsecAllocType::Malloc as u8 => unsafe { memsec::free(mem) },
+
+            #[cfg(target_os = "linux")]
+            v if v == MemsecAllocType::MemfdSecret as u8 => unsafe {
+                memsec::free_memfd_secret(mem)
+            },
+            v => {
+                log::error!("Unknown allocation type {:#x} found in deallocate", v);
+                abort();
+            }
         }
     }
 }
@@ -94,15 +174,20 @@ mod test {
 
     fn memsec_allocation_impl<const N: usize>(alloc: &MemsecAllocator) {
         let layout = Layout::new::<[u8; N]>();
+        println!("allocating");
         let mem = alloc.allocate(layout).unwrap();
+        println!("allocated");
 
         // https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations
         // promises us that allocated memory is initialized with the magic byte 0xDB
         // and memsec promises to provide a reimplementation of the libsodium mechanism;
         // it uses the magic value 0xD0 though
+        println!("check magic value");
         assert_eq!(unsafe { mem.as_ref() }, &[0xD0u8; N]);
-
+        println!("non null");
         let mem = NonNull::new(mem.as_ptr() as *mut u8).unwrap();
+        println!("dealloc");
         unsafe { alloc.deallocate(mem, layout) };
+        println!("return");
     }
 }
