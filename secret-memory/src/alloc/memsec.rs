@@ -47,6 +47,7 @@ impl std::fmt::Display for MemsecAllocType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MemsecAllocType::Malloc => write!(f, "memsec malloc()"),
+            #[cfg(target_os = "linux")]
             MemsecAllocType::MemfdSecret => write!(f, "memsec memfd_secret()"),
         }
     }
@@ -175,20 +176,14 @@ mod test {
 
     fn memsec_allocation_impl<const N: usize>(alloc: &MemsecAllocator) {
         let layout = Layout::new::<[u8; N]>();
-        println!("allocating");
         let mem = alloc.allocate(layout).unwrap();
-        println!("allocated");
 
         // https://libsodium.gitbook.io/doc/memory_management#guarded-heap-allocations
         // promises us that allocated memory is initialized with the magic byte 0xDB
         // and memsec promises to provide a reimplementation of the libsodium mechanism;
         // it uses the magic value 0xD0 though
-        println!("check magic value");
         assert_eq!(unsafe { mem.as_ref() }, &[0xD0u8; N]);
-        println!("non null");
         let mem = NonNull::new(mem.as_ptr() as *mut u8).unwrap();
-        println!("dealloc");
         unsafe { alloc.deallocate(mem, layout) };
-        println!("return");
     }
 }
