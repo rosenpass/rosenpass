@@ -1,7 +1,7 @@
 use core::slice;
+use std::fmt;
 use std::process::abort;
 use std::ptr::NonNull;
-use std::{fmt, path::Display};
 
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
 
@@ -39,6 +39,7 @@ impl MemsecAllocator {
 #[repr(u8)]
 enum MemsecAllocType {
     Malloc = 0,
+    #[cfg(target_os = "linux")]
     MemfdSecret = 1,
 }
 
