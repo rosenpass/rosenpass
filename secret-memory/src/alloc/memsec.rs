@@ -95,9 +95,9 @@ unsafe impl Allocator for MemsecAllocator {
                 at the end of a memory page for security reasons, custom alignments are not supported. \
                 You could try allocating an oversized value.");
             match alloc_type {
+                MemsecAllocType::Malloc => unsafe { memsec::free(mem) },
                 #[cfg(target_os = "linux")]
-                MemsecAllocType::Malloc => unsafe { memsec::free_memfd_secret(mem) },
-                MemsecAllocType::MemfdSecret => unsafe { memsec::free(mem) },
+                MemsecAllocType::MemfdSecret => unsafe { memsec::free_memfd_secret(mem) },
             }
             return Err(AllocError);
         };
