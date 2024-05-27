@@ -17,6 +17,11 @@ rosenpass-cipher-traits = { workspace = true }
 rosenpass-to = { workspace = true }
 rosenpass = { workspace = true }
 
+[features]
+default = ["enable_memsec_malloc", "enable_memsec_memfd_secret"]
+enable_memsec_malloc = ["rosenpass-secret-memory/enable_memsec_malloc"]
+enable_memsec_memfd_secret = ["rosenpass-secret-memory/enable_memsec_malloc"]
+
 [[bin]]
 name = "fuzz_handle_msg"
 path = "fuzz_targets/handle_msg.rs"

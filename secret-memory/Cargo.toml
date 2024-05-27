@@ -23,3 +23,8 @@ log = { workspace = true }
 allocator-api2-tests = { workspace = true }
 tempfile = {workspace = true}
 base64ct = {workspace = true}
+
+[features]
+default = ["enable_memsec_malloc", "enable_memsec_memfd_secret"]
+enable_memsec_malloc = []
+enable_memsec_memfd_secret = []

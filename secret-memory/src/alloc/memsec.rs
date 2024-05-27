@@ -66,18 +66,40 @@ unsafe impl Allocator for MemsecAllocator {
 
         #[cfg(target_os = "linux")]
         let mem: Option<NonNull<[u8]>> = {
+            #[cfg(not(any(feature = "enable_memsec_malloc", feature="enable_memsec_memfd_secret")))]
+            compile_error!("no allocator is enabled on this platform");
+
             // Try allocation with memfd_secret
             alloc_type = MemsecAllocType::MemfdSecret;
-            let mut mem = unsafe { memsec::memfd_secret_sized(mem_size) };
+
+            let mut mem = {
+            #[cfg(feature = "enable_memsec_memfd_secret")]
+             unsafe { memsec::memfd_secret_sized(mem_size) }
+            #[cfg(not(feature = "enable_memsec_memfd_secret"))]
+            None
+            };
+
+
             if mem.is_none() {
                 alloc_type = MemsecAllocType::Malloc;
+
+                #[cfg(feature = "enable_memsec_memfd_secret")]
                 log::warn!("memfd failed, trying malloc based allocation");
-                mem = unsafe { memsec::malloc_sized(mem_size) };
+
+                mem = {
+                #[cfg(feature = "enable_memsec_malloc")]
+                unsafe { memsec::malloc_sized(mem_size) }
+                #[cfg(not(feature = "enable_memsec_malloc"))]
+                None
+                };
             }
             mem
         };
         #[cfg(not(target_os = "linux"))]
         let mut mem = {
+            #[cfg(not(feature = "enable_memsec_malloc"))]
+            compile_error!("no allocator is enabled on this platform");
+
             alloc_type = MemsecAllocType::Malloc;
             unsafe { memsec::malloc_sized(mem_size) }
         };
