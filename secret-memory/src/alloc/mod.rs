@@ -37,7 +37,7 @@ pub struct SecretAlloc {
 impl SecretAlloc {
     pub fn new() -> Self {
         Self {
-            alloc_type: *ALLOC_TYPE.get().expect("Security policy not specified. Run a function specifying policy using rosenpass_secret_memory::policy or set a custom policy by initializing rosenpass_secret_memory::alloc::ALLOC_TYPE before using secrets"),
+            alloc_type: *ALLOC_TYPE.get().expect("Secret security policy not specified. Run the specifying policy function in rosenpass_secret_memory::policy or set a custom policy by initializing rosenpass_secret_memory::alloc::ALLOC_TYPE before using secrets"),
         }
     }
 }
