@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use clap::{builder::Str, Parser};
+use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WireguardBrokerMio, WG_KEY_LEN, WG_PEER_LEN};

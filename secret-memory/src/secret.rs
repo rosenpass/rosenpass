@@ -321,7 +321,7 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::{policy, test_spawn_process_policies, test_spawn_process_with_policy};
+    use crate::{test_spawn_process_policies, test_spawn_process_with_policy};
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};
