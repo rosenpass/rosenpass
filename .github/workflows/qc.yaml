@@ -186,8 +186,12 @@ jobs:
           cargo fuzz run fuzz_handle_msg -- -max_total_time=5
           ulimit -s 8192000 && RUST_MIN_STACK=33554432000 && cargo fuzz run fuzz_kyber_encaps -- -max_total_time=5
           cargo fuzz run fuzz_mceliece_encaps -- -max_total_time=5
-          cargo fuzz run fuzz_box_secret_alloc -- -max_total_time=5
-          cargo fuzz run fuzz_vec_secret_alloc -- -max_total_time=5
+          cargo fuzz run fuzz_box_secret_alloc_malloc -- -max_total_time=5
+          cargo fuzz run fuzz_box_secret_alloc_memfdsec -- -max_total_time=5
+          cargo fuzz run fuzz_box_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
+          cargo fuzz run fuzz_vec_secret_alloc_malloc -- -max_total_time=5
+          cargo fuzz run fuzz_vec_secret_alloc_memfdsec -- -max_total_time=5
+          cargo fuzz run fuzz_vec_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
 
   codecov:
     runs-on: ubuntu-latest

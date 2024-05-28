@@ -41,9 +41,7 @@ env_logger = "0.10.2"
 toml = "0.7.8"
 static_assertions = "1.1.0"
 allocator-api2 = "0.2.14"
-memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "abd3d99", features = [
-    "alloc_ext",
-] }
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "3a1646c", features = [ "alloc_ext", ] }
 rand = "0.8.5"
 typenum = "1.17.0"
 log = { version = "0.4.21" }
@@ -75,6 +73,8 @@ libfuzzer-sys = "0.4"
 test_bin = "0.4.0"
 criterion = "0.4.0"
 allocator-api2-tests = "0.2.15"
+procspawn = {version = "1.0.0", features= ["test-support"]}
+
 
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = "3.0.0"
