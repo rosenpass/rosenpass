@@ -22,17 +22,10 @@ pub fn secret_policy_try_use_memfd_secrets() {
     log::info!("Secrets will be allocated using {:?}", alloc_type);
 }
 
+#[cfg(target_os = "linux")]
 pub fn secret_policy_use_only_memfd_secrets() {
-    let alloc_type = {
-        #[cfg(target_os = "linux")]
-        {
-            crate::alloc::SecretAllocType::MemsecMemfdSec
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            panic!("MemfdSec is only supported on Linux")
-        }
-    };
+    let alloc_type = crate::alloc::SecretAllocType::MemsecMemfdSec;
+
     assert_eq!(
         alloc_type,
         crate::alloc::get_or_init_secret_alloc_type(alloc_type)
