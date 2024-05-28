@@ -3,12 +3,11 @@ pub mod memsec;
 use std::sync::OnceLock;
 
 use allocator_api2::alloc::{AllocError, Allocator};
-use memsec::{malloc::MallocAllocator, memfdsec::MemfdSecAllocator};
+use memsec::malloc::MallocAllocator;
 
-pub use crate::alloc::memsec::{
-    malloc::{MallocBox, MallocVec},
-    memfdsec::{MemfdSecBox, MemfdSecVec},
-};
+#[cfg(target_os = "linux")]
+use memsec::memfdsec::MemfdSecAllocator;
+
 static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 
 /// Sets the secret allocation type to use.
