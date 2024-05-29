@@ -59,9 +59,7 @@ mod integration_tests {
     fn test_psk_exchanges() {
         const TEST_RUNS: usize = 100;
 
-        use rosenpass_secret_memory::{
-            test_spawn_process_policies, test_spawn_process_with_policy,
-        };
+        use rosenpass_secret_memory::test_spawn_process_policies;
 
         test_spawn_process_policies!({
             let server_broker_inner = Arc::new(Mutex::new(MockServerBrokerInner::default()));

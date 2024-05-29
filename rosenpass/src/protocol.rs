@@ -2139,8 +2139,6 @@ fn truncating_cast_into_nomut<T: FromBytes>(buf: &[u8]) -> Result<Ref<&[u8], T>,
 mod test {
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
-    use rosenpass_secret_memory::{test_spawn_process_policies, test_spawn_process_with_policy};
-
     use super::*;
 
     struct VecHostIdentifier(Vec<u8>);
@@ -2162,7 +2160,6 @@ mod test {
             VecHostIdentifier(v)
         }
     }
-    procspawn::enable_test_support!();
 
     #[test]
     /// Ensure that the protocol implementation can deal with truncated
@@ -2180,29 +2177,28 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
-        test_spawn_process_policies!({
-            stacker::grow(8 * 1024 * 1024, || {
-                const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
-                type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+        stacker::grow(8 * 1024 * 1024, || {
+            const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
+            type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
 
-                const PEER0: PeerPtr = PeerPtr(0);
+            const PEER0: PeerPtr = PeerPtr(0);
 
-                let (mut me, mut they) = make_server_pair().unwrap();
-                let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
+            let (mut me, mut they) = make_server_pair().unwrap();
+            let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
 
-                // Process the entire handshake
-                let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
-                while let Some(l) = msglen {
-                    std::mem::swap(&mut me, &mut they);
-                    std::mem::swap(&mut msgbuf, &mut resbuf);
-                    msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
-                }
+            // Process the entire handshake
+            let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
+            while let Some(l) = msglen {
+                std::mem::swap(&mut me, &mut they);
+                std::mem::swap(&mut msgbuf, &mut resbuf);
+                msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
+            }
 
-                assert_eq!(
-                    me.osk(PEER0).unwrap().secret(),
-                    they.osk(PEER0).unwrap().secret()
-                );
-            });
+            assert_eq!(
+                me.osk(PEER0).unwrap().secret(),
+                they.osk(PEER0).unwrap().secret()
+            );
         });
     }
 
@@ -2253,157 +2249,155 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_responder_under_load() {
-        test_spawn_process_policies!({
-            stacker::grow(8 * 1024 * 1024, || {
-                type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-                let (mut a, mut b) = make_server_pair().unwrap();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+        stacker::grow(8 * 1024 * 1024, || {
+            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+            let (mut a, mut b) = make_server_pair().unwrap();
 
-                let mut a_to_b_buf = MsgBufPlus::zero();
-                let mut b_to_a_buf = MsgBufPlus::zero();
+            let mut a_to_b_buf = MsgBufPlus::zero();
+            let mut b_to_a_buf = MsgBufPlus::zero();
 
-                let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-                let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-                ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
 
-                let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
+            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
-                let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-                let socket_addr_a = std::net::SocketAddr::V4(ip_a);
-                let mut ip_addr_port_a = match socket_addr_a.ip() {
-                    std::net::IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
-                    std::net::IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
-                };
+            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+            let socket_addr_a = std::net::SocketAddr::V4(ip_a);
+            let mut ip_addr_port_a = match socket_addr_a.ip() {
+                std::net::IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
+                std::net::IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
+            };
 
-                ip_addr_port_a.extend_from_slice(&socket_addr_a.port().to_be_bytes());
+            ip_addr_port_a.extend_from_slice(&socket_addr_a.port().to_be_bytes());
 
-                let ip_addr_port_a: VecHostIdentifier = ip_addr_port_a.into();
+            let ip_addr_port_a: VecHostIdentifier = ip_addr_port_a.into();
 
-                //B handles handshake under load, should send cookie reply message with invalid cookie
-                let HandleMsgResult { resp, .. } = b
-                    .handle_msg_under_load(
-                        &a_to_b_buf.as_slice()[..init_hello_len],
-                        &mut *b_to_a_buf,
-                        &ip_addr_port_a,
-                    )
-                    .unwrap();
+            //B handles handshake under load, should send cookie reply message with invalid cookie
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg_under_load(
+                    &a_to_b_buf.as_slice()[..init_hello_len],
+                    &mut *b_to_a_buf,
+                    &ip_addr_port_a,
+                )
+                .unwrap();
 
-                let cookie_reply_len = resp.unwrap();
+            let cookie_reply_len = resp.unwrap();
 
-                //A handles cookie reply message
-                a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
-                    .unwrap();
+            //A handles cookie reply message
+            a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
+                .unwrap();
 
-                assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
+            assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
-                let expected_cookie_value = hash_domains::cookie_value()
-                    .unwrap()
-                    .mix(
-                        b.active_or_retired_cookie_secrets()[0]
-                            .unwrap()
-                            .get(&b)
-                            .value
-                            .secret(),
-                    )
-                    .unwrap()
-                    .mix(ip_addr_port_a.encode())
-                    .unwrap()
-                    .into_value()[..16]
-                    .to_vec();
+            let expected_cookie_value = hash_domains::cookie_value()
+                .unwrap()
+                .mix(
+                    b.active_or_retired_cookie_secrets()[0]
+                        .unwrap()
+                        .get(&b)
+                        .value
+                        .secret(),
+                )
+                .unwrap()
+                .mix(ip_addr_port_a.encode())
+                .unwrap()
+                .into_value()[..16]
+                .to_vec();
 
-                assert_eq!(
-                    PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
-                    Some(&expected_cookie_value[..])
-                );
+            assert_eq!(
+                PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
+                Some(&expected_cookie_value[..])
+            );
 
-                let retx_init_hello_len = loop {
-                    match a.poll().unwrap() {
-                        PollResult::SendRetransmission(peer) => {
-                            break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
-                        }
-                        PollResult::Sleep(time) => {
-                            sleep(Duration::from_secs_f64(time));
-                        }
-                        _ => {}
+            let retx_init_hello_len = loop {
+                match a.poll().unwrap() {
+                    PollResult::SendRetransmission(peer) => {
+                        break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
                     }
-                };
+                    PollResult::Sleep(time) => {
+                        sleep(Duration::from_secs_f64(time));
+                    }
+                    _ => {}
+                }
+            };
 
-                let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-                assert_eq!(retx_msg_type, MsgType::InitHello);
+            let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(retx_msg_type, MsgType::InitHello);
 
-                //B handles retransmitted message
-                let HandleMsgResult { resp, .. } = b
-                    .handle_msg_under_load(
-                        &a_to_b_buf.as_slice()[..retx_init_hello_len],
-                        &mut *b_to_a_buf,
-                        &ip_addr_port_a,
-                    )
-                    .unwrap();
+            //B handles retransmitted message
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg_under_load(
+                    &a_to_b_buf.as_slice()[..retx_init_hello_len],
+                    &mut *b_to_a_buf,
+                    &ip_addr_port_a,
+                )
+                .unwrap();
 
-                let _resp_hello_len = resp.unwrap();
+            let _resp_hello_len = resp.unwrap();
 
-                let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-                assert_eq!(resp_msg_type, MsgType::RespHello);
-            });
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
         });
     }
 
     #[test]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
-        test_spawn_process_policies!({
-            stacker::grow(8 * 1024 * 1024, || {
-                type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-                let (mut a, mut b) = make_server_pair().unwrap();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+        stacker::grow(8 * 1024 * 1024, || {
+            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+            let (mut a, mut b) = make_server_pair().unwrap();
 
-                let mut a_to_b_buf = MsgBufPlus::zero();
-                let mut b_to_a_buf = MsgBufPlus::zero();
+            let mut a_to_b_buf = MsgBufPlus::zero();
+            let mut b_to_a_buf = MsgBufPlus::zero();
 
-                let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-                let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-                ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-                let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
+            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+            let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
-                //A initiates handshake
-                let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+            //A initiates handshake
+            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
 
-                //B handles InitHello message, should respond with RespHello
-                let HandleMsgResult { resp, .. } = b
-                    .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
-                    .unwrap();
+            //B handles InitHello message, should respond with RespHello
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+                .unwrap();
 
-                let resp_hello_len = resp.unwrap();
-                let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-                assert_eq!(resp_msg_type, MsgType::RespHello);
+            let resp_hello_len = resp.unwrap();
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
 
-                let socket_addr_b = std::net::SocketAddr::V4(ip_b);
-                let mut ip_addr_port_b = [0u8; 18];
-                let mut ip_addr_port_b_len = 0;
-                match socket_addr_b.ip() {
-                    std::net::IpAddr::V4(ipv4) => {
-                        ip_addr_port_b[0..4].copy_from_slice(&ipv4.octets());
-                        ip_addr_port_b_len += 4;
-                    }
-                    std::net::IpAddr::V6(ipv6) => {
-                        ip_addr_port_b[0..16].copy_from_slice(&ipv6.octets());
-                        ip_addr_port_b_len += 16;
-                    }
-                };
+            let socket_addr_b = std::net::SocketAddr::V4(ip_b);
+            let mut ip_addr_port_b = [0u8; 18];
+            let mut ip_addr_port_b_len = 0;
+            match socket_addr_b.ip() {
+                std::net::IpAddr::V4(ipv4) => {
+                    ip_addr_port_b[0..4].copy_from_slice(&ipv4.octets());
+                    ip_addr_port_b_len += 4;
+                }
+                std::net::IpAddr::V6(ipv6) => {
+                    ip_addr_port_b[0..16].copy_from_slice(&ipv6.octets());
+                    ip_addr_port_b_len += 16;
+                }
+            };
 
-                ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len + 2]
-                    .copy_from_slice(&socket_addr_b.port().to_be_bytes());
-                ip_addr_port_b_len += 2;
+            ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len + 2]
+                .copy_from_slice(&socket_addr_b.port().to_be_bytes());
+            ip_addr_port_b_len += 2;
 
-                let ip_addr_port_b: VecHostIdentifier =
-                    ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
+            let ip_addr_port_b: VecHostIdentifier =
+                ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
 
-                //A handles RespHello message under load, should not send cookie reply
-                assert!(a
-                    .handle_msg_under_load(
-                        &b_to_a_buf[..resp_hello_len],
-                        &mut *a_to_b_buf,
-                        &ip_addr_port_b
-                    )
-                    .is_err());
-            });
+            //A handles RespHello message under load, should not send cookie reply
+            assert!(a
+                .handle_msg_under_load(
+                    &b_to_a_buf[..resp_hello_len],
+                    &mut *a_to_b_buf,
+                    &ip_addr_port_b
+                )
+                .is_err());
         });
     }
 }
