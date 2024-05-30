@@ -275,6 +275,7 @@ fn check_exchange_under_dos() {
     fs::remove_dir_all(&tmpdir).unwrap();
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 struct MockBrokerInner {
     psk: Option<Secret<WG_KEY_LEN>>,
