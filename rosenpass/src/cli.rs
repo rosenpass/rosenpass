@@ -44,7 +44,7 @@ impl CliArgs {
     /// Note the `#[arg("group")]` in the [`CliArgs`] struct.
     pub fn get_log_level(&self) -> Option<log::LevelFilter> {
         if self.verbose {
-            return Some(log::LevelFilter::Info);
+            return Some(log::LevelFilter::Debug);
         }
         if self.quiet {
             return Some(log::LevelFilter::Error);
@@ -52,7 +52,7 @@ impl CliArgs {
         if let Some(level_filter) = self.log_level {
             return Some(level_filter);
         }
-        None
+        Some(log::LevelFilter::Info)
     }
 }
 
