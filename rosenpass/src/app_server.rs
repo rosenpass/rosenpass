@@ -213,7 +213,7 @@ impl AppPeerPtr {
             let config = broker.peer_cfg.create_config(psk);
             let broker = server.brokers.store.get_mut(&broker.ptr().0).unwrap();
             broker.set_psk(config)?;
-        } else {
+        } else if server.peers[self.0].outfile.is_none() {
             log::warn!("No broker peer found for peer {}", self.0);
         }
         Ok(())
