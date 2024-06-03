@@ -8,6 +8,6 @@ use std::sync::Once;
 static ONCE: Once = Once::new();
 
 fuzz_target!(|data: &[u8]| {
-    ONCE.call_once(secret_policy_use_only_memfd_secrets);
+    ONCE.call_once(secret_policy_try_use_memfd_secrets);
     let _ = secret_box(data);
 });

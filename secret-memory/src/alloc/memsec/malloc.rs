@@ -52,7 +52,7 @@ unsafe impl Allocator for MallocAllocator {
         // Ensure the right alignment is used
         let off = (mem.as_ptr() as *const u8).align_offset(layout.align());
         if off != 0 {
-            log::error!("Allocation {layout:?} was requested but memsec returned allocation \
+            log::error!("Allocation {layout:?} was requested but malloc-based memsec returned allocation \
                 with offset {off} from the requested alignment. Malloc always allocates values \
                 at the end of a memory page for security reasons, custom alignments are not supported. \
                 You could try allocating an oversized value.");

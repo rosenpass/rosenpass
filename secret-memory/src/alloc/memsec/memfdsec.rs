@@ -53,8 +53,8 @@ unsafe impl Allocator for MemfdSecAllocator {
         // Ensure the right alignment is used
         let off = (mem.as_ptr() as *const u8).align_offset(layout.align());
         if off != 0 {
-            log::error!("Allocation {layout:?} was requested but memsec returned allocation \
-                with offset {off} from the requested alignment. Malloc always allocates values \
+            log::error!("Allocation {layout:?} was requested but memfd-based memsec returned allocation \
+                with offset {off} from the requested alignment. Memfd always allocates values \
                 at the end of a memory page for security reasons, custom alignments are not supported. \
                 You could try allocating an oversized value.");
             unsafe { memsec::free_memfd_secret(mem) };
