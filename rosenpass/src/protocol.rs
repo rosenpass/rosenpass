@@ -1953,7 +1953,7 @@ impl CryptoServer {
         ic: &InitConf,
         rc: &mut EmptyData,
     ) -> Result<(PeerPtr, bool)> {
-        let mut exchange = false;
+        let mut exchanged = false;
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -1985,7 +1985,7 @@ impl CryptoServer {
             peer.hs().take(self);
 
             // Only exchange key on new biscuit number- avoid duplicate key exchanges on retransmitted InitConf messages
-            exchange = true;
+            exchanged = true;
         }
 
         // TODO: Implementing RP should be possible without touching the live session stuff
@@ -2025,7 +2025,7 @@ impl CryptoServer {
         let k = ses.txkm.secret();
         aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
-        Ok((peer, exchange))
+        Ok((peer, exchanged))
     }
 
     pub fn handle_resp_conf(&mut self, rc: &EmptyData) -> Result<PeerPtr> {
