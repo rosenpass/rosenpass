@@ -321,7 +321,7 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::test_spawn_process_policies;
+    use crate::test_spawn_process_provided_policies;
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -332,7 +332,7 @@ mod test {
     /// check that we can alloc using the magic pool
     #[test]
     fn secret_memory_pool_take() {
-        test_spawn_process_policies!({
+        test_spawn_process_provided_policies!({
             const N: usize = 0x100;
             let mut pool = SecretMemoryPool::new();
             let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
@@ -343,7 +343,7 @@ mod test {
     /// check that a secret lives, even if its [SecretMemoryPool] is deleted
     #[test]
     fn secret_memory_pool_drop() {
-        test_spawn_process_policies!({
+        test_spawn_process_provided_policies!({
             const N: usize = 0x100;
             let mut pool = SecretMemoryPool::new();
             let secret: ZeroizingSecretBox<[u8; N]> = pool.take();
@@ -355,7 +355,7 @@ mod test {
     /// check that a secret can be reborn, freshly initialized with zero
     #[test]
     fn secret_memory_pool_release() {
-        test_spawn_process_policies!({
+        test_spawn_process_provided_policies!({
             const N: usize = 1;
             let mut pool = SecretMemoryPool::new();
             let mut secret: ZeroizingSecretBox<[u8; N]> = pool.take();
@@ -376,7 +376,7 @@ mod test {
     /// test loading a secret from an example file, and then storing it again in a different file
     #[test]
     fn test_secret_load_store() {
-        test_spawn_process_policies!({
+        test_spawn_process_provided_policies!({
             const N: usize = 100;
 
             // Generate original random bytes
@@ -413,7 +413,7 @@ mod test {
     /// test loading a base64 encoded secret from an example file, and then storing it again in a different file
     #[test]
     fn test_secret_load_store_base64() {
-        test_spawn_process_policies!({
+        test_spawn_process_provided_policies!({
             const N: usize = 100;
             // Generate original random bytes
             let original_bytes: [u8; N] = [rand::random(); N];
