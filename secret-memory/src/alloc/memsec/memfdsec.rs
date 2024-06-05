@@ -46,7 +46,7 @@ unsafe impl Allocator for MemfdSecAllocator {
 
         // Unwrap the option
         let Some(mem) = mem else {
-            log::error!("Allocation {layout:?} was requested but memsec returned a null pointer");
+            log::error!("Allocation {layout:?} was requested but memfd-based memsec returned a null pointer");
             return Err(AllocError);
         };
 
