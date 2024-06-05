@@ -2149,6 +2149,7 @@ mod test {
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
     use super::*;
+    use serial_test::serial;
 
     struct VecHostIdentifier(Vec<u8>);
 
@@ -2190,6 +2191,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
     ///
@@ -2277,6 +2279,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn test_regular_exchange() {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -2337,6 +2340,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn test_regular_init_conf_retransmit() {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -2411,6 +2415,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -2507,6 +2512,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
