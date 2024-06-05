@@ -2174,17 +2174,11 @@ mod test {
     fn setup_logging() {
         use std::io::Write;
         let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
-        log_builder.filter_level(log::LevelFilter::Debug);
+        log_builder.filter_level(log::LevelFilter::Info);
         log_builder.format_timestamp_nanos();
         log_builder.format(|buf, record| {
             let ts_format = buf.timestamp_nanos().to_string();
-            writeln!(
-                buf,
-                "\x1b[1mproto-{}\x1b[0m {}: {}",
-                record.line().unwrap(),
-                &ts_format[14..],
-                record.args()
-            )
+            writeln!(buf, "{}: {}", &ts_format[14..], record.args())
         });
 
         let _ = log_builder.try_init();
