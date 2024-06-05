@@ -2,7 +2,7 @@ pub fn secret_policy_try_use_memfd_secrets() {
     let alloc_type = {
         #[cfg(target_os = "linux")]
         {
-            if crate::alloc::memsec::memfdsec::memfdsec_box_try(()).is_ok() {
+            if crate::alloc::memsec::memfdsec::memfdsec_box_try(0u8).is_ok() {
                 crate::alloc::SecretAllocType::MemsecMemfdSec
             } else {
                 crate::alloc::SecretAllocType::MemsecMalloc
