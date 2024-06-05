@@ -131,9 +131,6 @@ macro_rules! data_lense(
 
         impl<__ContainerType $(, $( $generic: LenseView ),+ )? > $type<__ContainerType $(, $( $generic ),+ )? >{
             $(
-            /// Size in bytes of the field `
-            #[doc = !($field)]
-            /// `
             pub const fn [< $field _len >]() -> usize{
                 $len
             }

@@ -822,12 +822,12 @@ impl CryptoServer {
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = tx_buf.envelope_truncating::<EmptyData<&mut [u8]>>()?;
-                let peer = self.handle_init_conf(
+                let (peer, if_exchanged) = self.handle_init_conf(
                     msg_in.payload().init_conf()?,
                     msg_out.payload_mut().empty_data()?,
                 )?;
                 len = self.seal_and_commit_msg(peer, MsgType::EmptyData, msg_out)?;
-                exchanged = true;
+                exchanged = if_exchanged;
                 peer
             }
             Ok(MsgType::EmptyData) => {
@@ -1614,7 +1614,8 @@ impl CryptoServer {
         &mut self,
         ic: InitConf<&[u8]>,
         mut rc: EmptyData<&mut [u8]>,
-    ) -> Result<PeerPtr> {
+    ) -> Result<(PeerPtr, bool)> {
+        let mut exchanged = false;
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -1644,6 +1645,9 @@ impl CryptoServer {
             // TODO: This should be part of the protocol specification.
             // Abort any ongoing handshake from initiator role
             peer.hs().take(self);
+
+            // Only exchange key on a new biscuit number
+            exchanged = true;
         }
 
         // TODO: Implementing RP should be possible without touching the live session stuff
@@ -1683,7 +1687,7 @@ impl CryptoServer {
         let k = ses.txkm.secret();
         aead_enc_into(rc.auth_mut(), k, &n, &NOTHING, &NOTHING)?; // ct, k, n, ad, pt
 
-        Ok(peer)
+        Ok((peer, exchanged))
     }
 
     pub fn handle_resp_conf(&mut self, rc: EmptyData<&[u8]>) -> Result<PeerPtr> {
