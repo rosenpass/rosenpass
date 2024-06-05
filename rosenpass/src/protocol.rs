@@ -1120,9 +1120,10 @@ impl CryptoServer {
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
-                let peer = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
+                let (peer, if_exchanged) =
+                    self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
                 len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
-                exchanged = true;
+                exchanged = if_exchanged;
                 peer
             }
             Ok(MsgType::EmptyData) => {
@@ -1951,7 +1952,12 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_init_conf(&mut self, ic: &InitConf, rc: &mut EmptyData) -> Result<PeerPtr> {
+    pub fn handle_init_conf(
+        &mut self,
+        ic: &InitConf,
+        rc: &mut EmptyData,
+    ) -> Result<(PeerPtr, bool)> {
+        let mut exchanged = false;
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -1981,6 +1987,9 @@ impl CryptoServer {
             // TODO: This should be part of the protocol specification.
             // Abort any ongoing handshake from initiator role
             peer.hs().take(self);
+
+            // Only exchange key on new biscuit number- avoid duplicate key exchanges on retransmitted InitConf messages
+            exchanged = true;
         }
 
         // TODO: Implementing RP should be possible without touching the live session stuff
@@ -2020,7 +2029,7 @@ impl CryptoServer {
         let k = ses.txkm.secret();
         aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
-        Ok(peer)
+        Ok((peer, exchanged))
     }
 
     pub fn handle_resp_conf(&mut self, rc: &EmptyData) -> Result<PeerPtr> {
@@ -2245,6 +2254,136 @@ mod test {
         a.add_peer(Some(psk.clone()), pkb)?;
         b.add_peer(Some(psk), pka)?;
         Ok((a, b))
+    }
+
+    #[test]
+    fn test_regular_exchange() {
+        stacker::grow(8 * 1024 * 1024, || {
+            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+            let (mut a, mut b) = make_server_pair().unwrap();
+
+            let mut a_to_b_buf = MsgBufPlus::zero();
+            let mut b_to_a_buf = MsgBufPlus::zero();
+
+            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+
+            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
+
+            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+
+            let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(init_msg_type, MsgType::InitHello);
+
+            //B handles InitHello, sends RespHello
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let resp_hello_len = resp.unwrap();
+
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
+
+            let HandleMsgResult {
+                resp,
+                exchanged_with,
+            } = a
+                .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+                .unwrap();
+
+            let init_conf_len = resp.unwrap();
+            let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+
+            assert_eq!(exchanged_with, Some(PeerPtr(0)));
+            assert_eq!(init_conf_msg_type, MsgType::InitConf);
+
+            //B handles InitConf, sends EmptyData
+            let HandleMsgResult {
+                resp,
+                exchanged_with,
+            } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+
+            assert_eq!(exchanged_with, Some(PeerPtr(0)));
+            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+        });
+    }
+
+    #[test]
+    fn test_regular_init_conf_retransmit() {
+        stacker::grow(8 * 1024 * 1024, || {
+            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+            let (mut a, mut b) = make_server_pair().unwrap();
+
+            let mut a_to_b_buf = MsgBufPlus::zero();
+            let mut b_to_a_buf = MsgBufPlus::zero();
+
+            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
+            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
+            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
+
+            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
+
+            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+
+            let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+            assert_eq!(init_msg_type, MsgType::InitHello);
+
+            //B handles InitHello, sends RespHello
+            let HandleMsgResult { resp, .. } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let resp_hello_len = resp.unwrap();
+
+            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+            assert_eq!(resp_msg_type, MsgType::RespHello);
+
+            //A handles RespHello, sends InitConf, exchanges keys
+            let HandleMsgResult {
+                resp,
+                exchanged_with,
+            } = a
+                .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+                .unwrap();
+
+            let init_conf_len = resp.unwrap();
+            let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+
+            assert_eq!(exchanged_with, Some(PeerPtr(0)));
+            assert_eq!(init_conf_msg_type, MsgType::InitConf);
+
+            //B handles InitConf, sends EmptyData
+            let HandleMsgResult {
+                resp,
+                exchanged_with,
+            } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+
+            assert_eq!(exchanged_with, Some(PeerPtr(0)));
+            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+
+            //B handles InitConf again, sends EmptyData
+            let HandleMsgResult {
+                resp,
+                exchanged_with,
+            } = b
+                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+                .unwrap();
+
+            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+
+            assert!(exchanged_with.is_none());
+            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+        });
     }
 
     #[test]
