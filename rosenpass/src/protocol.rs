@@ -2180,7 +2180,7 @@ mod test {
             writeln!(
                 buf,
                 "\x1b[1mproto-{}\x1b[0m {}: {}",
-                record.line().unwrap(), 
+                record.line().unwrap(),
                 &ts_format[14..],
                 record.args()
             )
