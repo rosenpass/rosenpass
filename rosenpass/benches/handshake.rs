@@ -5,6 +5,7 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 
 fn handle(
     tx: &mut CryptoServer,
@@ -56,6 +57,7 @@ fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    secret_policy_try_use_memfd_secrets();
     let (mut a, mut b) = make_server_pair().unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {

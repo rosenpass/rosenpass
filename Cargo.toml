@@ -12,14 +12,10 @@ members = [
     "fuzz",
     "secret-memory",
     "rp",
-    "wireguard-broker"
-]
-
-default-members = [
-    "rosenpass",
-    "rp",
     "wireguard-broker",
 ]
+
+default-members = ["rosenpass", "rp", "wireguard-broker"]
 
 [workspace.metadata.release]
 # ensure that adding `--package` as argument to `cargo release` still creates version tags in the form of `vx.y.z`
@@ -45,7 +41,7 @@ env_logger = "0.10.2"
 toml = "0.7.8"
 static_assertions = "1.1.0"
 allocator-api2 = "0.2.14"
-memsec = "0.6.3"
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "30e7d82", features = [ "alloc_ext", ] }
 rand = "0.8.5"
 typenum = "1.17.0"
 log = { version = "0.4.21" }
@@ -54,9 +50,15 @@ serde = { version = "1.0.203", features = ["derive"] }
 arbitrary = { version = "1.3.2", features = ["derive"] }
 anyhow = { version = "1.0.86", features = ["backtrace", "std"] }
 mio = { version = "0.8.11", features = ["net", "os-poll"] }
-oqs-sys = { version = "0.9.1", default-features = false, features = ['classic_mceliece', 'kyber']  }
+oqs-sys = { version = "0.9.1", default-features = false, features = [
+    'classic_mceliece',
+    'kyber',
+] }
 blake2 = "0.10.6"
-chacha20poly1305 = { version = "0.10.1", default-features = false, features = [ "std", "heapless" ] }
+chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
+    "std",
+    "heapless",
+] }
 zerocopy = { version = "0.7.34", features = ["derive"] }
 home = "0.5.9"
 derive_builder = "0.20.0"
@@ -65,12 +67,14 @@ postcard= {version = "1.0.8", features = ["alloc"]}
 
 #Dev dependencies
 serial_test = "3.1.1"
-tempfile="3"
+tempfile = "3"
 stacker = "0.1.15"
 libfuzzer-sys = "0.4"
 test_bin = "0.4.0"
 criterion = "0.4.0"
 allocator-api2-tests = "0.2.15"
+procspawn = {version = "1.0.0", features= ["test-support"]}
+
 
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = "3.0.0"

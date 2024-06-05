@@ -53,82 +53,88 @@ mod integration_tests {
         }
     }
 
+    procspawn::enable_test_support!();
+
     #[test]
     fn test_psk_exchanges() {
         const TEST_RUNS: usize = 100;
 
-        let server_broker_inner = Arc::new(Mutex::new(MockServerBrokerInner::default()));
-        // Create a mock BrokerServer
-        let server_broker = MockServerBroker::new(server_broker_inner.clone());
+        use rosenpass_secret_memory::test_spawn_process_provided_policies;
 
-        let mut server = BrokerServer::<SetPskError, MockServerBroker>::new(server_broker);
+        test_spawn_process_provided_policies!({
+            let server_broker_inner = Arc::new(Mutex::new(MockServerBrokerInner::default()));
+            // Create a mock BrokerServer
+            let server_broker = MockServerBroker::new(server_broker_inner.clone());
 
-        let (client_socket, mut server_socket) = mio::net::UnixStream::pair().unwrap();
+            let mut server = BrokerServer::<SetPskError, MockServerBroker>::new(server_broker);
 
-        // Spawn a new thread to connect to the unix socket
-        let handle = std::thread::spawn(move || {
+            let (client_socket, mut server_socket) = mio::net::UnixStream::pair().unwrap();
+
+            // Spawn a new thread to connect to the unix socket
+            let handle = std::thread::spawn(move || {
+                for _ in 0..TEST_RUNS {
+                    // Wait for 8 bytes of length to come in
+                    let mut length_buffer = [0; 8];
+
+                    while let Err(_err) = server_socket.read_exact(&mut length_buffer) {}
+
+                    let length = u64::from_le_bytes(length_buffer) as usize;
+
+                    // Read the amount of length bytes into a buffer
+                    let mut data_buffer = [0; REQUEST_MSG_BUFFER_SIZE];
+                    while let Err(_err) = server_socket.read_exact(&mut data_buffer[0..length]) {}
+
+                    let mut response = [0; RESPONSE_MSG_BUFFER_SIZE];
+                    server.handle_message(&data_buffer[0..length], &mut response)?;
+                }
+                Ok::<(), BrokerServerError>(())
+            });
+
+            // Create a MioBrokerClient and send a psk
+            let mut client = MioBrokerClient::new(client_socket);
+
             for _ in 0..TEST_RUNS {
-                // Wait for 8 bytes of length to come in
-                let mut length_buffer = [0; 8];
+                //Create psk of random 32 bytes
+                let psk = Secret::random();
+                let peer_id = Public::random();
+                let interface = "test";
+                let config = SerializedBrokerConfig {
+                    psk: &psk,
+                    peer_id: &peer_id,
+                    interface: interface.as_bytes(),
+                    additional_params: &[],
+                };
+                client.set_psk(config).unwrap();
 
-                while let Err(_err) = server_socket.read_exact(&mut length_buffer) {}
+                //Sleep for a while to allow the server to process the message
+                std::thread::sleep(std::time::Duration::from_millis(
+                    rand::thread_rng().gen_range(100..500),
+                ));
 
-                let length = u64::from_le_bytes(length_buffer) as usize;
+                let psk = psk.secret().to_owned();
 
-                // Read the amount of length bytes into a buffer
-                let mut data_buffer = [0; REQUEST_MSG_BUFFER_SIZE];
-                while let Err(_err) = server_socket.read_exact(&mut data_buffer[0..length]) {}
+                loop {
+                    let mut lock = server_broker_inner.try_lock();
 
-                let mut response = [0; RESPONSE_MSG_BUFFER_SIZE];
-                server.handle_message(&data_buffer[0..length], &mut response)?;
-            }
-            Ok::<(), BrokerServerError>(())
-        });
+                    if let Ok(ref mut inner) = lock {
+                        // Check if the psk is received by the server
+                        let received_psk = &inner.psk;
+                        assert_eq!(
+                            received_psk.as_ref().map(|psk| psk.secret().to_owned()),
+                            Some(psk)
+                        );
 
-        // Create a MioBrokerClient and send a psk
-        let mut client = MioBrokerClient::new(client_socket);
+                        let recieved_peer_id = inner.peer_id;
+                        assert_eq!(recieved_peer_id, Some(peer_id));
 
-        for _ in 0..TEST_RUNS {
-            //Create psk of random 32 bytes
-            let psk = Secret::random();
-            let peer_id = Public::random();
-            let interface = "test";
-            let config = SerializedBrokerConfig {
-                psk: &psk,
-                peer_id: &peer_id,
-                interface: interface.as_bytes(),
-                additional_params: &[],
-            };
-            client.set_psk(config).unwrap();
+                        let target_interface = &inner.interface;
+                        assert_eq!(target_interface.as_deref(), Some(interface));
 
-            //Sleep for a while to allow the server to process the message
-            std::thread::sleep(std::time::Duration::from_millis(
-                rand::thread_rng().gen_range(100..500),
-            ));
-
-            let psk = psk.secret().to_owned();
-
-            loop {
-                let mut lock = server_broker_inner.try_lock();
-
-                if let Ok(ref mut inner) = lock {
-                    // Check if the psk is received by the server
-                    let received_psk = &inner.psk;
-                    assert_eq!(
-                        received_psk.as_ref().map(|psk| psk.secret().to_owned()),
-                        Some(psk)
-                    );
-
-                    let recieved_peer_id = inner.peer_id;
-                    assert_eq!(recieved_peer_id, Some(peer_id));
-
-                    let target_interface = &inner.interface;
-                    assert_eq!(target_interface.as_deref(), Some(interface));
-
-                    break;
+                        break;
+                    }
                 }
             }
-        }
-        handle.join().unwrap().unwrap();
+            handle.join().unwrap().unwrap();
+        });
     }
 }

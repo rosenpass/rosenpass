@@ -19,12 +19,16 @@
 //! [CryptoServer].
 //!
 //! ```
+//! use rosenpass_secret_memory::policy::*;
 //! use rosenpass_cipher_traits::Kem;
 //! use rosenpass_ciphers::kem::StaticKem;
 //! use rosenpass::{
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> anyhow::Result<()> {
+//! // Set security policy for storing secrets
+//!
+//! secret_policy_try_use_memfd_secrets();
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -2182,6 +2186,7 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
             type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
@@ -2383,6 +2388,7 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_responder_under_load() {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2477,6 +2483,7 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
