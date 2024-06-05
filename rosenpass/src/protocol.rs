@@ -2258,6 +2258,7 @@ mod test {
 
     #[test]
     fn test_regular_exchange() {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2316,6 +2317,7 @@ mod test {
 
     #[test]
     fn test_regular_init_conf_retransmit() {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
