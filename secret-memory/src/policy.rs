@@ -1,4 +1,5 @@
 pub fn secret_policy_try_use_memfd_secrets() {
+    log::info!("Attempting secret detection");
     let alloc_type = {
         #[cfg(target_os = "linux")]
         {
@@ -14,6 +15,7 @@ pub fn secret_policy_try_use_memfd_secrets() {
             crate::alloc::SecretAllocType::MemsecMalloc
         }
     };
+    log::info!("Detected {:?}", alloc_type);
     assert_eq!(
         alloc_type,
         crate::alloc::get_or_init_secret_alloc_type(alloc_type)

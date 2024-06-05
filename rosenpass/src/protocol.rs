@@ -2170,6 +2170,25 @@ mod test {
         }
     }
 
+    fn setup_logging() {
+        use std::io::Write;
+        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
+        log_builder.filter_level(log::LevelFilter::Debug);
+        log_builder.format_timestamp_nanos();
+        log_builder.format(|buf, record| {
+            let ts_format = buf.timestamp_nanos().to_string();
+            writeln!(
+                buf,
+                "\x1b[1mproto-{}\x1b[0m {}: {}",
+                record.line().unwrap(), 
+                &ts_format[14..],
+                record.args()
+            )
+        });
+
+        let _ = log_builder.try_init();
+    }
+
     #[test]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
@@ -2186,6 +2205,7 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
+        setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
@@ -2258,6 +2278,7 @@ mod test {
 
     #[test]
     fn test_regular_exchange() {
+        setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
@@ -2317,6 +2338,7 @@ mod test {
 
     #[test]
     fn test_regular_init_conf_retransmit() {
+        setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
@@ -2390,6 +2412,7 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_responder_under_load() {
+        setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
@@ -2485,6 +2508,7 @@ mod test {
 
     #[test]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
+        setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
