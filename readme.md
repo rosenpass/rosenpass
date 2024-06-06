@@ -25,7 +25,7 @@ Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up a
 
 ## Software architecture
 
-The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs] and libsodium[^libsodium]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
+The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
 
 As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
 
@@ -59,7 +59,6 @@ The code uses a variety of optimizations to speed up analysis such as using secr
 A wrapper script provides instant feedback about which queries execute as expected in color: A red cross if a query fails and a green check if it succeeds.
 
 [^liboqs]: https://openquantumsafe.org/liboqs/
-[^libsodium]: https://doc.libsodium.org/
 [^wg]: https://www.wireguard.com/
 [^pqwg]: https://eprint.iacr.org/2020/379
 [^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeats the purpose of a key exchange protocol
