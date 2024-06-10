@@ -2,7 +2,9 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use anyhow::Result;
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
+
 #[derive(Default)]
 pub struct ExchangePeer {
     pub public_keys_dir: PathBuf,
