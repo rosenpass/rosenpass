@@ -6,9 +6,13 @@ use libfuzzer_sys::fuzz_target;
 use rosenpass::protocol::CryptoServer;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_secret_memory::policy::*;
 use rosenpass_secret_memory::Secret;
+use std::sync::Once;
 
+static ONCE: Once = Once::new();
 fuzz_target!(|rx_buf: &[u8]| {
+    ONCE.call_once(secret_policy_use_only_malloc_secrets);
     let sk = Secret::from_slice(&[0; StaticKem::SK_LEN]);
     let pk = Secret::from_slice(&[0; StaticKem::PK_LEN]);
 

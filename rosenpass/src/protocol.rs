@@ -19,12 +19,16 @@
 //! [CryptoServer].
 //!
 //! ```
+//! use rosenpass_secret_memory::policy::*;
 //! use rosenpass_cipher_traits::Kem;
 //! use rosenpass_ciphers::kem::StaticKem;
 //! use rosenpass::{
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
 //! # fn main() -> anyhow::Result<()> {
+//! // Set security policy for storing secrets
+//!
+//! secret_policy_try_use_memfd_secrets();
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
@@ -2145,6 +2149,7 @@ mod test {
     use std::{net::SocketAddrV4, thread::sleep, time::Duration};
 
     use super::*;
+    use serial_test::serial;
 
     struct VecHostIdentifier(Vec<u8>);
 
@@ -2166,7 +2171,21 @@ mod test {
         }
     }
 
+    fn setup_logging() {
+        use std::io::Write;
+        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
+        log_builder.filter_level(log::LevelFilter::Info);
+        log_builder.format_timestamp_nanos();
+        log_builder.format(|buf, record| {
+            let ts_format = buf.timestamp_nanos().to_string();
+            writeln!(buf, "{}: {}", &ts_format[14..], record.args())
+        });
+
+        let _ = log_builder.try_init();
+    }
+
     #[test]
+    #[serial]
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
     ///
@@ -2182,6 +2201,8 @@ mod test {
     /// Through all this, the handshake should still successfully terminate;
     /// i.e. an exchanged key must be produced in both servers.
     fn handles_incorrect_size_messages() {
+        setup_logging();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
             type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
@@ -2252,7 +2273,10 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn test_regular_exchange() {
+        setup_logging();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2296,7 +2320,7 @@ mod test {
 
             //B handles InitConf, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
@@ -2310,7 +2334,10 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn test_regular_init_conf_retransmit() {
+        setup_logging();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2355,7 +2382,7 @@ mod test {
 
             //B handles InitConf, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
@@ -2368,7 +2395,7 @@ mod test {
 
             //B handles InitConf again, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
@@ -2382,7 +2409,10 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_responder_under_load() {
+        setup_logging();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();
@@ -2476,7 +2506,10 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load() {
+        setup_logging();
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
             type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
             let (mut a, mut b) = make_server_pair().unwrap();

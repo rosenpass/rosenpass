@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
+use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
@@ -154,6 +155,9 @@ impl CliCommand {
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
     pub fn run(self, test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
+        //Specify secret policy
+        secret_policy_try_use_memfd_secrets();
+
         use CliCommand::*;
         match self {
             Man => {

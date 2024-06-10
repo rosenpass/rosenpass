@@ -102,6 +102,7 @@ mod tests {
     use std::fs;
 
     use rosenpass::protocol::{SPk, SSk};
+    use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::LoadValue;
     use rosenpass_util::file::LoadValueB64;
@@ -110,7 +111,8 @@ mod tests {
     use crate::key::{genkey, pubkey, WG_B64_LEN};
 
     #[test]
-    fn it_works() {
+    fn test_key_loopback() {
+        secret_policy_try_use_memfd_secrets();
         let private_keys_dir = tempdir().unwrap();
         fs::remove_dir(private_keys_dir.path()).unwrap();
 

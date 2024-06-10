@@ -48,13 +48,37 @@ test = false
 doc = false
 
 [[bin]]
-name = "fuzz_box_secret_alloc"
-path = "fuzz_targets/box_secret_alloc.rs"
+name = "fuzz_box_secret_alloc_malloc"
+path = "fuzz_targets/box_secret_alloc_malloc.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_vec_secret_alloc"
-path = "fuzz_targets/vec_secret_alloc.rs"
+name = "fuzz_vec_secret_alloc_malloc"
+path = "fuzz_targets/vec_secret_alloc_malloc.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_box_secret_alloc_memfdsec"
+path = "fuzz_targets/box_secret_alloc_memfdsec.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vec_secret_alloc_memfdsec"
+path = "fuzz_targets/vec_secret_alloc_memfdsec.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_box_secret_alloc_memfdsec_mallocfb"
+path = "fuzz_targets/box_secret_alloc_memfdsec_mallocfb.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vec_secret_alloc_memfdsec_mallocfb"
+path = "fuzz_targets/vec_secret_alloc_memfdsec_mallocfb.rs"
 test = false
 doc = false
