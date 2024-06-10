@@ -1,4 +1,4 @@
-# Rosenpass internal libsodium bindings
+# Rosenpass internal cryptographic traits
 
 Rosenpass internal library providing traits for cryptographic primitives.
 

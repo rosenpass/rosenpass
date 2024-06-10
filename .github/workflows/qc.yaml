@@ -46,8 +46,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install libsodium
-        run: sudo apt-get install -y libsodium-dev
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
@@ -87,8 +85,6 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: rustup component add clippy
-      - name: Install libsodium
-        run: sudo apt-get install -y libsodium-dev
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -108,8 +104,6 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: rustup component add clippy
-      - name: Install libsodium
-        run: sudo apt-get install -y libsodium-dev
       # `--no-deps` used as a workaround for a rust compiler bug. See:
       # - https://github.com/rosenpass/rosenpass/issues/62
       # - https://github.com/rust-lang/rust/issues/108378
@@ -128,8 +122,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install libsodium
-        run: sudo apt-get install -y libsodium-dev
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
@@ -171,8 +163,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install libsodium
-        run: sudo apt-get install -y libsodium-dev
       - name: Install nightly toolchain
         run: |
           rustup toolchain install nightly

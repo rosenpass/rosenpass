@@ -120,11 +120,10 @@
                     p.stdenv.cc
                     cmake # for oqs build in the oqs-sys crate
                     mandoc # for the built-in manual
-                    pkg-config # let libsodium-sys-stable find libsodium
                     removeReferencesTo
                     rustPlatform.bindgenHook # for C-bindings in the crypto libs
                   ];
-                  buildInputs = with p; [ bash libsodium ];
+                  buildInputs = with p; [ bash ];
 
                   override = x: {
                     preBuild =
@@ -226,11 +225,10 @@
                     p.stdenv.cc
                     cmake # for oqs build in the oqs-sys crate
                     mandoc # for the built-in manual
-                    pkg-config # let libsodium-sys-stable find libsodium
                     removeReferencesTo
                     rustPlatform.bindgenHook # for C-bindings in the crypto libs
                   ];
-                  buildInputs = with p; [ bash libsodium ];
+                  buildInputs = with p; [ bash ];
 
                   override = x: {
                     preBuild =
