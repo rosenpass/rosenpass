@@ -2320,7 +2320,7 @@ mod test {
 
             //B handles InitConf, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
@@ -2382,7 +2382,7 @@ mod test {
 
             //B handles InitConf, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
@@ -2395,7 +2395,7 @@ mod test {
 
             //B handles InitConf again, sends EmptyData
             let HandleMsgResult {
-                resp,
+                resp: _,
                 exchanged_with,
             } = b
                 .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
