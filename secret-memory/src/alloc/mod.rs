@@ -73,7 +73,7 @@ pub type SecretBox<T> = allocator_api2::boxed::Box<T, SecretAlloc>;
 /// A vector backed by the memsec allocator
 pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 
-pub fn sec_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
+pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
     SecretBox::<T>::try_new_in(x, SecretAlloc::default())
 }
 

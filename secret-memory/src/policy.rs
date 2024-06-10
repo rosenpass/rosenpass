@@ -47,17 +47,17 @@ pub fn secret_policy_use_only_malloc_secrets() {
 pub mod test {
     #[macro_export]
     macro_rules! test_spawn_process_with_policies {
-            ($body:block, $($f: expr),*) => {
-                $(
-            let handle = procspawn::spawn((), |_| {
+        ($body:block, $($f: expr),*) => {
+            $(
+                let handle = procspawn::spawn((), |_| {
 
                 $f();
 
                 $body
 
-            });
-            handle.join().unwrap();
-                )*
+                });
+                handle.join().unwrap();
+            )*
             };
         }
 
