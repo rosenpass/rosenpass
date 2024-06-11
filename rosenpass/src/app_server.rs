@@ -27,6 +27,7 @@ use crate::{
     config::Verbosity,
     protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
 };
+use rosenpass_to::{to, To};
 use rosenpass_util::attempt;
 use rosenpass_util::b64::{b64_writer, fmt_b64};
 
@@ -529,11 +530,13 @@ impl AppServer {
                 #[allow(clippy::redundant_closure_call)]
                 SendInitiation(peer) => tx_maybe_with!(peer, || self
                     .crypt
-                    .initiate_handshake(peer.lower(), &mut *tx))?,
+                    .initiate_handshake(peer.lower())
+                    .to(&mut *tx))?,
                 #[allow(clippy::redundant_closure_call)]
-                SendRetransmission(peer) => tx_maybe_with!(peer, || self
-                    .crypt
-                    .retransmit_handshake(peer.lower(), &mut *tx))?,
+                SendRetransmission(peer) => tx_maybe_with!(peer, || to(
+                    &mut *tx,
+                    self.crypt.retransmit_handshake(peer.lower())
+                ))?,
                 DeleteKey(peer) => {
                     self.output_key(peer, Stale, &SymKey::random())?;
 
@@ -549,7 +552,7 @@ impl AppServer {
                 }
 
                 ReceivedMessage(len, endpoint) => {
-                    match self.crypt.handle_msg(&rx[..len], &mut *tx) {
+                    match self.crypt.handle_msg(&rx[..len]).to(&mut *tx) {
                         Err(ref e) => {
                             self.verbose().then(|| {
                                 info!(

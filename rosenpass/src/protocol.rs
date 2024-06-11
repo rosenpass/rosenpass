@@ -21,6 +21,7 @@
 //! ```
 //! use rosenpass_cipher_traits::Kem;
 //! use rosenpass_ciphers::kem::StaticKem;
+//! use rosenpass_to::To;
 //! use rosenpass::{
 //!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 //! };
@@ -47,11 +48,11 @@
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
 //!
 //! // let a initiate a handshake
-//! let mut maybe_len = Some(a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice())?);
+//! let mut maybe_len = Some(a.initiate_handshake(PeerPtr(0)).to(a_buf.as_mut_slice())?);
 //!
 //! // let a and b communicate
 //! while let Some(len) = maybe_len {
-//!    maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
+//!    maybe_len = b.handle_msg(&a_buf[..len]).to(&mut b_buf[..])?.resp;
 //!    std::mem::swap(&mut a, &mut b);
 //!    std::mem::swap(&mut a_buf, &mut b_buf);
 //! }
@@ -81,6 +82,7 @@ use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_to::{to, with_destination, To};
 use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
@@ -377,15 +379,19 @@ impl IniHsPtr {
         PeerPtr(self.0)
     }
 
+    // NOTE: This function *will not* compile, as solutions for how to get the
+    // closure's argument to outlive the closure's return value are currently
+    // being evaluated. See the discussion in #164 for proposed solutions.
     pub fn insert<'a>(
-        &self,
-        srv: &'a mut CryptoServer,
+        &'a self,
         hs: InitiatorHandshake,
-    ) -> Result<&'a mut InitiatorHandshake> {
-        srv.register_session(hs.core.sidi, self.peer())?;
-        self.take(srv);
-        self.peer().get_mut(srv).initiation_requested = false;
-        Ok(self.peer().get_mut(srv).handshake.insert(hs))
+    ) -> impl To<CryptoServer, Result<&mut InitiatorHandshake>> + 'a {
+        with_destination(move |srv: &mut CryptoServer| {
+            srv.register_session(hs.core.sidi, self.peer())?;
+            self.take(srv);
+            self.peer().get_mut(srv).initiation_requested = false;
+            Ok(self.peer().get_mut(srv).handshake.insert(hs))
+        })
     }
 
     pub fn take(&self, srv: &mut CryptoServer) -> Option<InitiatorHandshake> {
@@ -740,14 +746,20 @@ impl CryptoServer {
     // NOTE retransmission? yes if initiator, no if responder
     // TODO remove unnecessary copying between global tx_buf and per-peer buf
     // TODO move retransmission storage to io server
-    pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
-        // Envelope::<InitHello>::default(); // TODO
-        let mut msg = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
-        self.handle_initiation(peer, &mut msg.payload)?;
-        let len = self.seal_and_commit_msg(peer, MsgType::InitHello, &mut msg)?;
-        peer.hs()
-            .store_msg_for_retransmission(self, msg.as_bytes())?;
-        Ok(len)
+    pub fn initiate_handshake<'a>(
+        &'a mut self,
+        peer: PeerPtr,
+    ) -> impl To<[u8], Result<usize>> + 'a {
+        with_destination(move |tx_buf: &mut [u8]| {
+            // Envelope::<InitHello>::default(); // TODO
+            let mut msg = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
+            to(&mut msg.payload, self.handle_initiation(peer))?;
+            let len = self
+                .seal_and_commit_msg(peer, MsgType::InitHello)
+                .to(&mut msg)?;
+            to(self, peer.hs().store_msg_for_retransmission(msg.as_bytes()))?;
+            Ok(len)
+        })
     }
 }
 
@@ -786,66 +798,86 @@ impl CryptoServer {
     /// | t1   |             | <-        | `RespHello` |
     /// | t2   | `InitConf`  | ->        |             |
     /// | t3   |             | <-        | `EmptyData` |
-    pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
-        let seal_broken = "Message seal broken!";
-        // length of the response. We assume no response, so None for now
-        let mut len = 0;
-        let mut exchanged = false;
+    pub fn handle_msg<'a>(
+        &'a mut self,
+        rx_buf: &'a [u8],
+    ) -> impl To<[u8], Result<HandleMsgResult>> + 'a {
+        with_destination(move |tx_buf: &mut [u8]| {
+            let seal_broken = "Message seal broken!";
+            // length of the response. We assume no response, so None for now
+            let mut len = 0;
+            let mut exchanged = false;
 
-        ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
+            ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
 
-        let peer = match rx_buf[0].try_into() {
-            Ok(MsgType::InitHello) => {
-                let msg_in: Ref<&[u8], Envelope<InitHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+            let peer = match rx_buf[0].try_into() {
+                Ok(MsgType::InitHello) => {
+                    let msg_in: Ref<&[u8], Envelope<InitHello>> =
+                        Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
-                let peer = self.handle_init_hello(&msg_in.payload, &mut msg_out.payload)?;
-                len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
-                peer
-            }
-            Ok(MsgType::RespHello) => {
-                let msg_in: Ref<&[u8], Envelope<RespHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                    let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
+                    let peer = self
+                        .handle_init_hello(&msg_in.payload)
+                        .to(&mut msg_out.payload)?;
+                    len = self
+                        .seal_and_commit_msg(peer, MsgType::RespHello)
+                        .to(&mut msg_out)?;
+                    peer
+                }
+                Ok(MsgType::RespHello) => {
+                    let msg_in: Ref<&[u8], Envelope<RespHello>> =
+                        Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
-                let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
-                len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
-                peer.hs()
-                    .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
-                exchanged = true;
-                peer
-            }
-            Ok(MsgType::InitConf) => {
-                let msg_in: Ref<&[u8], Envelope<InitConf>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                    let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
+                    let peer = self
+                        .handle_resp_hello(&msg_in.payload)
+                        .to(&mut msg_out.payload)?;
+                    len = self
+                        .seal_and_commit_msg(peer, MsgType::InitConf)
+                        .to(&mut msg_out)?;
+                    // hmm... adding to_owned() to next line fixes the issue
+                    // seems like msg_out_bytes is pulling along self...
+                    // checked, it's transferring via msg_out... (self)
+                    let msg_out_bytes = &msg_out.as_bytes()[..len];
+                    to(self, peer.hs().store_msg_for_retransmission(msg_out_bytes))?;
+                    exchanged = true;
+                    peer
+                }
+                Ok(MsgType::InitConf) => {
+                    let msg_in: Ref<&[u8], Envelope<InitConf>> =
+                        Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
-                let peer = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
-                len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
-                exchanged = true;
-                peer
-            }
-            Ok(MsgType::EmptyData) => {
-                let msg_in: Ref<&[u8], Envelope<EmptyData>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
-                ensure!(msg_in.check_seal(self)?, seal_broken);
+                    let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
+                    let peer = self
+                        .handle_init_conf(&msg_in.payload)
+                        .to(&mut msg_out.payload)?;
+                    len = self
+                        .seal_and_commit_msg(peer, MsgType::EmptyData)
+                        .to(&mut msg_out)?;
+                    exchanged = true;
+                    peer
+                }
+                Ok(MsgType::EmptyData) => {
+                    let msg_in: Ref<&[u8], Envelope<EmptyData>> =
+                        Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    ensure!(msg_in.check_seal(self)?, seal_broken);
 
-                self.handle_resp_conf(&msg_in.payload)?
-            }
-            Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
-            Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
-            Err(_) => {
-                bail!("CookieReply handling not implemented!")
-            }
-        };
+                    self.handle_resp_conf(&msg_in.payload)?
+                }
+                Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
+                Ok(MsgType::CookieReply) => bail!("CookieReply handling not implemented!"),
+                Err(_) => {
+                    bail!("CookieReply handling not implemented!")
+                }
+            };
 
-        Ok(HandleMsgResult {
-            exchanged_with: exchanged.then_some(peer),
-            resp: if len == 0 { None } else { Some(len) },
+            Ok(HandleMsgResult {
+                exchanged_with: exchanged.then_some(peer),
+                resp: if len == 0 { None } else { Some(len) },
+            })
         })
     }
 
@@ -854,15 +886,16 @@ impl CryptoServer {
     ///
     /// The message type is explicitly required here because it is very easy to
     /// forget setting that, which creates subtle but far ranging errors.
-    pub fn seal_and_commit_msg<M: AsBytes + FromBytes>(
-        &mut self,
+    pub fn seal_and_commit_msg<'a, 'b: 'a, M: AsBytes + FromBytes + 'a>(
+        &'a mut self,
         peer: PeerPtr,
         msg_type: MsgType,
-        msg: &mut Ref<&mut [u8], Envelope<M>>,
-    ) -> Result<usize> {
-        msg.msg_type = msg_type as u8;
-        msg.seal(peer, self)?;
-        Ok(size_of::<Envelope<M>>())
+    ) -> impl To<Ref<&'b mut [u8], Envelope<M>>, Result<usize>> + 'a {
+        with_destination(move |msg: &mut Ref<&mut [u8], Envelope<M>>| {
+            msg.msg_type = msg_type as u8;
+            msg.seal(peer, self)?;
+            Ok(size_of::<Envelope<M>>())
+        })
     }
 }
 
@@ -1112,31 +1145,44 @@ impl Pollable for IniHsPtr {
 // MESSAGE RETRANSMISSION ////////////////////////
 
 impl CryptoServer {
-    pub fn retransmit_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
-        peer.hs().apply_retransmission(self, tx_buf)
+    pub fn retransmit_handshake<'a>(
+        &'a mut self,
+        peer: PeerPtr,
+    ) -> impl To<[u8], Result<usize>> + 'a {
+        with_destination(move |tx_buf: &mut [u8]| to(tx_buf, peer.hs().apply_retransmission(self)))
     }
 }
 
 impl IniHsPtr {
-    pub fn store_msg_for_retransmission(&self, srv: &mut CryptoServer, msg: &[u8]) -> Result<()> {
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
-        cpy_min(msg, &mut *ih.tx_buf);
-        ih.tx_count = 0;
-        ih.tx_len = msg.len();
-        self.register_retransmission(srv)?;
-        Ok(())
+    pub fn store_msg_for_retransmission<'a>(
+        &'a self,
+        msg: &'a [u8],
+    ) -> impl To<CryptoServer, Result<()>> + 'a {
+        with_destination(move |srv: &mut CryptoServer| {
+            let ih = self
+                .get_mut(srv)
+                .as_mut()
+                .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+            cpy_min(msg, &mut *ih.tx_buf);
+            ih.tx_count = 0;
+            ih.tx_len = msg.len();
+            self.register_retransmission(srv)?;
+            Ok(())
+        })
     }
 
-    pub fn apply_retransmission(&self, srv: &mut CryptoServer, tx_buf: &mut [u8]) -> Result<usize> {
-        let ih = self
-            .get_mut(srv)
-            .as_mut()
-            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
-        cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
-        Ok(ih.tx_len)
+    pub fn apply_retransmission<'a>(
+        &'a self,
+        srv: &'a mut CryptoServer,
+    ) -> impl To<[u8], Result<usize>> + 'a {
+        with_destination(move |tx_buf: &mut [u8]| {
+            let ih = self
+                .get_mut(srv)
+                .as_mut()
+                .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+            cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
+            Ok(ih.tx_len)
+        })
     }
 
     pub fn register_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
@@ -1411,269 +1457,289 @@ impl CryptoServer {
 impl CryptoServer {
     /// Implementation of the cryptographic protocol using the already
     /// established primitives
-    pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
-        let mut hs = InitiatorHandshake::zero_with_timestamp(self);
+    pub fn handle_initiation<'a>(
+        &'a mut self,
+        peer: PeerPtr,
+    ) -> impl To<InitHello, Result<PeerPtr>> + 'a {
+        with_destination(move |ih: &mut InitHello| {
+            let mut hs = InitiatorHandshake::zero_with_timestamp(self);
 
-        // IHI1
-        hs.core.init(peer.get(self).spkt.secret())?;
+            // IHI1
+            hs.core.init(peer.get(self).spkt.secret())?;
 
-        // IHI2
-        hs.core.sidi.randomize();
-        ih.sidi.copy_from_slice(&hs.core.sidi.value);
+            // IHI2
+            hs.core.sidi.randomize();
+            ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
-        // IHI3
-        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
-        ih.epki.copy_from_slice(&hs.epki.value);
+            // IHI3
+            EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+            ih.epki.copy_from_slice(&hs.epki.value);
 
-        // IHI4
-        hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
+            // IHI4
+            hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
 
-        // IHI5
-        hs.core
-            .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-                ih.sctr.as_mut_slice(),
+            // IHI5
+            hs.core
+                .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
+                    ih.sctr.as_mut_slice(),
+                    peer.get(self).spkt.secret(),
+                )?;
+
+            // IHI6
+            hs.core
+                .encrypt_and_mix(ih.pidic.as_mut_slice(), self.pidm()?.as_ref())?;
+
+            // IHI7
+            hs.core
+                .mix(self.spkm.secret())?
+                .mix(peer.get(self).psk.secret())?;
+
+            // IHI8
+            hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
+
+            // Update the handshake hash last (not changing any state on prior error
+            to(self, peer.hs().insert(hs))?;
+
+            Ok(peer)
+        })
+    }
+
+    pub fn handle_init_hello<'a>(
+        &'a mut self,
+        ih: &'a InitHello,
+    ) -> impl To<RespHello, Result<PeerPtr>> + 'a {
+        with_destination(move |rh: &mut RespHello| {
+            let mut core = HandshakeState::zero();
+
+            core.sidi = SessionId::from_slice(&ih.sidi);
+
+            // IHR1
+            core.init(self.spkm.secret())?;
+
+            // IHR4
+            core.mix(&ih.sidi)?.mix(&ih.epki)?;
+
+            // IHR5
+            core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
+                self.sskm.secret(),
+                self.spkm.secret(),
+                &ih.sctr,
+            )?;
+
+            // IHR6
+            let peer = {
+                let mut peerid = PeerId::zero();
+                core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
+                self.find_peer(peerid)
+                    .with_context(|| format!("No such peer {peerid:?}."))?
+            };
+
+            // IHR7
+            core.mix(peer.get(self).spkt.secret())?
+                .mix(peer.get(self).psk.secret())?;
+
+            // IHR8
+            core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
+
+            // RHR1
+            core.sidr.randomize();
+            rh.sidi.copy_from_slice(core.sidi.as_ref());
+            rh.sidr.copy_from_slice(core.sidr.as_ref());
+
+            // RHR3
+            core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+
+            // RHR4
+            core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
+
+            // RHR5
+            core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
+                &mut rh.scti,
                 peer.get(self).spkt.secret(),
             )?;
 
-        // IHI6
-        hs.core
-            .encrypt_and_mix(ih.pidic.as_mut_slice(), self.pidm()?.as_ref())?;
+            // RHR6
+            core.store_biscuit(self, peer, &mut rh.biscuit)?;
 
-        // IHI7
-        hs.core
-            .mix(self.spkm.secret())?
-            .mix(peer.get(self).psk.secret())?;
+            // RHR7
+            core.encrypt_and_mix(&mut rh.auth, &[])?;
 
-        // IHI8
-        hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
-
-        // Update the handshake hash last (not changing any state on prior error
-        peer.hs().insert(self, hs)?;
-
-        Ok(peer)
+            Ok(peer)
+        })
     }
 
-    pub fn handle_init_hello(&mut self, ih: &InitHello, rh: &mut RespHello) -> Result<PeerPtr> {
-        let mut core = HandshakeState::zero();
-
-        core.sidi = SessionId::from_slice(&ih.sidi);
-
-        // IHR1
-        core.init(self.spkm.secret())?;
-
-        // IHR4
-        core.mix(&ih.sidi)?.mix(&ih.epki)?;
-
-        // IHR5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.secret(),
-            &ih.sctr,
-        )?;
-
-        // IHR6
-        let peer = {
-            let mut peerid = PeerId::zero();
-            core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
-            self.find_peer(peerid)
-                .with_context(|| format!("No such peer {peerid:?}."))?
-        };
-
-        // IHR7
-        core.mix(peer.get(self).spkt.secret())?
-            .mix(peer.get(self).psk.secret())?;
-
-        // IHR8
-        core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
-
-        // RHR1
-        core.sidr.randomize();
-        rh.sidi.copy_from_slice(core.sidi.as_ref());
-        rh.sidr.copy_from_slice(core.sidr.as_ref());
-
-        // RHR3
-        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
-
-        // RHR4
-        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
-
-        // RHR5
-        core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            &mut rh.scti,
-            peer.get(self).spkt.secret(),
-        )?;
-
-        // RHR6
-        core.store_biscuit(self, peer, &mut rh.biscuit)?;
-
-        // RHR7
-        core.encrypt_and_mix(&mut rh.auth, &[])?;
-
-        Ok(peer)
-    }
-
-    pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
+    pub fn handle_resp_hello<'a>(
+        &'a mut self,
+        rh: &'a RespHello,
+    ) -> impl To<InitConf, Result<PeerPtr>> + 'a {
         // RHI2
-        let peer = self
-            .lookup_handshake(SessionId::from_slice(&rh.sidi))
-            .with_context(|| {
-                format!(
-                    "Got RespHello packet for non-existent session {:?}",
-                    rh.sidi
-                )
-            })?
-            .peer();
+        with_destination(move |ic: &mut InitConf| {
+            let peer = self
+                .lookup_handshake(SessionId::from_slice(&rh.sidi))
+                .with_context(|| {
+                    format!(
+                        "Got RespHello packet for non-existent session {:?}",
+                        rh.sidi
+                    )
+                })?
+                .peer();
 
-        macro_rules! hs {
-            () => {
-                peer.hs().get(self).as_ref().unwrap()
-            };
-        }
-        macro_rules! hs_mut {
-            () => {
-                peer.hs().get_mut(self).as_mut().unwrap()
-            };
-        }
+            macro_rules! hs {
+                () => {
+                    peer.hs().get(self).as_ref().unwrap()
+                };
+            }
+            macro_rules! hs_mut {
+                () => {
+                    peer.hs().get_mut(self).as_mut().unwrap()
+                };
+            }
 
-        // TODO: Is this really necessary? The only possible state is "awaits resp hello";
-        // no initiation created should be modeled as an Null option and a Session means
-        // we will not be able to find the handshake
-        let exp = hs!().next;
-        let got = HandshakeStateMachine::RespHello;
+            // TODO: Is this really necessary? The only possible state is "awaits resp hello";
+            // no initiation created should be modeled as an Null option and a Session means
+            // we will not be able to find the handshake
+            let exp = hs!().next;
+            let got = HandshakeStateMachine::RespHello;
 
-        ensure!(
-            exp == got,
-            "Unexpected package in session {:?}. Expected {:?}, got {:?}.",
-            SessionId::from_slice(&rh.sidi),
-            exp,
-            got
-        );
+            ensure!(
+                exp == got,
+                "Unexpected package in session {:?}. Expected {:?}, got {:?}.",
+                SessionId::from_slice(&rh.sidi),
+                exp,
+                got
+            );
 
-        let mut core = hs!().core.clone();
-        core.sidr.copy_from_slice(&rh.sidr);
+            let mut core = hs!().core.clone();
+            core.sidr.copy_from_slice(&rh.sidr);
 
-        // TODO: decaps_and_mix should take Secret<> directly
-        //       to save us from the repetitive secret unwrapping
+            // TODO: decaps_and_mix should take Secret<> directly
+            //       to save us from the repetitive secret unwrapping
 
-        // RHI3
-        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+            // RHI3
+            core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
-        // RHI4
-        core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
-            hs!().eski.secret(),
-            &*hs!().epki,
-            &rh.ecti,
-        )?;
+            // RHI4
+            core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
+                hs!().eski.secret(),
+                &*hs!().epki,
+                &rh.ecti,
+            )?;
 
-        // RHI5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.secret(),
-            &rh.scti,
-        )?;
+            // RHI5
+            core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
+                self.sskm.secret(),
+                self.spkm.secret(),
+                &rh.scti,
+            )?;
 
-        // RHI6
-        core.mix(&rh.biscuit)?;
+            // RHI6
+            core.mix(&rh.biscuit)?;
 
-        // RHI7
-        core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
+            // RHI7
+            core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
 
-        // TODO: We should just authenticate the entire network package up to the auth
-        // tag as a pattern instead of mixing in fields separately
+            // TODO: We should just authenticate the entire network package up to the auth
+            // tag as a pattern instead of mixing in fields separately
 
-        ic.sidi.copy_from_slice(&rh.sidi);
-        ic.sidr.copy_from_slice(&rh.sidr);
+            ic.sidi.copy_from_slice(&rh.sidi);
+            ic.sidr.copy_from_slice(&rh.sidr);
 
-        // ICI3
-        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
-        ic.biscuit.copy_from_slice(&rh.biscuit);
+            // ICI3
+            core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+            ic.biscuit.copy_from_slice(&rh.biscuit);
 
-        // ICI4
-        core.encrypt_and_mix(&mut ic.auth, &[])?;
+            // ICI4
+            core.encrypt_and_mix(&mut ic.auth, &[])?;
 
-        // Split() – We move the secrets into the session; we do not
-        // delete the InitiatorHandshake, just clear it's secrets because
-        // we still need it for InitConf message retransmission to function.
+            // Split() – We move the secrets into the session; we do not
+            // delete the InitiatorHandshake, just clear it's secrets because
+            // we still need it for InitConf message retransmission to function.
 
-        // ICI7
-        peer.session()
-            .insert(self, core.enter_live(self, HandshakeRole::Initiator)?)?;
-        hs_mut!().core.erase();
-        hs_mut!().next = HandshakeStateMachine::RespConf;
+            // ICI7
+            peer.session()
+                .insert(self, core.enter_live(self, HandshakeRole::Initiator)?)?;
+            hs_mut!().core.erase();
+            hs_mut!().next = HandshakeStateMachine::RespConf;
 
-        Ok(peer)
+            Ok(peer)
+        })
     }
 
-    pub fn handle_init_conf(&mut self, ic: &InitConf, rc: &mut EmptyData) -> Result<PeerPtr> {
-        // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
-        // ICR1
-        let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
-            self,
-            &ic.biscuit,
-            SessionId::from_slice(&ic.sidi),
-            SessionId::from_slice(&ic.sidr),
-        )?;
+    pub fn handle_init_conf<'a>(
+        &'a mut self,
+        ic: &'a InitConf,
+    ) -> impl To<EmptyData, Result<PeerPtr>> + 'a {
+        with_destination(move |rc: &mut EmptyData| {
+            // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
+            // ICR1
+            let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
+                self,
+                &ic.biscuit,
+                SessionId::from_slice(&ic.sidi),
+                SessionId::from_slice(&ic.sidr),
+            )?;
 
-        // ICR2
-        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
+            // ICR2
+            core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
 
-        // ICR3
-        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+            // ICR3
+            core.mix(&ic.sidi)?.mix(&ic.sidr)?;
 
-        // ICR4
-        core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
+            // ICR4
+            core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
 
-        // ICR5
-        if constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
-            // ICR6
-            peer.get_mut(self).biscuit_used = biscuit_no;
+            // ICR5
+            if constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
+                // ICR6
+                peer.get_mut(self).biscuit_used = biscuit_no;
 
-            // ICR7
-            peer.session()
-                .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
-            // TODO: This should be part of the protocol specification.
-            // Abort any ongoing handshake from initiator role
-            peer.hs().take(self);
-        }
+                // ICR7
+                peer.session()
+                    .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
+                // TODO: This should be part of the protocol specification.
+                // Abort any ongoing handshake from initiator role
+                peer.hs().take(self);
+            }
 
-        // TODO: Implementing RP should be possible without touching the live session stuff
-        // TODO: I fear that this may lead to race conditions; the acknowledgement may be
-        //       sent on a different session than the incoming packet. This should be mitigated
-        //       by the deliberate back off in SessionPtr::retire_at as in practice only one
-        //       handshake should be going on at a time.
-        //       I think it may not be possible to formulate the protocol in such a way that
-        //       we can be sure that the other party possesses a matching key; maybe we should
-        //       study mathematically whether this even is possible.
-        //       WireGuard solves this by just having multiple sessions so even if there is a
-        //       race condition leading to two concurrent active sessions, data can still be sent.
-        //       It would be nice if Rosenpass could do the same, but in order for that to work,
-        //       WireGuard would have to have support for multiple PSKs (with a timeout) and
-        //       WireGuard; to identify which PSK was used, wireguard would have to do a linear
-        //       search with the responder trying each available PSK.
-        //       In practice, the best thing to do might be to send regular pings to confirm that
-        //       the key is still the same, which adds a bit of overhead.
-        //       Another option would be to monitor WireGuard for failing handshakes and trigger
-        //       a Rosenpass handshake in case a key mismatch due to a race condition is the reason
-        //       for the failing handshake.
+            // TODO: Implementing RP should be possible without touching the live session stuff
+            // TODO: I fear that this may lead to race conditions; the acknowledgement may be
+            //       sent on a different session than the incoming packet. This should be mitigated
+            //       by the deliberate back off in SessionPtr::retire_at as in practice only one
+            //       handshake should be going on at a time.
+            //       I think it may not be possible to formulate the protocol in such a way that
+            //       we can be sure that the other party possesses a matching key; maybe we should
+            //       study mathematically whether this even is possible.
+            //       WireGuard solves this by just having multiple sessions so even if there is a
+            //       race condition leading to two concurrent active sessions, data can still be sent.
+            //       It would be nice if Rosenpass could do the same, but in order for that to work,
+            //       WireGuard would have to have support for multiple PSKs (with a timeout) and
+            //       WireGuard; to identify which PSK was used, wireguard would have to do a linear
+            //       search with the responder trying each available PSK.
+            //       In practice, the best thing to do might be to send regular pings to confirm that
+            //       the key is still the same, which adds a bit of overhead.
+            //       Another option would be to monitor WireGuard for failing handshakes and trigger
+            //       a Rosenpass handshake in case a key mismatch due to a race condition is the reason
+            //       for the failing handshake.
 
-        // Send ack – Implementing sending the empty acknowledgement here
-        // instead of a generic PeerPtr::send(&Server, Option<&[u8]>) -> Either<EmptyData, Data>
-        // because data transmission is a stub currently. This software is supposed to be used
-        // as a key exchange service feeding a PSK into some classical (i.e. non post quantum)
-        let ses = peer
-            .session()
-            .get_mut(self)
-            .as_mut()
-            .context("Cannot send acknowledgement. No session.")?;
-        rc.sid.copy_from_slice(&ses.sidt.value);
-        rc.ctr.copy_from_slice(&ses.txnm.to_le_bytes());
-        ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
+            // Send ack – Implementing sending the empty acknowledgement here
+            // instead of a generic PeerPtr::send(&Server, Option<&[u8]>) -> Either<EmptyData, Data>
+            // because data transmission is a stub currently. This software is supposed to be used
+            // as a key exchange service feeding a PSK into some classical (i.e. non post quantum)
+            let ses = peer
+                .session()
+                .get_mut(self)
+                .as_mut()
+                .context("Cannot send acknowledgement. No session.")?;
+            rc.sid.copy_from_slice(&ses.sidt.value);
+            rc.ctr.copy_from_slice(&ses.txnm.to_le_bytes());
+            ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
-        let k = ses.txkm.secret();
-        aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
+            let n = cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
+            let k = ses.txkm.secret();
+            aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
-        Ok(peer)
+            Ok(peer)
+        })
     }
 
     pub fn handle_resp_conf(&mut self, rc: &EmptyData) -> Result<PeerPtr> {
@@ -1754,7 +1820,7 @@ mod test {
             let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
 
             // Process the entire handshake
-            let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
+            let mut msglen = Some(me.initiate_handshake(PEER0).to(&mut *resbuf).unwrap());
             while let Some(l) = msglen {
                 std::mem::swap(&mut me, &mut they);
                 std::mem::swap(&mut msgbuf, &mut resbuf);
@@ -1784,13 +1850,13 @@ mod test {
                 continue;
             }
 
-            let res = srv.handle_msg(&msgbuf[..l], resbuf);
+            let res = srv.handle_msg(&msgbuf[..l]).to(resbuf);
             assert!(res.is_err()); // handle_msg should raise an error
             assert!(!resbuf.iter().any(|x| *x != 0)); // resbuf should not have been changed
         }
 
         // Apply the proper handle_msg operation
-        srv.handle_msg(&msgbuf[..msglen], resbuf).unwrap().resp
+        srv.handle_msg(&msgbuf[..msglen]).to(resbuf).unwrap().resp
     }
 
     fn keygen() -> Result<(SSk, SPk)> {
