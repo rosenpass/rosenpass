@@ -3,7 +3,9 @@ use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
-use rosenpass_secret_memory::{secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets};
+use rosenpass_secret_memory::{
+    secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets,
+};
 use rosenpass_util::file::{LoadValue, LoadValueB64};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
@@ -161,7 +163,6 @@ impl CliCommand {
         secret_policy_try_use_memfd_secrets();
         #[cfg(not(feature = "enable_memfd_alloc"))]
         secret_policy_use_only_malloc_secrets();
-
 
         use CliCommand::*;
         match self {
