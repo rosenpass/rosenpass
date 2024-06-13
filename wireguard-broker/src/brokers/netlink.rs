@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::fmt::Debug;
 
 use wireguard_uapi::linux as wg;
