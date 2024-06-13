@@ -1,6 +1,9 @@
 fn main() {
     #[cfg(target_os = "linux")]
     linux::main().unwrap();
+
+    #[cfg(not(target_os = "linux"))]
+    panic!("This binary is only supported on Linux");
 }
 
 #[cfg(target_os = "linux")]
