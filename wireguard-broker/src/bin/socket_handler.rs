@@ -1,4 +1,3 @@
-#![cfg(target_os = "linux")]
 use std::process::Stdio;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
