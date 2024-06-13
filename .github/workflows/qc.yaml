@@ -132,6 +132,23 @@ jobs:
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 
+  cargo-test-mac-m1:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        # liboqs requires quite a lot of stack memory, thus we adjust
+        # the default stack size picked for new threads (which is used
+        # by `cargo test`) to be _big enough_. Setting it to 8 MiB
+      - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
+
   cargo-test-nix-devshell-x86_64-linux:
     runs-on:
       - ubuntu-latest
