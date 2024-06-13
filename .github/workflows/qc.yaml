@@ -127,7 +127,7 @@ jobs:
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 
-    cargo-test:
+    cargo-test-mac:
       runs-on: macos-13
       steps:
         - uses: actions/checkout@v3
