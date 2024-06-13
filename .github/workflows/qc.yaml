@@ -146,7 +146,7 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 
   cargo-test-mac-m1:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
