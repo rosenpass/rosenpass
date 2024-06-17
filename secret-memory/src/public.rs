@@ -277,3 +277,152 @@ mod tests {
         }
     }
 }
+
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct PublicBox<const N: usize> {
+    pub inner: Box<Public<N>>,
+}
+
+impl<const N: usize> PublicBox<N> {
+    /// Create a new [Public] from a byte slice
+    pub fn from_slice(value: &[u8]) -> Self {
+        copy_slice(value).to_this(Self::zero) // TODO: fix
+    }
+
+    /// Create a new [Public] from a byte array
+    pub fn new(value: [u8; N]) -> Self {
+        Self {
+            inner: Box::new(Public::new(value)),
+        }
+    }
+
+    /// Create a zero initialized [Public]
+    pub fn zero() -> Self {
+        Self {
+            inner: Box::new(Public::zero()),
+        }
+    }
+
+    /// Create a random initialized [Public]
+    pub fn random() -> Self {
+        mutating(Self::zero(), |r| r.randomize())
+    }
+
+    /// Randomize all bytes in an existing [Public]
+    pub fn randomize(&mut self) {
+        (**self).try_fill(&mut crate::rand::rng()).unwrap()
+    }
+}
+
+impl<const N: usize> Randomize for PublicBox<N> {
+    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
+        (**self).try_fill(rng)
+    }
+}
+
+impl<const N: usize> fmt::Debug for PublicBox<N> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        debug_crypto_array(&**self, fmt)
+    }
+}
+
+impl<const N: usize> Deref for PublicBox<N> {
+    type Target = [u8; N];
+
+    fn deref(&self) -> &[u8; N] {
+        &*self.inner
+    }
+}
+
+impl<const N: usize> DerefMut for PublicBox<N> {
+    fn deref_mut(&mut self) -> &mut [u8; N] {
+        &mut *self.inner
+    }
+}
+
+impl<const N: usize> Borrow<[u8]> for PublicBox<N> {
+    fn borrow(&self) -> &[u8] {
+        &**self
+    }
+}
+
+impl<const N: usize> BorrowMut<[u8]> for PublicBox<N> {
+    fn borrow_mut(&mut self) -> &mut [u8] {
+        &mut **self
+    }
+}
+
+impl<const N: usize> LoadValue for PublicBox<N> {
+    type Error = anyhow::Error;
+
+    fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let mut v = Self::random();
+        fopen_r(path)?.read_exact_to_end(&mut *v)?;
+        Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValue for PublicBox<N> {
+    type Error = anyhow::Error;
+
+    fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        std::fs::write(path, **self)?;
+        Ok(())
+    }
+}
+
+impl<const N: usize> LoadValueB64 for PublicBox<N> {
+    type Error = anyhow::Error;
+
+    fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        let mut f = [0u8; F];
+        let mut v = PublicBox::zero();
+        let p = path.as_ref();
+
+        let len = fopen_r(p)?
+            .read_slice_to_end(&mut f)
+            .with_context(|| format!("Could not load file {p:?}"))?;
+
+        b64_decode(&f[0..len], &mut *v)
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
+
+        Ok(v)
+    }
+}
+
+impl<const N: usize> StoreValueB64 for PublicBox<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        let p = path.as_ref();
+        let mut f = [0u8; F];
+        let encoded_str = b64_encode(&**self, &mut f)
+            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+        fopen_w(p, Visibility::Public)?
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write file {p:?}"))?;
+        Ok(())
+    }
+}
+
+impl<const N: usize> StoreValueB64Writer for PublicBox<N> {
+    type Error = anyhow::Error;
+
+    fn store_b64_writer<const F: usize, W: std::io::Write>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Self::Error> {
+        let mut f = [0u8; F];
+        let encoded_str =
+            b64_encode(&**self, &mut f).with_context(|| "Could not encode secret to base64")?;
+
+        writer
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| "Could not write base64 to writer")?;
+        Ok(())
+    }
+}

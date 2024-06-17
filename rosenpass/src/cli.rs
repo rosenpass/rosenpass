@@ -6,7 +6,7 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_secret_memory::{
     secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets,
 };
-use rosenpass_util::file::{LoadValue, LoadValueB64};
+use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
@@ -370,7 +370,7 @@ impl CliCommand {
 fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
     let mut ssk = crate::protocol::SSk::random();
     let mut spk = crate::protocol::SPk::random();
-    StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
+    StaticKem::keygen(ssk.secret_mut(), &mut *spk)?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
 }
