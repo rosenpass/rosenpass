@@ -311,13 +311,13 @@ impl<const N: usize> PublicBox<N> {
 
     /// Randomize all bytes in an existing [PublicBox]
     pub fn randomize(&mut self) {
-        (**self).try_fill(&mut crate::rand::rng()).unwrap()
+        self.inner.randomize()
     }
 }
 
 impl<const N: usize> Randomize for PublicBox<N> {
     fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
-        (**self).try_fill(rng)
+        self.inner.try_fill(rng)
     }
 }
 
@@ -331,25 +331,25 @@ impl<const N: usize> Deref for PublicBox<N> {
     type Target = [u8; N];
 
     fn deref(&self) -> &[u8; N] {
-        &*self.inner
+        self.inner.deref()
     }
 }
 
 impl<const N: usize> DerefMut for PublicBox<N> {
     fn deref_mut(&mut self) -> &mut [u8; N] {
-        &mut *self.inner
+        self.inner.deref_mut()
     }
 }
 
 impl<const N: usize> Borrow<[u8]> for PublicBox<N> {
     fn borrow(&self) -> &[u8] {
-        &**self
+        self.deref()
     }
 }
 
 impl<const N: usize> BorrowMut<[u8]> for PublicBox<N> {
     fn borrow_mut(&mut self) -> &mut [u8] {
-        &mut **self
+        self.deref_mut()
     }
 }
 
