@@ -77,6 +77,6 @@ procspawn = {version = "1.0.0", features= ["test-support"]}
 
 
 #Broker dependencies (might need cleanup or changes)
-wireguard-uapi = "3.0.0"
+wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
 command-fds = "0.2.3"
 rustix = { version = "0.38.27", features = ["net"] }

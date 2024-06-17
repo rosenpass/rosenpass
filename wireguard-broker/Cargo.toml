@@ -44,6 +44,7 @@ path = "src/bin/priviledged.rs"
 test = false
 doc = false
 required-features=["enable_broker_api"]
+cfg = { target_os = "linux" } 
 
 [[bin]]
 name = "rosenpass-wireguard-broker-socket-handler"
@@ -51,3 +52,4 @@ test = false
 path = "src/bin/socket_handler.rs"
 doc = false
 required-features=["enable_broker_api"]
+cfg = { target_os = "linux" } 
