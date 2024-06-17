@@ -285,31 +285,31 @@ pub struct PublicBox<const N: usize> {
 }
 
 impl<const N: usize> PublicBox<N> {
-    /// Create a new [Public] from a byte slice
+    /// Create a new [PublicBox] from a byte slice
     pub fn from_slice(value: &[u8]) -> Self {
         copy_slice(value).to_this(Self::zero) // TODO: fix
     }
 
-    /// Create a new [Public] from a byte array
+    /// Create a new [PublicBox] from a byte array
     pub fn new(value: [u8; N]) -> Self {
         Self {
             inner: Box::new(Public::new(value)),
         }
     }
 
-    /// Create a zero initialized [Public]
+    /// Create a zero initialized [PublicBox]
     pub fn zero() -> Self {
         Self {
             inner: Box::new(Public::zero()),
         }
     }
 
-    /// Create a random initialized [Public]
+    /// Create a random initialized [PublicBox]
     pub fn random() -> Self {
         mutating(Self::zero(), |r| r.randomize())
     }
 
-    /// Randomize all bytes in an existing [Public]
+    /// Randomize all bytes in an existing [PublicBox]
     pub fn randomize(&mut self) {
         (**self).try_fill(&mut crate::rand::rng()).unwrap()
     }
