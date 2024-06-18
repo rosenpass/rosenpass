@@ -181,7 +181,9 @@ pub struct PublicBox<const N: usize> {
 impl<const N: usize> PublicBox<N> {
     /// Create a new [PublicBox] from a byte slice
     pub fn from_slice(value: &[u8]) -> Self {
-        copy_slice(value).to_this(Self::zero) // TODO: fix
+        Self {
+            inner: Box::new(Public::from_slice(value)),
+        }
     }
 
     /// Create a new [PublicBox] from a byte array
@@ -200,7 +202,9 @@ impl<const N: usize> PublicBox<N> {
 
     /// Create a random initialized [PublicBox]
     pub fn random() -> Self {
-        mutating(Self::zero(), |r| r.randomize())
+        Self {
+            inner: Box::new(Public::random()),
+        }
     }
 
     /// Randomize all bytes in an existing [PublicBox]
@@ -250,10 +254,11 @@ impl<const N: usize> BorrowMut<[u8]> for PublicBox<N> {
 impl<const N: usize> LoadValue for PublicBox<N> {
     type Error = anyhow::Error;
 
+    // This is implemented separately from Public to avoid allocating too much stack memory
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let mut v = Self::random();
-        fopen_r(path)?.read_exact_to_end(&mut *v)?;
-        Ok(v)
+        let mut p = Self::random();
+        fopen_r(path)?.read_exact_to_end(p.deref_mut())?;
+        Ok(p)
     }
 }
 
@@ -261,19 +266,20 @@ impl<const N: usize> StoreValue for PublicBox<N> {
     type Error = anyhow::Error;
 
     fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        std::fs::write(path, **self)?;
-        Ok(())
+        self.inner.store(path)
     }
 }
 
 impl<const N: usize> LoadValueB64 for PublicBox<N> {
     type Error = anyhow::Error;
 
+    // This is implemented separately from Public to avoid allocating too much stack memory
     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
         Self: Sized,
     {
-        let mut f = [0u8; F];
+        // A vector is used here to ensure heap allocation without copy from stack
+        let mut f = vec![0u8; F];
         let mut v = PublicBox::zero();
         let p = path.as_ref();
 
@@ -281,7 +287,7 @@ impl<const N: usize> LoadValueB64 for PublicBox<N> {
             .read_slice_to_end(&mut f)
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f[0..len], &mut *v)
+        b64_decode(&f[0..len], v.deref_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -292,14 +298,7 @@ impl<const N: usize> StoreValueB64 for PublicBox<N> {
     type Error = anyhow::Error;
 
     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        let p = path.as_ref();
-        let mut f = [0u8; F];
-        let encoded_str = b64_encode(&**self, &mut f)
-            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
-        fopen_w(p, Visibility::Public)?
-            .write_all(encoded_str.as_bytes())
-            .with_context(|| format!("Could not write file {p:?}"))?;
-        Ok(())
+        self.inner.store_b64::<F, P>(path)
     }
 }
 
@@ -308,16 +307,9 @@ impl<const N: usize> StoreValueB64Writer for PublicBox<N> {
 
     fn store_b64_writer<const F: usize, W: std::io::Write>(
         &self,
-        mut writer: W,
+        writer: W,
     ) -> Result<(), Self::Error> {
-        let mut f = [0u8; F];
-        let encoded_str =
-            b64_encode(&**self, &mut f).with_context(|| "Could not encode secret to base64")?;
-
-        writer
-            .write_all(encoded_str.as_bytes())
-            .with_context(|| "Could not write base64 to writer")?;
-        Ok(())
+        self.inner.store_b64_writer::<F, W>(writer)
     }
 }
 
