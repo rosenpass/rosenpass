@@ -332,7 +332,7 @@ mod tests {
         /// Number of bytes in payload for load and store tests
         const N: usize = 100;
 
-        /// Convenience function for running a load/store test.
+        /// Convenience function for running a load/store test
         fn run_load_store_test<
             T: LoadValue<Error = anyhow::Error>
                 + StoreValue<Error = anyhow::Error>
@@ -368,7 +368,7 @@ mod tests {
             assert_eq!(new_file_contents, original_file_contents);
         }
 
-        /// Convenience function for running a base64 load/store test.
+        /// Convenience function for running a base64 load/store test
         fn run_base64_load_store_test<
             T: LoadValueB64<Error = anyhow::Error>
                 + StoreValueB64<Error = anyhow::Error>
@@ -423,27 +423,27 @@ mod tests {
             assert_eq!(metadata.permissions().mode() & 0o000777, 0o644);
         }
 
-        /// Test loading a [Public] from an example file, and then storing it again in a new file.
+        /// Test loading a [Public] from an example file, and then storing it again in a new file
         #[test]
         fn test_public_load_store() {
             run_load_store_test::<Public<N>>();
         }
 
-        /// Test loading a [PublicBox] from an example file, and then storing it again in a new file.
+        /// Test loading a [PublicBox] from an example file, and then storing it again in a new file
         #[test]
         fn test_public_box_load_store() {
             run_load_store_test::<PublicBox<N>>();
         }
 
         /// Test loading a base64-encoded [Public] from an example file, and then storing it again
-        /// in a different file.
+        /// in a different file
         #[test]
         fn test_public_load_store_base64() {
             run_base64_load_store_test::<Public<N>>();
         }
 
         /// Test loading a base64-encoded [PublicBox] from an example file, and then storing it
-        /// again in a different file.
+        /// again in a different file
         #[test]
         fn test_public_box_load_store_base64() {
             run_base64_load_store_test::<PublicBox<N>>();
