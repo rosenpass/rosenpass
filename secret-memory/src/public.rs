@@ -318,7 +318,7 @@ mod tests {
 
     #[cfg(test)]
     mod tests {
-        use crate::Public;
+        use crate::{Public, PublicBox};
         use rosenpass_util::{
             b64::b64_encode,
             file::{
@@ -326,32 +326,35 @@ mod tests {
                 Visibility,
             },
         };
-        use std::{fs, os::unix::fs::PermissionsExt};
+        use std::{fs, ops::Deref, os::unix::fs::PermissionsExt};
         use tempfile::tempdir;
 
-        /// test loading a public from an example file, and then storing it again in a different file
-        #[test]
-        fn test_public_load_store() {
-            const N: usize = 100;
+        /// Number of bytes in payload for load and store tests
+        const N: usize = 100;
 
+        /// Convenience function for running a load/store test.
+        fn run_load_store_test<
+            T: LoadValue<Error = anyhow::Error>
+                + StoreValue<Error = anyhow::Error>
+                + Deref<Target = [u8; N]>,
+        >() {
             // Generate original random bytes
             let original_bytes: [u8; N] = [rand::random(); N];
 
             // Create a temporary directory
             let temp_dir = tempdir().unwrap();
 
-            // Store the original public to an example file in the temporary directory
+            // Store the original bytes to an example file in the temporary directory
             let example_file = temp_dir.path().join("example_file");
             std::fs::write(example_file.clone(), &original_bytes).unwrap();
 
-            // Load the public from the example file
+            // Load the value from the example file into our generic type
+            let loaded_public = T::load(&example_file).unwrap();
 
-            let loaded_public = Public::load(&example_file).unwrap();
+            // Check that the loaded value matches the original bytes
+            assert_eq!(loaded_public.deref(), &original_bytes);
 
-            // Check that the loaded public matches the original bytes
-            assert_eq!(&loaded_public.value, &original_bytes);
-
-            // Store the loaded public to a different file in the temporary directory
+            // Store the loaded value to a different file in the temporary directory
             let new_file = temp_dir.path().join("new_file");
             loaded_public.store(&new_file).unwrap();
 
@@ -365,10 +368,13 @@ mod tests {
             assert_eq!(new_file_contents, original_file_contents);
         }
 
-        /// test loading a base64 encoded public from an example file, and then storing it again in a different file
-        #[test]
-        fn test_public_load_store_base64() {
-            const N: usize = 100;
+        /// Convenience function for running a base64 load/store test.
+        fn run_base64_load_store_test<
+            T: LoadValueB64<Error = anyhow::Error>
+                + StoreValueB64<Error = anyhow::Error>
+                + StoreValueB64Writer<Error = anyhow::Error>
+                + Deref<Target = [u8; N]>,
+        >() {
             // Generate original random bytes
             let original_bytes: [u8; N] = [rand::random(); N];
             // Create a temporary directory
@@ -379,9 +385,9 @@ mod tests {
             std::fs::write(&example_file, encoded_public).unwrap();
 
             // Load the public from the example file
-            let loaded_public = Public::load_b64::<{ N * 2 }, _>(&example_file).unwrap();
+            let loaded_public = T::load_b64::<{ N * 2 }, _>(&example_file).unwrap();
             // Check that the loaded public matches the original bytes
-            assert_eq!(&loaded_public.value, &original_bytes);
+            assert_eq!(loaded_public.deref(), &original_bytes);
 
             // Store the loaded public to a different file in the temporary directory
             let new_file = temp_dir.path().join("new_file");
@@ -394,7 +400,7 @@ mod tests {
             // Check that the contents of the new file match the original file
             assert_eq!(new_file_contents, original_file_contents);
 
-            //Check new file permissions are public
+            // Check new file permissions are public
             let metadata = fs::metadata(&new_file).unwrap();
             assert_eq!(metadata.permissions().mode() & 0o000777, 0o644);
 
@@ -412,9 +418,35 @@ mod tests {
             // Check that the contents of the new file match the original file
             assert_eq!(new_file_contents, original_file_contents);
 
-            //Check new file permissions are public
+            // Check new file permissions are public
             let metadata = fs::metadata(&new_file).unwrap();
             assert_eq!(metadata.permissions().mode() & 0o000777, 0o644);
+        }
+
+        /// Test loading a [Public] from an example file, and then storing it again in a new file.
+        #[test]
+        fn test_public_load_store() {
+            run_load_store_test::<Public<N>>();
+        }
+
+        /// Test loading a [PublicBox] from an example file, and then storing it again in a new file.
+        #[test]
+        fn test_public_box_load_store() {
+            run_load_store_test::<PublicBox<N>>();
+        }
+
+        /// Test loading a base64-encoded [Public] from an example file, and then storing it again
+        /// in a different file.
+        #[test]
+        fn test_public_load_store_base64() {
+            run_base64_load_store_test::<Public<N>>();
+        }
+
+        /// Test loading a base64-encoded [PublicBox] from an example file, and then storing it
+        /// again in a different file.
+        #[test]
+        fn test_public_box_load_store_base64() {
+            run_base64_load_store_test::<PublicBox<N>>();
         }
     }
 }
