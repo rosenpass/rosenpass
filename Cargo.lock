@@ -1899,7 +1899,7 @@ dependencies = [
  "procspawn",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
- "rosenpass-lib",
+ "rosenpass-protocol",
  "rosenpass-secret-memory",
  "rosenpass-util",
  "rosenpass-wireguard-broker",
@@ -1952,7 +1952,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "rosenpass-lib"
+name = "rosenpass-oqs"
+version = "0.1.0"
+dependencies = [
+ "oqs-sys",
+ "paste",
+ "rosenpass-cipher-traits",
+ "rosenpass-util",
+]
+
+[[package]]
+name = "rosenpass-protocol"
 version = "0.2.1"
 dependencies = [
  "anyhow",
@@ -1981,16 +1991,6 @@ dependencies = [
  "thiserror",
  "toml",
  "zerocopy",
-]
-
-[[package]]
-name = "rosenpass-oqs"
-version = "0.1.0"
-dependencies = [
- "oqs-sys",
- "paste",
- "rosenpass-cipher-traits",
- "rosenpass-util",
 ]
 
 [[package]]
@@ -2067,7 +2067,7 @@ dependencies = [
  "netlink-packet-wireguard",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
- "rosenpass-lib",
+ "rosenpass-protocol",
  "rosenpass-secret-memory",
  "rosenpass-util",
  "rosenpass-wireguard-broker",

@@ -135,7 +135,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     use anyhow::anyhow;
     use netlink_packet_wireguard::{constants::WG_KEY_LEN, nlas::WgDeviceAttrs};
-    use rosenpass_lib::{
+    use rosenpass_protocol::{
         app_server::{AppServer, BrokerPeer},
         config::Verbosity,
         protocol::{SPk, SSk, SymKey},

@@ -1,5 +1,7 @@
 use anyhow::Result;
-use rosenpass_lib::protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey};
+use rosenpass_protocol::protocol::{
+    CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey,
+};
 
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
