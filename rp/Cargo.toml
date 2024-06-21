@@ -39,4 +39,7 @@ tempfile = {workspace = true}
 stacker = {workspace = true}
 
 [features]
+default = ["enable_peer_wg_field"]
 enable_memfd_alloc = []
+enable_peer_wg_field = ["rosenpass-protocol/enable_peer_wg_field"]
+
