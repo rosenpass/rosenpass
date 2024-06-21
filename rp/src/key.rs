@@ -1,11 +1,12 @@
 use std::{
     fs::{self, DirBuilder},
+    ops::DerefMut,
     os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::Path,
 };
 
 use anyhow::{anyhow, Result};
-use rosenpass_util::file::{LoadValueB64, StoreValueB64};
+use rosenpass_util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::{SPk, SSk};
@@ -56,8 +57,8 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if !pqsk_path.exists() && !pqpk_path.exists() {
         let mut pqsk = SSk::random();
         let mut pqpk = SPk::random();
-        StaticKem::keygen(pqsk.secret_mut(), pqpk.secret_mut())?;
-        pqpk.store_secret(pqpk_path)?;
+        StaticKem::keygen(pqsk.secret_mut(), pqpk.deref_mut())?;
+        pqpk.store(pqpk_path)?;
         pqsk.store_secret(pqsk_path)?;
     } else {
         eprintln!(

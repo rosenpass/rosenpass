@@ -1067,6 +1067,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1291,9 +1297,8 @@ dependencies = [
 
 [[package]]
 name = "memsec"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c797b9d6bb23aab2fc369c65f871be49214f5c759af65bde26ffaaa2b646b492"
+version = "0.6.3"
+source = "git+https://github.com/rosenpass/memsec.git?rev=aceb9baee8aec6844125bd6612f92e9a281373df#aceb9baee8aec6844125bd6612f92e9a281373df"
 dependencies = [
  "getrandom 0.2.15",
  "libc",
@@ -2327,6 +2332,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "take-until"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4e17d8598067a8c134af59cd33c1c263470e089924a11ab61cf61690919fe3b"
+
+[[package]]
 name = "tempfile"
 version = "3.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2858,8 +2869,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89ba4e9811befc20af3b6efb15924a7238ee5e8e8706a196576462a00b9f1af1"
 dependencies = [
  "derive_builder 0.10.2",
+ "hex",
  "libc",
  "neli",
+ "take-until",
  "thiserror",
 ]
 
