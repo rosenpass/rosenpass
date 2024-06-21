@@ -84,7 +84,7 @@ pub struct RosenpassPeer {
 
     /// ## TODO
     /// - documentation
-    /// - make this field only available on binary builds, not on library builds <https://github.com/rosenpass/rosenpass/issues/249>
+    #[cfg(feature = "enable_peer_wg_field")]
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
 }

@@ -1,6 +1,8 @@
+mod cli;
+
 use clap::Parser;
+use cli::CliArgs;
 use log::error;
-use rosenpass::cli::CliArgs;
 use std::process::exit;
 
 /// Catches errors, prints them through the logger, then exits

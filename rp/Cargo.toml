@@ -15,7 +15,7 @@ base64ct = { workspace = true }
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 zeroize = { workspace = true }
 
-rosenpass = { workspace = true }
+rosenpass-protocol = { workspace = true }
 rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
@@ -39,4 +39,7 @@ tempfile = {workspace = true}
 stacker = {workspace = true}
 
 [features]
+default = ["enable_peer_wg_field"]
 enable_memfd_alloc = []
+enable_peer_wg_field = ["rosenpass-protocol/enable_peer_wg_field"]
+

@@ -1,5 +1,5 @@
 [package]
-name = "rosenpass"
+name = "rosenpass-protocol"
 version = "0.2.1"
 authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
 edition = "2021"
@@ -7,27 +7,28 @@ license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
-readme = "readme.md"
-
-[[bin]]
-name = "rosenpass"
-path = "src/main.rs"
-
-[[bench]]
-name = "handshake"
-harness = false
 
 [dependencies]
-rosenpass-protocol = { workspace = true }
 rosenpass-util = { workspace = true }
+rosenpass-constant-time = { workspace = true }
 rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
+rosenpass-to = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
 anyhow = { workspace = true }
+static_assertions = { workspace = true }
+memoffset = { workspace = true }
+thiserror = { workspace = true }
+paste = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
-clap = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
 mio = { workspace = true }
+rand = { workspace = true }
+zerocopy = { workspace = true }
+home = { workspace = true }
+derive_builder = {workspace = true}
 rosenpass-wireguard-broker = {workspace = true}
 
 [build-dependencies]
@@ -41,7 +42,6 @@ serial_test = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
-default = ["enable_peer_wg_field"]
-enable_broker_api = ["rosenpass-protocol/enable_broker_api"]
-enable_memfd_alloc = ["rosenpass-protocol/enable_memfd_alloc"]
-enable_peer_wg_field = ["rosenpass-protocol/enable_peer_wg_field"]
+enable_peer_wg_field= []
+enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
+enable_memfd_alloc = []

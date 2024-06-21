@@ -7,7 +7,8 @@ use std::{
 };
 
 use clap::Parser;
-use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
+use rosenpass::cli::CliArgs;
+use rosenpass_protocol::app_server::AppServerTestBuilder;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WireguardBrokerMio, WG_KEY_LEN, WG_PEER_LEN};
 use serial_test::serial;
