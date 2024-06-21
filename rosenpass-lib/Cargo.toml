@@ -1,5 +1,5 @@
 [package]
-name = "rosenpass"
+name = "rosenpass-lib"
 version = "0.2.1"
 authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
 edition = "2021"
@@ -9,16 +9,11 @@ homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
-[[bin]]
-name = "rosenpass"
-path = "src/main.rs"
-
 [[bench]]
 name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-lib = { workspace = true }
 rosenpass-util = { workspace = true }
 rosenpass-constant-time = { workspace = true }
 rosenpass-ciphers = { workspace = true }
@@ -53,7 +48,6 @@ serial_test = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
-default = ["enable_peer_wg_field"]
-enable_peer_wg_field = ["rosenpass-lib/enable_peer_wg_field"]
+enable_peer_wg_field= []
 enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
-enable_memfd_alloc = ["rosenpass-lib/enable_memfd_alloc"]
+enable_memfd_alloc = []

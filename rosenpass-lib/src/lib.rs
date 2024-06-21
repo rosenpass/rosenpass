@@ -1,5 +1,4 @@
 pub mod app_server;
-pub mod cli;
 pub mod config;
 pub mod hash_domains;
 pub mod msgs;

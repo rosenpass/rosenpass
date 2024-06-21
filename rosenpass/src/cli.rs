@@ -12,11 +12,10 @@ use rosenpass_wireguard_broker::brokers::native_unix::{
 };
 use std::path::PathBuf;
 
-use crate::app_server::AppServerTest;
-use crate::app_server::{AppServer, BrokerPeer};
-use crate::protocol::{SPk, SSk, SymKey};
-
-use super::config;
+use rosenpass_lib::app_server::AppServerTest;
+use rosenpass_lib::app_server::{AppServer, BrokerPeer};
+use rosenpass_lib::config;
+use rosenpass_lib::protocol::{SPk, SSk, SymKey};
 
 /// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
@@ -368,8 +367,8 @@ impl CliCommand {
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
 fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
-    let mut ssk = crate::protocol::SSk::random();
-    let mut spk = crate::protocol::SPk::random();
+    let mut ssk = rosenpass_lib::protocol::SSk::random();
+    let mut spk = rosenpass_lib::protocol::SPk::random();
     StaticKem::keygen(ssk.secret_mut(), spk.secret_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)

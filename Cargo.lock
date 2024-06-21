@@ -1905,6 +1905,7 @@ dependencies = [
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
+ "rosenpass-lib",
  "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-util",
@@ -1960,6 +1961,39 @@ dependencies = [
  "rosenpass-secret-memory",
  "rosenpass-to",
  "stacker",
+]
+
+[[package]]
+name = "rosenpass-lib"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "clap 4.5.7",
+ "criterion",
+ "derive_builder 0.20.0",
+ "env_logger",
+ "home",
+ "log",
+ "memoffset 0.9.1",
+ "mio 0.8.11",
+ "paste",
+ "procspawn",
+ "rand 0.8.5",
+ "rosenpass-cipher-traits",
+ "rosenpass-ciphers",
+ "rosenpass-constant-time",
+ "rosenpass-secret-memory",
+ "rosenpass-to",
+ "rosenpass-util",
+ "rosenpass-wireguard-broker",
+ "serde",
+ "serial_test",
+ "stacker",
+ "static_assertions",
+ "test_bin",
+ "thiserror",
+ "toml",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2044,9 +2078,9 @@ dependencies = [
  "netlink-packet-core",
  "netlink-packet-generic",
  "netlink-packet-wireguard",
- "rosenpass",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
+ "rosenpass-lib",
  "rosenpass-secret-memory",
  "rosenpass-util",
  "rosenpass-wireguard-broker",
