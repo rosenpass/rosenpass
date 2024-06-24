@@ -1,14 +1,14 @@
 from pathlib import Path
 from subprocess import run
-
+import os
 
 config = dict(
     peer_counts=[1, 5, 10, 50, 100, 500],
     peer_count_max=100,
-    ate_ip="192.168.2.1",
-    dut_ip="192.168.2.4",
+    ate_ip="127.0.0.1",
+    dut_ip="127.0.0.1",
     dut_port=9999,
-    path_to_rosenpass_bin="/Users/user/src/rosenppass/rosenpass/target/debug/rosenpass",
+    path_to_rosenpass_bin=os.getcwd() + "/target/release/rosenpass",
 )
 
 print(config)
