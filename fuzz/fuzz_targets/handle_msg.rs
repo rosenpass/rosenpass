@@ -7,14 +7,14 @@ use rosenpass::protocol::CryptoServer;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::policy::*;
-use rosenpass_secret_memory::Secret;
+use rosenpass_secret_memory::{PublicBox, Secret};
 use std::sync::Once;
 
 static ONCE: Once = Once::new();
 fuzz_target!(|rx_buf: &[u8]| {
     ONCE.call_once(secret_policy_use_only_malloc_secrets);
     let sk = Secret::from_slice(&[0; StaticKem::SK_LEN]);
-    let pk = Secret::from_slice(&[0; StaticKem::PK_LEN]);
+    let pk = PublicBox::from_slice(&[0; StaticKem::PK_LEN]);
 
     let mut cs = CryptoServer::new(sk, pk);
     let mut tx_buf = [0; 10240];

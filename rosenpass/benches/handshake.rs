@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rosenpass::protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey};
+use std::ops::DerefMut;
 
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
@@ -40,7 +41,7 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
 
 fn keygen() -> Result<(SSk, SPk)> {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-    StaticKem::keygen(sk.secret_mut(), pk.secret_mut())?;
+    StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
     Ok((sk, pk))
 }
 
