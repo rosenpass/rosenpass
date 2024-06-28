@@ -48,7 +48,7 @@ impl CliArgs {
     /// Note the `#[arg("group")]` in the [`CliArgs`] struct.
     pub fn get_log_level(&self) -> Option<log::LevelFilter> {
         if self.verbose {
-            return Some(log::LevelFilter::Info);
+            return Some(log::LevelFilter::Debug);
         }
         if self.quiet {
             return Some(log::LevelFilter::Error);
@@ -56,7 +56,7 @@ impl CliArgs {
         if let Some(level_filter) = self.log_level {
             return Some(level_filter);
         }
-        None
+        Some(log::LevelFilter::Info)
     }
 }
 
@@ -177,6 +177,7 @@ impl CliCommand {
                 }
             }
             GenConfig { config_file, force } => {
+                log::info!("Generating example config file at {config_file:?}");
                 ensure!(
                     force || !config_file.exists(),
                     "config file {config_file:?} already exists"
@@ -259,11 +260,14 @@ impl CliCommand {
                     bail!(problems.join("\n"));
                 }
 
+                log::info!("Generating keypair {pkf:?} and {skf:?}");
+
                 // generate the keys and store them in files
                 generate_and_save_keypair(skf, pkf)?;
             }
 
             ExchangeConfig { config_file } => {
+                log::info!("Starting Rosenpass with config at {config_file:?}");
                 ensure!(
                     config_file.exists(),
                     "config file '{config_file:?}' does not exist"
@@ -279,6 +283,7 @@ impl CliCommand {
                 mut rest_of_args,
                 config_file,
             } => {
+                log::info!("Starting Rosenpass in daemon mode");
                 rest_of_args.insert(0, first_arg);
                 let args = rest_of_args;
                 let mut config = config::Rosenpass::parse_args(args)?;
@@ -292,6 +297,7 @@ impl CliCommand {
             }
 
             Validate { config_files } => {
+                log::info!("Validating config files");
                 for file in config_files {
                     match config::Rosenpass::load(&file) {
                         Ok(config) => {
