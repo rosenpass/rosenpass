@@ -14,7 +14,7 @@ pub struct Input {
 
 fuzz_target!(|input: Input| {
     let mut ciphertext = [0u8; EphemeralKem::CT_LEN];
-    let mut shared_secret = [0u8; EphemeralKem::SK_LEN];
+    let mut shared_secret = [0u8; EphemeralKem::SHK_LEN];
 
     EphemeralKem::encaps(&mut shared_secret, &mut ciphertext, &input.pk).unwrap();
 });
