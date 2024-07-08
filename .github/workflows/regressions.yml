@@ -17,3 +17,5 @@ jobs:
       - run: python misc/generate_configs.py
       - run: chmod +x .ci/run-regression.sh
       - run: .ci/run-regression.sh 100 20
+      - run: |
+          [ $(ls -1 output/ate/out | wc -l) -eq 100 ]
