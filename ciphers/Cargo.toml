@@ -9,6 +9,9 @@ homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 
+[features]
+experiment_libcrux = ["dep:libcrux"]
+
 [dependencies]
 anyhow = { workspace = true }
 rosenpass-to = { workspace = true }
@@ -20,3 +23,4 @@ static_assertions = { workspace = true }
 zeroize = { workspace = true }
 chacha20poly1305 = { workspace = true }
 blake2 = { workspace = true }
+libcrux = { workspace = true, optional = true } 
