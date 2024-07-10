@@ -387,9 +387,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.8"
+version = "4.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84b3edb18336f4df585bc9aa31dd99c036dfa5dc5e9a2939a722a188f3a8970d"
+checksum = "64acc1846d54c1fe936a78dc189c34e28d3f5afc348403f28ecf53660b9b8462"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -397,9 +397,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.8"
+version = "4.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1c09dd5ada6c6c78075d6fd0da3f90d8080651e2d6cc8eb2f1aaa4034ced708"
+checksum = "6fb8393d67ba2e7bfaf28a23458e4e2b543cc73a99595511eb207fdb8aede942"
 dependencies = [
  "anstream",
  "anstyle",
@@ -984,8 +984,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1229,6 +1231,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
 
 [[package]]
+name = "libcrux"
+version = "0.0.2-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31d9dcd435758db03438089760c55a45e6bcab7e4e299ee261f75225ab29d482"
+dependencies = [
+ "getrandom 0.2.15",
+ "libcrux-hacl",
+ "libcrux-platform",
+ "libjade-sys",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "libcrux-hacl"
+version = "0.0.2-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52b2581ce493c5c22700077b5552b47be69b67b8176716572b02856218db0b68"
+dependencies = [
+ "cc",
+ "libcrux-platform",
+]
+
+[[package]]
+name = "libcrux-platform"
+version = "0.0.2-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "647e39666194b11df17c19451d1154b9be79df98b9821532560c2ecad0cf3410"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "libfuzzer-sys"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,6 +1271,16 @@ dependencies = [
  "arbitrary",
  "cc",
  "once_cell",
+]
+
+[[package]]
+name = "libjade-sys"
+version = "0.0.2-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec4d22bba476bf8f5aebe36ccfd0e56dba8707e0c3b5c76996576028f48ffb8e"
+dependencies = [
+ "cc",
+ "libcrux-platform",
 ]
 
 [[package]]
@@ -1891,7 +1935,7 @@ name = "rosenpass"
 version = "0.2.1"
 dependencies = [
  "anyhow",
- "clap 4.5.8",
+ "clap 4.5.9",
  "criterion",
  "derive_builder 0.20.0",
  "env_logger",
@@ -1930,6 +1974,7 @@ dependencies = [
  "anyhow",
  "blake2",
  "chacha20poly1305",
+ "libcrux",
  "rosenpass-constant-time",
  "rosenpass-oqs",
  "rosenpass-secret-memory",
@@ -2014,7 +2059,7 @@ name = "rosenpass-wireguard-broker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.8",
+ "clap 4.5.9",
  "derive_builder 0.20.0",
  "env_logger",
  "log",
@@ -2154,18 +2199,18 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
+checksum = "bc76f558e0cbb2a839d37354c575f1dc3fdc6546b5be373ba43d95f231bf7c12"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
+checksum = "e0cd7e117be63d3c3678776753929474f3b04a43a080c744d6b0ae2a8c28e222"
 dependencies = [
  "proc-macro2",
  "quote",
