@@ -844,12 +844,19 @@ impl AppServer {
     ) -> anyhow::Result<()> {
         let peerid = peer.lower().get(&self.crypt).pidt()?;
 
-        if self.verbose() {
-            let msg = match why {
-                KeyOutputReason::Exchanged => "Exchanged key with peer",
-                KeyOutputReason::Stale => "Erasing outdated key from peer",
-            };
-            info!("{} {}", msg, peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>());
+        match why {
+            KeyOutputReason::Exchanged => {
+                log::info!(
+                    "Exchange key with peer {}",
+                    peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>()
+                )
+            }
+            KeyOutputReason::Stale => {
+                log::warn!(
+                    "Erasing outdated key from peer {}",
+                    peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>()
+                )
+            }
         }
 
         let ap = peer.get_app(self);
