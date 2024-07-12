@@ -20,6 +20,8 @@ pub struct ExchangeOptions {
     pub dev: Option<String>,
     pub listen: Option<SocketAddr>,
     pub peers: Vec<ExchangePeer>,
+    pub rosenpass_user: Option<String>,
+    pub broker_user: Option<String>,
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
