@@ -66,6 +66,8 @@ A wrapper script provides instant feedback about which queries execute as expect
 
 # Getting Rosenpass
 
+Documentation and installation guides can be found at the [Rosenpass website](https://rosenpass.eu/docs).
+
 Rosenpass is packaged for more and more distributions, maybe also for the distribution of your choice?
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
