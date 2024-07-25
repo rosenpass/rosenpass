@@ -1,6 +1,8 @@
 use anyhow::{bail, ensure};
 use mio::Interest;
+use rosenpass_util::ord::max_usize;
 use std::collections::VecDeque;
+use std::dbg;
 use std::io::{ErrorKind, Read, Write};
 
 use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
@@ -16,7 +18,7 @@ pub struct MioBrokerClient {
 }
 
 const LEN_SIZE: usize = 8;
-const RECV_BUF_SIZE: usize = RESPONSE_MSG_BUFFER_SIZE;
+const RECV_BUF_SIZE: usize = max_usize(LEN_SIZE, RESPONSE_MSG_BUFFER_SIZE);
 
 #[derive(Debug)]
 struct MioBrokerClientIo {
@@ -27,7 +29,7 @@ struct MioBrokerClientIo {
     recv_buf: [u8; RECV_BUF_SIZE],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum RxState {
     //Recieving size with buffer offset
     RxSize(usize),
@@ -152,10 +154,17 @@ impl BrokerClientIo for MioBrokerClientIo {
                 {
                     let bytes = raw_recv(&self.socket, &mut self.recv_buf[x..y])?;
 
+                    // If we've received nothing so far, and raw_recv came up empty,
+                    // then let the broker client know nothing came
+                    if self.recv_state == RxState::RxSize(0) && bytes == 0 {
+                        return Ok(None);
+                    }
+
                     if x + bytes == y {
                         return Ok(Some(&self.recv_buf[0..y]));
                     }
-                    //We didn't recieve everything so let's assume something went wrong
+
+                    // We didn't recieve everything so let's assume something went wrong
                     self.recv_state = RxState::RxSize(0);
                     self.expected_state = RxState::RxSize(LEN_SIZE);
                     bail!("Invalid state");

@@ -108,7 +108,7 @@ fn run_server_client_exchange(
             .termination_handler(Some(server_terminate_rx))
             .build()
             .unwrap();
-        cli.run(Some(test_helpers)).unwrap();
+        cli.run(None, Some(test_helpers)).unwrap();
     });
 
     let cli = CliArgs::try_parse_from(
@@ -123,7 +123,7 @@ fn run_server_client_exchange(
             .termination_handler(Some(client_terminate_rx))
             .build()
             .unwrap();
-        cli.run(Some(test_helpers)).unwrap();
+        cli.run(None, Some(test_helpers)).unwrap();
     });
 
     // give them some time to do the key exchange under load

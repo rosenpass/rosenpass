@@ -450,6 +450,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
 
 [[package]]
+name = "command-fds"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f190f3c954f7bca3c6296d0ec561c739bdbe6c7e990294ed168d415f6e1b5b01"
+dependencies = [
+ "nix 0.27.1",
+ "thiserror",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1788,6 +1798,7 @@ version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap 4.5.15",
+ "command-fds",
  "criterion",
  "derive_builder 0.20.0",
  "env_logger",
@@ -1808,6 +1819,7 @@ dependencies = [
  "rosenpass-to",
  "rosenpass-util",
  "rosenpass-wireguard-broker",
+ "rustix",
  "serde",
  "serial_test",
  "stacker",
