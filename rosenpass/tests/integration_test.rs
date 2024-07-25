@@ -95,12 +95,15 @@ fn run_server_client_exchange(
 
     std::thread::spawn(move || {
         cli.command
-            .run(Some(
-                server_test_builder
-                    .termination_handler(Some(server_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+            .run(
+                None,
+                Some(
+                    server_test_builder
+                        .termination_handler(Some(server_terminate_rx))
+                        .build()
+                        .unwrap(),
+                ),
+            )
             .unwrap();
     });
 
@@ -113,12 +116,15 @@ fn run_server_client_exchange(
 
     std::thread::spawn(move || {
         cli.command
-            .run(Some(
-                client_test_builder
-                    .termination_handler(Some(client_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+            .run(
+                None,
+                Some(
+                    client_test_builder
+                        .termination_handler(Some(client_terminate_rx))
+                        .build()
+                        .unwrap(),
+                ),
+            )
             .unwrap();
     });
 
