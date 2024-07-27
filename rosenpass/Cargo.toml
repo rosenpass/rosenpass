@@ -40,6 +40,8 @@ zerocopy = { workspace = true }
 home = { workspace = true }
 derive_builder = {workspace = true}
 rosenpass-wireguard-broker = {workspace = true}
+command-fds = { workspace = true }
+rustix = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -52,6 +54,7 @@ serial_test = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
+enable_wg_broker = ["enable_broker_api"]
 enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
 enable_memfd_alloc = []
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]

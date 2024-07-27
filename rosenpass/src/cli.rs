@@ -6,10 +6,12 @@ use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_secret_memory::{
     secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets,
 };
+
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
+use rosenpass_wireguard_broker::WireguardBrokerMio;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
@@ -18,6 +20,28 @@ use crate::app_server::{AppServer, BrokerPeer};
 use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
+
+#[cfg(feature = "enable_wg_broker")]
+use {
+    command_fds::{CommandFdExt, FdMapping},
+    log::{error, info},
+    mio::net::UnixStream,
+    rosenpass_util::fd::claim_fd,
+    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
+    rustix::fd::AsRawFd,
+    rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
+    std::os::unix::net,
+    std::process::Command,
+    std::thread,
+};
+
+/// enum representing a choice of interface to a WireGuard broker
+#[derive(Debug)]
+pub enum BrokerInterface {
+    Socket(PathBuf),
+    FileDescriptor(i32),
+    SocketPair,
+}
 
 /// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
@@ -34,6 +58,26 @@ pub struct CliArgs {
     /// show no log output – sets log level to "error"
     #[arg(short, long, group = "log-level")]
     quiet: bool,
+
+    /// path of the wireguard_psk broker socket to connect to
+    #[cfg(feature = "enable_wg_broker")]
+    #[arg(long, group = "psk-broker-specs")]
+    psk_broker_path: Option<PathBuf>,
+
+    /// fd of the wireguard_spk broker socket to connect to
+    ///
+    /// when this command is called from another process, the other process can open and bind the
+    /// Unix socket for the psk broker connection to use themselves, passing it to this process --
+    /// in Rust this can be achieved using the
+    /// [command-fds](https://docs.rs/command-fds/latest/command_fds/) crate
+    #[cfg(feature = "enable_wg_broker")]
+    #[arg(long, group = "psk-broker-specs")]
+    psk_broker_fd: Option<i32>,
+
+    /// spawn a psk broker locally using a socket pair
+    #[cfg(feature = "enable_wg_broker")]
+    #[arg(short, long, group = "psk-broker-specs")]
+    psk_broker_spawn: bool,
 
     #[command(subcommand)]
     pub command: CliCommand,
@@ -56,6 +100,28 @@ impl CliArgs {
         if let Some(level_filter) = self.log_level {
             return Some(level_filter);
         }
+        None
+    }
+
+    #[cfg(feature = "enable_wg_broker")]
+    /// returns the broker interface set by CLI args
+    /// returns `None` if the `enable_wg_broker` feature isn't enabled
+    pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
+        if let Some(path_ref) = self.psk_broker_path.as_ref() {
+            Some(BrokerInterface::Socket(path_ref.to_path_buf()))
+        } else if let Some(fd) = self.psk_broker_fd {
+            Some(BrokerInterface::FileDescriptor(fd))
+        } else if self.psk_broker_spawn {
+            Some(BrokerInterface::SocketPair)
+        } else {
+            None
+        }
+    }
+
+    #[cfg(not(feature = "enable_wg_broker"))]
+    /// returns the broker interface set by CLI args
+    /// returns `None` if the `enable_wg_broker` feature isn't enabled
+    pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         None
     }
 }
@@ -157,7 +223,11 @@ impl CliCommand {
     ///
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
-    pub fn run(self, test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
+    pub fn run(
+        self,
+        broker_interface: Option<BrokerInterface>,
+        test_helpers: Option<AppServerTest>,
+    ) -> anyhow::Result<()> {
         //Specify secret policy
 
         #[cfg(feature = "enable_memfd_alloc")]
@@ -271,7 +341,7 @@ impl CliCommand {
 
                 let config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
-                Self::event_loop(config, test_helpers)?;
+                Self::event_loop(config, broker_interface, test_helpers)?;
             }
 
             Exchange {
@@ -288,7 +358,7 @@ impl CliCommand {
                     config.config_file_path = p;
                 }
                 config.validate()?;
-                Self::event_loop(config, test_helpers)?;
+                Self::event_loop(config, broker_interface, test_helpers)?;
             }
 
             Validate { config_files } => {
@@ -312,6 +382,7 @@ impl CliCommand {
 
     fn event_loop(
         config: config::Rosenpass,
+        broker_interface: Option<BrokerInterface>,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
         const MAX_PSK_SIZE: usize = 1000;
@@ -328,7 +399,8 @@ impl CliCommand {
             test_helpers,
         )?);
 
-        let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
+        let broker = Self::create_broker(broker_interface)?;
+        let broker_store_ptr = srv.register_broker(broker)?;
 
         fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
             anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
@@ -364,6 +436,90 @@ impl CliCommand {
         }
 
         srv.event_loop()
+    }
+
+    #[cfg(feature = "enable_wg_broker")]
+    fn create_broker(
+        broker_interface: Option<BrokerInterface>,
+    ) -> Result<
+        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
+        anyhow::Error,
+    > {
+        if let Some(interface) = broker_interface {
+            let socket = Self::get_broker_socket(interface)?;
+            Ok(Box::new(MioBrokerClient::new(socket)))
+        } else {
+            Ok(Box::new(NativeUnixBroker::new()))
+        }
+    }
+
+    #[cfg(not(feature = "enable_wg_broker"))]
+    fn create_broker(
+        _broker_interface: Option<BrokerInterface>,
+    ) -> Result<
+        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
+        anyhow::Error,
+    > {
+        Ok(Box::new(NativeUnixBroker::new()))
+    }
+
+    #[cfg(feature = "enable_wg_broker")]
+    fn get_broker_socket(broker_interface: BrokerInterface) -> Result<UnixStream, anyhow::Error> {
+        // Connect to the psk broker unix socket if one was specified
+        // OR OTHERWISE spawn the psk broker and use socketpair(2) to connect with them
+        match broker_interface {
+            BrokerInterface::Socket(broker_path) => {
+                let sock = net::UnixStream::connect(broker_path)?;
+                sock.set_nonblocking(true)?;
+                Ok(UnixStream::from_std(sock))
+            }
+            BrokerInterface::FileDescriptor(broker_fd) => {
+                // mio::net::UnixStream doesn't implement From<OwnedFd>, so we have to go through std
+                let sock = net::UnixStream::from(claim_fd(broker_fd)?);
+                sock.set_nonblocking(true)?;
+                Ok(UnixStream::from_std(sock))
+            }
+            BrokerInterface::SocketPair => {
+                // Form a socketpair for communicating to the broker
+                let (ours, theirs) = socketpair(
+                    AddressFamily::UNIX,
+                    SocketType::STREAM,
+                    SocketFlags::empty(),
+                    None,
+                )?;
+
+                // Setup our end of the socketpair
+                let ours = net::UnixStream::from(ours);
+                ours.set_nonblocking(true)?;
+
+                // Start the PSK broker
+                let mut child = Command::new("rosenpass-wireguard-broker-socket-handler")
+                    .args(&["--stream-fd", "3"])
+                    .fd_mappings(vec![FdMapping {
+                        parent_fd: theirs.as_raw_fd(),
+                        child_fd: 3,
+                    }])?
+                    .spawn()?;
+
+                // Handle the PSK broker crashing
+                thread::spawn(move || {
+                    let status = child.wait();
+
+                    if let Ok(status) = status {
+                        if status.success() {
+                            // Maybe they are doing double forking?
+                            info!("PSK broker exited.");
+                        } else {
+                            error!("PSK broker exited with an error ({status:?})");
+                        }
+                    } else {
+                        error!("Wait on PSK broker process failed ({status:?})");
+                    }
+                });
+
+                Ok(UnixStream::from_std(ours))
+            }
+        }
     }
 }
 
