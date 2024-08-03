@@ -37,7 +37,7 @@ pub fn main() {
     match args.command.run(None) {
         Ok(_) => {}
         Err(e) => {
-            error!("{e}");
+            error!("{e:?}");
             exit(1);
         }
     }
