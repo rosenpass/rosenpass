@@ -283,6 +283,7 @@ struct MockBrokerInner {
     interface: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 struct MockBroker {
     inner: Arc<Mutex<MockBrokerInner>>,
@@ -321,7 +322,7 @@ impl rosenpass_wireguard_broker::WireGuardBroker for MockBroker {
             if let Ok(ref mut mutex) = lock {
                 **mutex = MockBrokerInner {
                     psk: Some(config.psk.clone()),
-                    peer_id: Some(config.peer_id.clone()),
+                    peer_id: Some(*config.peer_id),
                     interface: Some(std::str::from_utf8(config.interface).unwrap().to_string()),
                 };
                 break Ok(());
