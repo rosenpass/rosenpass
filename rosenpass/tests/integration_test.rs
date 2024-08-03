@@ -2,14 +2,11 @@ use std::{
     fs,
     net::UdpSocket,
     path::PathBuf,
-    sync::{Arc, Mutex},
     time::Duration,
 };
 
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
-use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WireguardBrokerMio, WG_KEY_LEN, WG_PEER_LEN};
 use serial_test::serial;
 use std::io::Write;
 
@@ -273,59 +270,4 @@ fn check_exchange_under_dos() {
 
     // cleanup
     fs::remove_dir_all(&tmpdir).unwrap();
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Default)]
-struct MockBrokerInner {
-    psk: Option<Secret<WG_KEY_LEN>>,
-    peer_id: Option<Public<WG_PEER_LEN>>,
-    interface: Option<String>,
-}
-
-#[derive(Debug, Default)]
-struct MockBroker {
-    inner: Arc<Mutex<MockBrokerInner>>,
-}
-
-impl WireguardBrokerMio for MockBroker {
-    type MioError = anyhow::Error;
-
-    fn register(
-        &mut self,
-        _registry: &mio::Registry,
-        _token: mio::Token,
-    ) -> Result<(), Self::MioError> {
-        Ok(())
-    }
-
-    fn process_poll(&mut self) -> Result<(), Self::MioError> {
-        Ok(())
-    }
-
-    fn unregister(&mut self, _registry: &mio::Registry) -> Result<(), Self::MioError> {
-        Ok(())
-    }
-}
-
-impl rosenpass_wireguard_broker::WireGuardBroker for MockBroker {
-    type Error = anyhow::Error;
-
-    fn set_psk(
-        &mut self,
-        config: rosenpass_wireguard_broker::SerializedBrokerConfig<'_>,
-    ) -> Result<(), Self::Error> {
-        loop {
-            let mut lock = self.inner.try_lock();
-
-            if let Ok(ref mut mutex) = lock {
-                **mutex = MockBrokerInner {
-                    psk: Some(config.psk.clone()),
-                    peer_id: Some(config.peer_id.clone()),
-                    interface: Some(std::str::from_utf8(config.interface).unwrap().to_string()),
-                };
-                break Ok(());
-            }
-        }
-    }
 }
