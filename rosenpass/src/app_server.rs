@@ -1,5 +1,6 @@
 use anyhow::bail;
 
+use anyhow::Context;
 use anyhow::Result;
 use derive_builder::Builder;
 use log::{error, info, warn};
@@ -65,7 +66,7 @@ pub struct MioTokenDispenser {
 }
 
 impl MioTokenDispenser {
-    fn dispense(&mut self) -> Token {
+    pub fn dispense(&mut self) -> Token {
         let r = self.counter;
         self.counter += 1;
         Token(r)
@@ -146,7 +147,7 @@ pub struct AppServerTest {
 // TODO add user control via unix domain socket and stdin/stdout
 #[derive(Debug)]
 pub struct AppServer {
-    pub crypt: CryptoServer,
+    pub crypt: Option<CryptoServer>,
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
     pub mio_poll: mio::Poll,
@@ -161,6 +162,8 @@ pub struct AppServer {
     pub unpolled_count: usize,
     pub last_update_time: Instant,
     pub test_helpers: Option<AppServerTest>,
+    #[cfg(feature = "experiment_api")]
+    pub api_manager: crate::api::mio::MioManager,
 }
 
 /// A socket pointer is an index assigned to a socket;
@@ -603,7 +606,7 @@ impl AppServer {
         // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
 
         Ok(Self {
-            crypt: CryptoServer::new(sk, pk),
+            crypt: Some(CryptoServer::new(sk, pk)),
             peers: Vec::new(),
             verbosity,
             sockets,
@@ -618,7 +621,21 @@ impl AppServer {
             unpolled_count: 0,
             last_update_time: Instant::now(),
             test_helpers,
+            #[cfg(feature = "experiment_api")]
+            api_manager: crate::api::mio::MioManager::default(),
         })
+    }
+
+    pub fn crypto_server(&self) -> anyhow::Result<&CryptoServer> {
+        self.crypt
+            .as_ref()
+            .context("Cryptography handler not initialized")
+    }
+
+    pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
+        self.crypt
+            .as_mut()
+            .context("Cryptography handler not initialized")
     }
 
     pub fn verbose(&self) -> bool {
@@ -671,7 +688,7 @@ impl AppServer {
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
     ) -> anyhow::Result<AppPeerPtr> {
-        let PeerPtr(pn) = self.crypt.add_peer(psk, pk)?;
+        let PeerPtr(pn) = self.crypto_server_mut()?.add_peer(psk, pk)?;
         assert!(pn == self.peers.len());
         let initial_endpoint = hostname
             .map(Endpoint::discovery_from_hostname)
@@ -714,7 +731,7 @@ impl AppServer {
             );
             if tries_left > 0 {
                 error!("re-initializing networking in {sleep}! {tries_left} tries left.");
-                std::thread::sleep(self.crypt.timebase.dur(sleep));
+                std::thread::sleep(self.crypto_server_mut()?.timebase.dur(sleep));
                 continue;
             }
 
@@ -760,11 +777,11 @@ impl AppServer {
             match self.poll(&mut *rx)? {
                 #[allow(clippy::redundant_closure_call)]
                 SendInitiation(peer) => tx_maybe_with!(peer, || self
-                    .crypt
+                    .crypto_server_mut()?
                     .initiate_handshake(peer.lower(), &mut *tx))?,
                 #[allow(clippy::redundant_closure_call)]
                 SendRetransmission(peer) => tx_maybe_with!(peer, || self
-                    .crypt
+                    .crypto_server_mut()?
                     .retransmit_handshake(peer.lower(), &mut *tx))?,
                 DeleteKey(peer) => {
                     self.output_key(peer, Stale, &SymKey::random())?;
@@ -785,7 +802,9 @@ impl AppServer {
                         DoSOperation::UnderLoad => {
                             self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
                         }
-                        DoSOperation::Normal => self.crypt.handle_msg(&rx[..len], &mut *tx),
+                        DoSOperation::Normal => {
+                            self.crypto_server_mut()?.handle_msg(&rx[..len], &mut *tx)
+                        }
                     };
                     match msg_result {
                         Err(ref e) => {
@@ -813,7 +832,8 @@ impl AppServer {
                                 ap.get_app_mut(self).current_endpoint = Some(endpoint);
 
                                 // TODO: Maybe we should rather call the key "rosenpass output"?
-                                self.output_key(ap, Exchanged, &self.crypt.osk(p)?)?;
+                                let osk = &self.crypto_server_mut()?.osk(p)?;
+                                self.output_key(ap, Exchanged, osk)?;
                             }
                         }
                     }
@@ -829,9 +849,9 @@ impl AppServer {
         tx: &mut [u8],
     ) -> Result<crate::protocol::HandleMsgResult> {
         match endpoint {
-            Endpoint::SocketBoundAddress(socket) => {
-                self.crypt.handle_msg_under_load(rx, &mut *tx, socket)
-            }
+            Endpoint::SocketBoundAddress(socket) => self
+                .crypto_server_mut()?
+                .handle_msg_under_load(rx, &mut *tx, socket),
             Endpoint::Discovery(_) => {
                 anyhow::bail!("Host-path discovery is not supported under load")
             }
@@ -844,7 +864,7 @@ impl AppServer {
         why: KeyOutputReason,
         key: &SymKey,
     ) -> anyhow::Result<()> {
-        let peerid = peer.lower().get(&self.crypt).pidt()?;
+        let peerid = peer.lower().get(self.crypto_server()?).pidt()?;
 
         if self.verbose() {
             let msg = match why {
@@ -891,7 +911,7 @@ impl AppServer {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
         loop {
-            return Ok(match self.crypt.poll()? {
+            return Ok(match self.crypto_server_mut()?.poll()? {
                 C::DeleteKey(PeerPtr(no)) => A::DeleteKey(AppPeerPtr(no)),
                 C::SendInitiation(PeerPtr(no)) => A::SendInitiation(AppPeerPtr(no)),
                 C::SendRetransmission(PeerPtr(no)) => A::SendRetransmission(AppPeerPtr(no)),
@@ -1019,6 +1039,33 @@ impl AppServer {
             broker.process_poll()?;
         }
 
+        // API poll
+
+        #[cfg(feature = "experiment_api")]
+        self.api_manager.poll(
+            &mut self.crypt,
+            self.mio_poll.registry(),
+            &mut self.mio_token_dispenser,
+        )?;
+
         Ok(None)
+    }
+
+    #[cfg(feature = "experiment_api")]
+    pub fn add_api_connection(&mut self, connection: mio::net::UnixStream) -> std::io::Result<()> {
+        self.api_manager.add_connection(
+            connection,
+            self.mio_poll.registry(),
+            &mut self.mio_token_dispenser,
+        )
+    }
+
+    #[cfg(feature = "experiment_api")]
+    pub fn add_api_listener(&mut self, listener: mio::net::UnixListener) -> std::io::Result<()> {
+        self.api_manager.add_listener(
+            listener,
+            self.mio_poll.registry(),
+            &mut self.mio_token_dispenser,
+        )
     }
 }

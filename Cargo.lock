@@ -1075,6 +1075,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-literal"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
+
+[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1930,6 +1936,9 @@ dependencies = [
  "criterion",
  "derive_builder 0.20.0",
  "env_logger",
+ "heck",
+ "hex",
+ "hex-literal",
  "home",
  "log",
  "memoffset 0.9.1",
@@ -1948,10 +1957,12 @@ dependencies = [
  "serial_test",
  "stacker",
  "static_assertions",
+ "tempfile",
  "test_bin",
  "thiserror",
  "toml",
  "zerocopy",
+ "zeroize",
 ]
 
 [[package]]

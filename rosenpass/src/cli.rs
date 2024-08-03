@@ -32,11 +32,21 @@ pub struct CliArgs {
     #[arg(short, long, group = "log-level")]
     quiet: bool,
 
+    #[command(flatten)]
+    #[cfg(feature = "experiment_api")]
+    api: crate::api::cli::ApiCli,
+
     #[command(subcommand)]
     pub command: CliCommand,
 }
 
 impl CliArgs {
+    pub fn apply_to_config(&self, _cfg: &mut config::Rosenpass) -> anyhow::Result<()> {
+        #[cfg(feature = "experiment_api")]
+        self.api.apply_to_config(_cfg)?;
+        Ok(())
+    }
+
     /// returns the log level filter set by CLI args
     /// returns `None` if the user did not specify any log level filter via CLI
     ///
@@ -259,8 +269,10 @@ impl CliArgs {
                     "config file '{config_file:?}' does not exist"
                 );
 
-                let config = config::Rosenpass::load(config_file)?;
+                let mut config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
+                self.apply_to_config(&mut config)?;
+
                 Self::event_loop(config, test_helpers)?;
             }
 
@@ -279,6 +291,8 @@ impl CliArgs {
                     config.config_file_path.clone_from(p);
                 }
                 config.validate()?;
+                self.apply_to_config(&mut config)?;
+
                 Self::event_loop(config, test_helpers)?;
             }
 
@@ -319,6 +333,8 @@ impl CliArgs {
             config.verbosity,
             test_helpers,
         )?);
+
+        config.apply_to_app_server(&mut srv)?;
 
         let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
 
@@ -366,4 +382,16 @@ fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow
     StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
+}
+
+#[cfg(feature = "internal_testing")]
+pub mod testing {
+    use super::*;
+
+    pub fn generate_and_save_keypair(
+        secret_key: PathBuf,
+        public_key: PathBuf,
+    ) -> anyhow::Result<()> {
+        super::generate_and_save_keypair(secret_key, public_key)
+    }
 }

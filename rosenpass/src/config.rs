@@ -19,6 +19,8 @@ use anyhow::{bail, ensure};
 use rosenpass_util::file::{fopen_w, Visibility};
 use serde::{Deserialize, Serialize};
 
+use crate::app_server::AppServer;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
     /// path to the public key file
@@ -26,6 +28,10 @@ pub struct Rosenpass {
 
     /// path to the secret key file
     pub secret_key: PathBuf,
+
+    /// Location of the API listen sockets
+    #[cfg(feature = "experiment_api")]
+    pub api: crate::api::config::ApiConfig,
 
     /// list of [`SocketAddr`] to listen on
     ///
@@ -54,7 +60,7 @@ pub struct Rosenpass {
 
 /// ## TODO
 /// - replace this type with [`log::LevelFilter`], also see <https://github.com/rosenpass/rosenpass/pull/246>
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
 pub enum Verbosity {
     Quiet,
     Verbose,
@@ -157,6 +163,12 @@ impl Rosenpass {
         self.store(&self.config_file_path)
     }
 
+    pub fn apply_to_app_server(&self, _srv: &mut AppServer) -> anyhow::Result<()> {
+        #[cfg(feature = "experiment_api")]
+        self.api.apply_to_app_server(_srv)?;
+        Ok(())
+    }
+
     /// Validate a configuration
     ///
     /// ## TODO
@@ -206,6 +218,8 @@ impl Rosenpass {
             public_key: PathBuf::from(public_key.as_ref()),
             secret_key: PathBuf::from(secret_key.as_ref()),
             listen: vec![],
+            #[cfg(feature = "experiment_api")]
+            api: crate::api::config::ApiConfig::default(),
             verbosity: Verbosity::Quiet,
             peers: vec![],
             config_file_path: PathBuf::new(),
