@@ -96,3 +96,14 @@ impl<T> GuaranteedValue for Guaranteed<T> {
         self.unwrap()
     }
 }
+
+pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
+    match b {
+        true => Ok(()),
+        false => Err(err),
+    }
+}
+
+pub fn bail_if<E>(b: bool, err: E) -> Result<(), E> {
+    ensure_or(!b, err)
+}
