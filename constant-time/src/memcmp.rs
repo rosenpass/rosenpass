@@ -7,18 +7,16 @@
 ///
 /// The execution time of the function grows approx. linear with the length of the input. This is
 /// considered safe.
-///
-/// ## Tests
-/// [`tests::memcmp_runs_in_constant_time`] runs a stasticial test that the equality of the two
-/// input parameters does not correlate with the run time.
-///
-/// For discussion on how to (further) ensure the constant-time execution of this function,
-/// see <https://github.com/rosenpass/rosenpass/issues/232>
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && unsafe { memsec::memeq(a.as_ptr(), b.as_ptr(), a.len()) }
 }
 
+/// [tests::memcmp_runs_in_constant_time] runs a stasticial test that the equality of the two
+/// input parameters does not correlate with the run time.
+///
+/// For discussion on how to (further) ensure the constant-time execution of this function,
+/// see <https://github.com/rosenpass/rosenpass/issues/232>
 #[cfg(all(test, feature = "constant_time_tests"))]
 mod tests {
     use super::*;
