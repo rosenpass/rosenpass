@@ -104,13 +104,11 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.run(Some(
-                server_test_builder
-                    .termination_handler(Some(server_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+        let test_helpers = server_test_builder
+            .termination_handler(Some(server_terminate_rx))
+            .build()
             .unwrap();
+        cli.run(Some(test_helpers)).unwrap();
     });
 
     let cli = CliArgs::try_parse_from(
@@ -121,13 +119,11 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.run(Some(
-                client_test_builder
-                    .termination_handler(Some(client_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+        let test_helpers = client_test_builder
+            .termination_handler(Some(client_terminate_rx))
+            .build()
             .unwrap();
+        cli.run(Some(test_helpers)).unwrap();
     });
 
     // give them some time to do the key exchange under load
