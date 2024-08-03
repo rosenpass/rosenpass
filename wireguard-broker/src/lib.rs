@@ -1,5 +1,5 @@
 use rosenpass_secret_memory::{Public, Secret};
-use std::{fmt::Debug, result::Result};
+use std::fmt::Debug;
 
 pub const WG_KEY_LEN: usize = 32;
 pub const WG_PEER_LEN: usize = 32;

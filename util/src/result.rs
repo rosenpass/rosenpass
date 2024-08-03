@@ -1,5 +1,4 @@
 use std::convert::Infallible;
-use std::result::Result;
 
 /// Try block basically…returns a result and allows the use of the question mark operator inside
 #[macro_export]

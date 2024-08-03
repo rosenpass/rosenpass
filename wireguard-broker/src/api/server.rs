@@ -1,5 +1,4 @@
 use std::borrow::BorrowMut;
-use std::result::Result;
 
 use rosenpass_secret_memory::{Public, Secret};
 

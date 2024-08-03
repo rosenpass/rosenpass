@@ -1,4 +1,3 @@
-use std::result::Result;
 use std::str::{from_utf8, Utf8Error};
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};

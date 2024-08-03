@@ -9,7 +9,6 @@ fn main() {
 #[cfg(target_os = "linux")]
 pub mod linux {
     use std::io::{stdin, stdout, Read, Write};
-    use std::result::Result;
 
     use rosenpass_wireguard_broker::api::msgs;
     use rosenpass_wireguard_broker::api::server::BrokerServer;

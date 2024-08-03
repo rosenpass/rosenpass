@@ -10,8 +10,6 @@
 //! The [KEM] Trait describes the basic API offered by a Key Encapsulation
 //! Mechanism. Two implementations for it are provided, [StaticKEM] and [EphemeralKEM].
 
-use std::result::Result;
-
 /// Key Encapsulation Mechanism
 ///
 /// The KEM interface defines three operations: Key generation, key encapsulation and key

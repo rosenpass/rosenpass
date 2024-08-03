@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
