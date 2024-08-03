@@ -411,12 +411,12 @@
             inherit (packages.proof-proverif) CRYPTOVERIF_LIB;
             inputsFrom = [ packages.default ];
             nativeBuildInputs = with pkgs; [
+              inputs.fenix.packages.${system}.complete.toolchain
               cmake # override the fakecmake from the main step above
               cargo-release
               clippy
               nodePackages.prettier
               nushell # for the .ci/gen-workflow-files.nu script
-              rustfmt
               packages.proverif-patched
             ];
           };
