@@ -59,7 +59,7 @@ pub mod linux {
 
             // Write the response
             stdout.write_all(&(res.len() as u64).to_le_bytes())?;
-            stdout.write_all(&res)?;
+            stdout.write_all(res)?;
             stdout.flush()?;
         }
     }

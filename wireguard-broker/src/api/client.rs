@@ -88,7 +88,7 @@ where
             None => return Ok(None),
         };
 
-        let typ = res.get(0).ok_or(invalid_msg_poller())?;
+        let typ = res.first().ok_or(invalid_msg_poller())?;
         let typ = msgs::MsgType::try_from(*typ)?;
         let msgs::MsgType::SetPsk = typ; // Assert type
 
@@ -113,7 +113,7 @@ where
 
     fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
         let config: Result<NetworkBrokerConfig, NetworkBrokerConfigErr> = config.try_into();
-        let config = config.map_err(|e| BrokerClientSetPskError::BrokerError(e))?;
+        let config = config.map_err(BrokerClientSetPskError::BrokerError)?;
 
         use BrokerClientSetPskError::*;
         const BUF_SIZE: usize = REQUEST_MSG_BUFFER_SIZE;

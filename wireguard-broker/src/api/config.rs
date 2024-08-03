@@ -11,12 +11,12 @@ pub struct NetworkBrokerConfig<'a> {
     pub psk: &'a Secret<WG_KEY_LEN>,
 }
 
-impl<'a> Into<SerializedBrokerConfig<'a>> for NetworkBrokerConfig<'a> {
-    fn into(self) -> SerializedBrokerConfig<'a> {
-        SerializedBrokerConfig {
-            interface: self.iface.as_bytes(),
-            peer_id: self.peer_id,
-            psk: self.psk,
+impl<'a> From<NetworkBrokerConfig<'a>> for SerializedBrokerConfig<'a> {
+    fn from(src: NetworkBrokerConfig<'a>) -> SerializedBrokerConfig<'a> {
+        Self {
+            interface: src.iface.as_bytes(),
+            peer_id: src.peer_id,
+            psk: src.psk,
             additional_params: &[],
         }
     }
