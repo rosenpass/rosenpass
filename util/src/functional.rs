@@ -13,3 +13,7 @@ where
     f(&v);
     v
 }
+
+pub fn run<R, F: FnOnce() -> R>(f: F) -> R {
+    f()
+}
