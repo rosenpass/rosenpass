@@ -34,7 +34,7 @@ pub fn main() {
         // error!("error dummy");
     }
 
-    match args.command.run(None) {
+    match args.run(None) {
         Ok(_) => {}
         Err(e) => {
             error!("{e:?}");

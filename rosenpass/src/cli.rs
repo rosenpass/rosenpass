@@ -149,14 +149,14 @@ pub enum CliCommand {
     Man,
 }
 
-impl CliCommand {
+impl CliArgs {
     /// runs the command specified via CLI
     ///
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
     pub fn run(self, test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
         use CliCommand::*;
-        match self {
+        match &self.command {
             Man => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
@@ -168,7 +168,7 @@ impl CliCommand {
             }
             GenConfig { config_file, force } => {
                 ensure!(
-                    force || !config_file.exists(),
+                    *force || !config_file.exists(),
                     "config file {config_file:?} already exists"
                 );
 
@@ -183,9 +183,9 @@ impl CliCommand {
                 let mut secret_key: Option<PathBuf> = None;
 
                 // Manual arg parsing, since clap wants to prefix flags with "--"
-                let mut args = args.into_iter();
+                let mut args = args.iter();
                 loop {
-                    match (args.next().as_deref(), args.next()) {
+                    match (args.next().map(|x| x.as_str()), args.next()) {
                         (Some("private-key"), Some(opt)) | (Some("secret-key"), Some(opt)) => {
                             secret_key = Some(opt.into());
                         }
@@ -227,7 +227,7 @@ impl CliCommand {
 
                         (config.public_key, config.secret_key)
                     }
-                    (_, Some(pkf), Some(skf)) => (pkf, skf),
+                    (_, Some(pkf), Some(skf)) => (pkf.clone(), skf.clone()),
                     _ => {
                         bail!("either a config-file or both public-key and secret-key file are required")
                     }
@@ -266,16 +266,17 @@ impl CliCommand {
 
             Exchange {
                 first_arg,
-                mut rest_of_args,
+                rest_of_args,
                 config_file,
             } => {
-                rest_of_args.insert(0, first_arg);
+                let mut rest_of_args = rest_of_args.clone();
+                rest_of_args.insert(0, first_arg.clone());
                 let args = rest_of_args;
                 let mut config = config::Rosenpass::parse_args(args)?;
 
                 if let Some(p) = config_file {
-                    config.store(&p)?;
-                    config.config_file_path = p;
+                    config.store(p)?;
+                    config.config_file_path.clone_from(p);
                 }
                 config.validate()?;
                 Self::event_loop(config, test_helpers)?;
@@ -283,7 +284,7 @@ impl CliCommand {
 
             Validate { config_files } => {
                 for file in config_files {
-                    match config::Rosenpass::load(&file) {
+                    match config::Rosenpass::load(file) {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
@@ -305,6 +306,7 @@ impl CliCommand {
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
         const MAX_PSK_SIZE: usize = 1000;
+
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -313,7 +315,7 @@ impl CliCommand {
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
             sk,
             pk,
-            config.listen,
+            config.listen.clone(),
             config.verbosity,
             test_helpers,
         )?);

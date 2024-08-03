@@ -104,8 +104,7 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.command
-            .run(Some(
+        cli.run(Some(
                 server_test_builder
                     .termination_handler(Some(server_terminate_rx))
                     .build()
@@ -122,8 +121,7 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.command
-            .run(Some(
+        cli.run(Some(
                 client_test_builder
                     .termination_handler(Some(client_terminate_rx))
                     .build()
