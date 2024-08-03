@@ -16,7 +16,9 @@ use std::cell::Cell;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::io::stdout;
 use std::io::ErrorKind;
+use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::net::SocketAddr;
@@ -870,10 +872,14 @@ impl AppServer {
 
             // this is intentionally writing to stdout instead of stderr, because
             // it is meant to allow external detection of a successful key-exchange
-            println!(
+            let stdout = stdout();
+            let mut stdout = stdout.lock();
+            writeln!(
+                stdout,
                 "output-key peer {} key-file {of:?} {why}",
                 peerid.fmt_b64::<MAX_B64_PEER_ID_SIZE>()
-            );
+            )?;
+            stdout.flush()?;
         }
 
         peer.set_psk(self, key)?;
