@@ -1,5 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::min;
+use std::mem::{forget, swap};
+use std::ops::{Deref, DerefMut};
 
 /// Concatenate two byte arrays
 // TODO: Zeroize result?
@@ -30,4 +32,63 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
     let dst = dst.borrow_mut();
     let len = min(src.len(), dst.len());
     dst[..len].copy_from_slice(&src[..len]);
+}
+
+/// Wrapper type to inhibit calling [std::mem::Drop] when the underlying variable is freed
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Default)]
+pub struct Forgetting<T> {
+    value: Option<T>,
+}
+
+impl<T> Forgetting<T> {
+    pub fn new(value: T) -> Self {
+        let value = Some(value);
+        Self { value }
+    }
+
+    pub fn extract(mut self) -> T {
+        let mut value = None;
+        swap(&mut value, &mut self.value);
+        value.unwrap()
+    }
+}
+
+impl<T> From<T> for Forgetting<T> {
+    fn from(value: T) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<T> Deref for Forgetting<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.value.as_ref().unwrap()
+    }
+}
+
+impl<T> DerefMut for Forgetting<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.value.as_mut().unwrap()
+    }
+}
+
+impl<T> Borrow<T> for Forgetting<T> {
+    fn borrow(&self) -> &T {
+        self.deref()
+    }
+}
+
+impl<T> BorrowMut<T> for Forgetting<T> {
+    fn borrow_mut(&mut self) -> &mut T {
+        self.deref_mut()
+    }
+}
+
+impl<T> Drop for Forgetting<T> {
+    fn drop(&mut self) {
+        let mut value = None;
+        swap(&mut self.value, &mut value);
+        forget(value)
+    }
 }
