@@ -114,3 +114,96 @@ pub trait DisplayValueB64 {
 
     fn display_b64<'o>(&self, output: &'o mut [u8]) -> Result<&'o str, Self::Error>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_fopen_w_public() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = fopen_w(path, Visibility::Public).unwrap();
+        file.write_all(b"test").unwrap();
+        let metadata = file.metadata().unwrap();
+        let permissions = metadata.permissions();
+        assert_eq!(permissions.mode(), 0o100644);
+    }
+
+    #[test]
+    fn test_fopen_w_secret() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = fopen_w(path, Visibility::Secret).unwrap();
+        file.write_all(b"test").unwrap();
+        let metadata = file.metadata().unwrap();
+        let permissions = metadata.permissions();
+        assert_eq!(permissions.mode(), 0o100600);
+    }
+
+    #[test]
+    fn test_fopen_r() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = File::create(path.clone()).unwrap();
+        file.write_all(b"test").unwrap();
+        let mut contents = String::new();
+        let mut file = fopen_r(path).unwrap();
+        file.read_to_string(&mut contents).unwrap();
+        assert_eq!(contents, "test");
+    }
+
+    #[test]
+    fn test_read_slice_to_end() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = File::create(path.clone()).unwrap();
+        file.write_all(b"test").unwrap();
+        let mut buf = [0u8; 4];
+        let mut file = fopen_r(path).unwrap();
+        file.read_slice_to_end(&mut buf).unwrap();
+        assert_eq!(buf, [116, 101, 115, 116]);
+    }
+
+    #[test]
+    fn test_read_exact_to_end() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = File::create(path.clone()).unwrap();
+        file.write_all(b"test").unwrap();
+        let mut buf = [0u8; 4];
+        let mut file = fopen_r(path).unwrap();
+        file.read_exact_to_end(&mut buf).unwrap();
+        assert_eq!(buf, [116, 101, 115, 116]);
+    }
+
+    #[test]
+    fn test_read_exact_to_end_to_long() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = File::create(path.clone()).unwrap();
+        file.write_all(b"test").unwrap();
+        let mut buf = [0u8; 3];
+        let mut file = fopen_r(path).unwrap();
+        let result = file.read_exact_to_end(&mut buf);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "File too long!");
+    }
+
+    #[test]
+    fn test_read_slice_to_end_to_long() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let mut file = File::create(path.clone()).unwrap();
+        file.write_all(b"test").unwrap();
+        let mut buf = [0u8; 3];
+        let mut file = fopen_r(path).unwrap();
+        let result = file.read_slice_to_end(&mut buf);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "File too long!");
+    }
+}
