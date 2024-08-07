@@ -1,16 +1,25 @@
 use rustix::{
     fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
-    io::{fcntl_dupfd_cloexec, DupFlags},
+    io::fcntl_dupfd_cloexec,
 };
+
+#[cfg(target_os = "linux")]
+use rustix::io::DupFlags;
 
 use crate::mem::Forgetting;
 
 /// Prepare a file descriptor for use in Rust code.
 ///
+
 /// Checks if the file descriptor is valid and duplicates it to a new file descriptor.
 /// The old file descriptor is masked to avoid potential use after free (on file descriptor)
 /// in case the given file descriptor is still used somewhere
 pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
+    // check if valid fd
+    if !(0..=i32::MAX).contains(&fd) {
+        return Err(rustix::io::Errno::BADF);
+    }
+
     let new = clone_fd_cloexec(unsafe { BorrowedFd::borrow_raw(fd) })?;
     mask_fd(fd)?;
     Ok(new)
@@ -47,4 +56,73 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
     use rustix::fs::{open, Mode, OFlags};
     // TODO: Add tests showing that this will throw errors on use
     open("/dev/null", OFlags::CLOEXEC, Mode::empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::read_to_string;
+    use std::fs::File;
+    use std::io::Read;
+    use std::io::Write;
+    use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_claim_fd() {
+        let tmp_dir = tempdir().unwrap();
+        let path = tmp_dir.path().join("test");
+        let file = File::create(path.clone()).unwrap();
+        let fd: RawFd = file.into_raw_fd();
+        let owned_fd = claim_fd(fd).unwrap();
+        let mut file = unsafe { File::from_raw_fd(owned_fd.into_raw_fd()) };
+        file.write_all(b"Hello, World!").unwrap();
+
+        let message = read_to_string(path).unwrap();
+        assert_eq!(message, "Hello, World!");
+    }
+
+    #[test]
+    fn test_claim_fd_invalid() {
+        let fd: RawFd = -1;
+        let result = claim_fd(fd);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Bad file descriptor (os error 9)"
+        );
+    }
+
+    #[test]
+    fn test_claim_fd_invalid_max() {
+        let fd: RawFd = i64::MAX as RawFd;
+        let result = claim_fd(fd);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Bad file descriptor (os error 9)"
+        );
+    }
+
+    #[test]
+    fn test_open_nullfd_write() {
+        let nullfd = open_nullfd().unwrap();
+        let mut file = unsafe { File::from_raw_fd(nullfd.into_raw_fd()) };
+        let res = file.write_all(b"Hello, World!");
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Bad file descriptor (os error 9)"
+        );
+    }
+
+    #[test]
+    fn test_open_nullfd_read() {
+        let nullfd = open_nullfd().unwrap();
+        let mut file = unsafe { File::from_raw_fd(nullfd.into_raw_fd()) };
+        let mut buffer = [0; 10];
+        let res = file.read_exact(&mut buffer);
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err().to_string(), "failed to fill whole buffer");
+    }
 }
