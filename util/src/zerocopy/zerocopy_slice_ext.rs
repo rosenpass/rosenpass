@@ -16,7 +16,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     }
 
     fn zk_parse_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
-        self.zk_ref_maker().from_prefix()?.parse()
+        self.zk_ref_maker().from_suffix()?.parse()
     }
 }
 
@@ -31,8 +31,8 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
         self.zk_ref_maker().from_prefix()?.make_zeroized()
     }
 
-    fn zk_zeroized_from_suffic<T>(self) -> anyhow::Result<Ref<Self, T>> {
-        self.zk_ref_maker().from_prefix()?.make_zeroized()
+    fn zk_zeroized_from_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+        self.zk_ref_maker().from_suffix()?.make_zeroized()
     }
 }
 

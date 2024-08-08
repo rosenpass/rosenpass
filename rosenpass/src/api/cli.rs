@@ -10,7 +10,7 @@ use super::config::ApiConfig;
 #[derive(Args, Debug)]
 pub struct ApiCli {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
-    /// connections on
+    /// connections on.
     #[arg(long)]
     api_listen_path: Vec<PathBuf>,
 

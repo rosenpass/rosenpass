@@ -19,7 +19,7 @@ pub enum SanityError {
 }
 
 #[derive(Error, Debug)]
-#[error("Message too lage ({msg_size} bytes) for buffer ({buf_size} bytes)")]
+#[error("Message too large ({msg_size} bytes) for buffer ({buf_size} bytes)")]
 pub struct MessageTooLargeError {
     msg_size: usize,
     buf_size: usize,
@@ -132,7 +132,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
         Ok(match self.next_slice_to_write_to()? {
             // Read some bytes; any MessageTooLargeError in the call to self.message_mut() is
             // ignored to ensure this function changes no state upon errors; the user should rerun
-            // the function and colect the MessageTooLargeError on the following invocation
+            // the function and collect the MessageTooLargeError on the following invocation
             Some(buf) => {
                 let bytes_read = r.read(buf)?;
                 self.advance(bytes_read).unwrap();

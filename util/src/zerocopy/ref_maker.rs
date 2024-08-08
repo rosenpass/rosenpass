@@ -57,21 +57,22 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
         Ok(Self::from_prefix_with_tail(self)?.0)
     }
 
-    pub fn from_suffix_with_tail(self) -> anyhow::Result<(Self, B)> {
+    pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
         let (head, tail) = self.buf.split_at(point);
-        Ok((Self::new(head), tail))
+        Ok((Self::new(tail), head))
     }
 
     pub fn split_suffix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let point = self.bytes().len() - Self::target_size();
+        let (head, tail) = self.buf.split_at(point);
         Ok((Self::new(head), Self::new(tail)))
     }
 
     pub fn from_suffix(self) -> anyhow::Result<Self> {
-        Ok(Self::from_suffix_with_tail(self)?.0)
+        Ok(Self::from_suffix_with_head(self)?.0)
     }
 
     pub fn bytes(&self) -> &[u8] {

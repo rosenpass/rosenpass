@@ -17,6 +17,8 @@ pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
 }
 
 pub fn mask_fd(fd: RawFd) -> rustix::io::Result<()> {
+    // Safety: because the OwnedFd resulting from OwnedFd::from_raw_fd is wrapped in a Forgetting,
+    // it never gets dropped, meaning that fd is never closed and thus outlives the OwnedFd
     let mut owned = Forgetting::new(unsafe { OwnedFd::from_raw_fd(fd) });
     clone_fd_to_cloexec(open_nullfd()?, &mut owned)
 }

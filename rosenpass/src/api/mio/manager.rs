@@ -70,6 +70,8 @@ impl MioManager {
         token_dispenser: &mut MioTokenDispenser,
     ) -> io::Result<()> {
         // Accept connection until the socket would block or returns another error
+        // TODO: This currently only adds connections--we eventually need the ability to remove
+        // them as well, see the note in connection.rs
         loop {
             match nonblocking_handle_io_errors(|| self.listeners[idx].accept())? {
                 None => break,
