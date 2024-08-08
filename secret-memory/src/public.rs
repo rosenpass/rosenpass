@@ -317,6 +317,7 @@ impl<const N: usize> StoreValueB64Writer for PublicBox<N> {
 mod tests {
 
     #[cfg(test)]
+    #[allow(clippy::module_inception)]
     mod tests {
         use crate::{Public, PublicBox};
         use rosenpass_util::{
@@ -346,7 +347,7 @@ mod tests {
 
             // Store the original bytes to an example file in the temporary directory
             let example_file = temp_dir.path().join("example_file");
-            std::fs::write(example_file.clone(), &original_bytes).unwrap();
+            std::fs::write(&example_file, original_bytes).unwrap();
 
             // Load the value from the example file into our generic type
             let loaded_public = T::load(&example_file).unwrap();

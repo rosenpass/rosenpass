@@ -9,7 +9,6 @@ fn main() {
 #[cfg(target_os = "linux")]
 pub mod linux {
     use std::io::{stdin, stdout, Read, Write};
-    use std::result::Result;
 
     use rosenpass_wireguard_broker::api::msgs;
     use rosenpass_wireguard_broker::api::server::BrokerServer;
@@ -60,7 +59,7 @@ pub mod linux {
 
             // Write the response
             stdout.write_all(&(res.len() as u64).to_le_bytes())?;
-            stdout.write_all(&res)?;
+            stdout.write_all(res)?;
             stdout.flush()?;
         }
     }

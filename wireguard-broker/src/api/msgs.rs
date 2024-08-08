@@ -1,4 +1,3 @@
-use std::result::Result;
 use std::str::{from_utf8, Utf8Error};
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
@@ -43,7 +42,7 @@ impl SetPskRequest {
         self.iface_size = iface.len() as u8;
 
         self.iface_buf = [0; 255];
-        (&mut self.iface_buf[..iface.len()]).copy_from_slice(iface);
+        self.iface_buf[..iface.len()].copy_from_slice(iface);
 
         Some(())
     }

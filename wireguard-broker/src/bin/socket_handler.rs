@@ -121,7 +121,7 @@ async fn direct_broker_process(
 
         // Read the message itself
         let mut res_buf = request; // Avoid allocating memory if we don't have to
-        res_buf.resize(len as usize, 0);
+        res_buf.resize(len, 0);
         stdout.read_exact(&mut res_buf[..len]).await?;
 
         // Return to the unix socket connection worker
@@ -163,7 +163,7 @@ async fn on_accept(queue: mpsc::Sender<BrokerRequest>, mut stream: UnixStream) -
         );
 
         // Read the message itself
-        req_buf.resize(len as usize, 0);
+        req_buf.resize(len, 0);
         stream.read_exact(&mut req_buf[..len]).await?;
 
         // Handle the message

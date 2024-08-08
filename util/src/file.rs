@@ -2,7 +2,6 @@ use anyhow::ensure;
 use std::fs::File;
 use std::io::Read;
 use std::os::unix::fs::OpenOptionsExt;
-use std::result::Result;
 use std::{fs::OpenOptions, path::Path};
 
 pub enum Visibility {

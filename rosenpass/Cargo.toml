@@ -13,6 +13,15 @@ readme = "readme.md"
 name = "rosenpass"
 path = "src/main.rs"
 
+[[bin]]
+name = "rosenpass-gen-ipc-msg-types"
+path = "src/bin/gen-ipc-msg-types.rs"
+required-features = ["experiment_api", "internal_bin_gen_ipc_msg_types"]
+
+[[test]]
+name = "api-integration-tests"
+required-features = ["experiment_api", "internal_testing"]
+
 [[bench]]
 name = "handshake"
 harness = false
@@ -40,6 +49,10 @@ zerocopy = { workspace = true }
 home = { workspace = true }
 derive_builder = {workspace = true}
 rosenpass-wireguard-broker = {workspace = true}
+zeroize = { workspace = true }
+hex-literal = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+heck = { workspace = true, optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -50,8 +63,12 @@ test_bin = { workspace = true }
 stacker = { workspace = true }
 serial_test = {workspace = true}
 procspawn = {workspace = true}
+tempfile = { workspace = true }
 
 [features]
 enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
-enable_memfd_alloc = []
+experiment_memfd_secret = []
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
+experiment_api = ["hex-literal"]
+internal_testing  = []
+internal_bin_gen_ipc_msg_types = ["hex", "heck"]

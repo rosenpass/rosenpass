@@ -87,21 +87,20 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
             .sock
             .get_device(wg::DeviceInterface::from_name(config.iface))?;
 
-        if state
+        if !state
             .peers
             .iter()
-            .find(|p| &p.public_key == &config.peer_id.value)
-            .is_none()
+            .any(|p| p.public_key == config.peer_id.value)
         {
             return Err(SetPskError::NoSuchPeer);
         }
 
         // Peer update description
-        let mut set_peer = wireguard_uapi::set::Peer::from_public_key(&config.peer_id);
+        let mut set_peer = wireguard_uapi::set::Peer::from_public_key(config.peer_id);
         set_peer
             .flags
             .push(wireguard_uapi::linux::set::WgPeerF::UpdateOnly);
-        set_peer.preshared_key = Some(&config.psk.secret());
+        set_peer.preshared_key = Some(config.psk.secret());
 
         // Device update description
         let mut set_dev = wireguard_uapi::set::Device::from_ifname(config.iface);

@@ -36,6 +36,7 @@ mod integration_tests {
     impl WireGuardBroker for MockServerBroker {
         type Error = SetPskError;
 
+        #[allow(clippy::clone_on_copy)]
         fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
             loop {
                 let mut lock = self.inner.try_lock();

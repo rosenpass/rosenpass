@@ -1,5 +1,4 @@
 use std::borrow::BorrowMut;
-use std::result::Result;
 
 use rosenpass_secret_memory::{Public, Secret};
 
@@ -49,7 +48,7 @@ where
     ) -> Result<usize, BrokerServerError> {
         use BrokerServerError::*;
 
-        let typ = req.get(0).ok_or(InvalidMessage)?;
+        let typ = req.first().ok_or(InvalidMessage)?;
         let typ = msgs::MsgType::try_from(*typ)?;
         let msgs::MsgType::SetPsk = typ; // Assert type
 

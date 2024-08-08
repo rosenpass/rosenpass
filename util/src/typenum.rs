@@ -19,15 +19,22 @@ pub trait IntoConst<T> {
     const VALUE: T;
 }
 
+#[allow(dead_code)]
 struct ConstApplyNegSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
     *const T,
     *const Param,
 );
+
+#[allow(dead_code)]
 struct ConstApplyPosSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
     *const T,
     *const Param,
 );
+
+#[allow(dead_code)]
 struct ConstLshift<T, Param: IntoConst<T>, const SHIFT: i32>(*const T, *const Param); // impl IntoConst<T>
+
+#[allow(dead_code)]
 struct ConstAdd<T, Lhs: IntoConst<T>, Rhs: IntoConst<T>>(*const T, *const Lhs, *const Rhs); // impl IntoConst<T>
 
 /// Assigns an unsigned type to a signed type

@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
@@ -387,7 +386,7 @@ mod test {
 
             // Store the original secret to an example file in the temporary directory
             let example_file = temp_dir.path().join("example_file");
-            std::fs::write(example_file.clone(), &original_bytes).unwrap();
+            std::fs::write(&example_file, original_bytes).unwrap();
 
             // Load the secret from the example file
             let loaded_secret = Secret::load(&example_file).unwrap();

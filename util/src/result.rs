@@ -1,5 +1,4 @@
 use std::convert::Infallible;
-use std::result::Result;
 
 /// Try block basically…returns a result and allows the use of the question mark operator inside
 #[macro_export]
@@ -96,4 +95,15 @@ impl<T> GuaranteedValue for Guaranteed<T> {
     fn guaranteed(self) -> Self::Value {
         self.unwrap()
     }
+}
+
+pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
+    match b {
+        true => Ok(()),
+        false => Err(err),
+    }
+}
+
+pub fn bail_if<E>(b: bool, err: E) -> Result<(), E> {
+    ensure_or(!b, err)
 }

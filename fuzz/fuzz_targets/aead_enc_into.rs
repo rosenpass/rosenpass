@@ -15,8 +15,7 @@ pub struct Input {
 }
 
 fuzz_target!(|input: Input| {
-    let mut ciphertext: Vec<u8> = Vec::with_capacity(input.plaintext.len() + 16);
-    ciphertext.resize(input.plaintext.len() + 16, 0);
+    let mut ciphertext = vec![0u8; input.plaintext.len() + 16];
 
     aead::encrypt(
         ciphertext.as_mut_slice(),

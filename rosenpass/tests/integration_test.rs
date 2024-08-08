@@ -15,9 +15,19 @@ use std::io::Write;
 
 const BIN: &str = "rosenpass";
 
+fn setup_tests() {
+    use rosenpass_secret_memory as SM;
+    #[cfg(feature = "experiment_memfd_secret")]
+    SM::secret_policy_try_use_memfd_secrets();
+    #[cfg(not(feature = "experiment_memfd_secret"))]
+    SM::secret_policy_use_only_malloc_secrets();
+}
+
 // check that we can generate keys
 #[test]
 fn generate_keys() {
+    setup_tests();
+
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("keygen");
     fs::create_dir_all(&tmpdir).unwrap();
 
@@ -94,14 +104,11 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.command
-            .run(Some(
-                server_test_builder
-                    .termination_handler(Some(server_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+        let test_helpers = server_test_builder
+            .termination_handler(Some(server_terminate_rx))
+            .build()
             .unwrap();
+        cli.run(Some(test_helpers)).unwrap();
     });
 
     let cli = CliArgs::try_parse_from(
@@ -112,14 +119,11 @@ fn run_server_client_exchange(
     .unwrap();
 
     std::thread::spawn(move || {
-        cli.command
-            .run(Some(
-                client_test_builder
-                    .termination_handler(Some(client_terminate_rx))
-                    .build()
-                    .unwrap(),
-            ))
+        let test_helpers = client_test_builder
+            .termination_handler(Some(client_terminate_rx))
+            .build()
             .unwrap();
+        cli.run(Some(test_helpers)).unwrap();
     });
 
     // give them some time to do the key exchange under load
@@ -134,6 +138,7 @@ fn run_server_client_exchange(
 #[test]
 #[serial]
 fn check_exchange_under_normal() {
+    setup_tests();
     setup_logging();
 
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("exchange");
@@ -206,6 +211,7 @@ fn check_exchange_under_normal() {
 #[test]
 #[serial]
 fn check_exchange_under_dos() {
+    setup_tests();
     setup_logging();
 
     //Generate binary with responder with feature integration_test
@@ -283,6 +289,7 @@ struct MockBrokerInner {
     interface: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 struct MockBroker {
     inner: Arc<Mutex<MockBrokerInner>>,
@@ -321,7 +328,7 @@ impl rosenpass_wireguard_broker::WireGuardBroker for MockBroker {
             if let Ok(ref mut mutex) = lock {
                 **mutex = MockBrokerInner {
                     psk: Some(config.psk.clone()),
-                    peer_id: Some(config.peer_id.clone()),
+                    peer_id: Some(*config.peer_id),
                     interface: Some(std::str::from_utf8(config.interface).unwrap().to_string()),
                 };
                 break Ok(());

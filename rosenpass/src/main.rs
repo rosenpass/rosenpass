@@ -8,6 +8,14 @@ pub fn main() {
     // parse CLI arguments
     let args = CliArgs::parse();
 
+    {
+        use rosenpass_secret_memory as SM;
+        #[cfg(feature = "experiment_memfd_secret")]
+        SM::secret_policy_try_use_memfd_secrets();
+        #[cfg(not(feature = "experiment_memfd_secret"))]
+        SM::secret_policy_use_only_malloc_secrets();
+    }
+
     // init logging
     {
         let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
@@ -26,10 +34,10 @@ pub fn main() {
         // error!("error dummy");
     }
 
-    match args.command.run(None) {
+    match args.run(None) {
         Ok(_) => {}
         Err(e) => {
-            error!("{e}");
+            error!("{e:?}");
             exit(1);
         }
     }

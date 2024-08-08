@@ -52,23 +52,17 @@ impl MioBrokerClient {
 
         // This sucks
         match self.inner.poll_response() {
-            Ok(res) => {
-                return Ok(res);
-            }
-            Err(BrokerClientPollResponseError::IoError(e)) => {
-                return Err(e);
-            }
-            Err(BrokerClientPollResponseError::InvalidMessage) => {
-                bail!("Invalid message");
-            }
-        };
+            Ok(res) => Ok(res),
+            Err(BrokerClientPollResponseError::IoError(e)) => Err(e),
+            Err(BrokerClientPollResponseError::InvalidMessage) => bail!("Invalid message"),
+        }
     }
 }
 
 impl WireGuardBroker for MioBrokerClient {
     type Error = anyhow::Error;
 
-    fn set_psk<'a>(&mut self, config: SerializedBrokerConfig<'a>) -> anyhow::Result<()> {
+    fn set_psk(&mut self, config: SerializedBrokerConfig<'_>) -> anyhow::Result<()> {
         use BrokerClientSetPskError::*;
         let e = self.inner.set_psk(config);
         match e {
@@ -115,7 +109,7 @@ impl BrokerClientIo for MioBrokerClientIo {
     fn send_msg(&mut self, buf: &[u8]) -> Result<(), Self::SendError> {
         self.flush()?;
         self.send_or_buffer(&(buf.len() as u64).to_le_bytes())?;
-        self.send_or_buffer(&buf)?;
+        self.send_or_buffer(buf)?;
         self.flush()?;
 
         Ok(())
@@ -192,7 +186,7 @@ impl MioBrokerClientIo {
 
         self.send_buf.drain(..written);
 
-        (&self.socket).try_io(|| (&self.socket).flush())?;
+        self.socket.try_io(|| (&self.socket).flush())?;
 
         res
     }
@@ -204,7 +198,7 @@ impl MioBrokerClientIo {
             off += raw_send(&self.socket, buf)?;
         }
 
-        self.send_buf.extend((&buf[off..]).iter());
+        self.send_buf.extend(buf[off..].iter());
 
         Ok(())
     }
@@ -231,7 +225,7 @@ fn raw_send(mut socket: &mio::net::UnixStream, data: &[u8]) -> anyhow::Result<us
         }
     })?;
 
-    return Ok(off);
+    Ok(off)
 }
 
 fn raw_recv(mut socket: &mio::net::UnixStream, out: &mut [u8]) -> anyhow::Result<usize> {
@@ -255,5 +249,5 @@ fn raw_recv(mut socket: &mio::net::UnixStream, out: &mut [u8]) -> anyhow::Result
         }
     })?;
 
-    return Ok(off);
+    Ok(off)
 }

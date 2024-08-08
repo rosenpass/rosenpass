@@ -3,9 +3,6 @@ use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
-use rosenpass_secret_memory::{
-    secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets,
-};
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
@@ -35,11 +32,21 @@ pub struct CliArgs {
     #[arg(short, long, group = "log-level")]
     quiet: bool,
 
+    #[command(flatten)]
+    #[cfg(feature = "experiment_api")]
+    api: crate::api::cli::ApiCli,
+
     #[command(subcommand)]
     pub command: CliCommand,
 }
 
 impl CliArgs {
+    pub fn apply_to_config(&self, _cfg: &mut config::Rosenpass) -> anyhow::Result<()> {
+        #[cfg(feature = "experiment_api")]
+        self.api.apply_to_config(_cfg)?;
+        Ok(())
+    }
+
     /// returns the log level filter set by CLI args
     /// returns `None` if the user did not specify any log level filter via CLI
     ///
@@ -152,21 +159,14 @@ pub enum CliCommand {
     Man,
 }
 
-impl CliCommand {
+impl CliArgs {
     /// runs the command specified via CLI
     ///
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
     pub fn run(self, test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
-        //Specify secret policy
-
-        #[cfg(feature = "enable_memfd_alloc")]
-        secret_policy_try_use_memfd_secrets();
-        #[cfg(not(feature = "enable_memfd_alloc"))]
-        secret_policy_use_only_malloc_secrets();
-
         use CliCommand::*;
-        match self {
+        match &self.command {
             Man => {
                 let man_cmd = std::process::Command::new("man")
                     .args(["1", "rosenpass"])
@@ -178,7 +178,7 @@ impl CliCommand {
             }
             GenConfig { config_file, force } => {
                 ensure!(
-                    force || !config_file.exists(),
+                    *force || !config_file.exists(),
                     "config file {config_file:?} already exists"
                 );
 
@@ -193,9 +193,9 @@ impl CliCommand {
                 let mut secret_key: Option<PathBuf> = None;
 
                 // Manual arg parsing, since clap wants to prefix flags with "--"
-                let mut args = args.into_iter();
+                let mut args = args.iter();
                 loop {
-                    match (args.next().as_deref(), args.next()) {
+                    match (args.next().map(|x| x.as_str()), args.next()) {
                         (Some("private-key"), Some(opt)) | (Some("secret-key"), Some(opt)) => {
                             secret_key = Some(opt.into());
                         }
@@ -237,7 +237,7 @@ impl CliCommand {
 
                         (config.public_key, config.secret_key)
                     }
-                    (_, Some(pkf), Some(skf)) => (pkf, skf),
+                    (_, Some(pkf), Some(skf)) => (pkf.clone(), skf.clone()),
                     _ => {
                         bail!("either a config-file or both public-key and secret-key file are required")
                     }
@@ -269,31 +269,36 @@ impl CliCommand {
                     "config file '{config_file:?}' does not exist"
                 );
 
-                let config = config::Rosenpass::load(config_file)?;
+                let mut config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
+                self.apply_to_config(&mut config)?;
+
                 Self::event_loop(config, test_helpers)?;
             }
 
             Exchange {
                 first_arg,
-                mut rest_of_args,
+                rest_of_args,
                 config_file,
             } => {
-                rest_of_args.insert(0, first_arg);
+                let mut rest_of_args = rest_of_args.clone();
+                rest_of_args.insert(0, first_arg.clone());
                 let args = rest_of_args;
                 let mut config = config::Rosenpass::parse_args(args)?;
 
                 if let Some(p) = config_file {
-                    config.store(&p)?;
-                    config.config_file_path = p;
+                    config.store(p)?;
+                    config.config_file_path.clone_from(p);
                 }
                 config.validate()?;
+                self.apply_to_config(&mut config)?;
+
                 Self::event_loop(config, test_helpers)?;
             }
 
             Validate { config_files } => {
                 for file in config_files {
-                    match config::Rosenpass::load(&file) {
+                    match config::Rosenpass::load(file) {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
@@ -315,6 +320,7 @@ impl CliCommand {
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
         const MAX_PSK_SIZE: usize = 1000;
+
         // load own keys
         let sk = SSk::load(&config.secret_key)?;
         let pk = SPk::load(&config.public_key)?;
@@ -323,10 +329,12 @@ impl CliCommand {
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
             sk,
             pk,
-            config.listen,
+            config.listen.clone(),
             config.verbosity,
             test_helpers,
         )?);
+
+        config.apply_to_app_server(&mut srv)?;
 
         let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
 
@@ -374,4 +382,16 @@ fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow
     StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
+}
+
+#[cfg(feature = "internal_testing")]
+pub mod testing {
+    use super::*;
+
+    pub fn generate_and_save_keypair(
+        secret_key: PathBuf,
+        public_key: PathBuf,
+    ) -> anyhow::Result<()> {
+        super::generate_and_save_keypair(secret_key, public_key)
+    }
 }

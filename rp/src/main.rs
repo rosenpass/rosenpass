@@ -11,9 +11,9 @@ mod key;
 
 #[tokio::main]
 async fn main() {
-    #[cfg(feature = "enable_memfd_alloc")]
+    #[cfg(feature = "experiment_memfd_secret")]
     policy::secret_policy_try_use_memfd_secrets();
-    #[cfg(not(feature = "enable_memfd_alloc"))]
+    #[cfg(not(feature = "experiment_memfd_secret"))]
     policy::secret_policy_use_only_malloc_secrets();
 
     let cli = match Cli::parse(std::env::args().peekable()) {
