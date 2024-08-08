@@ -25,6 +25,24 @@ pub trait GuaranteedValue {
     fn guaranteed(self) -> Self::Value;
 }
 
+pub trait FinallyExt {
+    fn finally<F: FnOnce(&mut Self)>(self, f: F) -> Self;
+}
+
+impl<T, E> FinallyExt for Result<T, E> {
+    fn finally<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+        f(&mut self);
+        self
+    }
+}
+
+impl<T> FinallyExt for Option<T> {
+    fn finally<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+        f(&mut self);
+        self
+    }
+}
+
 /// A result type that never contains an error.
 ///
 /// This is mostly useful in generic contexts.

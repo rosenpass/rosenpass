@@ -1042,30 +1042,45 @@ impl AppServer {
         // API poll
 
         #[cfg(feature = "experiment_api")]
-        self.api_manager.poll(
-            &mut self.crypt,
-            self.mio_poll.registry(),
-            &mut self.mio_token_dispenser,
-        )?;
+        {
+            use crate::api::mio::MioManagerContext;
+            MioManagerFocus(self).poll()?;
+        }
 
         Ok(None)
     }
 
     #[cfg(feature = "experiment_api")]
     pub fn add_api_connection(&mut self, connection: mio::net::UnixStream) -> std::io::Result<()> {
-        self.api_manager.add_connection(
-            connection,
-            self.mio_poll.registry(),
-            &mut self.mio_token_dispenser,
-        )
+        use crate::api::mio::MioManagerContext;
+        MioManagerFocus(self).add_connection(connection)
     }
 
     #[cfg(feature = "experiment_api")]
     pub fn add_api_listener(&mut self, listener: mio::net::UnixListener) -> std::io::Result<()> {
-        self.api_manager.add_listener(
-            listener,
-            self.mio_poll.registry(),
-            &mut self.mio_token_dispenser,
-        )
+        use crate::api::mio::MioManagerContext;
+        MioManagerFocus(self).add_listener(listener)
+    }
+}
+
+#[cfg(feature = "experiment_api")]
+struct MioManagerFocus<'a>(&'a mut AppServer);
+
+#[cfg(feature = "experiment_api")]
+impl crate::api::mio::MioManagerContext for MioManagerFocus<'_> {
+    fn mio_manager(&self) -> &crate::api::mio::MioManager {
+        &self.0.api_manager
+    }
+
+    fn mio_manager_mut(&mut self) -> &mut crate::api::mio::MioManager {
+        &mut self.0.api_manager
+    }
+
+    fn app_server(&self) -> &AppServer {
+        self.0
+    }
+
+    fn app_server_mut(&mut self) -> &mut AppServer {
+        self.0
     }
 }
