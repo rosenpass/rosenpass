@@ -731,7 +731,7 @@ impl AppServer {
             );
             if tries_left > 0 {
                 error!("re-initializing networking in {sleep}! {tries_left} tries left.");
-                std::thread::sleep(self.crypto_server_mut()?.timebase.dur(sleep));
+                std::thread::sleep(Duration::from_secs_f64(sleep));
                 continue;
             }
 
