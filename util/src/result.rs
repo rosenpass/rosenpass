@@ -8,6 +8,16 @@ macro_rules! attempt {
     };
 }
 
+pub trait OkExt<E>: Sized {
+    fn ok(self) -> Result<Self, E>;
+}
+
+impl<T, E> OkExt<E> for T {
+    fn ok(self) -> Result<Self, E> {
+        Ok(self)
+    }
+}
+
 /// Trait for container types that guarantee successful unwrapping.
 ///
 /// The `.guaranteed()` function can be used over unwrap to show that

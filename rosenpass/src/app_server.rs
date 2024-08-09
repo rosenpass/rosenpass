@@ -8,6 +8,7 @@ use mio::Interest;
 use mio::Token;
 use rosenpass_secret_memory::Public;
 use rosenpass_secret_memory::Secret;
+use rosenpass_util::build::ConstructionSite;
 use rosenpass_util::file::StoreValueB64;
 use rosenpass_wireguard_broker::WireguardBrokerMio;
 use rosenpass_wireguard_broker::{WireguardBrokerCfg, WG_KEY_LEN};
@@ -31,6 +32,7 @@ use std::slice;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
     config::Verbosity,
@@ -147,7 +149,7 @@ pub struct AppServerTest {
 // TODO add user control via unix domain socket and stdin/stdout
 #[derive(Debug)]
 pub struct AppServer {
-    pub crypt: Option<CryptoServer>,
+    pub crypto_site: ConstructionSite<BuildCryptoServer, CryptoServer>,
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
     pub mio_poll: mio::Poll,
@@ -606,7 +608,7 @@ impl AppServer {
         // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
 
         Ok(Self {
-            crypt: Some(CryptoServer::new(sk, pk)),
+            crypto_site: ConstructionSite::from_product(CryptoServer::new(sk, pk)),
             peers: Vec::new(),
             verbosity,
             sockets,
@@ -627,14 +629,14 @@ impl AppServer {
     }
 
     pub fn crypto_server(&self) -> anyhow::Result<&CryptoServer> {
-        self.crypt
-            .as_ref()
+        self.crypto_site
+            .product_ref()
             .context("Cryptography handler not initialized")
     }
 
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
-        self.crypt
-            .as_mut()
+        self.crypto_site
+            .product_mut()
             .context("Cryptography handler not initialized")
     }
 
@@ -688,8 +690,13 @@ impl AppServer {
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
     ) -> anyhow::Result<AppPeerPtr> {
-        let PeerPtr(pn) = self.crypto_server_mut()?.add_peer(psk, pk)?;
+        let PeerPtr(pn) = match &mut self.crypto_site {
+            ConstructionSite::Void => bail!("Crypto server construction site is void"),
+            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk),
+            ConstructionSite::Product(srv) => srv.add_peer(psk, pk)?,
+        };
         assert!(pn == self.peers.len());
+
         let initial_endpoint = hostname
             .map(Endpoint::discovery_from_hostname)
             .transpose()?;
@@ -774,16 +781,31 @@ impl AppServer {
                 }
             }
 
-            match self.poll(&mut *rx)? {
-                #[allow(clippy::redundant_closure_call)]
-                SendInitiation(peer) => tx_maybe_with!(peer, || self
+            enum CryptoSrv {
+                Avail,
+                Missing,
+            }
+
+            let poll_result = self.poll(&mut *rx)?;
+            let have_crypto = match self.crypto_site.is_available() {
+                true => CryptoSrv::Avail,
+                false => CryptoSrv::Missing,
+            };
+
+            #[allow(clippy::redundant_closure_call)]
+            match (have_crypto, poll_result) {
+                (CryptoSrv::Missing, SendInitiation(_)) => {}
+                (CryptoSrv::Avail, SendInitiation(peer)) => tx_maybe_with!(peer, || self
                     .crypto_server_mut()?
                     .initiate_handshake(peer.lower(), &mut *tx))?,
-                #[allow(clippy::redundant_closure_call)]
-                SendRetransmission(peer) => tx_maybe_with!(peer, || self
+
+                (CryptoSrv::Missing, SendRetransmission(_)) => {}
+                (CryptoSrv::Avail, SendRetransmission(peer)) => tx_maybe_with!(peer, || self
                     .crypto_server_mut()?
                     .retransmit_handshake(peer.lower(), &mut *tx))?,
-                DeleteKey(peer) => {
+
+                (CryptoSrv::Missing, DeleteKey(_)) => {}
+                (CryptoSrv::Avail, DeleteKey(peer)) => {
                     self.output_key(peer, Stale, &SymKey::random())?;
 
                     // There was a loss of connection apparently; restart host discovery
@@ -797,7 +819,8 @@ impl AppServer {
                     );
                 }
 
-                ReceivedMessage(len, endpoint) => {
+                (CryptoSrv::Missing, ReceivedMessage(_, _)) => {}
+                (CryptoSrv::Avail, ReceivedMessage(len, endpoint)) => {
                     let msg_result = match self.under_load {
                         DoSOperation::UnderLoad => {
                             self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
@@ -910,17 +933,32 @@ impl AppServer {
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
-        loop {
-            return Ok(match self.crypto_server_mut()?.poll()? {
-                C::DeleteKey(PeerPtr(no)) => A::DeleteKey(AppPeerPtr(no)),
-                C::SendInitiation(PeerPtr(no)) => A::SendInitiation(AppPeerPtr(no)),
-                C::SendRetransmission(PeerPtr(no)) => A::SendRetransmission(AppPeerPtr(no)),
-                C::Sleep(timeout) => match self.try_recv(rx_buf, timeout)? {
-                    Some((len, addr)) => A::ReceivedMessage(len, addr),
-                    None => continue,
-                },
-            });
-        }
+        let res = loop {
+            // Call CryptoServer's poll (if available)
+            let crypto_poll = self
+                .crypto_site
+                .product_mut()
+                .map(|crypto| crypto.poll())
+                .transpose()?;
+
+            // Map crypto server's poll result to our poll result
+            let io_poll_timeout = match crypto_poll {
+                Some(C::DeleteKey(PeerPtr(no))) => break A::DeleteKey(AppPeerPtr(no)),
+                Some(C::SendInitiation(PeerPtr(no))) => break A::SendInitiation(AppPeerPtr(no)),
+                Some(C::SendRetransmission(PeerPtr(no))) => {
+                    break A::SendRetransmission(AppPeerPtr(no))
+                }
+                Some(C::Sleep(timeout)) => timeout, // No event from crypto-server, do IO
+                None => crate::protocol::UNENDING,  // Crypto server is uninitialized, do IO
+            };
+
+            // Perform IO (look for a message)
+            if let Some((len, addr)) = self.try_recv(rx_buf, io_poll_timeout)? {
+                break A::ReceivedMessage(len, addr);
+            }
+        };
+
+        Ok(res)
     }
 
     /// Tries to receive a new message
