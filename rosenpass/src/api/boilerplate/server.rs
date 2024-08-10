@@ -34,7 +34,7 @@ pub trait Server {
         };
         self.dispatch(&mut pair)?;
 
-        let res_len = pair.request().bytes().len();
+        let res_len = pair.response().bytes().len();
         Ok(res_len)
     }
 }
