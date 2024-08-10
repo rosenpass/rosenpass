@@ -1,24 +1,35 @@
+use super::{ByteSliceRefExt, Message, PingRequest, PingResponse, RequestRef, RequestResponsePair};
+use std::{collections::VecDeque, os::fd::OwnedFd};
 use zerocopy::{ByteSlice, ByteSliceMut};
 
-use super::{ByteSliceRefExt, Message, PingRequest, PingResponse, RequestRef, RequestResponsePair};
-
 pub trait Server {
-    fn ping(&mut self, req: &PingRequest, res: &mut PingResponse) -> anyhow::Result<()>;
+    fn ping(
+        &mut self,
+        req: &PingRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut PingResponse,
+    ) -> anyhow::Result<()>;
 
     fn dispatch<ReqBuf, ResBuf>(
         &mut self,
         p: &mut RequestResponsePair<ReqBuf, ResBuf>,
+        req_fds: &mut VecDeque<OwnedFd>,
     ) -> anyhow::Result<()>
     where
         ReqBuf: ByteSlice,
         ResBuf: ByteSliceMut,
     {
         match p {
-            RequestResponsePair::Ping((req, res)) => self.ping(req, res),
+            RequestResponsePair::Ping((req, res)) => self.ping(req, req_fds, res),
         }
     }
 
-    fn handle_message<ReqBuf, ResBuf>(&mut self, req: ReqBuf, res: ResBuf) -> anyhow::Result<usize>
+    fn handle_message<ReqBuf, ResBuf>(
+        &mut self,
+        req: ReqBuf,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: ResBuf,
+    ) -> anyhow::Result<usize>
     where
         ReqBuf: ByteSlice,
         ResBuf: ByteSliceMut,
@@ -32,7 +43,7 @@ pub trait Server {
                 RequestResponsePair::Ping((req, res))
             }
         };
-        self.dispatch(&mut pair)?;
+        self.dispatch(&mut pair, req_fds)?;
 
         let res_len = pair.response().bytes().len();
         Ok(res_len)

@@ -1,3 +1,5 @@
+use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
+
 use rosenpass_to::{ops::copy_slice, To};
 
 use crate::app_server::AppServer;
@@ -30,6 +32,7 @@ where
     fn ping(
         &mut self,
         req: &super::PingRequest,
+        _req_fds: &mut VecDeque<OwnedFd>,
         res: &mut super::PingResponse,
     ) -> anyhow::Result<()> {
         let (req, res) = (&req.payload, &mut res.payload);

@@ -55,6 +55,7 @@ hex = { workspace = true, optional = true }
 heck = { workspace = true, optional = true }
 command-fds = { workspace = true, optional = true }
 rustix = { workspace = true }
+uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -71,6 +72,6 @@ tempfile = { workspace = true }
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_broker_api = ["rosenpass-wireguard-broker/experiment_broker_api", "command-fds"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
-experiment_api = ["hex-literal"]
+experiment_api = ["hex-literal", "uds", "rosenpass-util/experiment_file_descriptor_passing"]
 internal_testing  = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]

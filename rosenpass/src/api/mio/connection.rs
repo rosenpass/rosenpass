@@ -1,7 +1,10 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::collections::VecDeque;
+use std::os::fd::OwnedFd;
 
 use mio::net::UnixStream;
 use rosenpass_secret_memory::Secret;
+use rosenpass_util::mio::ReadWithFileDescriptors;
 use rosenpass_util::{
     io::{IoResultKindHintExt, TryIoResultKindHintExt},
     length_prefix_encoding::{
@@ -12,6 +15,7 @@ use rosenpass_util::{
 };
 use zeroize::Zeroize;
 
+use crate::api::MAX_REQUEST_FDS;
 use crate::{api::Server, app_server::AppServer};
 
 use super::super::{ApiHandler, ApiHandlerContext};
@@ -39,11 +43,13 @@ impl<const N: usize> BorrowMut<[u8]> for SecretBuffer<N> {
 // TODO: Unfortunately, zerocopy is quite particular about alignment, hence the 4096
 type ReadBuffer = LengthPrefixDecoder<SecretBuffer<4096>>;
 type WriteBuffer = LengthPrefixEncoder<SecretBuffer<4096>>;
+type ReadFdBuffer = VecDeque<OwnedFd>;
 
 #[derive(Debug)]
 struct MioConnectionBuffers {
     read_buffer: ReadBuffer,
     write_buffer: WriteBuffer,
+    read_fd_buffer: ReadFdBuffer,
 }
 
 #[derive(Debug)]
@@ -65,9 +71,11 @@ impl MioConnection {
         let invalid_read = false;
         let read_buffer = LengthPrefixDecoder::new(SecretBuffer::new());
         let write_buffer = LengthPrefixEncoder::from_buffer(SecretBuffer::new());
+        let read_fd_buffer = VecDeque::new();
         let buffers = Some(MioConnectionBuffers {
             read_buffer,
             write_buffer,
+            read_fd_buffer,
         });
         let api_state = ApiHandler::new();
         Ok(Self {
@@ -106,20 +114,22 @@ pub trait MioConnectionContext {
     }
 
     fn handle_incoming_message(&mut self) -> anyhow::Result<Option<()>> {
-        self.with_buffers_stolen(|this, read_buf, write_buf| {
+        self.with_buffers_stolen(|this, bufs| {
             // Acquire request & response. Caller is responsible to make sure
             // that read buffer holds a message and that write buffer is cleared.
             // Hence the unwraps and assertions
-            assert!(write_buf.exhausted());
-            let req = read_buf.message().unwrap().unwrap();
-            let res = write_buf.buffer_bytes_mut();
+            assert!(bufs.write_buffer.exhausted());
+            let req = bufs.read_buffer.message().unwrap().unwrap();
+            let req_fds = &mut bufs.read_fd_buffer;
+            let res = bufs.write_buffer.buffer_bytes_mut();
 
             // Call API handler
             // Transitive trait implementations: MioConnectionContext -> ApiHandlerContext -> as ApiServer
-            let response_len = this.handle_message(req, res)?;
+            let response_len = this.handle_message(req, req_fds, res)?;
 
-            write_buf.restart_write_with_new_message(response_len)?;
-            read_buf.zeroize(); // clear for new message to read
+            bufs.write_buffer
+                .restart_write_with_new_message(response_len)?;
+            bufs.read_buffer.zeroize(); // clear for new message to read
 
             Ok(Some(()))
         })
@@ -130,36 +140,37 @@ pub trait MioConnectionContext {
             return Ok(Some(()));
         }
 
-        self.with_buffers_stolen(|this, _read_buf, write_buf| {
-            use lpe_encoder::WriteToIoReturn as Ret;
-            use std::io::ErrorKind as K;
+        use lpe_encoder::WriteToIoReturn as Ret;
+        use std::io::ErrorKind as K;
 
-            loop {
-                match write_buf
-                    .write_to_stdio(&this.mio_connection_mut().io)
-                    .io_err_kind_hint()
-                {
-                    // Done
-                    Ok(Ret { done: true, .. }) => {
-                        write_buf.zeroize(); // clear for new message to write
-                        break Ok(Some(()));
-                    },
+        loop {
+            let conn = self.mio_connection_mut();
+            let bufs = conn.buffers.as_mut().unwrap();
 
-                    // Would block
-                    Ok(Ret {
-                        bytes_written: 0, ..
-                    }) => break Ok(None),
-                    Err((_e, K::WouldBlock)) => break Ok(None),
+            let sock = &conn.io;
+            let write_buf = &mut bufs.write_buffer;
 
-                    // Just continue
-                    Ok(_) => continue, /* Ret { bytes_written > 0, done = false } acc. to previous cases*/
-                    Err((_e, K::Interrupted)) => continue,
-
-                    // Other errors
-                    Err((e, _ek)) => Err(e)?,
+            match write_buf.write_to_stdio(sock).io_err_kind_hint() {
+                // Done
+                Ok(Ret { done: true, .. }) => {
+                    write_buf.zeroize(); // clear for new message to write
+                    break Ok(Some(()));
                 }
+
+                // Would block
+                Ok(Ret {
+                    bytes_written: 0, ..
+                }) => break Ok(None),
+                Err((_e, K::WouldBlock)) => break Ok(None),
+
+                // Just continue
+                Ok(_) => continue, /* Ret { bytes_written > 0, done = false } acc. to previous cases*/
+                Err((_e, K::Interrupted)) => continue,
+
+                // Other errors
+                Err((e, _ek)) => Err(e)?,
             }
-        })
+        }
     }
 
     fn recv(&mut self) -> anyhow::Result<Option<()>> {
@@ -167,49 +178,68 @@ pub trait MioConnectionContext {
             return Ok(None);
         }
 
-        self.with_buffers_stolen(|this, read_buf, _write_buf| {
-            use lpe_decoder::{ReadFromIoError as E, ReadFromIoReturn as Ret};
-            use std::io::ErrorKind as K;
+        use lpe_decoder::{ReadFromIoError as E, ReadFromIoReturn as Ret};
+        use std::io::ErrorKind as K;
 
-            loop {
-                match read_buf
-                    .read_from_stdio(&this.mio_connection_mut().io)
-                    .try_io_err_kind_hint()
-                {
-                    // We actually received a proper message
-                    // (Impl below match to appease borrow checker)
-                    Ok(Ret {
-                        message: Some(_msg),
-                        ..
-                    }) => break Ok(Some(())),
+        loop {
+            let conn = self.mio_connection_mut();
+            let bufs = conn.buffers.as_mut().unwrap();
 
-                    // Message does not fit in buffer
-                    Err((e @ E::MessageTooLargeError { .. }, _)) => {
-                        log::warn!("Received message on API that was too big to fit in our buffers; \
+            let read_buf = &mut bufs.read_buffer;
+            let read_fd_buf = &mut bufs.read_fd_buffer;
+
+            let sock = &conn.io;
+            let fd_passing_sock = ReadWithFileDescriptors::<MAX_REQUEST_FDS, UnixStream, _, _>::new(
+                sock,
+                read_fd_buf,
+            );
+
+            match read_buf
+                .read_from_stdio(fd_passing_sock)
+                .try_io_err_kind_hint()
+            {
+                // We actually received a proper message
+                // (Impl below match to appease borrow checker)
+                Ok(Ret {
+                    message: Some(_msg),
+                    ..
+                }) => break Ok(Some(())),
+
+                // Message does not fit in buffer
+                Err((e @ E::MessageTooLargeError { .. }, _)) => {
+                    log::warn!("Received message on API that was too big to fit in our buffers; \
                             looks like the client is broken. Stopping to process messages of the client.\n\
                             Error: {e:?}");
-                        // TODO: We should properly close down the socket in this case, but to do that,
-                        // we need to have the facilities in the Rosenpass IO handling system to close
-                        // open connections.
-                        // Just leaving the API connections dangling for now.
-                        // This should be fixed for non-experimental use of the API.
-                        this.mio_connection_mut().invalid_read = true;
-                        break Ok(None);
-                    }
+                    // TODO: We should properly close down the socket in this case, but to do that,
+                    // we need to have the facilities in the Rosenpass IO handling system to close
+                    // open connections.
+                    // Just leaving the API connections dangling for now.
+                    // This should be fixed for non-experimental use of the API.
+                    conn.invalid_read = true;
+                    break Ok(None);
+                }
 
-                    // Would block
-                    Ok(Ret { bytes_read: 0, .. }) => break Ok(None),
-                    Err((_, Some(K::WouldBlock))) => break Ok(None),
+                // Would block
+                Ok(Ret { bytes_read: 0, .. }) => break Ok(None),
+                Err((_, Some(K::WouldBlock))) => break Ok(None),
 
-                    // Just keep going
-                    Ok(Ret { bytes_read: _, .. }) => continue,
-                    Err((_, Some(K::Interrupted))) => continue,
+                // Just keep going
+                Ok(Ret { bytes_read: _, .. }) => continue,
+                Err((_, Some(K::Interrupted))) => continue,
 
-                    // Other IO Error (just pass on to the caller)
-                    Err((E::IoError(e), _)) => Err(e)?,
-                };
-            }
-        })
+                // Other IO Error (just pass on to the caller)
+                Err((E::IoError(e), _)) => {
+                    log::warn!(
+                        "IO error while trying to read message from API socket. \
+                            The connection is broken. Stopping to process messages of the client.\n\
+                            Error: {e:?}"
+                    );
+                    // TODO: Same as above
+                    conn.invalid_read = true;
+                    break Err(e.into());
+                }
+            };
+        }
     }
 }
 
@@ -224,32 +254,23 @@ trait MioConnectionContextPrivate: MioConnectionContext {
         let _ = opt.insert(buffers);
     }
 
-    fn with_buffers_stolen<R, F: FnOnce(&mut Self, &mut ReadBuffer, &mut WriteBuffer) -> R>(
+    fn with_buffers_stolen<R, F: FnOnce(&mut Self, &mut MioConnectionBuffers) -> R>(
         &mut self,
         f: F,
     ) -> R {
         let mut bufs = self.steal_buffers();
-        let res = f(self, &mut bufs.read_buffer, &mut bufs.write_buffer);
+        let res = f(self, &mut bufs);
         self.return_buffers(bufs);
         res
     }
 
-    fn both_buffers_mut(&mut self) -> (&mut ReadBuffer, &mut WriteBuffer) {
-        let bufs = self.mio_connection_mut().buffers.as_mut().unwrap();
-        let MioConnectionBuffers {
-            ref mut read_buffer,
-            ref mut write_buffer,
-        } = bufs;
-        (read_buffer, write_buffer)
-    }
-
-    #[allow(dead_code)]
-    fn read_buf_mut(&mut self) -> &mut ReadBuffer {
-        self.both_buffers_mut().0
-    }
-
     fn write_buf_mut(&mut self) -> &mut WriteBuffer {
-        self.both_buffers_mut().1
+        self.mio_connection_mut()
+            .buffers
+            .as_mut()
+            .unwrap()
+            .write_buffer
+            .borrow_mut()
     }
 }
 

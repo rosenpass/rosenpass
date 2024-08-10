@@ -6,6 +6,7 @@ use super::{Message, RawMsgType, RequestMsgType, ResponseMsgType};
 /// Size required to fit any message in binary form
 pub const MAX_REQUEST_LEN: usize = 2500; // TODO fix this
 pub const MAX_RESPONSE_LEN: usize = 2500; // TODO fix this
+pub const MAX_REQUEST_FDS: usize = 2;
 
 #[repr(packed)]
 #[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
