@@ -26,6 +26,7 @@ impl<B: ByteSlice> ResponseRef<B> {
     pub fn message_type(&self) -> ResponseMsgType {
         match self {
             Self::Ping(_) => ResponseMsgType::Ping,
+            Self::SupplyKeypair(_) => ResponseMsgType::SupplyKeypair,
         }
     }
 }
@@ -33,6 +34,12 @@ impl<B: ByteSlice> ResponseRef<B> {
 impl<B> From<Ref<B, PingResponse>> for ResponseRef<B> {
     fn from(v: Ref<B, PingResponse>) -> Self {
         Self::Ping(v)
+    }
+}
+
+impl<B> From<Ref<B, super::SupplyKeypairResponse>> for ResponseRef<B> {
+    fn from(v: Ref<B, super::SupplyKeypairResponse>) -> Self {
+        Self::SupplyKeypair(v)
     }
 }
 
@@ -49,6 +56,9 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
     fn parse(self) -> anyhow::Result<ResponseRef<B>> {
         Ok(match self.msg_type {
             ResponseMsgType::Ping => ResponseRef::Ping(self.buf.ping_response()?),
+            ResponseMsgType::SupplyKeypair => {
+                ResponseRef::SupplyKeypair(self.buf.supply_keypair_response()?)
+            }
         })
     }
 
@@ -83,6 +93,7 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
 
 pub enum ResponseRef<B> {
     Ping(Ref<B, PingResponse>),
+    SupplyKeypair(Ref<B, super::SupplyKeypairResponse>),
 }
 
 impl<B> ResponseRef<B>
@@ -92,6 +103,7 @@ where
     pub fn bytes(&self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes(),
+            Self::SupplyKeypair(r) => r.bytes(),
         }
     }
 }
@@ -103,6 +115,7 @@ where
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes_mut(),
+            Self::SupplyKeypair(r) => r.bytes_mut(),
         }
     }
 }

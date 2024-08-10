@@ -2,6 +2,7 @@
 
 pub mod b64;
 pub mod build;
+pub mod controlflow;
 pub mod fd;
 pub mod file;
 pub mod functional;

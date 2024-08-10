@@ -14,6 +14,13 @@ pub const PING_REQUEST: RawMsgType =
 pub const PING_RESPONSE: RawMsgType =
     RawMsgType::from_le_bytes(hex!("4ec7 f6f0 2bbc ba64    48f1 da14 c7cf 0260"));
 
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Supply Keypair Request
+const SUPPLY_KEYPAIR_REQUEST: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("ac91 a5a6 4f4b 21d0    ac7f 9b55 74f7 3529"));
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Supply Keypair Response
+const SUPPLY_KEYPAIR_RESPONSE: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("f2dc 49bd e261 5f10    40b7 3c16 ec61 edb9"));
+
 pub trait MessageAttributes {
     fn message_size(&self) -> usize;
 }
@@ -21,17 +28,20 @@ pub trait MessageAttributes {
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum RequestMsgType {
     Ping,
+    SupplyKeypair,
 }
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum ResponseMsgType {
     Ping,
+    SupplyKeypair,
 }
 
 impl MessageAttributes for RequestMsgType {
     fn message_size(&self) -> usize {
         match self {
             Self::Ping => std::mem::size_of::<super::PingRequest>(),
+            Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairRequest>(),
         }
     }
 }
@@ -40,6 +50,7 @@ impl MessageAttributes for ResponseMsgType {
     fn message_size(&self) -> usize {
         match self {
             Self::Ping => std::mem::size_of::<super::PingResponse>(),
+            Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairResponse>(),
         }
     }
 }
@@ -51,6 +62,7 @@ impl TryFrom<RawMsgType> for RequestMsgType {
         use RequestMsgType as E;
         Ok(match value {
             self::PING_REQUEST => E::Ping,
+            self::SUPPLY_KEYPAIR_REQUEST => E::SupplyKeypair,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -61,6 +73,7 @@ impl From<RequestMsgType> for RawMsgType {
         use RequestMsgType as E;
         match val {
             E::Ping => self::PING_REQUEST,
+            E::SupplyKeypair => self::SUPPLY_KEYPAIR_REQUEST,
         }
     }
 }
@@ -72,6 +85,7 @@ impl TryFrom<RawMsgType> for ResponseMsgType {
         use ResponseMsgType as E;
         Ok(match value {
             self::PING_RESPONSE => E::Ping,
+            self::SUPPLY_KEYPAIR_RESPONSE => E::SupplyKeypair,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -82,6 +96,7 @@ impl From<ResponseMsgType> for RawMsgType {
         use ResponseMsgType as E;
         match val {
             E::Ping => self::PING_RESPONSE,
+            E::SupplyKeypair => self::SUPPLY_KEYPAIR_RESPONSE,
         }
     }
 }

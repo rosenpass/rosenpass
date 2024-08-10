@@ -76,6 +76,8 @@ fn main() -> Result<()> {
             vec![
                 Tree::Leaf("Ping Request".to_owned()),
                 Tree::Leaf("Ping Response".to_owned()),
+                Tree::Leaf("Supply Keypair Request".to_owned()),
+                Tree::Leaf("Supply Keypair Response".to_owned()),
             ],
         )],
     );

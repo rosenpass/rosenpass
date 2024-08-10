@@ -42,15 +42,34 @@ impl ResponseMsg for PingResponse {
     type RequestMsg = PingRequest;
 }
 
+impl RequestMsg for super::SupplyKeypairRequest {
+    type ResponseMsg = super::SupplyKeypairResponse;
+}
+
+impl ResponseMsg for super::SupplyKeypairResponse {
+    type RequestMsg = super::SupplyKeypairRequest;
+}
+
 pub type PingPair<B1, B2> = (Ref<B1, PingRequest>, Ref<B2, PingResponse>);
+pub type SupplyKeypairPair<B1, B2> = (
+    Ref<B1, super::SupplyKeypairRequest>,
+    Ref<B2, super::SupplyKeypairResponse>,
+);
 
 pub enum RequestResponsePair<B1, B2> {
     Ping(PingPair<B1, B2>),
+    SupplyKeypair(SupplyKeypairPair<B1, B2>),
 }
 
 impl<B1, B2> From<PingPair<B1, B2>> for RequestResponsePair<B1, B2> {
     fn from(v: PingPair<B1, B2>) -> Self {
         RequestResponsePair::Ping(v)
+    }
+}
+
+impl<B1, B2> From<SupplyKeypairPair<B1, B2>> for RequestResponsePair<B1, B2> {
+    fn from(v: SupplyKeypairPair<B1, B2>) -> Self {
+        RequestResponsePair::SupplyKeypair(v)
     }
 }
 
@@ -64,6 +83,11 @@ where
             Self::Ping((req, res)) => {
                 let req = RequestRef::Ping(req.emancipate());
                 let res = ResponseRef::Ping(res.emancipate());
+                (req, res)
+            }
+            Self::SupplyKeypair((req, res)) => {
+                let req = RequestRef::SupplyKeypair(req.emancipate());
+                let res = ResponseRef::SupplyKeypair(res.emancipate());
                 (req, res)
             }
         }
@@ -88,6 +112,11 @@ where
             Self::Ping((req, res)) => {
                 let req = RequestRef::Ping(req.emancipate_mut());
                 let res = ResponseRef::Ping(res.emancipate_mut());
+                (req, res)
+            }
+            Self::SupplyKeypair((req, res)) => {
+                let req = RequestRef::SupplyKeypair(req.emancipate_mut());
+                let res = ResponseRef::SupplyKeypair(res.emancipate_mut());
                 (req, res)
             }
         }

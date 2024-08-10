@@ -95,3 +95,89 @@ impl Message for PingResponse {
         self.msg_type = Self::MESSAGE_TYPE.into();
     }
 }
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct SupplyKeypairRequestPayload {}
+
+pub type SupplyKeypairRequest = RequestEnvelope<SupplyKeypairRequestPayload>;
+
+impl Default for SupplyKeypairRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SupplyKeypairRequest {
+    pub fn new() -> Self {
+        Self::from_payload(SupplyKeypairRequestPayload {})
+    }
+}
+
+impl Message for SupplyKeypairRequest {
+    type Payload = SupplyKeypairRequestPayload;
+    type MessageClass = RequestMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = RequestMsgType::SupplyKeypair;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
+
+pub mod supply_keypair_response_status {
+    pub const OK: u128 = 0;
+    pub const KEYPAIR_ALREADY_SUPPLIED: u128 = 1;
+    pub const INTERNAL_ERROR: u128 = 2;
+    pub const INVALID_REQUEST: u128 = 3;
+    pub const IO_ERROR: u128 = 4;
+}
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct SupplyKeypairResponsePayload {
+    pub status: u128,
+}
+
+pub type SupplyKeypairResponse = ResponseEnvelope<SupplyKeypairResponsePayload>;
+
+impl SupplyKeypairResponse {
+    pub fn new(status: u128) -> Self {
+        Self::from_payload(SupplyKeypairResponsePayload { status })
+    }
+}
+
+impl Message for SupplyKeypairResponse {
+    type Payload = SupplyKeypairResponsePayload;
+    type MessageClass = ResponseMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = ResponseMsgType::SupplyKeypair;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}

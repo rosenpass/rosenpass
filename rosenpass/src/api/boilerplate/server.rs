@@ -10,6 +10,13 @@ pub trait Server {
         res: &mut PingResponse,
     ) -> anyhow::Result<()>;
 
+    fn supply_keypair(
+        &mut self,
+        req: &super::SupplyKeypairRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::SupplyKeypairResponse,
+    ) -> anyhow::Result<()>;
+
     fn dispatch<ReqBuf, ResBuf>(
         &mut self,
         p: &mut RequestResponsePair<ReqBuf, ResBuf>,
@@ -21,6 +28,9 @@ pub trait Server {
     {
         match p {
             RequestResponsePair::Ping((req, res)) => self.ping(req, req_fds, res),
+            RequestResponsePair::SupplyKeypair((req, res)) => {
+                self.supply_keypair(req, req_fds, res)
+            }
         }
     }
 
@@ -41,6 +51,11 @@ pub trait Server {
                 let mut res = res.ping_response_from_prefix()?;
                 res.init();
                 RequestResponsePair::Ping((req, res))
+            }
+            RequestRef::SupplyKeypair(req) => {
+                let mut res = res.supply_keypair_response_from_prefix()?;
+                res.init();
+                RequestResponsePair::SupplyKeypair((req, res))
             }
         };
         self.dispatch(&mut pair, req_fds)?;
