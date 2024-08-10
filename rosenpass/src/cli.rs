@@ -1,4 +1,4 @@
-use anyhow::{bail, ensure};
+use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
@@ -303,8 +303,11 @@ impl CliArgs {
                         );
 
                         let config = config::Rosenpass::load(config_file)?;
+                        let keypair = config
+                            .keypair
+                            .context("Config file present, but no keypair is specified.")?;
 
-                        (config.public_key, config.secret_key)
+                        (keypair.public_key, keypair.secret_key)
                     }
                     (_, Some(pkf), Some(skf)) => (pkf.clone(), skf.clone()),
                     _ => {
@@ -343,6 +346,7 @@ impl CliArgs {
                 let mut config = config::Rosenpass::load(config_file)?;
                 config.validate()?;
                 self.apply_to_config(&mut config)?;
+                config.check_usefullness()?;
 
                 Self::event_loop(config, broker_interface, test_helpers)?;
             }
@@ -363,6 +367,7 @@ impl CliArgs {
                 }
                 config.validate()?;
                 self.apply_to_config(&mut config)?;
+                config.check_usefullness()?;
 
                 Self::event_loop(config, broker_interface, test_helpers)?;
             }
@@ -394,13 +399,19 @@ impl CliArgs {
         const MAX_PSK_SIZE: usize = 1000;
 
         // load own keys
-        let sk = SSk::load(&config.secret_key)?;
-        let pk = SPk::load(&config.public_key)?;
+        let keypair = config
+            .keypair
+            .as_ref()
+            .map(|kp| -> anyhow::Result<_> {
+                let sk = SSk::load(&kp.secret_key)?;
+                let pk = SPk::load(&kp.public_key)?;
+                Ok((sk, pk))
+            })
+            .transpose()?;
 
         // start an application server
         let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
-            sk,
-            pk,
+            keypair,
             config.listen.clone(),
             config.verbosity,
             test_helpers,

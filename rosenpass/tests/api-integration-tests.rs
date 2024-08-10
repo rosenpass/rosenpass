@@ -37,10 +37,11 @@ fn api_integration_test() -> anyhow::Result<()> {
     let peer_b_osk = tempfile!("b.osk");
 
     use rosenpass::config;
+
+    let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
     let peer_a = config::Rosenpass {
         config_file_path: tempfile!("a.config"),
-        secret_key: tempfile!("a.sk"),
-        public_key: tempfile!("a.pk"),
+        keypair: Some(peer_a_keypair.clone()),
         listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
@@ -57,10 +58,10 @@ fn api_integration_test() -> anyhow::Result<()> {
         }],
     };
 
+    let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
     let peer_b = config::Rosenpass {
         config_file_path: tempfile!("b.config"),
-        secret_key: tempfile!("b.sk"),
-        public_key: tempfile!("b.pk"),
+        keypair: Some(peer_b_keypair.clone()),
         listen: vec![],
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
@@ -79,12 +80,12 @@ fn api_integration_test() -> anyhow::Result<()> {
 
     // Generate the keys
     rosenpass::cli::testing::generate_and_save_keypair(
-        peer_a.secret_key.clone(),
-        peer_a.public_key.clone(),
+        peer_a_keypair.secret_key.clone(),
+        peer_a_keypair.public_key.clone(),
     )?;
     rosenpass::cli::testing::generate_and_save_keypair(
-        peer_b.secret_key.clone(),
-        peer_b.public_key.clone(),
+        peer_b_keypair.secret_key.clone(),
+        peer_b_keypair.public_key.clone(),
     )?;
 
     // Write the configuration files

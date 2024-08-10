@@ -38,4 +38,12 @@ impl ApiConfig {
 
         Ok(())
     }
+
+    pub fn count_api_sources(&self) -> usize {
+        self.listen_path.len() + self.listen_fd.len() + self.stream_fd.len()
+    }
+
+    pub fn has_api_sources(&self) -> bool {
+        self.count_api_sources() > 0
+    }
 }

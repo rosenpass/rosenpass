@@ -514,8 +514,7 @@ impl HostPathDiscoveryEndpoint {
 
 impl AppServer {
     pub fn new(
-        sk: SSk,
-        pk: SPk,
+        keypair: Option<(SSk, SPk)>,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
         test_helpers: Option<AppServerTest>,
@@ -605,10 +604,13 @@ impl AppServer {
             )?;
         }
 
-        // TODO use mio::net::UnixStream together with std::os::unix::net::UnixStream for Linux
+        let crypto_site = match keypair {
+            Some((sk, pk)) => ConstructionSite::from_product(CryptoServer::new(sk, pk)),
+            None => ConstructionSite::new(BuildCryptoServer::empty()),
+        };
 
         Ok(Self {
-            crypto_site: ConstructionSite::from_product(CryptoServer::new(sk, pk)),
+            crypto_site,
             peers: Vec::new(),
             verbosity,
             sockets,
