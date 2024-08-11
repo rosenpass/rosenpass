@@ -27,6 +27,7 @@ impl<B: ByteSlice> ResponseRef<B> {
         match self {
             Self::Ping(_) => ResponseMsgType::Ping,
             Self::SupplyKeypair(_) => ResponseMsgType::SupplyKeypair,
+            Self::AddListenSocket(_) => ResponseMsgType::AddListenSocket,
         }
     }
 }
@@ -40,6 +41,12 @@ impl<B> From<Ref<B, PingResponse>> for ResponseRef<B> {
 impl<B> From<Ref<B, super::SupplyKeypairResponse>> for ResponseRef<B> {
     fn from(v: Ref<B, super::SupplyKeypairResponse>) -> Self {
         Self::SupplyKeypair(v)
+    }
+}
+
+impl<B> From<Ref<B, super::AddListenSocketResponse>> for ResponseRef<B> {
+    fn from(v: Ref<B, super::AddListenSocketResponse>) -> Self {
+        Self::AddListenSocket(v)
     }
 }
 
@@ -58,6 +65,9 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
             ResponseMsgType::Ping => ResponseRef::Ping(self.buf.ping_response()?),
             ResponseMsgType::SupplyKeypair => {
                 ResponseRef::SupplyKeypair(self.buf.supply_keypair_response()?)
+            }
+            ResponseMsgType::AddListenSocket => {
+                ResponseRef::AddListenSocket(self.buf.add_listen_socket_response()?)
             }
         })
     }
@@ -94,6 +104,7 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
 pub enum ResponseRef<B> {
     Ping(Ref<B, PingResponse>),
     SupplyKeypair(Ref<B, super::SupplyKeypairResponse>),
+    AddListenSocket(Ref<B, super::AddListenSocketResponse>),
 }
 
 impl<B> ResponseRef<B>
@@ -104,6 +115,7 @@ where
         match self {
             Self::Ping(r) => r.bytes(),
             Self::SupplyKeypair(r) => r.bytes(),
+            Self::AddListenSocket(r) => r.bytes(),
         }
     }
 }
@@ -116,6 +128,7 @@ where
         match self {
             Self::Ping(r) => r.bytes_mut(),
             Self::SupplyKeypair(r) => r.bytes_mut(),
+            Self::AddListenSocket(r) => r.bytes_mut(),
         }
     }
 }

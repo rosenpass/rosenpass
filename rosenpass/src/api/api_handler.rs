@@ -2,9 +2,13 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use anyhow::Context;
 use rosenpass_to::{ops::copy_slice, To};
-use rosenpass_util::{fd::FdIo, functional::run, io::ReadExt, mem::DiscardResultExt};
+use rosenpass_util::{
+    fd::FdIo, functional::run, io::ReadExt, mem::DiscardResultExt, result::OkExt,
+};
 
-use crate::{app_server::AppServer, protocol::BuildCryptoServer};
+use crate::{
+    api::add_listen_socket_response_status, app_server::AppServer, protocol::BuildCryptoServer,
+};
 
 use super::{supply_keypair_response_status, Server as ApiServer};
 
@@ -169,6 +173,56 @@ where
 
         res.payload.status = status;
 
+        Ok(())
+    }
+
+    fn add_listen_socket(
+        &mut self,
+        _req: &super::boilerplate::AddListenSocketRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::boilerplate::AddListenSocketResponse,
+    ) -> anyhow::Result<()> {
+        // Retrieve file descriptor
+        let sock_res = run(|| -> anyhow::Result<mio::net::UdpSocket> {
+            let sock = req_fds
+                .pop_front()
+                .context("Invalid request – socket missing.")?;
+            // TODO: We need to have this outside linux
+            #[cfg(target_os = "linux")]
+            rosenpass_util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
+            let sock = std::net::UdpSocket::from(sock);
+            sock.set_nonblocking(true)?;
+            mio::net::UdpSocket::from_std(sock).ok()
+        });
+
+        let mut sock = match sock_res {
+            Ok(sock) => sock,
+            Err(e) => {
+                log::debug!("Error processing AddListenSocket API request: {e:?}");
+                res.payload.status = add_listen_socket_response_status::INVALID_REQUEST;
+                return Ok(());
+            }
+        };
+
+        // Register socket
+        let reg_result = run(|| -> anyhow::Result<()> {
+            let srv = self.app_server_mut();
+            srv.mio_poll.registry().register(
+                &mut sock,
+                srv.mio_token_dispenser.dispense(),
+                mio::Interest::READABLE,
+            )?;
+            srv.sockets.push(sock);
+            Ok(())
+        });
+
+        if let Err(internal_error) = reg_result {
+            log::warn!("Internal error processing AddListenSocket API request: {internal_error:?}");
+            res.payload.status = add_listen_socket_response_status::INTERNAL_ERROR;
+            return Ok(());
+        };
+
+        res.payload.status = add_listen_socket_response_status::OK;
         Ok(())
     }
 }

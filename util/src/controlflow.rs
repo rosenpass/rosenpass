@@ -8,6 +8,20 @@ macro_rules! repeat {
 }
 
 #[macro_export]
+macro_rules! return_unless {
+    ($cond:expr) => {
+        if !($cond) {
+            return;
+        }
+    };
+    ($cond:expr, $val:expr) => {
+        if !($cond) {
+            return $val;
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! return_if {
     ($cond:expr) => {
         if $cond {

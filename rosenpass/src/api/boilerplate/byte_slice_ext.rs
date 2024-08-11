@@ -143,6 +143,44 @@ pub trait ByteSliceRefExt: ByteSlice {
     ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
         self.zk_parse_suffix()
     }
+
+    fn add_listen_socket_request(self) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse()
+    }
+
+    fn add_listen_socket_request_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_listen_socket_request_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse_suffix()
+    }
+
+    fn add_listen_socket_response_maker(self) -> RefMaker<Self, super::AddListenSocketResponse> {
+        self.zk_ref_maker()
+    }
+
+    fn add_listen_socket_response(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+        self.zk_parse()
+    }
+
+    fn add_listen_socket_response_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_listen_socket_response_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+        self.zk_parse_suffix()
+    }
 }
 
 impl<B: ByteSlice> ByteSliceRefExt for B {}
