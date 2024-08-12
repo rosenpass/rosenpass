@@ -7,7 +7,6 @@ use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
-use rosenpass_wireguard_broker::WireguardBrokerMio;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
@@ -24,6 +23,7 @@ use {
     mio::net::UnixStream,
     rosenpass_util::fd::claim_fd,
     rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
+    rosenpass_wireguard_broker::WireguardBrokerMio,
     rustix::fd::AsRawFd,
     rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
     std::os::unix::net,
@@ -463,10 +463,7 @@ impl CliArgs {
     #[cfg(not(feature = "experiment_broker_api"))]
     fn create_broker(
         _broker_interface: Option<BrokerInterface>,
-    ) -> Result<
-        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
-        anyhow::Error,
-    > {
+    ) -> Result<Box<NativeUnixBroker>, anyhow::Error> {
         Ok(Box::new(NativeUnixBroker::new()))
     }
 
