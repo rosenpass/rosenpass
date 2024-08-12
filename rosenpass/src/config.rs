@@ -21,6 +21,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;
 
+#[cfg(feature = "experiment_broker_api")]
+fn empty_api_config() -> crate::api::config::ApiConfig {
+    crate::api::config::ApiConfig {
+        listen_path: Vec::new(),
+        listen_fd: Vec::new(),
+        stream_fd: Vec::new(),
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
@@ -30,6 +39,7 @@ pub struct Rosenpass {
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
+    #[serde(default = "empty_api_config")]
     pub api: crate::api::config::ApiConfig,
 
     /// list of [`SocketAddr`] to listen on
