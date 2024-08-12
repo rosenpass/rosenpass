@@ -472,11 +472,7 @@ impl CliArgs {
         // Connect to the psk broker unix socket if one was specified
         // OR OTHERWISE spawn the psk broker and use socketpair(2) to connect with them
         match broker_interface {
-            BrokerInterface::Socket(broker_path) => {
-                let sock = net::UnixStream::connect(broker_path)?;
-                sock.set_nonblocking(true)?;
-                Ok(UnixStream::from_std(sock))
-            }
+            BrokerInterface::Socket(broker_path) => Ok(UnixStream::connect(broker_path)?),
             BrokerInterface::FileDescriptor(broker_fd) => {
                 // mio::net::UnixStream doesn't implement From<OwnedFd>, so we have to go through std
                 let sock = net::UnixStream::from(claim_fd(broker_fd)?);
