@@ -53,7 +53,7 @@ zeroize = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 heck = { workspace = true, optional = true }
-command-fds = { workspace = true }
+command-fds = { workspace = true, optional = true }
 rustix = { workspace = true }
 
 [build-dependencies]
@@ -68,9 +68,8 @@ procspawn = {workspace = true}
 tempfile = { workspace = true }
 
 [features]
-enable_wg_broker = ["enable_broker_api"]
-enable_broker_api = ["rosenpass-wireguard-broker/enable_broker_api"]
 experiment_memfd_secret = []
+experiment_broker_api = ["rosenpass-wireguard-broker/experimental_broker_api", "command-fds"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
 experiment_api = ["hex-literal"]
 internal_testing  = []

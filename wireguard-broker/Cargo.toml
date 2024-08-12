@@ -36,14 +36,14 @@ rand = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
-enable_broker_api=[]
+experimental_broker_api = []
 
 [[bin]]
 name = "rosenpass-wireguard-broker-privileged"
 path = "src/bin/priviledged.rs"
 test = false
 doc = false
-required-features=["enable_broker_api"]
+required-features = ["experimental_broker_api"]
 cfg = { target_os = "linux" } 
 
 [[bin]]
@@ -51,5 +51,5 @@ name = "rosenpass-wireguard-broker-socket-handler"
 test = false
 path = "src/bin/socket_handler.rs"
 doc = false
-required-features=["enable_broker_api"]
+required-features = ["experimental_broker_api"]
 cfg = { target_os = "linux" } 

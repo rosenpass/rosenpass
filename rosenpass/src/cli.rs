@@ -17,7 +17,7 @@ use crate::protocol::{SPk, SSk, SymKey};
 
 use super::config;
 
-#[cfg(feature = "enable_wg_broker")]
+#[cfg(feature = "experiment_broker_api")]
 use {
     command_fds::{CommandFdExt, FdMapping},
     log::{error, info},
@@ -60,7 +60,7 @@ pub struct CliArgs {
     api: crate::api::cli::ApiCli,
 
     /// path of the wireguard_psk broker socket to connect to
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     #[arg(long, group = "psk-broker-specs")]
     psk_broker_path: Option<PathBuf>,
 
@@ -70,12 +70,12 @@ pub struct CliArgs {
     /// Unix socket for the psk broker connection to use themselves, passing it to this process --
     /// in Rust this can be achieved using the
     /// [command-fds](https://docs.rs/command-fds/latest/command_fds/) crate
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     #[arg(long, group = "psk-broker-specs")]
     psk_broker_fd: Option<i32>,
 
     /// spawn a psk broker locally using a socket pair
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     #[arg(short, long, group = "psk-broker-specs")]
     psk_broker_spawn: bool,
 
@@ -109,9 +109,9 @@ impl CliArgs {
         None
     }
 
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     /// returns the broker interface set by CLI args
-    /// returns `None` if the `enable_wg_broker` feature isn't enabled
+    /// returns `None` if the `experiment_broker_api` feature isn't enabled
     pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         if let Some(path_ref) = self.psk_broker_path.as_ref() {
             Some(BrokerInterface::Socket(path_ref.to_path_buf()))
@@ -124,9 +124,9 @@ impl CliArgs {
         }
     }
 
-    #[cfg(not(feature = "enable_wg_broker"))]
+    #[cfg(not(feature = "experiment_broker_api"))]
     /// returns the broker interface set by CLI args
-    /// returns `None` if the `enable_wg_broker` feature isn't enabled
+    /// returns `None` if the `experiment_broker_api` feature isn't enabled
     pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         None
     }
@@ -445,7 +445,7 @@ impl CliArgs {
         srv.event_loop()
     }
 
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     fn create_broker(
         broker_interface: Option<BrokerInterface>,
     ) -> Result<
@@ -460,7 +460,7 @@ impl CliArgs {
         }
     }
 
-    #[cfg(not(feature = "enable_wg_broker"))]
+    #[cfg(not(feature = "experiment_broker_api"))]
     fn create_broker(
         _broker_interface: Option<BrokerInterface>,
     ) -> Result<
@@ -470,7 +470,7 @@ impl CliArgs {
         Ok(Box::new(NativeUnixBroker::new()))
     }
 
-    #[cfg(feature = "enable_wg_broker")]
+    #[cfg(feature = "experiment_broker_api")]
     fn get_broker_socket(broker_interface: BrokerInterface) -> Result<UnixStream, anyhow::Error> {
         // Connect to the psk broker unix socket if one was specified
         // OR OTHERWISE spawn the psk broker and use socketpair(2) to connect with them

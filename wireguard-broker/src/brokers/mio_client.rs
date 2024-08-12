@@ -2,7 +2,6 @@ use anyhow::{bail, ensure};
 use mio::Interest;
 use rosenpass_util::ord::max_usize;
 use std::collections::VecDeque;
-use std::dbg;
 use std::io::{ErrorKind, Read, Write};
 
 use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
