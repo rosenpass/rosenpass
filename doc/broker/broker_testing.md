@@ -19,14 +19,15 @@ PATH="$PWD/target/debug:$PATH" rosenpass gen-keys config-examples/peer-b-config.
 Now, open a second terminal and run the following in one (not using the broker):
 
 ```bash
-PATH="$PWD/target/debug:$PATH" rosenpass exchange-config config-examples/peer-a-config.toml 
+PATH="$PWD/target/debug:$PATH" rosenpass exchange-config config-examples/peer-a-config.toml
 ```
+
 and the following in the other (spawning a broker and communicating with it via socketpair(2)):
 
 ```bash
 cd rosenpass
-PATH="$PWD/target/debug:$PATH" rosenpass --psk_broker_spawn exchange-config config-examples/peer-a-config.toml 
-````
+PATH="$PWD/target/debug:$PATH" rosenpass --psk_broker_spawn exchange-config config-examples/peer-a-config.toml
+```
 
 You should see the two parties exchange keys, and can view the shared PSK via `wg show`.
 
