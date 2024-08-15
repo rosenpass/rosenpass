@@ -316,12 +316,14 @@ impl CliArgs {
                 let mut problems = vec![];
                 if !force && pkf.is_file() {
                     problems.push(format!(
-                        "public-key file {pkf:?} exist, refusing to overwrite it"
+                        "public-key file {:?} exists, refusing to overwrite",
+                        std::fs::canonicalize(&pkf)?,
                     ));
                 }
                 if !force && skf.is_file() {
                     problems.push(format!(
-                        "secret-key file {skf:?} exist, refusing to overwrite it"
+                        "secret-key file {:?} exists, refusing to overwrite",
+                        std::fs::canonicalize(&skf)?,
                     ));
                 }
                 if !problems.is_empty() {
