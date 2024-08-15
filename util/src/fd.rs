@@ -61,11 +61,9 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::read_to_string;
-    use std::fs::File;
-    use std::io::Read;
-    use std::io::Write;
-    use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
+    use std::fs::{read_to_string, File};
+    use std::io::{Read, Write};
+    use std::os::fd::IntoRawFd;
     use tempfile::tempdir;
 
     #[test]
