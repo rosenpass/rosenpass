@@ -101,7 +101,7 @@ impl CliArgs {
             return Some(log::LevelFilter::Info);
         }
         if self.quiet {
-            return Some(log::LevelFilter::Error);
+            return Some(log::LevelFilter::Warn);
         }
         if let Some(level_filter) = self.log_level {
             return Some(level_filter);
