@@ -38,7 +38,7 @@ rand = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
-experimental_broker_api = ["rustix", "libc"]
+experiment_broker_api = ["rustix", "libc"]
 experiment_memfd_secret = []
 
 [[bin]]
@@ -46,7 +46,7 @@ name = "rosenpass-wireguard-broker-privileged"
 path = "src/bin/priviledged.rs"
 test = false
 doc = false
-required-features = ["experimental_broker_api"]
+required-features = ["experiment_broker_api"]
 cfg = { target_os = "linux" } 
 
 [[bin]]
@@ -54,5 +54,5 @@ name = "rosenpass-wireguard-broker-socket-handler"
 test = false
 path = "src/bin/socket_handler.rs"
 doc = false
-required-features = ["experimental_broker_api"]
+required-features = ["experiment_broker_api"]
 cfg = { target_os = "linux" } 

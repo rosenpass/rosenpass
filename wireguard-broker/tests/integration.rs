@@ -1,4 +1,4 @@
-#[cfg(feature = "experimental_broker_api")]
+#[cfg(feature = "experiment_broker_api")]
 #[cfg(test)]
 mod integration_tests {
 

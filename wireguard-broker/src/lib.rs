@@ -34,7 +34,7 @@ pub trait WireguardBrokerMio: WireGuardBroker {
     fn unregister(&mut self, registry: &mio::Registry) -> Result<(), Self::MioError>;
 }
 
-#[cfg(feature = "experimental_broker_api")]
+#[cfg(feature = "experiment_broker_api")]
 pub mod api;
 
 pub mod brokers;
