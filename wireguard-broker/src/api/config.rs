@@ -2,7 +2,7 @@ use crate::{SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 use derive_builder::Builder;
 use rosenpass_secret_memory::{Public, Secret};
 
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 #[builder(pattern = "mutable")]
 //TODO: Use generics for iface, add additional params
 pub struct NetworkBrokerConfig<'a> {

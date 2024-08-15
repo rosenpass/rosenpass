@@ -26,6 +26,8 @@ env_logger = { workspace = true }
 log = { workspace = true }
 derive_builder = {workspace = true}
 postcard = {workspace = true}
+rustix = { worspace = true, optional = true } 
+libc = { worspace = true, optional = true } 
 
 # Mio broker client
 mio = { workspace = true }
@@ -36,7 +38,8 @@ rand = {workspace = true}
 procspawn = {workspace = true}
 
 [features]
-experimental_broker_api = []
+experimental_broker_api = ["rustix", "libc"]
+experiment_memfd_secret = []
 
 [[bin]]
 name = "rosenpass-wireguard-broker-privileged"

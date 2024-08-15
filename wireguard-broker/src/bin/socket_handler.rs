@@ -148,6 +148,14 @@ async fn listen_for_clients(queue: mpsc::Sender<BrokerRequest>, sock: UnixListen
 async fn on_accept(queue: mpsc::Sender<BrokerRequest>, mut stream: UnixStream) -> Result<()> {
     let mut req_buf = Vec::new();
 
+    {
+        use rosenpass_secret_memory as SM;
+        #[cfg(feature = "experiment_memfd_secret")]
+        SM::secret_policy_try_use_memfd_secrets();
+        #[cfg(not(feature = "experiment_memfd_secret"))]
+        SM::secret_policy_use_only_malloc_secrets();
+    }
+
     loop {
         stream.readable().await?;
 

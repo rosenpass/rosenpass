@@ -36,6 +36,7 @@ impl<Err, Inner> BrokerServer<Err, Inner>
 where
     Inner: WireGuardBroker<Error = Err>,
     msgs::SetPskError: From<Err>,
+    Err: std::fmt::Debug,
 {
     pub fn new(inner: Inner) -> Self {
         Self { inner }
@@ -56,9 +57,9 @@ where
             .ok_or(BrokerServerError::InvalidMessage)?;
         let mut res = zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::new(res)
             .ok_or(BrokerServerError::InvalidMessage)?;
-
-        res.payload.return_code = msgs::MsgType::SetPsk as u8;
+        res.msg_type = msgs::MsgType::SetPsk as u8;
         self.handle_set_psk(&req.payload, &mut res.payload)?;
+
         Ok(res.bytes().len())
     }
 
@@ -83,6 +84,10 @@ where
             .build()
             .unwrap();
         let r: Result<(), Err> = self.inner.borrow_mut().set_psk(config.into());
+        if let Err(e) = &r {
+            eprintln!("Error setting PSK: {e:?}"); // TODO: Use rust log
+        }
+
         let r: msgs::SetPskResult = r.map_err(|e| e.into());
         let r: msgs::SetPskResponseReturnCode = r.into();
         res.return_code = r as u8;

@@ -68,7 +68,7 @@ procspawn = {workspace = true}
 tempfile = { workspace = true }
 
 [features]
-experiment_memfd_secret = []
+experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_broker_api = ["rosenpass-wireguard-broker/experimental_broker_api", "command-fds"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
 experiment_api = ["hex-literal"]

@@ -496,7 +496,7 @@ impl CliArgs {
 
                 // Start the PSK broker
                 let mut child = Command::new("rosenpass-wireguard-broker-socket-handler")
-                    .args(&["--stream-fd", "3"])
+                    .args(["--stream-fd", "3"])
                     .fd_mappings(vec![FdMapping {
                         parent_fd: theirs.as_raw_fd(),
                         child_fd: 3,
