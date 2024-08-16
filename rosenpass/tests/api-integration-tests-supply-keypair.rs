@@ -3,16 +3,17 @@ use std::{
     net::ToSocketAddrs,
     os::unix::net::UnixStream,
     process::Stdio,
+    thread::sleep,
+    time::Duration,
 };
 
 use anyhow::{bail, Context};
-use rosenpass::api;
-use rosenpass_to::{ops::copy_slice_least_src, To};
-use rosenpass_util::zerocopy::ZerocopySliceExt;
+use rosenpass::api::{self, supply_keypair_response_status};
 use rosenpass_util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
 };
+use rosenpass_util::{mio::WriteWithFileDescriptors, zerocopy::ZerocopySliceExt};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
 
@@ -32,7 +33,7 @@ fn api_integration_test() -> anyhow::Result<()> {
         }}
     }
 
-    let peer_a_endpoint = "[::1]:61423";
+    let peer_a_endpoint = "[::1]:61424";
     let peer_a_osk = tempfile!("a.osk");
     let peer_b_osk = tempfile!("b.osk");
 
@@ -61,7 +62,7 @@ fn api_integration_test() -> anyhow::Result<()> {
     let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
     let peer_b = config::Rosenpass {
         config_file_path: tempfile!("b.config"),
-        keypair: Some(peer_b_keypair.clone()),
+        keypair: None,
         listen: vec![],
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
@@ -116,6 +117,46 @@ fn api_integration_test() -> anyhow::Result<()> {
     let mut out_a = BufReader::new(proc_a.stdout.context("")?).lines();
     let mut out_b = BufReader::new(proc_b.stdout.context("")?).lines();
 
+    // Now connect to the peers
+    let api_path = peer_b.api.listen_path[0].as_path();
+
+    // Wait for the socket to be created
+    let attempt = 0;
+    while !api_path.exists() {
+        sleep(Duration::from_millis(200));
+        assert!(
+            attempt < 50,
+            "Api failed to be created even after 50 seconds"
+        );
+    }
+
+    let api = UnixStream::connect(api_path)?;
+
+    // Send SupplyKeypairRequest
+    {
+        use rustix::fs::{open, Mode, OFlags};
+        let sk = open(peer_b_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
+        let pk = open(peer_b_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
+
+        let mut fds = vec![&sk, &pk].into();
+        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        LengthPrefixEncoder::from_message(api::SupplyKeypairRequest::new().as_bytes())
+            .write_all_to_stdio(&mut api)?;
+        assert!(fds.is_empty(), "Failed to write all file descriptors");
+    }
+
+    // Read response
+    {
+        //sleep(Duration::from_secs(10));
+        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
+        let res = decoder.read_all_from_stdio(api)?;
+        let res = res.zk_parse::<api::SupplyKeypairResponse>()?;
+        assert_eq!(
+            *res,
+            api::SupplyKeypairResponse::new(supply_keypair_response_status::OK)
+        );
+    }
+
     // Wait for the keys to successfully exchange a key
     let mut attempt = 0;
     loop {
@@ -158,23 +199,6 @@ fn api_integration_test() -> anyhow::Result<()> {
         };
 
         attempt += 1;
-    }
-
-    // Now connect to the peers
-    let api_a = UnixStream::connect(&peer_a.api.listen_path[0])?;
-    let api_b = UnixStream::connect(&peer_b.api.listen_path[0])?;
-
-    for conn in ([api_a, api_b]).iter() {
-        let mut echo = [0u8; 256];
-        copy_slice_least_src("Hello World".as_bytes()).to(&mut echo);
-
-        let req = api::PingRequest::new(echo);
-        LengthPrefixEncoder::from_message(req.as_bytes()).write_all_to_stdio(conn)?;
-
-        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
-        let res = decoder.read_all_from_stdio(conn)?;
-        let res = res.zk_parse::<api::PingResponse>()?;
-        assert_eq!(*res, api::PingResponse::new(echo));
     }
 
     Ok(())

@@ -22,6 +22,10 @@ required-features = ["experiment_api", "internal_bin_gen_ipc_msg_types"]
 name = "api-integration-tests"
 required-features = ["experiment_api", "internal_testing"]
 
+[[test]]
+name = "api-integration-tests-supply-keypair"
+required-features = ["experiment_api", "internal_testing"]
+
 [[bench]]
 name = "handshake"
 harness = false
@@ -55,6 +59,7 @@ hex = { workspace = true, optional = true }
 heck = { workspace = true, optional = true }
 command-fds = { workspace = true, optional = true }
 rustix = { workspace = true }
+uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -66,11 +71,12 @@ stacker = { workspace = true }
 serial_test = {workspace = true}
 procspawn = {workspace = true}
 tempfile = { workspace = true }
+rustix = {workspace = true}
 
 [features]
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_broker_api = ["rosenpass-wireguard-broker/experiment_broker_api", "command-fds"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
-experiment_api = ["hex-literal"]
+experiment_api = ["hex-literal", "uds", "rosenpass-util/experiment_file_descriptor_passing"]
 internal_testing  = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]

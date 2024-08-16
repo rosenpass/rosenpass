@@ -25,6 +25,18 @@ pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
     Ok(new)
 }
 
+/// Prepare a file descriptor for use in Rust code.
+///
+/// Checks if the file descriptor is valid.
+///
+/// Unlike [claim_fd], this will reuse the same file descriptor identifier instead of masking it.
+pub fn claim_fd_inplace(fd: RawFd) -> rustix::io::Result<OwnedFd> {
+    let mut new = unsafe { OwnedFd::from_raw_fd(fd) };
+    let tmp = clone_fd_cloexec(&new)?;
+    clone_fd_to_cloexec(tmp, &mut new)?;
+    Ok(new)
+}
+
 pub fn mask_fd(fd: RawFd) -> rustix::io::Result<()> {
     // Safety: because the OwnedFd resulting from OwnedFd::from_raw_fd is wrapped in a Forgetting,
     // it never gets dropped, meaning that fd is never closed and thus outlives the OwnedFd
@@ -56,6 +68,47 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
     use rustix::fs::{open, Mode, OFlags};
     // TODO: Add tests showing that this will throw errors on use
     open("/dev/null", OFlags::CLOEXEC, Mode::empty())
+}
+
+/// Convert low level errors into std::io::Error
+pub trait IntoStdioErr {
+    type Target;
+    fn into_stdio_err(self) -> Self::Target;
+}
+
+impl IntoStdioErr for rustix::io::Errno {
+    type Target = std::io::Error;
+
+    fn into_stdio_err(self) -> Self::Target {
+        std::io::Error::from_raw_os_error(self.raw_os_error())
+    }
+}
+
+impl<T> IntoStdioErr for rustix::io::Result<T> {
+    type Target = std::io::Result<T>;
+
+    fn into_stdio_err(self) -> Self::Target {
+        self.map_err(IntoStdioErr::into_stdio_err)
+    }
+}
+
+/// Read and write directly from a file descriptor
+pub struct FdIo<Fd: AsFd>(pub Fd);
+
+impl<Fd: AsFd> std::io::Read for FdIo<Fd> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        rustix::io::read(&self.0, buf).into_stdio_err()
+    }
+}
+
+impl<Fd: AsFd> std::io::Write for FdIo<Fd> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        rustix::io::write(&self.0, buf).into_stdio_err()
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

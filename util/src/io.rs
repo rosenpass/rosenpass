@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, io};
 
+use anyhow::ensure;
+
 pub trait IoErrorKind {
     fn io_error_kind(&self) -> io::ErrorKind;
 }
@@ -106,5 +108,23 @@ impl<T: io::Read> ReadNonblockingWithBoringErrorsHandledExt for T {
         buf: &mut [u8],
     ) -> io::Result<Option<usize>> {
         nonblocking_handle_io_errors(|| self.read(buf))
+    }
+}
+
+pub trait ReadExt {
+    fn read_exact_til_end(&mut self, buf: &mut [u8]) -> anyhow::Result<()>;
+}
+
+impl<T> ReadExt for T
+where
+    T: std::io::Read,
+{
+    fn read_exact_til_end(&mut self, buf: &mut [u8]) -> anyhow::Result<()> {
+        self.read_exact(buf)?;
+        ensure!(
+            self.read(&mut [0u8; 8])? == 0,
+            "Read source longer than buffer"
+        );
+        Ok(())
     }
 }
