@@ -79,6 +79,7 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
     fn set_psk(&mut self, config: SerializedBrokerConfig) -> Result<(), Self::Error> {
         let config: NetworkBrokerConfig = config
             .try_into()
+            // TODO: I think this is the wrong error
             .map_err(|_e| SetPskError::NoSuchInterface)?;
         // Ensure that the peer exists by querying the device configuration
         // TODO: Use InvalidInterfaceError

@@ -34,7 +34,8 @@ pub fn main() {
         // error!("error dummy");
     }
 
-    match args.run(None) {
+    let broker_interface = args.get_broker_interface();
+    match args.run(broker_interface, None) {
         Ok(_) => {}
         Err(e) => {
             error!("{e:?}");
