@@ -92,3 +92,47 @@ impl<T> Drop for Forgetting<T> {
         forget(value)
     }
 }
+
+pub trait DiscardResultExt {
+    fn discard_result(self);
+}
+
+impl<T> DiscardResultExt for T {
+    fn discard_result(self) {}
+}
+
+pub trait ForgetExt {
+    fn forget(self);
+}
+
+impl<T> ForgetExt for T {
+    fn forget(self) {
+        std::mem::forget(self)
+    }
+}
+
+pub trait SwapWithExt {
+    fn swap_with(&mut self, other: Self) -> Self;
+    fn swap_with_mut(&mut self, other: &mut Self);
+}
+
+impl<T> SwapWithExt for T {
+    fn swap_with(&mut self, mut other: Self) -> Self {
+        self.swap_with_mut(&mut other);
+        other
+    }
+
+    fn swap_with_mut(&mut self, other: &mut Self) {
+        std::mem::swap(self, other)
+    }
+}
+
+pub trait SwapWithDefaultExt {
+    fn swap_with_default(&mut self) -> Self;
+}
+
+impl<T: Default> SwapWithDefaultExt for T {
+    fn swap_with_default(&mut self) -> Self {
+        self.swap_with(Self::default())
+    }
+}

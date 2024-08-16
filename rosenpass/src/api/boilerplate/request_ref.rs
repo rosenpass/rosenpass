@@ -25,6 +25,8 @@ impl<B: ByteSlice> RequestRef<B> {
     pub fn message_type(&self) -> RequestMsgType {
         match self {
             Self::Ping(_) => RequestMsgType::Ping,
+            Self::SupplyKeypair(_) => RequestMsgType::SupplyKeypair,
+            Self::AddListenSocket(_) => RequestMsgType::AddListenSocket,
         }
     }
 }
@@ -32,6 +34,18 @@ impl<B: ByteSlice> RequestRef<B> {
 impl<B> From<Ref<B, PingRequest>> for RequestRef<B> {
     fn from(v: Ref<B, PingRequest>) -> Self {
         Self::Ping(v)
+    }
+}
+
+impl<B> From<Ref<B, super::SupplyKeypairRequest>> for RequestRef<B> {
+    fn from(v: Ref<B, super::SupplyKeypairRequest>) -> Self {
+        Self::SupplyKeypair(v)
+    }
+}
+
+impl<B> From<Ref<B, super::AddListenSocketRequest>> for RequestRef<B> {
+    fn from(v: Ref<B, super::AddListenSocketRequest>) -> Self {
+        Self::AddListenSocket(v)
     }
 }
 
@@ -48,6 +62,12 @@ impl<B: ByteSlice> RequestRefMaker<B> {
     fn parse(self) -> anyhow::Result<RequestRef<B>> {
         Ok(match self.msg_type {
             RequestMsgType::Ping => RequestRef::Ping(self.buf.ping_request()?),
+            RequestMsgType::SupplyKeypair => {
+                RequestRef::SupplyKeypair(self.buf.supply_keypair_request()?)
+            }
+            RequestMsgType::AddListenSocket => {
+                RequestRef::AddListenSocket(self.buf.add_listen_socket_request()?)
+            }
         })
     }
 
@@ -82,6 +102,8 @@ impl<B: ByteSlice> RequestRefMaker<B> {
 
 pub enum RequestRef<B> {
     Ping(Ref<B, PingRequest>),
+    SupplyKeypair(Ref<B, super::SupplyKeypairRequest>),
+    AddListenSocket(Ref<B, super::AddListenSocketRequest>),
 }
 
 impl<B> RequestRef<B>
@@ -91,6 +113,8 @@ where
     pub fn bytes(&self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes(),
+            Self::SupplyKeypair(r) => r.bytes(),
+            Self::AddListenSocket(r) => r.bytes(),
         }
     }
 }
@@ -102,6 +126,8 @@ where
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes_mut(),
+            Self::SupplyKeypair(r) => r.bytes_mut(),
+            Self::AddListenSocket(r) => r.bytes_mut(),
         }
     }
 }

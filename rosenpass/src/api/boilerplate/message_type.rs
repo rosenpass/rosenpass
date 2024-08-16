@@ -14,6 +14,20 @@ pub const PING_REQUEST: RawMsgType =
 pub const PING_RESPONSE: RawMsgType =
     RawMsgType::from_le_bytes(hex!("4ec7 f6f0 2bbc ba64    48f1 da14 c7cf 0260"));
 
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Supply Keypair Request
+const SUPPLY_KEYPAIR_REQUEST: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("ac91 a5a6 4f4b 21d0    ac7f 9b55 74f7 3529"));
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Supply Keypair Response
+const SUPPLY_KEYPAIR_RESPONSE: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("f2dc 49bd e261 5f10    40b7 3c16 ec61 edb9"));
+
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Add Listen Socket Request
+const ADD_LISTEN_SOCKET_REQUEST: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("3f21 434f 87cc a08c    02c4 61e4 0816 c7da"));
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Add Listen Socket Response
+const ADD_LISTEN_SOCKET_RESPONSE: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("45d5 0f0d 93f0 6105    98f2 9469 5dfd 5f36"));
+
 pub trait MessageAttributes {
     fn message_size(&self) -> usize;
 }
@@ -21,17 +35,23 @@ pub trait MessageAttributes {
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum RequestMsgType {
     Ping,
+    SupplyKeypair,
+    AddListenSocket,
 }
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum ResponseMsgType {
     Ping,
+    SupplyKeypair,
+    AddListenSocket,
 }
 
 impl MessageAttributes for RequestMsgType {
     fn message_size(&self) -> usize {
         match self {
             Self::Ping => std::mem::size_of::<super::PingRequest>(),
+            Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairRequest>(),
+            Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketRequest>(),
         }
     }
 }
@@ -40,6 +60,8 @@ impl MessageAttributes for ResponseMsgType {
     fn message_size(&self) -> usize {
         match self {
             Self::Ping => std::mem::size_of::<super::PingResponse>(),
+            Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairResponse>(),
+            Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketResponse>(),
         }
     }
 }
@@ -51,6 +73,8 @@ impl TryFrom<RawMsgType> for RequestMsgType {
         use RequestMsgType as E;
         Ok(match value {
             self::PING_REQUEST => E::Ping,
+            self::SUPPLY_KEYPAIR_REQUEST => E::SupplyKeypair,
+            self::ADD_LISTEN_SOCKET_REQUEST => E::AddListenSocket,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -61,6 +85,8 @@ impl From<RequestMsgType> for RawMsgType {
         use RequestMsgType as E;
         match val {
             E::Ping => self::PING_REQUEST,
+            E::SupplyKeypair => self::SUPPLY_KEYPAIR_REQUEST,
+            E::AddListenSocket => self::ADD_LISTEN_SOCKET_REQUEST,
         }
     }
 }
@@ -72,6 +98,8 @@ impl TryFrom<RawMsgType> for ResponseMsgType {
         use ResponseMsgType as E;
         Ok(match value {
             self::PING_RESPONSE => E::Ping,
+            self::SUPPLY_KEYPAIR_RESPONSE => E::SupplyKeypair,
+            self::ADD_LISTEN_SOCKET_RESPONSE => E::AddListenSocket,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -82,6 +110,8 @@ impl From<ResponseMsgType> for RawMsgType {
         use ResponseMsgType as E;
         match val {
             E::Ping => self::PING_RESPONSE,
+            E::SupplyKeypair => self::SUPPLY_KEYPAIR_RESPONSE,
+            E::AddListenSocket => self::ADD_LISTEN_SOCKET_RESPONSE,
         }
     }
 }

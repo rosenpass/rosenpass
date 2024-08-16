@@ -188,8 +188,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let pk = SPk::load(&pqpk)?;
 
     let mut srv = Box::new(AppServer::new(
-        sk,
-        pk,
+        Some((sk, pk)),
         if let Some(listen) = options.listen {
             vec![listen]
         } else {

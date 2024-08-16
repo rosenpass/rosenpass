@@ -4,7 +4,7 @@ use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
 
 use super::{
     PingRequest, PingResponse, RawMsgType, RefMakerRawMsgTypeExt, RequestMsgType, RequestRef,
-    ResponseMsgType, ResponseRef,
+    ResponseMsgType, ResponseRef, SupplyKeypairRequest, SupplyKeypairResponse,
 };
 
 pub trait ByteSliceRefExt: ByteSlice {
@@ -109,6 +109,76 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     fn ping_response_from_suffix(self) -> anyhow::Result<Ref<Self, PingResponse>> {
+        self.zk_parse_suffix()
+    }
+
+    fn supply_keypair_request(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>> {
+        self.zk_parse()
+    }
+
+    fn supply_keypair_request_from_prefix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>> {
+        self.zk_parse_prefix()
+    }
+
+    fn supply_keypair_request_from_suffix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>> {
+        self.zk_parse_suffix()
+    }
+
+    fn supply_keypair_response_maker(self) -> RefMaker<Self, SupplyKeypairResponse> {
+        self.zk_ref_maker()
+    }
+
+    fn supply_keypair_response(self) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
+        self.zk_parse()
+    }
+
+    fn supply_keypair_response_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
+        self.zk_parse_prefix()
+    }
+
+    fn supply_keypair_response_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
+        self.zk_parse_suffix()
+    }
+
+    fn add_listen_socket_request(self) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse()
+    }
+
+    fn add_listen_socket_request_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_listen_socket_request_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+        self.zk_parse_suffix()
+    }
+
+    fn add_listen_socket_response_maker(self) -> RefMaker<Self, super::AddListenSocketResponse> {
+        self.zk_ref_maker()
+    }
+
+    fn add_listen_socket_response(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+        self.zk_parse()
+    }
+
+    fn add_listen_socket_response_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_listen_socket_response_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
         self.zk_parse_suffix()
     }
 }

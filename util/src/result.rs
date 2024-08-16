@@ -8,6 +8,16 @@ macro_rules! attempt {
     };
 }
 
+pub trait OkExt<E>: Sized {
+    fn ok(self) -> Result<Self, E>;
+}
+
+impl<T, E> OkExt<E> for T {
+    fn ok(self) -> Result<Self, E> {
+        Ok(self)
+    }
+}
+
 /// Trait for container types that guarantee successful unwrapping.
 ///
 /// The `.guaranteed()` function can be used over unwrap to show that
@@ -23,6 +33,24 @@ pub trait GuaranteedValue {
     ///
     /// Implementations of guaranteed() must not panic.
     fn guaranteed(self) -> Self::Value;
+}
+
+pub trait FinallyExt {
+    fn finally<F: FnOnce(&mut Self)>(self, f: F) -> Self;
+}
+
+impl<T, E> FinallyExt for Result<T, E> {
+    fn finally<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+        f(&mut self);
+        self
+    }
+}
+
+impl<T> FinallyExt for Option<T> {
+    fn finally<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+        f(&mut self);
+        self
+    }
 }
 
 /// A result type that never contains an error.

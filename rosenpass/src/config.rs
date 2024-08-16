@@ -21,16 +21,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;
 
+#[cfg(feature = "experiment_broker_api")]
+fn empty_api_config() -> crate::api::config::ApiConfig {
+    crate::api::config::ApiConfig {
+        listen_path: Vec::new(),
+        listen_fd: Vec::new(),
+        stream_fd: Vec::new(),
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Rosenpass {
-    /// path to the public key file
-    pub public_key: PathBuf,
-
-    /// path to the secret key file
-    pub secret_key: PathBuf,
+    // TODO: Raise error if secret key or public key alone is set during deserialization
+    // SEE: https://github.com/serde-rs/serde/issues/2793
+    #[serde(flatten)]
+    pub keypair: Option<Keypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
+    #[serde(default = "empty_api_config")]
     pub api: crate::api::config::ApiConfig,
 
     /// list of [`SocketAddr`] to listen on
@@ -56,6 +65,26 @@ pub struct Rosenpass {
     /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+pub struct Keypair {
+    /// path to the public key file
+    pub public_key: PathBuf,
+
+    /// path to the secret key file
+    pub secret_key: PathBuf,
+}
+
+impl Keypair {
+    pub fn new<Pk: AsRef<Path>, Sk: AsRef<Path>>(public_key: Pk, secret_key: Sk) -> Self {
+        let public_key = public_key.as_ref().to_path_buf();
+        let secret_key = secret_key.as_ref().to_path_buf();
+        Self {
+            public_key,
+            secret_key,
+        }
+    }
 }
 
 /// ## TODO
@@ -113,6 +142,12 @@ pub struct WireGuard {
     pub extra_params: Vec<String>,
 }
 
+impl Default for Rosenpass {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl Rosenpass {
     /// load configuration from a TOML file
     ///
@@ -128,8 +163,10 @@ impl Rosenpass {
 
         // resolve `~` (see https://github.com/rosenpass/rosenpass/issues/237)
         use util::resolve_path_with_tilde;
-        resolve_path_with_tilde(&mut config.public_key);
-        resolve_path_with_tilde(&mut config.secret_key);
+        if let Some(ref mut keypair) = config.keypair {
+            resolve_path_with_tilde(&mut keypair.public_key);
+            resolve_path_with_tilde(&mut keypair.secret_key);
+        }
         for peer in config.peers.iter_mut() {
             resolve_path_with_tilde(&mut peer.public_key);
             if let Some(ref mut psk) = &mut peer.pre_shared_key {
@@ -175,19 +212,21 @@ impl Rosenpass {
     /// - check that files do not just exist but are also readable
     /// - warn if neither out_key nor exchange_command of a peer is defined (v.i.)
     pub fn validate(&self) -> anyhow::Result<()> {
-        // check the public key file exists
-        ensure!(
-            self.public_key.is_file(),
-            "could not find public-key file {:?}: no such file",
-            self.public_key
-        );
+        if let Some(ref keypair) = self.keypair {
+            // check the public key file exists
+            ensure!(
+                keypair.public_key.is_file(),
+                "could not find public-key file {:?}: no such file",
+                keypair.public_key
+            );
 
-        // check the secret-key file exists
-        ensure!(
-            self.secret_key.is_file(),
-            "could not find secret-key file {:?}: no such file",
-            self.secret_key
-        );
+            // check the secret-key file exists
+            ensure!(
+                keypair.secret_key.is_file(),
+                "could not find secret-key file {:?}: no such file",
+                keypair.secret_key
+            );
+        }
 
         for (i, peer) in self.peers.iter().enumerate() {
             // check peer's public-key file exists
@@ -212,11 +251,33 @@ impl Rosenpass {
         Ok(())
     }
 
+    pub fn check_usefullness(&self) -> anyhow::Result<()> {
+        #[cfg(not(feature = "experiment_api"))]
+        ensure!(self.keypair.is_some(), "Server keypair missing.");
+
+        #[cfg(feature = "experiment_api")]
+        ensure!(
+            self.keypair.is_some() || self.api.has_api_sources(),
+            "{}{}",
+            "Specify a server keypair or some API connections to configure the keypair with.",
+            "Without a keypair, rosenpass can not operate."
+        );
+
+        Ok(())
+    }
+
+    pub fn empty() -> Self {
+        Self::new(None)
+    }
+
+    pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
+        Self::new(Some(Keypair::new(pk, sk)))
+    }
+
     /// Creates a new configuration
-    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(public_key: P1, secret_key: P2) -> Self {
+    pub fn new(keypair: Option<Keypair>) -> Self {
         Self {
-            public_key: PathBuf::from(public_key.as_ref()),
-            secret_key: PathBuf::from(secret_key.as_ref()),
+            keypair,
             listen: vec![],
             #[cfg(feature = "experiment_api")]
             api: crate::api::config::ApiConfig::default(),
@@ -242,7 +303,7 @@ impl Rosenpass {
     /// from chaotic args
     /// Quest: the grammar is undecideable, what do we do here?
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new("", "");
+        let mut config = Self::new(Some(Keypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
@@ -303,7 +364,7 @@ impl Rosenpass {
                         already_set.insert(OwnPublicKey),
                         "public-key was already set"
                     );
-                    config.public_key = pk.into();
+                    config.keypair.as_mut().unwrap().public_key = pk.into();
                     Own
                 }
                 (OwnSecretKey, sk, None) => {
@@ -311,7 +372,7 @@ impl Rosenpass {
                         already_set.insert(OwnSecretKey),
                         "secret-key was already set"
                     );
-                    config.secret_key = sk.into();
+                    config.keypair.as_mut().unwrap().secret_key = sk.into();
                     Own
                 }
                 (OwnListen, l, None) => {
@@ -446,10 +507,12 @@ impl Rosenpass {
         };
 
         Self {
-            public_key: "/path/to/rp-public-key".into(),
-            secret_key: "/path/to/rp-secret-key".into(),
+            keypair: Some(Keypair {
+                public_key: "/path/to/rp-public-key".into(),
+                secret_key: "/path/to/rp-secret-key".into(),
+            }),
             peers: vec![peer],
-            ..Self::new("", "")
+            ..Self::new(None)
         }
     }
 }
@@ -462,11 +525,117 @@ impl Default for Verbosity {
 
 #[cfg(test)]
 mod test {
+
     use super::*;
-    use std::net::IpAddr;
+    use std::{borrow::Borrow, net::IpAddr};
+
+    fn toml_des<S: Borrow<str>>(s: S) -> Result<toml::Table, toml::de::Error> {
+        toml::from_str(s.borrow())
+    }
+
+    fn toml_ser<S: Serialize>(s: S) -> Result<toml::Table, toml::ser::Error> {
+        toml::Table::try_from(s)
+    }
+
+    fn assert_toml<L: Serialize, R: Borrow<str>>(l: L, r: R, info: &str) -> anyhow::Result<()> {
+        fn lines_prepend(prefix: &str, s: &str) -> anyhow::Result<String> {
+            use std::fmt::Write;
+
+            let mut buf = String::new();
+            for line in s.lines() {
+                writeln!(&mut buf, "{prefix}{line}")?;
+            }
+            Ok(buf)
+        }
+
+        let l = toml_ser(l)?;
+        let r = toml_des(r.borrow())?;
+        ensure!(
+            l == r,
+            "{}{}TOML value mismatch.\n  Have:\n{}\n  Expected:\n{}",
+            info,
+            if info.is_empty() { "" } else { ": " },
+            lines_prepend("    ", &toml::to_string_pretty(&l)?)?,
+            lines_prepend("    ", &toml::to_string_pretty(&r)?)?
+        );
+        Ok(())
+    }
+
+    fn assert_toml_round<'de, L: Serialize + Deserialize<'de>, R: Borrow<str>>(
+        l: L,
+        r: R,
+    ) -> anyhow::Result<()> {
+        let l = toml_ser(l)?;
+        assert_toml(&l, r.borrow(), "Straight deserialization")?;
+
+        let l: L = l.try_into().unwrap();
+        let l = toml_ser(l).unwrap();
+        assert_toml(l, r.borrow(), "Roundtrip deserialization")?;
+
+        Ok(())
+    }
 
     fn split_str(s: &str) -> Vec<String> {
         s.split(' ').map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn toml_serialization() -> anyhow::Result<()> {
+        #[cfg(feature = "experiment_api")]
+        assert_toml_round(
+            Rosenpass::empty(),
+            r#"
+            listen = []
+            verbosity = "Quiet"
+            peers = []
+
+            [api]
+            listen_path = []
+            listen_fd = []
+            stream_fd = []
+        "#,
+        )?;
+
+        #[cfg(not(feature = "experiment_api"))]
+        assert_toml_round(
+            Rosenpass::empty(),
+            r#"
+            listen = []
+            verbosity = "Quiet"
+            peers = []
+        "#,
+        )?;
+
+        #[cfg(feature = "experiment_api")]
+        assert_toml_round(
+            Rosenpass::from_sk_pk("/my/sk", "/my/pk"),
+            r#"
+            public_key = "/my/pk"
+            secret_key = "/my/sk"
+            listen = []
+            verbosity = "Quiet"
+            peers = []
+
+            [api]
+            listen_path = []
+            listen_fd = []
+            stream_fd = []
+        "#,
+        )?;
+
+        #[cfg(not(feature = "experiment_api"))]
+        assert_toml_round(
+            Rosenpass::from_sk_pk("/my/sk", "/my/pk"),
+            r#"
+            public_key = "/my/pk"
+            secret_key = "/my/sk"
+            listen = []
+            verbosity = "Quiet"
+            peers = []
+        "#,
+        )?;
+
+        Ok(())
     }
 
     #[test]
@@ -479,8 +648,10 @@ mod test {
 
         let config = Rosenpass::parse_args(args).unwrap();
 
-        assert_eq!(config.public_key, PathBuf::from("/my/public-key"));
-        assert_eq!(config.secret_key, PathBuf::from("/my/secret-key"));
+        assert_eq!(
+            config.keypair,
+            Some(Keypair::new("/my/public-key", "/my/secret-key"))
+        );
         assert_eq!(config.verbosity, Verbosity::Verbose);
         assert_eq!(
             &config.listen,
@@ -509,8 +680,10 @@ mod test {
 
         let config = Rosenpass::parse_args(args).unwrap();
 
-        assert_eq!(config.public_key, PathBuf::from("/my/public-key"));
-        assert_eq!(config.secret_key, PathBuf::from("/my/secret-key"));
+        assert_eq!(
+            config.keypair,
+            Some(Keypair::new("/my/public-key", "/my/secret-key"))
+        );
         assert_eq!(config.verbosity, Verbosity::Verbose);
         assert!(&config.listen.is_empty());
         assert_eq!(

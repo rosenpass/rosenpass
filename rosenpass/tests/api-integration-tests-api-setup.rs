@@ -1,25 +1,27 @@
 use std::{
     io::{BufRead, BufReader},
-    net::ToSocketAddrs,
     os::unix::net::UnixStream,
     process::Stdio,
+    thread::sleep,
+    time::Duration,
 };
 
 use anyhow::{bail, Context};
-use rosenpass::api;
-use rosenpass_to::{ops::copy_slice_least_src, To};
-use rosenpass_util::zerocopy::ZerocopySliceExt;
+use rosenpass::api::{self, add_listen_socket_response_status, supply_keypair_response_status};
 use rosenpass_util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
+    mio::WriteWithFileDescriptors,
+    zerocopy::ZerocopySliceExt,
 };
+use rustix::fd::AsFd;
 use tempfile::TempDir;
 use zerocopy::AsBytes;
 
 use rosenpass::protocol::SymKey;
 
 #[test]
-fn api_integration_test() -> anyhow::Result<()> {
+fn api_integration_api_setup() -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
@@ -32,17 +34,20 @@ fn api_integration_test() -> anyhow::Result<()> {
         }}
     }
 
-    let peer_a_endpoint = "[::1]:61423";
+    let peer_a_endpoint = "[::1]:0";
     let peer_a_osk = tempfile!("a.osk");
     let peer_b_osk = tempfile!("b.osk");
+
+    let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
+    let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
 
     use rosenpass::config;
 
     let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
     let peer_a = config::Rosenpass {
         config_file_path: tempfile!("a.config"),
-        keypair: Some(peer_a_keypair.clone()),
-        listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
+        keypair: None,
+        listen: vec![], // TODO: This could collide by accident
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
@@ -116,6 +121,68 @@ fn api_integration_test() -> anyhow::Result<()> {
     let mut out_a = BufReader::new(proc_a.stdout.context("")?).lines();
     let mut out_b = BufReader::new(proc_b.stdout.context("")?).lines();
 
+    // Now connect to the peers
+    let api_path = peer_a.api.listen_path[0].as_path();
+
+    // Wait for the socket to be created
+    let attempt = 0;
+    while !api_path.exists() {
+        sleep(Duration::from_millis(200));
+        assert!(
+            attempt < 50,
+            "Api failed to be created even after 50 seconds"
+        );
+    }
+
+    let api = UnixStream::connect(api_path)?;
+
+    // Send AddListenSocket request
+    {
+        let fd = peer_a_listen.as_fd();
+
+        let mut fds = vec![&fd].into();
+        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        LengthPrefixEncoder::from_message(api::AddListenSocketRequest::new().as_bytes())
+            .write_all_to_stdio(&mut api)?;
+        assert!(fds.is_empty(), "Failed to write all file descriptors");
+        std::mem::forget(peer_a_listen);
+    }
+
+    // Read response
+    {
+        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
+        let res = decoder.read_all_from_stdio(&api)?;
+        let res = res.zk_parse::<api::AddListenSocketResponse>()?;
+        assert_eq!(
+            *res,
+            api::AddListenSocketResponse::new(add_listen_socket_response_status::OK)
+        );
+    }
+
+    // Send SupplyKeypairRequest
+    {
+        use rustix::fs::{open, Mode, OFlags};
+        let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
+        let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
+
+        let mut fds = vec![&sk, &pk].into();
+        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        LengthPrefixEncoder::from_message(api::SupplyKeypairRequest::new().as_bytes())
+            .write_all_to_stdio(&mut api)?;
+        assert!(fds.is_empty(), "Failed to write all file descriptors");
+    }
+
+    // Read response
+    {
+        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
+        let res = decoder.read_all_from_stdio(api)?;
+        let res = res.zk_parse::<api::SupplyKeypairResponse>()?;
+        assert_eq!(
+            *res,
+            api::SupplyKeypairResponse::new(supply_keypair_response_status::OK)
+        );
+    }
+
     // Wait for the keys to successfully exchange a key
     let mut attempt = 0;
     loop {
@@ -158,23 +225,6 @@ fn api_integration_test() -> anyhow::Result<()> {
         };
 
         attempt += 1;
-    }
-
-    // Now connect to the peers
-    let api_a = UnixStream::connect(&peer_a.api.listen_path[0])?;
-    let api_b = UnixStream::connect(&peer_b.api.listen_path[0])?;
-
-    for conn in ([api_a, api_b]).iter() {
-        let mut echo = [0u8; 256];
-        copy_slice_least_src("Hello World".as_bytes()).to(&mut echo);
-
-        let req = api::PingRequest::new(echo);
-        LengthPrefixEncoder::from_message(req.as_bytes()).write_all_to_stdio(conn)?;
-
-        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
-        let res = decoder.read_all_from_stdio(conn)?;
-        let res = res.zk_parse::<api::PingResponse>()?;
-        assert_eq!(*res, api::PingResponse::new(echo));
     }
 
     Ok(())
