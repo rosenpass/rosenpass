@@ -1,12 +1,10 @@
+use anyhow::bail;
 use rustix::{
     fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
     io::fcntl_dupfd_cloexec,
 };
 
-#[cfg(target_os = "linux")]
-use rustix::io::DupFlags;
-
-use crate::mem::Forgetting;
+use crate::{mem::Forgetting, result::OkExt};
 
 /// Prepare a file descriptor for use in Rust code.
 ///
@@ -51,7 +49,7 @@ pub fn clone_fd_cloexec<Fd: AsFd>(fd: Fd) -> rustix::io::Result<OwnedFd> {
 
 #[cfg(target_os = "linux")]
 pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::Result<()> {
-    use rustix::io::dup3;
+    use rustix::io::{dup3, DupFlags};
     dup3(fd, new, DupFlags::CLOEXEC)
 }
 
@@ -108,6 +106,85 @@ impl<Fd: AsFd> std::io::Write for FdIo<Fd> {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+pub trait StatExt {
+    fn is_socket(&self) -> bool;
+}
+
+impl StatExt for rustix::fs::Stat {
+    fn is_socket(&self) -> bool {
+        use rustix::fs::FileType;
+        let ft = FileType::from_raw_mode(self.st_mode);
+        matches!(ft, FileType::Socket)
+    }
+}
+
+pub trait TryStatExt {
+    type Error;
+    fn is_socket(&self) -> Result<bool, Self::Error>;
+}
+
+impl<T> TryStatExt for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    fn is_socket(&self) -> Result<bool, Self::Error> {
+        rustix::fs::fstat(self)?.is_socket().ok()
+    }
+}
+
+pub trait GetSocketType {
+    type Error;
+    fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error>;
+    fn is_datagram_socket(&self) -> Result<bool, Self::Error> {
+        use rustix::net::SocketType;
+        matches!(self.socket_type()?, SocketType::DGRAM).ok()
+    }
+}
+
+impl<T> GetSocketType for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error> {
+        rustix::net::sockopt::get_socket_type(self)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub trait GetSocketProtocol {
+    fn socket_protocol(&self) -> Result<Option<rustix::net::Protocol>, rustix::io::Errno>;
+    fn is_udp_socket(&self) -> Result<bool, rustix::io::Errno> {
+        self.socket_protocol()?
+            .map(|p| p == rustix::net::ipproto::UDP)
+            .unwrap_or(false)
+            .ok()
+    }
+    fn demand_udp_socket(&self) -> anyhow::Result<()> {
+        match self.socket_protocol() {
+            Ok(Some(rustix::net::ipproto::UDP)) => Ok(()),
+            Ok(Some(other_proto)) => {
+                bail!("Not a udp socket, instead socket protocol is: {other_proto:?}")
+            }
+            Ok(None) => bail!("getsockopt() returned empty value"),
+            Err(errno) => Err(errno.into_stdio_err())?,
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl<T> GetSocketProtocol for T
+where
+    T: AsFd,
+{
+    fn socket_protocol(&self) -> Result<Option<rustix::net::Protocol>, rustix::io::Errno> {
+        rustix::net::sockopt::get_socket_protocol(self)
     }
 }
 

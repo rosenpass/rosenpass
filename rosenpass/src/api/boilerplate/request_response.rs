@@ -50,15 +50,28 @@ impl ResponseMsg for super::SupplyKeypairResponse {
     type RequestMsg = super::SupplyKeypairRequest;
 }
 
+impl RequestMsg for super::AddListenSocketRequest {
+    type ResponseMsg = super::AddListenSocketResponse;
+}
+
+impl ResponseMsg for super::AddListenSocketResponse {
+    type RequestMsg = super::AddListenSocketRequest;
+}
+
 pub type PingPair<B1, B2> = (Ref<B1, PingRequest>, Ref<B2, PingResponse>);
 pub type SupplyKeypairPair<B1, B2> = (
     Ref<B1, super::SupplyKeypairRequest>,
     Ref<B2, super::SupplyKeypairResponse>,
 );
+pub type AddListenSocketPair<B1, B2> = (
+    Ref<B1, super::AddListenSocketRequest>,
+    Ref<B2, super::AddListenSocketResponse>,
+);
 
 pub enum RequestResponsePair<B1, B2> {
     Ping(PingPair<B1, B2>),
     SupplyKeypair(SupplyKeypairPair<B1, B2>),
+    AddListenSocket(AddListenSocketPair<B1, B2>),
 }
 
 impl<B1, B2> From<PingPair<B1, B2>> for RequestResponsePair<B1, B2> {
@@ -70,6 +83,12 @@ impl<B1, B2> From<PingPair<B1, B2>> for RequestResponsePair<B1, B2> {
 impl<B1, B2> From<SupplyKeypairPair<B1, B2>> for RequestResponsePair<B1, B2> {
     fn from(v: SupplyKeypairPair<B1, B2>) -> Self {
         RequestResponsePair::SupplyKeypair(v)
+    }
+}
+
+impl<B1, B2> From<AddListenSocketPair<B1, B2>> for RequestResponsePair<B1, B2> {
+    fn from(v: AddListenSocketPair<B1, B2>) -> Self {
+        RequestResponsePair::AddListenSocket(v)
     }
 }
 
@@ -88,6 +107,11 @@ where
             Self::SupplyKeypair((req, res)) => {
                 let req = RequestRef::SupplyKeypair(req.emancipate());
                 let res = ResponseRef::SupplyKeypair(res.emancipate());
+                (req, res)
+            }
+            Self::AddListenSocket((req, res)) => {
+                let req = RequestRef::AddListenSocket(req.emancipate());
+                let res = ResponseRef::AddListenSocket(res.emancipate());
                 (req, res)
             }
         }
@@ -117,6 +141,11 @@ where
             Self::SupplyKeypair((req, res)) => {
                 let req = RequestRef::SupplyKeypair(req.emancipate_mut());
                 let res = ResponseRef::SupplyKeypair(res.emancipate_mut());
+                (req, res)
+            }
+            Self::AddListenSocket((req, res)) => {
+                let req = RequestRef::AddListenSocket(req.emancipate_mut());
+                let res = ResponseRef::AddListenSocket(res.emancipate_mut());
                 (req, res)
             }
         }

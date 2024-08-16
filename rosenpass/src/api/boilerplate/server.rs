@@ -17,6 +17,13 @@ pub trait Server {
         res: &mut super::SupplyKeypairResponse,
     ) -> anyhow::Result<()>;
 
+    fn add_listen_socket(
+        &mut self,
+        req: &super::AddListenSocketRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::AddListenSocketResponse,
+    ) -> anyhow::Result<()>;
+
     fn dispatch<ReqBuf, ResBuf>(
         &mut self,
         p: &mut RequestResponsePair<ReqBuf, ResBuf>,
@@ -30,6 +37,9 @@ pub trait Server {
             RequestResponsePair::Ping((req, res)) => self.ping(req, req_fds, res),
             RequestResponsePair::SupplyKeypair((req, res)) => {
                 self.supply_keypair(req, req_fds, res)
+            }
+            RequestResponsePair::AddListenSocket((req, res)) => {
+                self.add_listen_socket(req, req_fds, res)
             }
         }
     }
@@ -56,6 +66,11 @@ pub trait Server {
                 let mut res = res.supply_keypair_response_from_prefix()?;
                 res.init();
                 RequestResponsePair::SupplyKeypair((req, res))
+            }
+            RequestRef::AddListenSocket(req) => {
+                let mut res = res.add_listen_socket_response_from_prefix()?;
+                res.init();
+                RequestResponsePair::AddListenSocket((req, res))
             }
         };
         self.dispatch(&mut pair, req_fds)?;

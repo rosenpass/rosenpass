@@ -181,3 +181,87 @@ impl Message for SupplyKeypairResponse {
         self.msg_type = Self::MESSAGE_TYPE.into();
     }
 }
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct AddListenSocketRequestPayload {}
+
+pub type AddListenSocketRequest = RequestEnvelope<AddListenSocketRequestPayload>;
+
+impl Default for AddListenSocketRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AddListenSocketRequest {
+    pub fn new() -> Self {
+        Self::from_payload(AddListenSocketRequestPayload {})
+    }
+}
+
+impl Message for AddListenSocketRequest {
+    type Payload = AddListenSocketRequestPayload;
+    type MessageClass = RequestMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = RequestMsgType::AddListenSocket;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
+
+pub mod add_listen_socket_response_status {
+    pub const OK: u128 = 0;
+    pub const INVALID_REQUEST: u128 = 1;
+    pub const INTERNAL_ERROR: u128 = 2;
+}
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct AddListenSocketResponsePayload {
+    pub status: u128,
+}
+
+pub type AddListenSocketResponse = ResponseEnvelope<AddListenSocketResponsePayload>;
+
+impl AddListenSocketResponse {
+    pub fn new(status: u128) -> Self {
+        Self::from_payload(AddListenSocketResponsePayload { status })
+    }
+}
+
+impl Message for AddListenSocketResponse {
+    type Payload = AddListenSocketResponsePayload;
+    type MessageClass = ResponseMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = ResponseMsgType::AddListenSocket;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
