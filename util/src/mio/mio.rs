@@ -1,7 +1,10 @@
 use mio::net::{UnixListener, UnixStream};
 use rustix::fd::{OwnedFd, RawFd};
 
-use crate::{fd::claim_fd, result::OkExt};
+use crate::{
+    fd::{claim_fd, claim_fd_inplace},
+    result::OkExt,
+};
 
 pub mod interest {
     use mio::Interest;
@@ -27,12 +30,14 @@ impl UnixListenerExt for UnixListener {
 pub trait UnixStreamExt: Sized {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self>;
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
+    fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self>;
 }
 
 impl UnixStreamExt for UnixStream {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self> {
         use std::os::unix::net::UnixStream as StdUnixStream;
-
+        #[cfg(target_os = "linux")] // TODO: We should support this on other plattforms
+        crate::fd::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
         let sock = StdUnixStream::from(fd);
         sock.set_nonblocking(true)?;
         UnixStream::from_std(sock).ok()
@@ -40,5 +45,9 @@ impl UnixStreamExt for UnixStream {
 
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self> {
         Self::from_fd(claim_fd(fd)?)
+    }
+
+    fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self> {
+        Self::from_fd(claim_fd_inplace(fd)?)
     }
 }

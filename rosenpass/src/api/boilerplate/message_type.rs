@@ -28,6 +28,13 @@ const ADD_LISTEN_SOCKET_REQUEST: RawMsgType =
 const ADD_LISTEN_SOCKET_RESPONSE: RawMsgType =
     RawMsgType::from_le_bytes(hex!("45d5 0f0d 93f0 6105    98f2 9469 5dfd 5f36"));
 
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Add Psk Broker Request
+const ADD_PSK_BROKER_REQUEST: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("d798 b8dc bd61 5cab    8df1 c63d e4eb a2d1"));
+// hash domain hash of: Rosenpass IPC API -> Rosenpass Protocol Server -> Add Psk Broker Response
+const ADD_PSK_BROKER_RESPONSE: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("bd25 e418 ffb0 6930    248b 217e 2fae e353"));
+
 pub trait MessageAttributes {
     fn message_size(&self) -> usize;
 }
@@ -37,6 +44,7 @@ pub enum RequestMsgType {
     Ping,
     SupplyKeypair,
     AddListenSocket,
+    AddPskBroker,
 }
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
@@ -44,6 +52,7 @@ pub enum ResponseMsgType {
     Ping,
     SupplyKeypair,
     AddListenSocket,
+    AddPskBroker,
 }
 
 impl MessageAttributes for RequestMsgType {
@@ -52,6 +61,7 @@ impl MessageAttributes for RequestMsgType {
             Self::Ping => std::mem::size_of::<super::PingRequest>(),
             Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairRequest>(),
             Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketRequest>(),
+            Self::AddPskBroker => std::mem::size_of::<super::AddPskBrokerRequest>(),
         }
     }
 }
@@ -62,6 +72,7 @@ impl MessageAttributes for ResponseMsgType {
             Self::Ping => std::mem::size_of::<super::PingResponse>(),
             Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairResponse>(),
             Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketResponse>(),
+            Self::AddPskBroker => std::mem::size_of::<super::AddPskBrokerResponse>(),
         }
     }
 }
@@ -75,6 +86,7 @@ impl TryFrom<RawMsgType> for RequestMsgType {
             self::PING_REQUEST => E::Ping,
             self::SUPPLY_KEYPAIR_REQUEST => E::SupplyKeypair,
             self::ADD_LISTEN_SOCKET_REQUEST => E::AddListenSocket,
+            self::ADD_PSK_BROKER_REQUEST => E::AddPskBroker,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -87,6 +99,7 @@ impl From<RequestMsgType> for RawMsgType {
             E::Ping => self::PING_REQUEST,
             E::SupplyKeypair => self::SUPPLY_KEYPAIR_REQUEST,
             E::AddListenSocket => self::ADD_LISTEN_SOCKET_REQUEST,
+            E::AddPskBroker => self::ADD_PSK_BROKER_REQUEST,
         }
     }
 }
@@ -100,6 +113,7 @@ impl TryFrom<RawMsgType> for ResponseMsgType {
             self::PING_RESPONSE => E::Ping,
             self::SUPPLY_KEYPAIR_RESPONSE => E::SupplyKeypair,
             self::ADD_LISTEN_SOCKET_RESPONSE => E::AddListenSocket,
+            self::ADD_PSK_BROKER_RESPONSE => E::AddPskBroker,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -112,6 +126,7 @@ impl From<ResponseMsgType> for RawMsgType {
             E::Ping => self::PING_RESPONSE,
             E::SupplyKeypair => self::SUPPLY_KEYPAIR_RESPONSE,
             E::AddListenSocket => self::ADD_LISTEN_SOCKET_RESPONSE,
+            E::AddPskBroker => self::ADD_PSK_BROKER_RESPONSE,
         }
     }
 }

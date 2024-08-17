@@ -3,11 +3,19 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 use anyhow::Context;
 use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::{
-    fd::FdIo, functional::run, io::ReadExt, mem::DiscardResultExt, result::OkExt,
+    fd::FdIo,
+    functional::{run, ApplyExt},
+    io::ReadExt,
+    mem::DiscardResultExt,
+    mio::UnixStreamExt,
+    result::OkExt,
 };
+use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
 
 use crate::{
-    api::add_listen_socket_response_status, app_server::AppServer, protocol::BuildCryptoServer,
+    api::{add_listen_socket_response_status, add_psk_broker_response_status},
+    app_server::AppServer,
+    protocol::BuildCryptoServer,
 };
 
 use super::{supply_keypair_response_status, Server as ApiServer};
@@ -223,6 +231,74 @@ where
         };
 
         res.payload.status = add_listen_socket_response_status::OK;
+        Ok(())
+    }
+
+    fn add_psk_broker(
+        &mut self,
+        _req: &super::boilerplate::AddPskBrokerRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::boilerplate::AddPskBrokerResponse,
+    ) -> anyhow::Result<()> {
+        // Retrieve file descriptor
+        let sock_res = run(|| {
+            let sock = req_fds
+                .pop_front()
+                .context("Invalid request – socket missing.")?;
+            mio::net::UnixStream::from_fd(sock)
+        });
+
+        // Handle errors
+        let sock = match sock_res {
+            Ok(sock) => sock,
+            Err(e) => {
+                log::debug!(
+                    "Request found to be invalid while processing AddPskBroker API request: {e:?}"
+                );
+                res.payload.status = add_psk_broker_response_status::INVALID_REQUEST;
+                return Ok(());
+            }
+        };
+
+        // Register Socket
+        let client = Box::new(MioBrokerClient::new(sock));
+
+        // Workaround: The broker code is currently impressively overcomplicated. Brokers are
+        // stored in a hash map but the hash map key used is just a counter so a vector could
+        // have been used. Broker configuration is abstracted, different peers can have different
+        // brokers but there is no facility to add multiple brokers in practice. The broker index
+        // uses a `Public` wrapper without actually holding any cryptographic data. Even the broker
+        // configuration uses a trait abstraction for no discernible reason and a lot of the code
+        // introduces pointless, single-field wrapper structs.
+        // We should use an implement-what-is-actually-needed strategy next time.
+        // The Broker code needs to be slimmed down, the right direction to go is probably to
+        // just add event and capability support to the API and use the API to deliver OSK events.
+        //
+        // For now, we just replace the latest broker.
+        let erase_ptr = {
+            use crate::app_server::BrokerStorePtr;
+            //
+            use rosenpass_secret_memory::Public;
+            use zerocopy::AsBytes;
+            (self.app_server().brokers.store.len() - 1)
+                .apply(|x| x as u64)
+                .apply(|x| Public::from_slice(x.as_bytes()))
+                .apply(BrokerStorePtr)
+        };
+
+        let register_result = run(|| {
+            let srv = self.app_server_mut();
+            srv.unregister_broker(erase_ptr)?;
+            srv.register_broker(client)
+        });
+
+        if let Err(e) = register_result {
+            log::warn!("Internal error while processing AddPskBroker API request: {e:?}");
+            res.payload.status = add_psk_broker_response_status::INTERNAL_ERROR;
+            return Ok(());
+        }
+
+        res.payload.status = add_psk_broker_response_status::OK;
         Ok(())
     }
 }

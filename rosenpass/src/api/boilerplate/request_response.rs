@@ -58,6 +58,14 @@ impl ResponseMsg for super::AddListenSocketResponse {
     type RequestMsg = super::AddListenSocketRequest;
 }
 
+impl RequestMsg for super::AddPskBrokerRequest {
+    type ResponseMsg = super::AddPskBrokerResponse;
+}
+
+impl ResponseMsg for super::AddPskBrokerResponse {
+    type RequestMsg = super::AddPskBrokerRequest;
+}
+
 pub type PingPair<B1, B2> = (Ref<B1, PingRequest>, Ref<B2, PingResponse>);
 pub type SupplyKeypairPair<B1, B2> = (
     Ref<B1, super::SupplyKeypairRequest>,
@@ -67,11 +75,16 @@ pub type AddListenSocketPair<B1, B2> = (
     Ref<B1, super::AddListenSocketRequest>,
     Ref<B2, super::AddListenSocketResponse>,
 );
+pub type AddPskBrokerPair<B1, B2> = (
+    Ref<B1, super::AddPskBrokerRequest>,
+    Ref<B2, super::AddPskBrokerResponse>,
+);
 
 pub enum RequestResponsePair<B1, B2> {
     Ping(PingPair<B1, B2>),
     SupplyKeypair(SupplyKeypairPair<B1, B2>),
     AddListenSocket(AddListenSocketPair<B1, B2>),
+    AddPskBroker(AddPskBrokerPair<B1, B2>),
 }
 
 impl<B1, B2> From<PingPair<B1, B2>> for RequestResponsePair<B1, B2> {
@@ -89,6 +102,12 @@ impl<B1, B2> From<SupplyKeypairPair<B1, B2>> for RequestResponsePair<B1, B2> {
 impl<B1, B2> From<AddListenSocketPair<B1, B2>> for RequestResponsePair<B1, B2> {
     fn from(v: AddListenSocketPair<B1, B2>) -> Self {
         RequestResponsePair::AddListenSocket(v)
+    }
+}
+
+impl<B1, B2> From<AddPskBrokerPair<B1, B2>> for RequestResponsePair<B1, B2> {
+    fn from(v: AddPskBrokerPair<B1, B2>) -> Self {
+        RequestResponsePair::AddPskBroker(v)
     }
 }
 
@@ -112,6 +131,11 @@ where
             Self::AddListenSocket((req, res)) => {
                 let req = RequestRef::AddListenSocket(req.emancipate());
                 let res = ResponseRef::AddListenSocket(res.emancipate());
+                (req, res)
+            }
+            Self::AddPskBroker((req, res)) => {
+                let req = RequestRef::AddPskBroker(req.emancipate());
+                let res = ResponseRef::AddPskBroker(res.emancipate());
                 (req, res)
             }
         }
@@ -146,6 +170,11 @@ where
             Self::AddListenSocket((req, res)) => {
                 let req = RequestRef::AddListenSocket(req.emancipate_mut());
                 let res = ResponseRef::AddListenSocket(res.emancipate_mut());
+                (req, res)
+            }
+            Self::AddPskBroker((req, res)) => {
+                let req = RequestRef::AddPskBroker(req.emancipate_mut());
+                let res = ResponseRef::AddPskBroker(res.emancipate_mut());
                 (req, res)
             }
         }

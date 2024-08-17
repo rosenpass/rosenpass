@@ -80,6 +80,8 @@ fn main() -> Result<()> {
                 Tree::Leaf("Supply Keypair Response".to_owned()),
                 Tree::Leaf("Add Listen Socket Request".to_owned()),
                 Tree::Leaf("Add Listen Socket Response".to_owned()),
+                Tree::Leaf("Add Psk Broker Request".to_owned()),
+                Tree::Leaf("Add Psk Broker Response".to_owned()),
             ],
         )],
     );

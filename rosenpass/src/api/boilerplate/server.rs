@@ -24,6 +24,13 @@ pub trait Server {
         res: &mut super::AddListenSocketResponse,
     ) -> anyhow::Result<()>;
 
+    fn add_psk_broker(
+        &mut self,
+        req: &super::AddPskBrokerRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::AddPskBrokerResponse,
+    ) -> anyhow::Result<()>;
+
     fn dispatch<ReqBuf, ResBuf>(
         &mut self,
         p: &mut RequestResponsePair<ReqBuf, ResBuf>,
@@ -41,6 +48,7 @@ pub trait Server {
             RequestResponsePair::AddListenSocket((req, res)) => {
                 self.add_listen_socket(req, req_fds, res)
             }
+            RequestResponsePair::AddPskBroker((req, res)) => self.add_psk_broker(req, req_fds, res),
         }
     }
 
@@ -71,6 +79,11 @@ pub trait Server {
                 let mut res = res.add_listen_socket_response_from_prefix()?;
                 res.init();
                 RequestResponsePair::AddListenSocket((req, res))
+            }
+            RequestRef::AddPskBroker(req) => {
+                let mut res = res.add_psk_broker_response_from_prefix()?;
+                res.init();
+                RequestResponsePair::AddPskBroker((req, res))
             }
         };
         self.dispatch(&mut pair, req_fds)?;

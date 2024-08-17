@@ -77,7 +77,7 @@ impl MioTokenDispenser {
 
 #[derive(Debug, Default)]
 pub struct BrokerStore {
-    store: HashMap<
+    pub store: HashMap<
         Public<BROKER_ID_BYTES>,
         Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error>>,
     >,

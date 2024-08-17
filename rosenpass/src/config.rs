@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;
 
-#[cfg(feature = "experiment_broker_api")]
+#[cfg(feature = "experiment_api")]
 fn empty_api_config() -> crate::api::config::ApiConfig {
     crate::api::config::ApiConfig {
         listen_path: Vec::new(),

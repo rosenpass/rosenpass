@@ -265,3 +265,87 @@ impl Message for AddListenSocketResponse {
         self.msg_type = Self::MESSAGE_TYPE.into();
     }
 }
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct AddPskBrokerRequestPayload {}
+
+pub type AddPskBrokerRequest = RequestEnvelope<AddPskBrokerRequestPayload>;
+
+impl Default for AddPskBrokerRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AddPskBrokerRequest {
+    pub fn new() -> Self {
+        Self::from_payload(AddPskBrokerRequestPayload {})
+    }
+}
+
+impl Message for AddPskBrokerRequest {
+    type Payload = AddPskBrokerRequestPayload;
+    type MessageClass = RequestMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = RequestMsgType::AddPskBroker;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
+
+pub mod add_psk_broker_response_status {
+    pub const OK: u128 = 0;
+    pub const INVALID_REQUEST: u128 = 1;
+    pub const INTERNAL_ERROR: u128 = 2;
+}
+
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+pub struct AddPskBrokerResponsePayload {
+    pub status: u128,
+}
+
+pub type AddPskBrokerResponse = ResponseEnvelope<AddPskBrokerResponsePayload>;
+
+impl AddPskBrokerResponse {
+    pub fn new(status: u128) -> Self {
+        Self::from_payload(AddPskBrokerResponsePayload { status })
+    }
+}
+
+impl Message for AddPskBrokerResponse {
+    type Payload = AddPskBrokerResponsePayload;
+    type MessageClass = ResponseMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = ResponseMsgType::AddPskBroker;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}

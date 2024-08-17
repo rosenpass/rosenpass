@@ -144,6 +144,9 @@ pub trait GetSocketType {
         use rustix::net::SocketType;
         matches!(self.socket_type()?, SocketType::DGRAM).ok()
     }
+    fn is_stream_socket(&self) -> Result<bool, Self::Error> {
+        Ok(self.socket_type()? == rustix::net::SocketType::STREAM)
+    }
 }
 
 impl<T> GetSocketType for T
@@ -154,6 +157,60 @@ where
 
     fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error> {
         rustix::net::sockopt::get_socket_type(self)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub trait GetSocketDomain {
+    type Error;
+    fn socket_domain(&self) -> Result<rustix::net::AddressFamily, Self::Error>;
+    fn socket_address_family(&self) -> Result<rustix::net::AddressFamily, Self::Error> {
+        self.socket_domain()
+    }
+    fn is_unix_socket(&self) -> Result<bool, Self::Error> {
+        Ok(self.socket_domain()? == rustix::net::AddressFamily::UNIX)
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl<T> GetSocketDomain for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    fn socket_domain(&self) -> Result<rustix::net::AddressFamily, Self::Error> {
+        rustix::net::sockopt::get_socket_domain(self)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub trait GetUnixSocketType {
+    type Error;
+    fn is_unix_stream_socket(&self) -> Result<bool, Self::Error>;
+    fn demand_unix_stream_socket(&self) -> anyhow::Result<()>;
+}
+
+#[cfg(target_os = "linux")]
+impl<T> GetUnixSocketType for T
+where
+    T: GetSocketType + GetSocketDomain<Error = <T as GetSocketType>::Error>,
+    anyhow::Error: From<<T as GetSocketType>::Error>,
+{
+    type Error = <T as GetSocketType>::Error;
+
+    fn is_unix_stream_socket(&self) -> Result<bool, Self::Error> {
+        Ok(self.is_unix_socket()? && self.is_stream_socket()?)
+    }
+
+    fn demand_unix_stream_socket(&self) -> anyhow::Result<()> {
+        use rustix::net::AddressFamily as SA;
+        use rustix::net::SocketType as ST;
+        match (self.socket_domain()?, self.socket_type()?) {
+            (SA::UNIX, ST::STREAM) => Ok(()),
+            (SA::UNIX, mode) => bail!("Expected unix socket in stream mode, but mode is {mode:?}"),
+            (domain, _) => bail!("Expected unix socket, but socket domain is {domain:?} instead"),
+        }
     }
 }
 
