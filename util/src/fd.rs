@@ -203,7 +203,7 @@ where
         Ok(self.is_unix_socket()? && self.is_stream_socket()?)
     }
 
-    fn demand_unix_stream_socket(&self) -> anyhow::Result<()>{
+    fn demand_unix_stream_socket(&self) -> anyhow::Result<()> {
         use rustix::net::AddressFamily as SA;
         use rustix::net::SocketType as ST;
         match (self.socket_domain()?, self.socket_type()?) {

@@ -130,6 +130,7 @@ pub trait MioConnectionContext {
             bufs.write_buffer
                 .restart_write_with_new_message(response_len)?;
             bufs.read_buffer.zeroize(); // clear for new message to read
+            bufs.read_fd_buffer.clear();
 
             Ok(Some(()))
         })

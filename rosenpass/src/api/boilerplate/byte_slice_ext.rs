@@ -181,6 +181,42 @@ pub trait ByteSliceRefExt: ByteSlice {
     ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
         self.zk_parse_suffix()
     }
+
+    fn add_psk_broker_request(self) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>> {
+        self.zk_parse()
+    }
+
+    fn add_psk_broker_request_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_psk_broker_request_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>> {
+        self.zk_parse_suffix()
+    }
+
+    fn add_psk_broker_response_maker(self) -> RefMaker<Self, super::AddPskBrokerResponse> {
+        self.zk_ref_maker()
+    }
+
+    fn add_psk_broker_response(self) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
+        self.zk_parse()
+    }
+
+    fn add_psk_broker_response_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
+        self.zk_parse_prefix()
+    }
+
+    fn add_psk_broker_response_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
+        self.zk_parse_suffix()
+    }
 }
 
 impl<B: ByteSlice> ByteSliceRefExt for B {}

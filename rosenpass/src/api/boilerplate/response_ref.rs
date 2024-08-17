@@ -28,6 +28,7 @@ impl<B: ByteSlice> ResponseRef<B> {
             Self::Ping(_) => ResponseMsgType::Ping,
             Self::SupplyKeypair(_) => ResponseMsgType::SupplyKeypair,
             Self::AddListenSocket(_) => ResponseMsgType::AddListenSocket,
+            Self::AddPskBroker(_) => ResponseMsgType::AddPskBroker,
         }
     }
 }
@@ -50,6 +51,12 @@ impl<B> From<Ref<B, super::AddListenSocketResponse>> for ResponseRef<B> {
     }
 }
 
+impl<B> From<Ref<B, super::AddPskBrokerResponse>> for ResponseRef<B> {
+    fn from(v: Ref<B, super::AddPskBrokerResponse>) -> Self {
+        Self::AddPskBroker(v)
+    }
+}
+
 impl<B: ByteSlice> ResponseRefMaker<B> {
     fn new(buf: B) -> anyhow::Result<Self> {
         let msg_type = buf.deref().response_msg_type_from_prefix()?;
@@ -68,6 +75,9 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
             }
             ResponseMsgType::AddListenSocket => {
                 ResponseRef::AddListenSocket(self.buf.add_listen_socket_response()?)
+            }
+            ResponseMsgType::AddPskBroker => {
+                ResponseRef::AddPskBroker(self.buf.add_psk_broker_response()?)
             }
         })
     }
@@ -105,6 +115,7 @@ pub enum ResponseRef<B> {
     Ping(Ref<B, PingResponse>),
     SupplyKeypair(Ref<B, super::SupplyKeypairResponse>),
     AddListenSocket(Ref<B, super::AddListenSocketResponse>),
+    AddPskBroker(Ref<B, super::AddPskBrokerResponse>),
 }
 
 impl<B> ResponseRef<B>
@@ -116,6 +127,7 @@ where
             Self::Ping(r) => r.bytes(),
             Self::SupplyKeypair(r) => r.bytes(),
             Self::AddListenSocket(r) => r.bytes(),
+            Self::AddPskBroker(r) => r.bytes(),
         }
     }
 }
@@ -129,6 +141,7 @@ where
             Self::Ping(r) => r.bytes_mut(),
             Self::SupplyKeypair(r) => r.bytes_mut(),
             Self::AddListenSocket(r) => r.bytes_mut(),
+            Self::AddPskBroker(r) => r.bytes_mut(),
         }
     }
 }

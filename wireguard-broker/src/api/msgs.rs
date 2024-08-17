@@ -20,8 +20,8 @@ pub struct Envelope<M: AsBytes + FromBytes> {
 #[repr(packed)]
 #[derive(AsBytes, FromBytes, FromZeroes)]
 pub struct SetPskRequest {
-    pub peer_id: [u8; 32],
     pub psk: [u8; 32],
+    pub peer_id: [u8; 32],
     pub iface_size: u8, // TODO: We should have variable length strings in lenses
     pub iface_buf: [u8; 255],
 }
