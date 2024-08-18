@@ -19,7 +19,7 @@ use rosenpass_util::{
     file::LoadValueB64,
     io::IoErrorKind,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
-    mem::MoveExt,
+    mem::{DiscardResultExt, MoveExt},
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
@@ -28,6 +28,15 @@ use tempfile::TempDir;
 use zerocopy::AsBytes;
 
 use rosenpass::protocol::SymKey;
+
+struct KillChild(std::process::Child);
+
+impl Drop for KillChild {
+    fn drop(&mut self) {
+        self.0.kill().discard_result();
+        self.0.wait().discard_result()
+    }
+}
 
 #[test]
 fn api_integration_api_setup() -> anyhow::Result<()> {
@@ -120,33 +129,37 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
     let deliberate_fail_child_fd = 3;
 
     // Start peer a
-    let _proc_a = std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-        .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
-        .fd_mappings(vec![FdMapping {
-            parent_fd: deliberate_fail_api_server.move_here().as_raw_fd(),
-            child_fd: 3,
-        }])?
-        .args([
-            "exchange-config",
-            peer_a.config_file_path.to_str().context("")?,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .spawn()?;
+    let _proc_a = KillChild(
+        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
+            .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
+            .fd_mappings(vec![FdMapping {
+                parent_fd: deliberate_fail_api_server.move_here().as_raw_fd(),
+                child_fd: 3,
+            }])?
+            .args([
+                "exchange-config",
+                peer_a.config_file_path.to_str().context("")?,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .spawn()?,
+    );
 
     // Start peer b
-    let proc_b = std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-        .args([
-            "exchange-config",
-            peer_b.config_file_path.to_str().context("")?,
-        ])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut proc_b = KillChild(
+        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
+            .args([
+                "exchange-config",
+                peer_b.config_file_path.to_str().context("")?,
+            ])
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
+            .spawn()?,
+    );
 
     // Acquire stdout
-    let mut out_b = BufReader::new(proc_b.stdout.context("")?).lines();
+    let mut out_b = BufReader::new(proc_b.0.stdout.take().context("")?).lines();
 
     // Now connect to the peers
     let api_path = peer_a.api.listen_path[0].as_path();
