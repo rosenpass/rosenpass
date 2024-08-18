@@ -293,6 +293,7 @@ struct MockBrokerInner {
 #[derive(Debug, Default)]
 struct MockBroker {
     inner: Arc<Mutex<MockBrokerInner>>,
+    mio_token: Option<mio::Token>,
 }
 
 impl WireguardBrokerMio for MockBroker {
@@ -301,8 +302,9 @@ impl WireguardBrokerMio for MockBroker {
     fn register(
         &mut self,
         _registry: &mio::Registry,
-        _token: mio::Token,
+        token: mio::Token,
     ) -> Result<(), Self::MioError> {
+        self.mio_token = Some(token);
         Ok(())
     }
 
@@ -311,7 +313,12 @@ impl WireguardBrokerMio for MockBroker {
     }
 
     fn unregister(&mut self, _registry: &mio::Registry) -> Result<(), Self::MioError> {
+        self.mio_token = None;
         Ok(())
+    }
+
+    fn mio_token(&self) -> Option<mio::Token> {
+        self.mio_token
     }
 }
 

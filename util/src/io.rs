@@ -52,6 +52,56 @@ impl<T, E: TryIoErrorKind> TryIoResultKindHintExt<T> for Result<T, E> {
     }
 }
 
+pub trait SubstituteForIoErrorKindExt<T>: Sized {
+    type Error;
+    fn substitute_for_ioerr_kind_with<F: FnOnce() -> T>(
+        self,
+        kind: io::ErrorKind,
+        f: F,
+    ) -> Result<T, Self::Error>;
+    fn substitute_for_ioerr_kind(self, kind: io::ErrorKind, v: T) -> Result<T, Self::Error> {
+        self.substitute_for_ioerr_kind_with(kind, || v)
+    }
+
+    fn substitute_for_ioerr_interrupted_with<F: FnOnce() -> T>(
+        self,
+        f: F,
+    ) -> Result<T, Self::Error> {
+        self.substitute_for_ioerr_kind_with(io::ErrorKind::Interrupted, f)
+    }
+
+    fn substitute_for_ioerr_interrupted(self, v: T) -> Result<T, Self::Error> {
+        self.substitute_for_ioerr_interrupted_with(|| v)
+    }
+
+    fn substitute_for_ioerr_wouldblock_with<F: FnOnce() -> T>(
+        self,
+        f: F,
+    ) -> Result<T, Self::Error> {
+        self.substitute_for_ioerr_kind_with(io::ErrorKind::WouldBlock, f)
+    }
+
+    fn substitute_for_ioerr_wouldblock(self, v: T) -> Result<T, Self::Error> {
+        self.substitute_for_ioerr_wouldblock_with(|| v)
+    }
+}
+
+impl<T, E: TryIoErrorKind> SubstituteForIoErrorKindExt<T> for Result<T, E> {
+    type Error = E;
+
+    fn substitute_for_ioerr_kind_with<F: FnOnce() -> T>(
+        self,
+        kind: io::ErrorKind,
+        f: F,
+    ) -> Result<T, Self::Error> {
+        match self.try_io_err_kind_hint() {
+            Ok(v) => Ok(v),
+            Err((_, Some(k))) if k == kind => Ok(f()),
+            Err((e, _)) => Err(e),
+        }
+    }
+}
+
 /// Automatically handles `std::io::ErrorKind::Interrupted`.
 ///
 /// - If there is no error (i.e. on `Ok(r)`), the function will return `Ok(Some(r))`

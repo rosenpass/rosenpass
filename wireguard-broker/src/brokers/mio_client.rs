@@ -16,6 +16,7 @@ use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 #[derive(Debug)]
 pub struct MioBrokerClient {
     inner: BrokerClient<MioBrokerClientIo>,
+    mio_token: Option<mio::Token>,
 }
 
 #[derive(Debug)]
@@ -59,7 +60,10 @@ impl MioBrokerClient {
             write_buffer,
         };
         let inner = BrokerClient::new(io);
-        Self { inner }
+        Self {
+            inner,
+            mio_token: None,
+        }
     }
 
     fn poll(&mut self) -> anyhow::Result<()> {
@@ -104,6 +108,7 @@ impl WireguardBrokerMio for MioBrokerClient {
         registry: &mio::Registry,
         token: mio::Token,
     ) -> Result<(), Self::MioError> {
+        self.mio_token = Some(token);
         registry.register(
             &mut self.inner.io_mut().socket,
             token,
@@ -118,8 +123,13 @@ impl WireguardBrokerMio for MioBrokerClient {
     }
 
     fn unregister(&mut self, registry: &mio::Registry) -> Result<(), Self::MioError> {
+        self.mio_token = None;
         registry.deregister(&mut self.inner.io_mut().socket)?;
         Ok(())
+    }
+
+    fn mio_token(&self) -> Option<mio::Token> {
+        self.mio_token
     }
 }
 

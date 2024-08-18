@@ -74,6 +74,7 @@ tempfile = { workspace = true }
 rustix = {workspace = true}
 
 [features]
+default = ["experiment_api"]
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
 experiment_api = ["hex-literal", "uds", "command-fds", "rosenpass-util/experiment_file_descriptor_passing", "rosenpass-wireguard-broker/experiment_api"]

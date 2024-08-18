@@ -28,6 +28,8 @@ pub trait WireguardBrokerMio: WireGuardBroker {
         registry: &mio::Registry,
         token: mio::Token,
     ) -> Result<(), Self::MioError>;
+    fn mio_token(&self) -> Option<mio::Token>;
+
     /// Run after a mio::poll operation
     fn process_poll(&mut self) -> Result<(), Self::MioError>;
 

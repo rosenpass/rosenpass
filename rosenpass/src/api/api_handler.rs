@@ -203,7 +203,7 @@ where
             mio::net::UdpSocket::from_std(sock).ok()
         });
 
-        let mut sock = match sock_res {
+        let sock = match sock_res {
             Ok(sock) => sock,
             Err(e) => {
                 log::debug!("Error processing AddListenSocket API request: {e:?}");
@@ -213,16 +213,7 @@ where
         };
 
         // Register socket
-        let reg_result = run(|| -> anyhow::Result<()> {
-            let srv = self.app_server_mut();
-            srv.mio_poll.registry().register(
-                &mut sock,
-                srv.mio_token_dispenser.dispense(),
-                mio::Interest::READABLE,
-            )?;
-            srv.sockets.push(sock);
-            Ok(())
-        });
+        let reg_result = self.app_server_mut().register_listen_socket(sock);
 
         if let Err(internal_error) = reg_result {
             log::warn!("Internal error processing AddListenSocket API request: {internal_error:?}");

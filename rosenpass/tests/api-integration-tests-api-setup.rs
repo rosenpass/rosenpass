@@ -141,6 +141,7 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
             peer_b.config_file_path.to_str().context("")?,
         ])
         .stdin(Stdio::null())
+        .stderr(Stdio::null())
         .stdout(Stdio::piped())
         .spawn()?;
 
