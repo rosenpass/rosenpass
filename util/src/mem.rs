@@ -136,3 +136,17 @@ impl<T: Default> SwapWithDefaultExt for T {
         self.swap_with(Self::default())
     }
 }
+
+pub trait MoveExt {
+    /// Deliberately move the value
+    ///
+    /// Usually employed to enforce an object being
+    /// dropped after use.
+    fn move_here(self) -> Self;
+}
+
+impl<T: Sized> MoveExt for T {
+    fn move_here(self) -> Self {
+        self
+    }
+}

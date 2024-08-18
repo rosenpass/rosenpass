@@ -87,9 +87,19 @@ pub trait MioManagerContext {
     }
 
     fn poll_connections(&mut self) -> anyhow::Result<()> {
-        for idx in 0..self.mio_manager().connections.len() {
-            let mut foc: MioConnectionFocus<Self> = MioConnectionFocus::new(self, idx);
-            foc.poll()?;
+        let mut idx = 0;
+        while idx < self.mio_manager().connections.len() {
+            if self.mio_manager().connections[idx].shoud_close() {
+                let conn = self.mio_manager_mut().connections.remove(idx);
+                if let Err(e) = conn.close(self.app_server_mut()) {
+                    log::warn!("Error while closing API connection {e:?}");
+                };
+                continue;
+            }
+
+            MioConnectionFocus::new(self, idx).poll()?;
+
+            idx += 1;
         }
         Ok(())
     }

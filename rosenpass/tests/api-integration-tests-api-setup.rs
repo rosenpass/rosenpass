@@ -1,5 +1,6 @@
 use std::{
-    io::{BufRead, BufReader},
+    borrow::Borrow,
+    io::{BufRead, BufReader, Write},
     os::unix::net::UnixStream,
     process::Stdio,
     thread::sleep,
@@ -7,6 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
+use command_fds::{CommandFdExt, FdMapping};
 use hex_literal::hex;
 use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
@@ -15,11 +17,13 @@ use rosenpass::api::{
 use rosenpass_util::{
     b64::B64Display,
     file::LoadValueB64,
+    io::IoErrorKind,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
+    mem::MoveExt,
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
-use rustix::fd::AsFd;
+use rustix::fd::{AsFd, AsRawFd};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
 
@@ -111,8 +115,17 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
     peer_a.commit()?;
     peer_b.commit()?;
 
+    let (deliberate_fail_api_client, deliberate_fail_api_server) =
+        std::os::unix::net::UnixStream::pair()?;
+    let deliberate_fail_child_fd = 3;
+
     // Start peer a
     let _proc_a = std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
+        .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
+        .fd_mappings(vec![FdMapping {
+            parent_fd: deliberate_fail_api_server.move_here().as_raw_fd(),
+            child_fd: 3,
+        }])?
         .args([
             "exchange-config",
             peer_a.config_file_path.to_str().context("")?,
@@ -171,6 +184,23 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
             *res,
             api::AddListenSocketResponse::new(add_listen_socket_response_status::OK)
         );
+    }
+
+    // Deliberately break API connection given via FD; this checks that the
+    // API connections are closed when invalid data is received and it also
+    // implicitly checks that other connections are unaffected
+    {
+        use std::io::ErrorKind as K;
+        let client = deliberate_fail_api_client;
+        let err = loop {
+            if let Err(e) = client.borrow().write(&[0xffu8; 16]) {
+                break e;
+            }
+        };
+        assert!(matches!(
+            err.io_error_kind(),
+            K::ConnectionReset | K::BrokenPipe
+        ));
     }
 
     // Send SupplyKeypairRequest

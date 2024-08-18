@@ -85,6 +85,20 @@ impl MioConnection {
             api_handler: api_state,
         })
     }
+
+    pub fn shoud_close(&self) -> bool {
+        let exhausted = self
+            .buffers
+            .as_ref()
+            .map(|b| b.write_buffer.exhausted())
+            .unwrap_or(false);
+        self.invalid_read && exhausted
+    }
+
+    pub fn close(mut self, app_server: &mut AppServer) -> anyhow::Result<()> {
+        app_server.mio_poll.registry().deregister(&mut self.io)?;
+        Ok(())
+    }
 }
 
 pub trait MioConnectionContext {
@@ -211,12 +225,7 @@ pub trait MioConnectionContext {
                     log::warn!("Received message on API that was too big to fit in our buffers; \
                             looks like the client is broken. Stopping to process messages of the client.\n\
                             Error: {e:?}");
-                    // TODO: We should properly close down the socket in this case, but to do that,
-                    // we need to have the facilities in the Rosenpass IO handling system to close
-                    // open connections.
-                    // Just leaving the API connections dangling for now.
-                    // This should be fixed for non-experimental use of the API.
-                    conn.invalid_read = true;
+                    conn.invalid_read = true; // Closed mio_manager
                     break Ok(None);
                 }
 
@@ -235,8 +244,7 @@ pub trait MioConnectionContext {
                             The connection is broken. Stopping to process messages of the client.\n\
                             Error: {e:?}"
                     );
-                    // TODO: Same as above
-                    conn.invalid_read = true;
+                    conn.invalid_read = true; // closed later by mio_manager
                     break Err(e.into());
                 }
             };
