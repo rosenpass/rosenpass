@@ -11,7 +11,6 @@ pub mod length_prefix_encoding;
 pub mod mem;
 pub mod mio;
 pub mod option;
-pub mod ord;
 pub mod result;
 pub mod time;
 pub mod typenum;

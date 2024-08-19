@@ -91,18 +91,12 @@ use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
-use rosenpass_util::{cat, mem::cpy_min, ord::max_usize, time::Timebase};
+use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 
 // CONSTANTS & SETTINGS //////////////////////////
-
-/// Size required to fit any message in binary form
-pub const RTX_BUFFER_SIZE: usize = max_usize(
-    size_of::<Envelope<InitHello>>(),
-    size_of::<Envelope<InitConf>>(),
-);
 
 /// A type for time, e.g. for backoff before re-tries
 pub type Timing = f64;
