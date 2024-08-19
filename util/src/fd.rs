@@ -13,11 +13,6 @@ use crate::{mem::Forgetting, result::OkExt};
 /// The old file descriptor is masked to avoid potential use after free (on file descriptor)
 /// in case the given file descriptor is still used somewhere
 pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
-    // check if valid fd
-    if !(0..=i32::MAX).contains(&fd) {
-        return Err(rustix::io::Errno::BADF);
-    }
-
     let new = clone_fd_cloexec(unsafe { BorrowedFd::borrow_raw(fd) })?;
     mask_fd(fd)?;
     Ok(new)
@@ -268,25 +263,17 @@ mod tests {
     }
 
     #[test]
-    fn test_claim_fd_invalid() {
+    #[should_panic(expected = "fd != u32::MAX as RawFd")]
+    fn test_claim_fd_invalid_neg() {
         let fd: RawFd = -1;
-        let result = claim_fd(fd);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Bad file descriptor (os error 9)"
-        );
+        let _ = claim_fd(fd);
     }
 
     #[test]
+    #[should_panic(expected = "fd != u32::MAX as RawFd")]
     fn test_claim_fd_invalid_max() {
         let fd: RawFd = i64::MAX as RawFd;
-        let result = claim_fd(fd);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Bad file descriptor (os error 9)"
-        );
+        let _ = claim_fd(fd);
     }
 
     #[test]
