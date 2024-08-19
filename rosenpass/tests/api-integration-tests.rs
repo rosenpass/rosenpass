@@ -8,15 +8,24 @@ use std::{
 use anyhow::{bail, Context};
 use rosenpass::api;
 use rosenpass_to::{ops::copy_slice_least_src, To};
-use rosenpass_util::zerocopy::ZerocopySliceExt;
 use rosenpass_util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
 };
+use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
 
 use rosenpass::protocol::SymKey;
+
+struct KillChild(std::process::Child);
+
+impl Drop for KillChild {
+    fn drop(&mut self) {
+        self.0.kill().discard_result();
+        self.0.wait().discard_result()
+    }
+}
 
 #[test]
 fn api_integration_test() -> anyhow::Result<()> {
@@ -93,28 +102,32 @@ fn api_integration_test() -> anyhow::Result<()> {
     peer_b.commit()?;
 
     // Start peer a
-    let proc_a = std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-        .args([
-            "exchange-config",
-            peer_a.config_file_path.to_str().context("")?,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut proc_a = KillChild(
+        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
+            .args([
+                "exchange-config",
+                peer_a.config_file_path.to_str().context("")?,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .spawn()?,
+    );
 
     // Start peer b
-    let proc_b = std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-        .args([
-            "exchange-config",
-            peer_b.config_file_path.to_str().context("")?,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut proc_b = KillChild(
+        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
+            .args([
+                "exchange-config",
+                peer_b.config_file_path.to_str().context("")?,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .spawn()?,
+    );
 
     // Acquire stdout
-    let mut out_a = BufReader::new(proc_a.stdout.context("")?).lines();
-    let mut out_b = BufReader::new(proc_b.stdout.context("")?).lines();
+    let mut out_a = BufReader::new(proc_a.0.stdout.take().context("")?).lines();
+    let mut out_b = BufReader::new(proc_b.0.stdout.take().context("")?).lines();
 
     // Wait for the keys to successfully exchange a key
     let mut attempt = 0;

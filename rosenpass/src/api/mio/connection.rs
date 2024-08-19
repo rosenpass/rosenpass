@@ -55,6 +55,7 @@ struct MioConnectionBuffers {
 #[derive(Debug)]
 pub struct MioConnection {
     io: UnixStream,
+    mio_token: mio::Token,
     invalid_read: bool,
     buffers: Option<MioConnectionBuffers>,
     api_handler: ApiHandler,
@@ -62,11 +63,11 @@ pub struct MioConnection {
 
 impl MioConnection {
     pub fn new(app_server: &mut AppServer, mut io: UnixStream) -> std::io::Result<Self> {
-        app_server.mio_poll.registry().register(
-            &mut io,
-            app_server.mio_token_dispenser.dispense(),
-            MIO_RW,
-        )?;
+        let mio_token = app_server.mio_token_dispenser.dispense();
+        app_server
+            .mio_poll
+            .registry()
+            .register(&mut io, mio_token, MIO_RW)?;
 
         let invalid_read = false;
         let read_buffer = LengthPrefixDecoder::new(SecretBuffer::new());
@@ -80,10 +81,29 @@ impl MioConnection {
         let api_state = ApiHandler::new();
         Ok(Self {
             io,
+            mio_token,
             invalid_read,
             buffers,
             api_handler: api_state,
         })
+    }
+
+    pub fn shoud_close(&self) -> bool {
+        let exhausted = self
+            .buffers
+            .as_ref()
+            .map(|b| b.write_buffer.exhausted())
+            .unwrap_or(false);
+        self.invalid_read && exhausted
+    }
+
+    pub fn close(mut self, app_server: &mut AppServer) -> anyhow::Result<()> {
+        app_server.mio_poll.registry().deregister(&mut self.io)?;
+        Ok(())
+    }
+
+    pub fn mio_token(&self) -> mio::Token {
+        self.mio_token
     }
 }
 
@@ -211,12 +231,7 @@ pub trait MioConnectionContext {
                     log::warn!("Received message on API that was too big to fit in our buffers; \
                             looks like the client is broken. Stopping to process messages of the client.\n\
                             Error: {e:?}");
-                    // TODO: We should properly close down the socket in this case, but to do that,
-                    // we need to have the facilities in the Rosenpass IO handling system to close
-                    // open connections.
-                    // Just leaving the API connections dangling for now.
-                    // This should be fixed for non-experimental use of the API.
-                    conn.invalid_read = true;
+                    conn.invalid_read = true; // Closed mio_manager
                     break Ok(None);
                 }
 
@@ -235,12 +250,19 @@ pub trait MioConnectionContext {
                             The connection is broken. Stopping to process messages of the client.\n\
                             Error: {e:?}"
                     );
-                    // TODO: Same as above
-                    conn.invalid_read = true;
+                    conn.invalid_read = true; // closed later by mio_manager
                     break Err(e.into());
                 }
             };
         }
+    }
+
+    fn mio_token(&self) -> mio::Token {
+        self.mio_connection().mio_token()
+    }
+
+    fn should_close(&self) -> bool {
+        self.mio_connection().shoud_close()
     }
 }
 

@@ -16,7 +16,9 @@ const MAX_B64_KEY_SIZE: usize = WG_KEY_LEN * 5 / 3;
 const MAX_B64_PEER_ID_SIZE: usize = WG_PEER_LEN * 5 / 3;
 
 #[derive(Debug)]
-pub struct NativeUnixBroker {}
+pub struct NativeUnixBroker {
+    mio_token: Option<mio::Token>,
+}
 
 impl Default for NativeUnixBroker {
     fn default() -> Self {
@@ -26,7 +28,7 @@ impl Default for NativeUnixBroker {
 
 impl NativeUnixBroker {
     pub fn new() -> Self {
-        Self {}
+        Self { mio_token: None }
     }
 }
 
@@ -88,8 +90,9 @@ impl WireguardBrokerMio for NativeUnixBroker {
     fn register(
         &mut self,
         _registry: &mio::Registry,
-        _token: mio::Token,
+        token: mio::Token,
     ) -> Result<(), Self::MioError> {
+        self.mio_token = Some(token);
         Ok(())
     }
 
@@ -98,7 +101,12 @@ impl WireguardBrokerMio for NativeUnixBroker {
     }
 
     fn unregister(&mut self, _registry: &mio::Registry) -> Result<(), Self::MioError> {
+        self.mio_token = None;
         Ok(())
+    }
+
+    fn mio_token(&self) -> Option<mio::Token> {
+        self.mio_token
     }
 }
 

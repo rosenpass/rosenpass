@@ -1,20 +1,25 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    io,
-};
+use std::{borrow::BorrowMut, io};
 
 use mio::net::{UnixListener, UnixStream};
 
-use rosenpass_util::{io::nonblocking_handle_io_errors, mio::interest::RW as MIO_RW};
+use rosenpass_util::{
+    functional::ApplyExt, io::nonblocking_handle_io_errors, mio::interest::RW as MIO_RW,
+};
 
-use crate::app_server::AppServer;
+use crate::app_server::{AppServer, AppServerIoSource};
 
 use super::{MioConnection, MioConnectionContext};
 
 #[derive(Default, Debug)]
 pub struct MioManager {
     listeners: Vec<UnixListener>,
-    connections: Vec<MioConnection>,
+    connections: Vec<Option<MioConnection>>,
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum MioManagerIoSource {
+    Listener(usize),
+    Connection(usize),
 }
 
 impl MioManager {
@@ -42,18 +47,49 @@ pub trait MioManagerContext {
 
     fn add_listener(&mut self, mut listener: UnixListener) -> io::Result<()> {
         let srv = self.app_server_mut();
-        srv.mio_poll.registry().register(
-            &mut listener,
-            srv.mio_token_dispenser.dispense(),
-            MIO_RW,
-        )?;
+        let mio_token = srv.mio_token_dispenser.dispense();
+        srv.mio_poll
+            .registry()
+            .register(&mut listener, mio_token, MIO_RW)?;
+        let io_source = self
+            .mio_manager()
+            .listeners
+            .len()
+            .apply(MioManagerIoSource::Listener)
+            .apply(AppServerIoSource::MioManager);
         self.mio_manager_mut().listeners.push(listener);
+        self.app_server_mut()
+            .register_io_source(mio_token, io_source);
+
         Ok(())
     }
 
     fn add_connection(&mut self, connection: UnixStream) -> io::Result<()> {
         let connection = MioConnection::new(self.app_server_mut(), connection)?;
-        self.mio_manager_mut().connections.push(connection);
+        let mio_token = connection.mio_token();
+        let conns: &mut Vec<Option<MioConnection>> =
+            self.mio_manager_mut().connections.borrow_mut();
+        let idx = conns
+            .iter_mut()
+            .enumerate()
+            .find(|(_, slot)| slot.is_some())
+            .map(|(idx, _)| idx)
+            .unwrap_or(conns.len());
+        conns.insert(idx, Some(connection));
+        let io_source = idx
+            .apply(MioManagerIoSource::Listener)
+            .apply(AppServerIoSource::MioManager);
+        self.app_server_mut()
+            .register_io_source(mio_token, io_source);
+        Ok(())
+    }
+
+    fn poll_particular(&mut self, io_source: MioManagerIoSource) -> anyhow::Result<()> {
+        use MioManagerIoSource as S;
+        match io_source {
+            S::Listener(idx) => self.accept_from(idx)?,
+            S::Connection(idx) => self.poll_particular_connection(idx)?,
+        };
         Ok(())
     }
 
@@ -88,16 +124,37 @@ pub trait MioManagerContext {
 
     fn poll_connections(&mut self) -> anyhow::Result<()> {
         for idx in 0..self.mio_manager().connections.len() {
-            let mut foc: MioConnectionFocus<Self> = MioConnectionFocus::new(self, idx);
-            foc.poll()?;
+            self.poll_particular_connection(idx)?;
         }
+        Ok(())
+    }
+
+    fn poll_particular_connection(&mut self, idx: usize) -> anyhow::Result<()> {
+        if self.mio_manager().connections[idx].is_none() {
+            return Ok(());
+        }
+
+        let mut conn = MioConnectionFocus::new(self, idx);
+        conn.poll()?;
+
+        if conn.should_close() {
+            let conn = self.mio_manager_mut().connections[idx].take().unwrap();
+            let mio_token = conn.mio_token();
+            if let Err(e) = conn.close(self.app_server_mut()) {
+                log::warn!("Error while closing API connection {e:?}");
+            };
+            self.app_server_mut().unregister_io_source(mio_token);
+        }
+
         Ok(())
     }
 }
 
 impl<T: ?Sized + MioManagerContext> MioConnectionContext for MioConnectionFocus<'_, T> {
     fn mio_connection(&self) -> &MioConnection {
-        self.ctx.mio_manager().connections[self.conn_idx].borrow()
+        self.ctx.mio_manager().connections[self.conn_idx]
+            .as_ref()
+            .unwrap()
     }
 
     fn app_server(&self) -> &AppServer {
@@ -105,7 +162,9 @@ impl<T: ?Sized + MioManagerContext> MioConnectionContext for MioConnectionFocus<
     }
 
     fn mio_connection_mut(&mut self) -> &mut MioConnection {
-        self.ctx.mio_manager_mut().connections[self.conn_idx].borrow_mut()
+        self.ctx.mio_manager_mut().connections[self.conn_idx]
+            .as_mut()
+            .unwrap()
     }
 
     fn app_server_mut(&mut self) -> &mut AppServer {
