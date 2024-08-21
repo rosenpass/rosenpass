@@ -211,9 +211,10 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
                 break e;
             }
         };
+        // NotConnected happens on Mac
         assert!(matches!(
             err.io_error_kind(),
-            K::ConnectionReset | K::BrokenPipe
+            K::ConnectionReset | K::BrokenPipe | K::NotConnected
         ));
     }
 
