@@ -1,0 +1,34 @@
+name: Changelog Update
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  generate-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+
+      - name: Install git-cliff
+        run: cargo install git-cliff
+
+      - name: Generate Changelog
+        run: |
+          git-cliff --config cliff.toml > CHANGELOG.md
+          git add CHANGELOG.md
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git commit -m "chore: update changelog" || echo "No changes to commit"
+          git push origin HEAD:${{ github.head_ref }}
+

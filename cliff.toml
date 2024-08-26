@@ -22,10 +22,10 @@ type: docs
 body = """
 {% if version %}\
 <div class="changelog-container card card-body">
-    <div class="h3 changelog-release">{{ version | trim_start_matches(pat="v") }} <span class="">{{ timestamp | date(format="%Y-%m-%d") }}<span> - <a href="{{ commit_id}}" class="">{{ commit_id | truncate(length=7, end="") }}</a></div>\
+    <div class="h3 changelog-release">• {{ version | trim_start_matches(pat="v") }} <span class="">{{ timestamp | date(format="%Y-%m-%d") }}<span> - <a href="{{ commit_id}}" class="">{{ commit_id | truncate(length=7, end="") }}</a></div>\
 {% else %}\
 <div class="changelog-container card card-body">
-    <div class="h3 changelog-release">unreleased/untagged</div>
+    <div class="h3 changelog-release">• unreleased / untagged</div>
 {% endif %}\
 
 {% for group, commits in commits | group_by(attribute="group") %}
@@ -73,11 +73,13 @@ commit_parsers = [
   { message = "^chore\\(deps.*\\)", skip = true },
   { message = "^chore\\(pr\\)", skip = true },
   { message = "^chore\\(pull\\)", skip = true },
+  { message = "^chore: update changelog", skip = true },  # New rule to skip changelog commits
   { body = ".*security", group = "<!-- 7 -->🛡️ Security" },
   { message = "^revert", group = "<!-- 8 -->◀️ Revert" },
   # Catch-all for uncategorized commits
   { message = ".*", group = "<!-- 9 -->📦 Miscellaneous Tasks" },
 ]
+
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false
 # filter out the commits that are not matched by commit parsers

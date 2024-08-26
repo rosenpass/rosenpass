@@ -10,7 +10,7 @@ type: docs
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
 
 <div class="changelog-container card card-body">
-<div class="h3 changelog-release">unreleased/untagged</div>
+<div class="h3 changelog-release">• unreleased / untagged</div>
 
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#serut0" aria-expanded="false" aria-controls="serut0">
@@ -116,6 +116,8 @@ type: docs
 <div class="collapse changelog" id="sexiF0">
 <div class="card card-body">
 
+<div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/c81d484294d532f4bfebdefe1a22693d8ce6b4bc">c81d484</a> Tests failing on mac</div>
+
 <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/9bbf9433e6c31a3fdb16f997fbbde2069cee6489">9bbf943</a> Be polite and kill child processes in api integration tests</div>
 
 <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/c1704b1464d776bea055982edff575c7f1411786">c1704b1</a> Wrong response size set</div>
@@ -198,6 +200,8 @@ type: docs
 <div class="collapse changelog" id="noita0">
 <div class="card card-body">
 
+<div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/3cd607774a378215a735bb7da63d8ad8b91f4e31">3cd6077</a> Added gitcliff and modified template</div>
+
 <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/1f7196e4733a1364033b44c1f4b84c84c1cc4aab">1f7196e</a> Add documentation for testing</div>
 
 <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/de60e5f8f0d0190a5bd7fd1e11bcee35f6187677">de60e5f</a> Run prettier over CONTRIBUTING.md</div>
@@ -247,6 +251,10 @@ type: docs
 </p>
 <div class="collapse changelog" id="sksaT0">
 <div class="card card-body">
+
+<div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/e809e226dab2fd059343afcf722c482bd8d9b70a">e809e22</a> Fixed typo on doc-upload</div>
+
+<div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/4c20efc8a8bc2f703d737de861b0d1194ae6a4a8">4c20efc</a> Fix(API): Tests failing on mac</div>
 
 <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/22389196571dd8fda7c1787b8a9fd6516afef9b1">2238919</a> Fd/time: add tests, docs, cleanups</div>
 
@@ -436,7 +444,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.2.1 <span class="">2023-11-18<span> - <a href="0b4b1279cf7f322a41387878dd7ceee1ed094e29" class="">0b4b127</a></div>
+<div class="h3 changelog-release">• 0.2.1 <span class="">2023-11-18<span> - <a href="0b4b1279cf7f322a41387878dd7ceee1ed094e29" class="">0b4b127</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1700345782" aria-expanded="false" aria-controls="esael1700345782">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -451,7 +459,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.2.1-rc.3 <span class="">2023-11-18<span> - <a href="44264a7bb67895270bca88f2a450e2c95e3b4917" class="">44264a7</a></div>
+<div class="h3 changelog-release">• 0.2.1-rc.3 <span class="">2023-11-18<span> - <a href="44264a7bb67895270bca88f2a450e2c95e3b4917" class="">44264a7</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1700344737" aria-expanded="false" aria-controls="esael1700344737">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -466,7 +474,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">rosenpass-v0.2.1-rc.2 <span class="">2023-11-18<span> - <a href="9597e485bfe2d74940b694a7bd012ae1adf1fe09" class="">9597e48</a></div>
+<div class="h3 changelog-release">• rosenpass-v0.2.1-rc.2 <span class="">2023-11-18<span> - <a href="9597e485bfe2d74940b694a7bd012ae1adf1fe09" class="">9597e48</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1700344115" aria-expanded="false" aria-controls="esael1700344115">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -481,7 +489,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">rosenpass-v0.2.1-rc.1 <span class="">2023-11-18<span> - <a href="3901e668cba86195a2853dbae21c27c01780ddac" class="">3901e66</a></div>
+<div class="h3 changelog-release">• rosenpass-v0.2.1-rc.1 <span class="">2023-11-18<span> - <a href="3901e668cba86195a2853dbae21c27c01780ddac" class="">3901e66</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1700343046" aria-expanded="false" aria-controls="esael1700343046">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -586,7 +594,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.2.0 <span class="">2023-09-05<span> - <a href="b997238f428a0fd2276da8014e9e8c7ee66d711c" class="">b997238</a></div>
+<div class="h3 changelog-release">• 0.2.0 <span class="">2023-09-05<span> - <a href="b997238f428a0fd2276da8014e9e8c7ee66d711c" class="">b997238</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1693935230" aria-expanded="false" aria-controls="esael1693935230">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -601,7 +609,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.2.0-rc.1 <span class="">2023-08-29<span> - <a href="d915e63445ac384740d60ae41821fa5a3831636a" class="">d915e63</a></div>
+<div class="h3 changelog-release">• 0.2.0-rc.1 <span class="">2023-08-29<span> - <a href="d915e63445ac384740d60ae41821fa5a3831636a" class="">d915e63</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#serut1693345728" aria-expanded="false" aria-controls="serut1693345728">
 <div class="h4"> <!-- 0 -->🚀 Features <i class="fa-solid fa-sort-down"></i></div>
@@ -702,7 +710,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.2-rc.4 <span class="">2023-04-13<span> - <a href="94d57f2f87a41c8ae902cbdf0273541a90419a54" class="">94d57f2</a></div>
+<div class="h3 changelog-release">• 0.1.2-rc.4 <span class="">2023-04-13<span> - <a href="94d57f2f87a41c8ae902cbdf0273541a90419a54" class="">94d57f2</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1681408329" aria-expanded="false" aria-controls="esael1681408329">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -777,7 +785,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1 <span class="">2023-02-25<span> - <a href="97f5d75838d4dd73f1ed507b8f236b34a48ab773" class="">97f5d75</a></div>
+<div class="h3 changelog-release">• 0.1.1 <span class="">2023-02-25<span> - <a href="97f5d75838d4dd73f1ed507b8f236b34a48ab773" class="">97f5d75</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677364480" aria-expanded="false" aria-controls="esael1677364480">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -792,7 +800,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.7 <span class="">2023-02-25<span> - <a href="aa15872f2b693cac416225bc7abcd1c989f4431a" class="">aa15872</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.7 <span class="">2023-02-25<span> - <a href="aa15872f2b693cac416225bc7abcd1c989f4431a" class="">aa15872</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677363695" aria-expanded="false" aria-controls="esael1677363695">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -809,7 +817,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.5 <span class="">2023-02-25<span> - <a href="f4c351c74bf4c82a60894b1c8ccb90d80fc17ecb" class="">f4c351c</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.5 <span class="">2023-02-25<span> - <a href="f4c351c74bf4c82a60894b1c8ccb90d80fc17ecb" class="">f4c351c</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677351218" aria-expanded="false" aria-controls="esael1677351218">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -824,7 +832,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.4 <span class="">2023-02-25<span> - <a href="4b4902cacdd445a0673eb9d7273546df6d1b921d" class="">4b4902c</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.4 <span class="">2023-02-25<span> - <a href="4b4902cacdd445a0673eb9d7273546df6d1b921d" class="">4b4902c</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677329250" aria-expanded="false" aria-controls="esael1677329250">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -841,7 +849,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.3 <span class="">2023-02-24<span> - <a href="8313a61cc7eed015176722e2fd06ea44eac432bd" class="">8313a61</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.3 <span class="">2023-02-24<span> - <a href="8313a61cc7eed015176722e2fd06ea44eac432bd" class="">8313a61</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677267423" aria-expanded="false" aria-controls="esael1677267423">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -856,7 +864,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.2 <span class="">2023-02-24<span> - <a href="d50c3fc33abab060b0eed04c0d0299ad7fa5accd" class="">d50c3fc</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.2 <span class="">2023-02-24<span> - <a href="d50c3fc33abab060b0eed04c0d0299ad7fa5accd" class="">d50c3fc</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677253325" aria-expanded="false" aria-controls="esael1677253325">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
@@ -897,7 +905,7 @@ type: docs
 
 
 </div><div class="changelog-container card card-body">
-<div class="h3 changelog-release">0.1.1-rc.1 <span class="">2023-02-24<span> - <a href="e34610ac8b75b86f00a737f2a10cd516671d8d15" class="">e34610a</a></div>
+<div class="h3 changelog-release">• 0.1.1-rc.1 <span class="">2023-02-24<span> - <a href="e34610ac8b75b86f00a737f2a10cd516671d8d15" class="">e34610a</a></div>
 <p>
 <button class="btn btn-primary changelog" type="button" data-toggle="collapse" data-target="#esael1677234622" aria-expanded="false" aria-controls="esael1677234622">
 <div class="h4"> <!-- 0 -->📝 Release <i class="fa-solid fa-sort-down"></i></div>
