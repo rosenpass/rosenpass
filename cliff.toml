@@ -22,7 +22,7 @@ type: docs
 body = """
 {% if version %}\
 <div class="changelog-container card card-body">
-    <div class="h3 changelog-release">• {{ version | trim_start_matches(pat="v") }} <span class="">{{ timestamp | date(format="%Y-%m-%d") }}<span> - <a href="{{ commit_id}}" class="">{{ commit_id | truncate(length=7, end="") }}</a></div>\
+    <div class="h3 changelog-release">• {{ version | trim_start_matches(pat="v") }} <span class="text-muted">{{ timestamp | date(format="%Y-%m-%d") }}<span> &nbsp;-&nbsp; <a href="{{ commit_id}}" class="">{{ commit_id | truncate(length=7, end="") }}</a></div>\
 {% else %}\
 <div class="changelog-container card card-body">
     <div class="h3 changelog-release">• unreleased / untagged</div>
@@ -37,7 +37,9 @@ body = """
     <div class="collapse changelog" id="{{ group | reverse | truncate(length=5, end="") }}{{ timestamp }}">
       <div class="card card-body">
         {% for commit in commits %}
-            <div class="changelog-commit"> - <a href="https://github.com/rosenpass/rosenpass/commit/{{ commit.id }}">{{ commit.id | truncate(length=7, end="") }}</a> {{ commit.message | upper_first }}</div>
+            <div class="changelog-commit row">
+            <div class="col-4 col-sm-3 col-lg-2 commit-id"> - <a href="https://github.com/rosenpass/rosenpass/commit/{{ commit.id }}">{{ commit.id | truncate(length=7, end="") }}</a></div><div class="col-8 col-md-8 commit-message"> {{ commit.message | upper_first }}</div>
+            </div>
         {% endfor %}\
         </div>
       </div>
