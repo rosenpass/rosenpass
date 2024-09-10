@@ -2010,8 +2010,7 @@ impl CryptoServer {
 
         // Send ack – Implementing sending the empty acknowledgement here
         // instead of a generic PeerPtr::send(&Server, Option<&[u8]>) -> Either<EmptyData, Data>
-        // because data transmission is a stub currently. This software is supposed to be used
-        // as a key exchange service feeding a PSK into some classical (i.e. non post quantum)
+        // because data transmission is a stub currently.
         let ses = peer
             .session()
             .get_mut(self)
