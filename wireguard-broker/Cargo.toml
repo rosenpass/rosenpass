@@ -19,7 +19,7 @@ wireguard-uapi = { workspace = true }
 
 # Socket handler only
 rosenpass-to = { workspace = true }
-tokio = { version = "1.39.2", features = ["sync", "full", "mio"] }
+tokio = { version = "1.40.0", features = ["sync", "full", "mio"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
@@ -28,7 +28,7 @@ derive_builder = {workspace = true}
 postcard = {workspace = true}
 # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use
 # Maybe something about the combination of features and optional crates?
-rustix = { version = "0.38.27", optional = true } 
+rustix = { version = "0.38.36", optional = true } 
 libc = { version = "0.2", optional = true } 
 
 # Mio broker client
