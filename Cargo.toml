@@ -32,7 +32,7 @@ rosenpass-secret-memory = { path = "secret-memory" }
 rosenpass-oqs = { path = "oqs" }
 rosenpass-wireguard-broker = { path = "wireguard-broker" }
 doc-comment = "0.3.3"
-base64ct = {version = "1.6.0", default-features=false}
+base64ct = { version = "1.6.0", default-features = false }
 zeroize = "1.8.1"
 memoffset = "0.9.1"
 thiserror = "1.0.64"
@@ -41,7 +41,9 @@ env_logger = "0.10.2"
 toml = "0.7.8"
 static_assertions = "1.1.0"
 allocator-api2 = "0.2.14"
-memsec = { git="https://github.com/rosenpass/memsec.git" ,rev="aceb9baee8aec6844125bd6612f92e9a281373df", features = [ "alloc_ext", ] }
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = [
+    "alloc_ext",
+] }
 rand = "0.8.5"
 typenum = "1.17.0"
 log = { version = "0.4.22" }
@@ -51,23 +53,23 @@ arbitrary = { version = "1.3.2", features = ["derive"] }
 anyhow = { version = "1.0.89", features = ["backtrace", "std"] }
 mio = { version = "1.0.2", features = ["net", "os-poll"] }
 oqs-sys = { version = "0.9.1", default-features = false, features = [
-  'classic_mceliece',
-  'kyber',
+    'classic_mceliece',
+    'kyber',
 ] }
 blake2 = "0.10.6"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
-  "std",
-  "heapless",
+    "std",
+    "heapless",
 ] }
 zerocopy = { version = "0.7.35", features = ["derive"] }
 home = "0.5.9"
 derive_builder = "0.20.1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
-postcard= {version = "1.0.10", features = ["alloc"]}
+postcard = { version = "1.0.10", features = ["alloc"] }
 libcrux = { version = "0.0.2-pre.2" }
 hex-literal = { version = "0.4.1" }
 hex = { version = "0.4.3" }
-heck = { version = "0.5.0"  }
+heck = { version = "0.5.0" }
 libc = { version = "0.2" }
 uds = { git = "https://github.com/rosenpass/uds" }
 
@@ -79,7 +81,7 @@ libfuzzer-sys = "0.4"
 test_bin = "0.4.0"
 criterion = "0.4.0"
 allocator-api2-tests = "0.2.15"
-procspawn = {version = "1.0.1", features= ["test-support"]}
+procspawn = { version = "1.0.1", features = ["test-support"] }
 
 
 #Broker dependencies (might need cleanup or changes)

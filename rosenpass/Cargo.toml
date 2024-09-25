@@ -51,8 +51,8 @@ mio = { workspace = true }
 rand = { workspace = true }
 zerocopy = { workspace = true }
 home = { workspace = true }
-derive_builder = {workspace = true}
-rosenpass-wireguard-broker = {workspace = true}
+derive_builder = { workspace = true }
+rosenpass-wireguard-broker = { workspace = true }
 zeroize = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
@@ -68,15 +68,21 @@ anyhow = { workspace = true }
 criterion = { workspace = true }
 test_bin = { workspace = true }
 stacker = { workspace = true }
-serial_test = {workspace = true}
-procspawn = {workspace = true}
+serial_test = { workspace = true }
+procspawn = { workspace = true }
 tempfile = { workspace = true }
-rustix = {workspace = true}
+rustix = { workspace = true }
 
 [features]
 default = ["experiment_api"]
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
-experiment_api = ["hex-literal", "uds", "command-fds", "rosenpass-util/experiment_file_descriptor_passing", "rosenpass-wireguard-broker/experiment_api"]
-internal_testing  = []
+experiment_api = [
+    "hex-literal",
+    "uds",
+    "command-fds",
+    "rosenpass-util/experiment_file_descriptor_passing",
+    "rosenpass-wireguard-broker/experiment_api",
+]
+internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
