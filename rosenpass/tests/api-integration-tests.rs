@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{bail, Context};
 use rosenpass::api;
+use rosenpass::cmd::genkeys;
 use rosenpass_to::{ops::copy_slice_least_src, To};
 use rosenpass_util::{
     file::LoadValueB64,
@@ -88,11 +89,11 @@ fn api_integration_test() -> anyhow::Result<()> {
     };
 
     // Generate the keys
-    rosenpass::cli::testing::generate_and_save_keypair(
+    genkeys::testing::generate_and_save_keypair(
         peer_a_keypair.secret_key.clone(),
         peer_a_keypair.public_key.clone(),
     )?;
-    rosenpass::cli::testing::generate_and_save_keypair(
+    genkeys::testing::generate_and_save_keypair(
         peer_b_keypair.secret_key.clone(),
         peer_b_keypair.public_key.clone(),
     )?;

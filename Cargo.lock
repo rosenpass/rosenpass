@@ -390,6 +390,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-verbosity-flag"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63d19864d6b68464c59f7162c9914a0b569ddc2926b4a2d71afe62a9738eff53"
+dependencies = [
+ "clap 4.5.18",
+ "log",
+]
+
+[[package]]
 name = "clap_builder"
 version = "4.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -427,6 +437,16 @@ name = "clap_lex"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
+
+[[package]]
+name = "clap_mangen"
+version = "0.2.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f17415fd4dfbea46e3274fcd8d368284519b358654772afb700dc2e8d2b24eeb"
+dependencies = [
+ "clap 4.5.18",
+ "roff",
+]
 
 [[package]]
 name = "cmake"
@@ -1800,11 +1820,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
+name = "roff"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88f8660c1ff60292143c98d08fc6e2f654d722db50410e3f3797d40baaf9d8f3"
+
+[[package]]
 name = "rosenpass"
 version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap 4.5.18",
+ "clap-verbosity-flag",
+ "clap_mangen",
  "command-fds",
  "criterion",
  "derive_builder 0.20.1",

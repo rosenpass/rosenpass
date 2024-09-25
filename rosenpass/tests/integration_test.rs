@@ -6,8 +6,15 @@ use std::{
     time::Duration,
 };
 
+// use crate::cli::Commands::Exchange;
+// use rosenpass::cmd::Command;
+
 use clap::Parser;
-use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
+use rosenpass::{
+    app_server::AppServerTestBuilder,
+    cli::{Cli, Commands},
+    cmd::Command,
+};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WireguardBrokerMio, WG_KEY_LEN, WG_PEER_LEN};
 use serial_test::serial;
@@ -96,7 +103,7 @@ fn run_server_client_exchange(
     let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
     let (client_terminate, client_terminate_rx) = std::sync::mpsc::channel();
 
-    let cli = CliArgs::try_parse_from(
+    let cli = Cli::try_parse_from(
         [server_cmd.get_program()]
             .into_iter()
             .chain(server_cmd.get_args()),
@@ -108,10 +115,13 @@ fn run_server_client_exchange(
             .termination_handler(Some(server_terminate_rx))
             .build()
             .unwrap();
-        cli.run(None, Some(test_helpers)).unwrap();
+        match cli.command {
+            Commands::Exchange(exchange) => exchange.run(None, Some(test_helpers)).unwrap(),
+            _ => panic!("unexpected command"),
+        }
     });
 
-    let cli = CliArgs::try_parse_from(
+    let cli = Cli::try_parse_from(
         [client_cmd.get_program()]
             .into_iter()
             .chain(client_cmd.get_args()),
@@ -123,7 +133,10 @@ fn run_server_client_exchange(
             .termination_handler(Some(client_terminate_rx))
             .build()
             .unwrap();
-        cli.run(None, Some(test_helpers)).unwrap();
+        match cli.command {
+            Commands::Exchange(exchange) => exchange.run(None, Some(test_helpers)).unwrap(),
+            _ => panic!("unexpected command"),
+        }
     });
 
     // give them some time to do the key exchange under load
