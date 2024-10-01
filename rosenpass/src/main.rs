@@ -1,12 +1,43 @@
+use clap::CommandFactory;
 use clap::Parser;
+use clap_mangen::roff::{roman, Roff};
 use log::error;
 use rosenpass::cli::CliArgs;
 use std::process::exit;
+
+fn print_custom_man_section(section: &str, text: &str) {
+    let mut roff = Roff::default();
+    roff.control("SH", [section]);
+    roff.text([roman(text)]);
+    let _ = roff.to_writer(&mut std::io::stdout());
+}
 
 /// Catches errors, prints them through the logger, then exits
 pub fn main() {
     // parse CLI arguments
     let args = CliArgs::parse();
+
+    if let Some(shell) = args.print_completions {
+        let mut cmd = CliArgs::command();
+        clap_complete::generate(shell, &mut cmd, "rosenpass", &mut std::io::stdout());
+        return;
+    }
+
+    if args.print_manpage {
+        let cmd = CliArgs::command().flatten_help(true);
+        let man = clap_mangen::Man::new(cmd);
+        let _ = man.render_title(&mut std::io::stdout());
+        let _ = man.render_name_section(&mut std::io::stdout());
+        let _ = man.render_synopsis_section(&mut std::io::stdout());
+        let _ = man.render_subcommands_section(&mut std::io::stdout());
+        let _ = man.render_options_section(&mut std::io::stdout());
+        print_custom_man_section("EXIT STATUS", EXIT_STATUS_MAN);
+        print_custom_man_section("SEE ALSO", SEE_ALSO_MAN);
+        print_custom_man_section("STANDARDS", STANDARDS_MAN);
+        print_custom_man_section("AUTHORS", AUTHORS_MAN);
+        print_custom_man_section("BUGS", BUGS_MAN);
+        return;
+    }
 
     {
         use rosenpass_secret_memory as SM;
@@ -43,3 +74,21 @@ pub fn main() {
         }
     }
 }
+static EXIT_STATUS_MAN: &str = r"
+The rosenpass utility exits 0 on success, and >0 if an error occurs.";
+
+static SEE_ALSO_MAN: &str = r"
+rp(1), wg(1)
+
+Karolin Varner, Benjamin Lipp, Wanja Zaeske, and Lisa Schmidt, Rosenpass, https://rosenpass.eu/whitepaper.pdf, 2023.";
+
+static STANDARDS_MAN: &str = r"
+This tool is the reference implementation of the Rosenpass protocol, as
+specified within the whitepaper referenced above.";
+
+static AUTHORS_MAN: &str = r"
+Rosenpass was created by Karolin Varner, Benjamin Lipp, Wanja Zaeske, Marei
+Peischl, Stephan Ajuvo, and Lisa Schmidt.";
+
+static BUGS_MAN: &str = r"
+The bugs are tracked at https://github.com/rosenpass/rosenpass/issues.";
