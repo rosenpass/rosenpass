@@ -20,9 +20,9 @@ rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
 rosenpass-util = { workspace = true }
-rosenpass-wireguard-broker = { workspace = true }
+rosenpass-wireguard-broker = {workspace = true}
 
-tokio = { workspace = true }
+tokio = {workspace = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 ctrlc-async = "3.2"
@@ -35,8 +35,8 @@ netlink-packet-generic = "0.3"
 netlink-packet-wireguard = "0.2"
 
 [dev-dependencies]
-tempfile = { workspace = true }
-stacker = { workspace = true }
+tempfile = {workspace = true}
+stacker = {workspace = true}
 
 [features]
 experiment_memfd_secret = []
