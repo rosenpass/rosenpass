@@ -5,7 +5,7 @@ use clap_verbosity_flag::Verbosity;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, arg_required_else_help = true)]
 /// rosenpass performs cryptographic key exchanges that are secure against
 /// quantum-computers and then outputs the keys. These keys can then be passed
 /// to various services, such as wireguard or other vpn services, as
@@ -20,7 +20,7 @@ pub struct Cli {
     pub verbose: Verbosity,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 
     /// path of the wireguard_psk broker socket to connect to
     #[cfg(feature = "experiment_api")]
@@ -41,6 +41,18 @@ pub struct Cli {
     #[cfg(feature = "experiment_api")]
     #[arg(short, long, group = "psk-broker-specs")]
     pub psk_broker_spawn: bool,
+
+    #[command(flatten)]
+    #[cfg(feature = "experiment_api")]
+    api: crate::api::cli::ApiCli,
+
+    /// Generate man page
+    #[clap(long)]
+    pub print_manpage: bool,
+
+    /// Generate completion file for a shell
+    #[clap(long, value_name = "shell")]
+    pub print_completions: Option<clap_complete::Shell>,
 }
 
 #[derive(Subcommand)]

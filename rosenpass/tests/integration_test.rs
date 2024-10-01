@@ -116,7 +116,7 @@ fn run_server_client_exchange(
             .build()
             .unwrap();
         match cli.command {
-            Commands::Exchange(exchange) => exchange.run(None, Some(test_helpers)).unwrap(),
+            Some(Commands::Exchange(exchange)) => exchange.run(None, Some(test_helpers)).unwrap(),
             _ => panic!("unexpected command"),
         }
     });
@@ -134,7 +134,7 @@ fn run_server_client_exchange(
             .build()
             .unwrap();
         match cli.command {
-            Commands::Exchange(exchange) => exchange.run(None, Some(test_helpers)).unwrap(),
+            Some(Commands::Exchange(exchange)) => exchange.run(None, Some(test_helpers)).unwrap(),
             _ => panic!("unexpected command"),
         }
     });
