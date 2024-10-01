@@ -40,7 +40,7 @@ use {
 };
 
 #[cfg(feature = "experiment_api")]
-fn create_broker(
+pub fn create_broker(
     broker_interface: Option<BrokerInterface>,
 ) -> Result<
     Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
@@ -55,7 +55,7 @@ fn create_broker(
 }
 
 #[cfg(not(feature = "experiment_api"))]
-fn create_broker(
+pub fn create_broker(
     _broker_interface: Option<BrokerInterface>,
 ) -> Result<Box<NativeUnixBroker>, anyhow::Error> {
     Ok(Box::new(NativeUnixBroker::new()))

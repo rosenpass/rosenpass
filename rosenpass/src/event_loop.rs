@@ -1,10 +1,10 @@
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
+use crate::broker::create_broker;
 use crate::config;
 use crate::protocol::{SPk, SSk, SymKey};
 use rosenpass_util::file::LoadValue;
 use rosenpass_util::file::LoadValueB64;
-use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBroker;
 use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
 use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilderError;
 use std::path::PathBuf;
@@ -80,10 +80,4 @@ pub fn event_loop(
     }
 
     srv.event_loop()
-}
-
-fn create_broker(
-    _broker_interface: Option<BrokerInterface>,
-) -> Result<Box<NativeUnixBroker>, anyhow::Error> {
-    Ok(Box::new(NativeUnixBroker::new()))
 }
