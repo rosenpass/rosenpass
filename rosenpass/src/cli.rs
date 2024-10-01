@@ -102,6 +102,8 @@ pub struct ExchangeConfig {
 }
 
 #[derive(Args)]
+#[allow(rustdoc::broken_intra_doc_links)]
+#[allow(rustdoc::invalid_html_tags)]
 pub struct Exchange {
     /// public-key <PATH> secret-key <PATH> [listen <ADDR>:<PORT>]... [verbose]
     #[clap(value_name = "OWN_CONFIG")]
@@ -150,9 +152,13 @@ pub struct GenKeys {
     pub force: bool,
 }
 
+#[allow(rustdoc::broken_intra_doc_links)]
+#[allow(rustdoc::invalid_html_tags)]
 #[derive(Args)]
 /// Deprecated - use gen-keys instead
 pub struct Keygen {
+    // NOTE yes, the legacy keygen argument initially really accepted "privet-key", not "secret-key"!
+    /// public-key <PATH> private-key <PATH>
     pub args: Vec<String>,
 }
 
