@@ -1,3 +1,4 @@
+use super::genkeys::generate_and_save_keypair;
 use super::Command;
 use crate::app_server::AppServerTest;
 use crate::cli;
@@ -7,11 +8,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 impl Command for cli::Keygen {
-    fn run(
-        self,
-        broker_interface: Option<BrokerInterface>,
-        test_helpers: Option<AppServerTest>,
-    ) -> Result<()> {
+    fn run(self, _: Option<BrokerInterface>, _: Option<AppServerTest>) -> Result<()> {
         log::warn!(
             "The 'keygen' command is deprecated. Please use the 'gen-keys' command instead."
         );
@@ -35,6 +32,15 @@ impl Command for cli::Keygen {
                 (_, _) => break,
             };
         }
+
+        if secret_key.is_none() {
+            bail!("private-key is required");
+        }
+        if public_key.is_none() {
+            bail!("public-key is required");
+        }
+
+        generate_and_save_keypair(secret_key.unwrap(), public_key.unwrap())?;
 
         Ok(())
     }

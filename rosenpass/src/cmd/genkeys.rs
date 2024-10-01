@@ -15,11 +15,7 @@ use std::ops::DerefMut;
 use std::path::PathBuf;
 
 impl Command for cli::GenKeys {
-    fn run(
-        self,
-        broker_interface: Option<BrokerInterface>,
-        test_helpers: Option<AppServerTest>,
-    ) -> Result<()> {
+    fn run(self, _: Option<BrokerInterface>, _: Option<AppServerTest>) -> Result<()> {
         let (pkf, skf) = match (self.config_file, self.public_key, self.secret_key) {
             (Some(config_file), _, _) => {
                 ensure!(
@@ -61,7 +57,7 @@ impl Command for cli::GenKeys {
 }
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
-fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
+pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
     let mut ssk = SSk::random();
     let mut spk = SPk::random();
     StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;

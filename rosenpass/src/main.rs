@@ -23,10 +23,10 @@ pub fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::ExchangeConfig(exchangeconfig) => exchangeconfig.run(broker_interface, None),
         Commands::Exchange(exchange) => exchange.run(broker_interface, None),
-        Commands::GenConfig(genconfig) => genconfig.run(broker_interface, None),
-        Commands::GenKeys(genkeys) => genkeys.run(broker_interface, None),
-        Commands::Keygen(keygen) => keygen.run(broker_interface, None),
-        Commands::Validate(validate) => validate.run(broker_interface, None),
-        Commands::Man(man) => man.run(broker_interface, None),
+        Commands::GenConfig(genconfig) => genconfig.run(None, None),
+        Commands::GenKeys(genkeys) => genkeys.run(None, None),
+        Commands::Keygen(keygen) => keygen.run(None, None),
+        Commands::Validate(validate) => validate.run(None, None),
+        Commands::Man(man) => man.run(None, None),
     }
 }

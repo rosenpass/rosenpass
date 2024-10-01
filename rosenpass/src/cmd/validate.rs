@@ -6,11 +6,7 @@ use crate::event_loop::BrokerInterface;
 use anyhow::Result;
 
 impl Command for cli::Validate {
-    fn run(
-        self,
-        broker_interface: Option<BrokerInterface>,
-        test_helpers: Option<AppServerTest>,
-    ) -> Result<()> {
+    fn run(self, _: Option<BrokerInterface>, _: Option<AppServerTest>) -> Result<()> {
         eprintln!("Validate config files");
         for file in self.config_files {
             match Rosenpass::load(file.clone()) {

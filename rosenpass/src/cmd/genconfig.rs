@@ -7,11 +7,7 @@ use anyhow::ensure;
 use anyhow::Result;
 
 impl Command for cli::GenConfig {
-    fn run(
-        self,
-        broker_interface: Option<BrokerInterface>,
-        test_helpers: Option<AppServerTest>,
-    ) -> Result<()> {
+    fn run(self, _: Option<BrokerInterface>, _: Option<AppServerTest>) -> Result<()> {
         println!("GenConfig");
         ensure!(
             self.force || !self.config_file.exists(),

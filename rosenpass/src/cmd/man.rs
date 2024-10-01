@@ -5,11 +5,7 @@ use crate::event_loop::BrokerInterface;
 use anyhow::Result;
 
 impl Command for cli::Man {
-    fn run(
-        self,
-        broker_interface: Option<BrokerInterface>,
-        test_helpers: Option<AppServerTest>,
-    ) -> Result<()> {
+    fn run(self, _: Option<BrokerInterface>, _: Option<AppServerTest>) -> Result<()> {
         let man_cmd = std::process::Command::new("man")
             .args(["1", "rosenpass"])
             .status();
