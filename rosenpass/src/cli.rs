@@ -93,9 +93,6 @@ pub enum Commands {
 
     /// Deprecated - use gen-keys instead
     Keygen(Keygen),
-
-    /// Show man page
-    Man(Man),
 }
 
 #[derive(Args)]

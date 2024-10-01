@@ -49,7 +49,6 @@ pub fn main() -> anyhow::Result<()> {
         Some(Commands::GenKeys(genkeys)) => genkeys.run(None, None),
         Some(Commands::Keygen(keygen)) => keygen.run(None, None),
         Some(Commands::Validate(validate)) => validate.run(None, None),
-        Some(Commands::Man(man)) => man.run(None, None),
         None => Ok(()), // calp print help if no command is given
     }
 }

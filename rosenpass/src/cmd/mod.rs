@@ -6,7 +6,6 @@ pub mod exchangeconfig;
 pub mod genconfig;
 pub mod genkeys;
 pub mod keygen;
-pub mod man;
 pub mod validate;
 
 pub trait Command {
