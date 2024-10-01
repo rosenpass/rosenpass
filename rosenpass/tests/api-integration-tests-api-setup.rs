@@ -14,6 +14,7 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
+use rosenpass::cmd::genkeys;
 use rosenpass_util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -111,11 +112,11 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
     };
 
     // Generate the keys
-    rosenpass::cli::testing::generate_and_save_keypair(
+    genkeys::testing::generate_and_save_keypair(
         peer_a_keypair.secret_key.clone(),
         peer_a_keypair.public_key.clone(),
     )?;
-    rosenpass::cli::testing::generate_and_save_keypair(
+    genkeys::testing::generate_and_save_keypair(
         peer_b_keypair.secret_key.clone(),
         peer_b_keypair.public_key.clone(),
     )?;

@@ -47,6 +47,9 @@ env_logger = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 clap = { workspace = true }
+clap_complete = { workspace = true }
+clap-verbosity-flag = { workspace = true }
+clap_mangen = { workspace = true }
 mio = { workspace = true }
 rand = { workspace = true }
 zerocopy = { workspace = true }
@@ -63,6 +66,9 @@ uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true }
+clap-verbosity-flag = { workspace = true }
+clap_mangen = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

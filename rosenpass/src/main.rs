@@ -1,13 +1,10 @@
+use clap::CommandFactory;
 use clap::Parser;
-use log::error;
-use rosenpass::cli::CliArgs;
-use std::process::exit;
+use rosenpass::broker;
+use rosenpass::cli::{Cli, Commands};
+use rosenpass::cmd::Command;
 
-/// Catches errors, prints them through the logger, then exits
-pub fn main() {
-    // parse CLI arguments
-    let args = CliArgs::parse();
-
+pub fn main() -> anyhow::Result<()> {
     {
         use rosenpass_secret_memory as SM;
         #[cfg(feature = "experiment_memfd_secret")]
@@ -16,30 +13,42 @@ pub fn main() {
         SM::secret_policy_use_only_malloc_secrets();
     }
 
-    // init logging
-    {
-        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
-        if let Some(level) = args.get_log_level() {
-            log::debug!("setting log level to {:?} (set via CLI parameter)", level);
-            log_builder.filter_level(level); // set log level filter from CLI args if available
-        }
-        log_builder.init();
+    let cli = Cli::parse();
 
-        // // check the effectiveness of the log level filter with the following lines:
-        // use log::{debug, error, info, trace, warn};
-        // trace!("trace dummy");
-        // debug!("debug dummy");
-        // info!("info dummy");
-        // warn!("warn dummy");
-        // error!("error dummy");
+    if let Some(shell) = cli.print_completions {
+        let mut cli = Cli::command();
+        clap_complete::generate(shell, &mut cli, "rosenpass", &mut std::io::stdout());
+        return Ok(());
     }
 
-    let broker_interface = args.get_broker_interface();
-    match args.run(broker_interface, None) {
-        Ok(_) => {}
-        Err(e) => {
-            error!("{e:?}");
-            exit(1);
+    if cli.print_manpage {
+        let cli = Cli::command();
+        let man = clap_mangen::Man::new(cli);
+        man.render(&mut std::io::stdout())?;
+        return Ok(());
+    }
+
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .init();
+
+    let mut broker_interface = None;
+    match cli.command {
+        Some(Commands::ExchangeConfig(_)) | Some(Commands::Exchange(_)) => {
+            broker_interface = broker::get_broker_interface(&cli);
         }
+        _ => {}
+    }
+
+    match cli.command {
+        Some(Commands::ExchangeConfig(exchangeconfig)) => {
+            exchangeconfig.run(broker_interface, None)
+        }
+        Some(Commands::Exchange(exchange)) => exchange.run(broker_interface, None),
+        Some(Commands::GenConfig(genconfig)) => genconfig.run(None, None),
+        Some(Commands::GenKeys(genkeys)) => genkeys.run(None, None),
+        Some(Commands::Keygen(keygen)) => keygen.run(None, None),
+        Some(Commands::Validate(validate)) => validate.run(None, None),
+        None => Ok(()), // calp print help if no command is given
     }
 }
