@@ -24,7 +24,7 @@ impl Command for cli::ExchangeConfig {
         config.validate()?;
         config.check_usefullness()?;
 
-        event_loop::event_loop(config, None, None)?;
+        event_loop::event_loop(config, broker_interface, test_helpers)?;
         Ok(())
     }
 }
