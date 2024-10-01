@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use anyhow::bail;
 use rustix::{
     fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
