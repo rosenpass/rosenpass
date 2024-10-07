@@ -47,6 +47,11 @@ fn man() {
 fn main() {
     // For now, rerun the build script on every time, as the build script
     // is not very expensive right now.
+
+    let output = Command::new("git").args(&["describe"]).output().unwrap();
+    let mut git_tag = String::from_utf8(output.stdout).unwrap();
+    git_tag.remove(0); // remove the leading 'v'
+    println!("cargo:rustc-env=GIT_TAG={}", git_tag);
     println!("cargo:rerun-if-changed=./");
     man();
 }

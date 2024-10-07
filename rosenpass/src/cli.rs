@@ -41,7 +41,7 @@ pub enum BrokerInterface {
 
 /// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about)]
+#[command(author, version = env!("GIT_TAG"), about, long_about)]
 pub struct CliArgs {
     /// lowest log level to show – log messages at higher levels will be omitted
     #[arg(long = "log-level", value_name = "LOG_LEVEL", group = "log-level")]
