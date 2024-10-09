@@ -3,7 +3,7 @@ use std::{
     collections::VecDeque,
     io::Read,
     marker::PhantomData,
-    os::fd::OwnedFd,
+    os::fd::{FromRawFd, OwnedFd},
 };
 use uds::UnixStreamExt as FdPassingExt;
 
@@ -115,7 +115,7 @@ where
 
         // Close the remaining fds
         for fd in fd_iter {
-            unsafe { rustix::io::close(*fd) };
+            unsafe { drop(OwnedFd::from_raw_fd(*fd)) };
         }
 
         claim_fd_result
