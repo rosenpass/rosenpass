@@ -1,10 +1,8 @@
 //! Utilities for working with file descriptors
 
 use anyhow::bail;
-use rustix::{
-    fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
-    io::fcntl_dupfd_cloexec,
-};
+use rustix::io::fcntl_dupfd_cloexec;
+use std::os::fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
 
 use crate::{mem::Forgetting, result::OkExt};
 

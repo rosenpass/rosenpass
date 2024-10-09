@@ -5,8 +5,8 @@ use rosenpass_to::{ops::copy_slice_least_src, To};
 use rosenpass_util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
 use rosenpass_util::length_prefix_encoding::decoder::LengthPrefixDecoder;
 use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
-use rustix::fd::AsFd;
 use std::borrow::{Borrow, BorrowMut};
+use std::os::fd::AsFd;
 
 use crate::api::client::{
     BrokerClient, BrokerClientIo, BrokerClientPollResponseError, BrokerClientSetPskError,
