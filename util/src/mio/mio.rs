@@ -1,5 +1,5 @@
 use mio::net::{UnixListener, UnixStream};
-use rustix::fd::{OwnedFd, RawFd};
+use std::os::fd::{OwnedFd, RawFd};
 
 use crate::{
     fd::{claim_fd, claim_fd_inplace},

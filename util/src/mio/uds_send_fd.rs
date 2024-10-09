@@ -1,4 +1,4 @@
-use rustix::fd::{AsFd, AsRawFd};
+use std::os::fd::{AsFd, AsRawFd};
 use std::{
     borrow::{Borrow, BorrowMut},
     cmp::min,
