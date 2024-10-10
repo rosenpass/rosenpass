@@ -154,7 +154,6 @@ pub struct AppServerTest {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AppServerIoSource {
     Socket(usize),
-    #[cfg(feature = "experiment_api")]
     PskBroker(Public<BROKER_ID_BYTES>),
     #[cfg(feature = "experiment_api")]
     MioManager(crate::api::mio::MioManagerIoSource),
@@ -1209,15 +1208,12 @@ impl AppServer {
         buf: &mut [u8],
         io_source: AppServerIoSource,
     ) -> anyhow::Result<Option<(usize, Endpoint)>> {
-        use crate::api::mio::MioManagerContext;
-
         match io_source {
             AppServerIoSource::Socket(idx) => self
                 .try_recv_from_listen_socket(buf, idx)
                 .substitute_for_ioerr_wouldblock(None)?
                 .ok(),
 
-            #[cfg(feature = "experiment_api")]
             AppServerIoSource::PskBroker(key) => self
                 .brokers
                 .store
@@ -1227,9 +1223,13 @@ impl AppServer {
                 .map(|_| None),
 
             #[cfg(feature = "experiment_api")]
-            AppServerIoSource::MioManager(mmio_src) => MioManagerFocus(self)
-                .poll_particular(mmio_src)
-                .map(|_| None),
+            AppServerIoSource::MioManager(mmio_src) => {
+                use crate::api::mio::MioManagerContext;
+
+                MioManagerFocus(self)
+                    .poll_particular(mmio_src)
+                    .map(|_| None)
+            }
         }
     }
 
