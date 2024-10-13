@@ -1,3 +1,5 @@
+//! memcmp
+
 /// compares two sclices of memory content and returns whether they are equal
 ///
 /// ## Leaks
@@ -7,6 +9,18 @@
 ///
 /// The execution time of the function grows approx. linear with the length of the input. This is
 /// considered safe.
+///
+/// ## Examples
+///
+/// ```rust
+/// use rosenpass_constant_time::memcmp;
+/// let a = [0, 0, 0, 0];
+/// let b = [0, 0, 0, 1];
+/// let c = [0, 0, 0];
+/// assert!(memcmp(&a, &a));
+/// assert!(!memcmp(&a, &b));
+/// assert!(!memcmp(&a, &c));
+/// ```
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && unsafe { memsec::memeq(a.as_ptr(), b.as_ptr(), a.len()) }

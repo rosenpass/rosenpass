@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
 //! constant-time implementations of some primitives
 //!
 //! Rosenpass internal library providing basic constant-time operations.
