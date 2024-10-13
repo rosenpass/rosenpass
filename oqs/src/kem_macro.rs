@@ -1,9 +1,42 @@
+//! Generic helpers for declaring bindings to liboqs kems
+
+/// Generate bindings to a liboqs-provided KEM
 macro_rules! oqs_kem {
     ($name:ident) => { ::paste::paste!{
+        #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
             use rosenpass_cipher_traits::Kem;
             use rosenpass_util::result::Guaranteed;
 
+            #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
+            #[doc = ""]
+            #[doc = "# Examples"]
+            #[doc = ""]
+            #[doc = "```rust"]
+            #[doc = "use std::borrow::{Borrow, BorrowMut};"]
+            #[doc = "use rosenpass_cipher_traits::Kem;"]
+            #[doc = "use rosenpass_oqs::" $name:camel " as MyKem;"]
+            #[doc = "use rosenpass_secret_memory::{Secret, Public};"]
+            #[doc = ""]
+            #[doc = "rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();"]
+            #[doc = ""]
+            #[doc = "// Recipient generates secret key, transfers pk to sender"]
+            #[doc = "let mut sk = Secret::<{ MyKem::SK_LEN }>::zero();"]
+            #[doc = "let mut pk = Public::<{ MyKem::PK_LEN }>::zero();"]
+            #[doc = "MyKem::keygen(sk.secret_mut(), pk.borrow_mut());"]
+            #[doc = ""]
+            #[doc = "// Sender generates ciphertext and local shared key, sends ciphertext to recipient"]
+            #[doc = "let mut shk_enc = Secret::<{ MyKem::SHK_LEN }>::zero();"]
+            #[doc = "let mut ct = Public::<{ MyKem::CT_LEN }>::zero();"]
+            #[doc = "MyKem::encaps(shk_enc.secret_mut(), ct.borrow_mut(), pk.borrow());"]
+            #[doc = ""]
+            #[doc = "// Recipient decapsulates ciphertext"]
+            #[doc = "let mut shk_dec = Secret::<{ MyKem::SHK_LEN }>::zero();"]
+            #[doc = "MyKem::decaps(shk_dec.secret_mut(), sk.secret(), ct.borrow());"]
+            #[doc = ""]
+            #[doc = "// Both parties end up with the same shared key"]
+            #[doc = "assert!(rosenpass_constant_time::compare(shk_enc.secret_mut(), shk_dec.secret_mut()) == 0);"]
+            #[doc = "```"]
             pub enum [< $name:camel >]  {}
 
             /// # Panic & Safety

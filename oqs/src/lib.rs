@@ -1,3 +1,8 @@
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
+//! Bindings for liboqs used in Rosenpass
+
+/// Call into a libOQS function
 macro_rules! oqs_call {
     ($name:path, $($args:expr),*) => {{
         use oqs_sys::common::OQS_STATUS::*;
