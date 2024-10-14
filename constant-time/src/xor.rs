@@ -1,3 +1,5 @@
+//! xor
+
 use core::hint::black_box;
 use rosenpass_to::{with_destination, To};
 

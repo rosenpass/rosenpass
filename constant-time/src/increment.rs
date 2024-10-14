@@ -1,3 +1,5 @@
+//! Incrementing numbers
+
 use core::hint::black_box;
 
 /// Interpret the given slice as a little-endian unsigned integer

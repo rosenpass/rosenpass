@@ -1,8 +1,13 @@
+//! Utilities for working with Base64
+
 use base64ct::{Base64, Decoder as B64Reader, Encoder as B64Writer};
 use zeroize::Zeroize;
 
 use std::fmt::Display;
 
+/// Formatter that displays its input as base64.
+///
+/// Use through [B64Display].
 pub struct B64DisplayHelper<'a, const F: usize>(&'a [u8]);
 
 impl<const F: usize> Display for B64DisplayHelper<'_, F> {
@@ -15,7 +20,25 @@ impl<const F: usize> Display for B64DisplayHelper<'_, F> {
     }
 }
 
+/// Extension trait that can be used to display values as Base64
+///
+/// # Examples
+///
+/// ```
+/// use rosenpass_util::b64::B64Display;
+///
+/// let a = vec![0,1,2,3,4,5];
+/// assert_eq!(
+///   format!("{}", a.fmt_b64::<10>()), // Maximum size of the encoded buffer
+///   "AAECAwQF",
+/// );
+/// ```
 pub trait B64Display {
+    /// Display this value as base64
+    ///
+    /// # Examples
+    ///
+    /// See [B64Display].
     fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F>;
 }
 
@@ -31,6 +54,11 @@ impl<T: AsRef<[u8]>> B64Display for T {
     }
 }
 
+/// Decode a base64-encoded value
+///
+/// # Examples
+///
+/// See [b64_encode].
 pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
     let mut reader = B64Reader::<Base64>::new(input).map_err(|e| anyhow::anyhow!(e))?;
     match reader.decode(output) {
@@ -49,6 +77,23 @@ pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
     }
 }
 
+/// Encode a value as base64.
+///
+/// ```
+/// use rosenpass_util::b64::{b64_encode, b64_decode};
+///
+/// let bytes = b"Hello World";
+///
+/// let mut encoder_buffer = [0u8; 64];
+/// let encoded = b64_encode(bytes, &mut encoder_buffer)?;
+///
+/// let mut bytes_decoded = [0u8; 11];
+/// b64_decode(encoded.as_bytes(), &mut bytes_decoded);
+/// assert_eq!(bytes, &bytes_decoded);
+///
+/// Ok::<(), anyhow::Error>(())
+/// ```
+///
 pub fn b64_encode<'o>(input: &[u8], output: &'o mut [u8]) -> anyhow::Result<&'o str> {
     let mut writer = B64Writer::<Base64>::new(output).map_err(|e| anyhow::anyhow!(e))?;
     writer.encode(input).map_err(|e| anyhow::anyhow!(e))?;
