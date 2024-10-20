@@ -5,7 +5,6 @@ use std::fs::File;
 use std::io::Read;
 use std::os::unix::fs::OpenOptionsExt;
 use std::{fs::OpenOptions, path::Path};
-use zerocopy::AsBytes;
 
 /// Level of secrecy applied for a file
 pub enum Visibility {
