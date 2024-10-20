@@ -1,4 +1,5 @@
-/// Utilities for working with file descriptors
+//! Utilities for working with file descriptors
+
 use anyhow::bail;
 use rustix::{
     fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},

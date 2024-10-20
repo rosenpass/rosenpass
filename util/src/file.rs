@@ -1,4 +1,5 @@
-/// Helpers for working with files
+//! Helpers for working with files
+
 use anyhow::ensure;
 use std::fs::File;
 use std::io::Read;
