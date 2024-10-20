@@ -198,22 +198,22 @@ pub trait LoadValue {
     /// use std::io::Write;
     /// use tempfile::tempdir;
     /// use rosenpass_util::file::{fopen_r, fopen_w, LoadValue, ReadExactToEnd, StoreValue, Visibility};
-    /// 
+    ///
     /// #[derive(Debug, PartialEq, Eq)]
     /// struct MyInt(pub u32);
-    /// 
+    ///
     /// impl StoreValue for MyInt {
     ///     type Error = std::io::Error;
-    /// 
+    ///
     ///     fn store<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error> {
     ///         let mut f = fopen_w(path, Visibility::Public)?;
     ///         f.write_all(&self.0.to_le_bytes())
     ///     }
     /// }
-    /// 
+    ///
     /// impl LoadValue for MyInt {
     ///     type Error = anyhow::Error;
-    /// 
+    ///
     ///     fn load<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     ///     where
     ///         Self: Sized,
@@ -223,16 +223,16 @@ pub trait LoadValue {
     ///         Ok(MyInt(u32::from_le_bytes(b)))
     ///     }
     /// }
-    /// 
+    ///
     /// let dir = tempdir()?;
     /// let path = dir.path().join("my_int");
-    /// 
+    ///
     /// let orig = MyInt(17);
     /// orig.store(&path)?;
-    /// 
+    ///
     /// let copy = MyInt::load(&path)?;
     /// assert_eq!(orig, copy);
-    /// 
+    ///
     /// Ok::<(), anyhow::Error>(())
     /// ```
     fn load<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
@@ -257,13 +257,13 @@ pub trait LoadValueB64 {
     ///     fopen_r, fopen_w, LoadValueB64, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
     ///     Visibility,
     /// };
-    /// 
+    ///
     /// #[derive(Debug, PartialEq, Eq)]
     /// struct MyInt(pub u32);
-    /// 
+    ///
     /// impl StoreValueB64Writer for MyInt {
     ///     type Error = anyhow::Error;
-    /// 
+    ///
     ///     fn store_b64_writer<const F: usize, W: std::io::Write>(
     ///         &self,
     ///         mut writer: W,
@@ -277,10 +277,10 @@ pub trait LoadValueB64 {
     ///         Ok(())
     ///     }
     /// }
-    /// 
+    ///
     /// impl StoreValueB64 for MyInt {
     ///     type Error = anyhow::Error;
-    /// 
+    ///
     ///     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>
     ///     where
     ///         Self: Sized,
@@ -289,10 +289,10 @@ pub trait LoadValueB64 {
     ///         self.store_b64_writer::<F, _>(fopen_w(path, Visibility::Public)?)
     ///     }
     /// }
-    /// 
+    ///
     /// impl LoadValueB64 for MyInt {
     ///     type Error = anyhow::Error;
-    /// 
+    ///
     ///     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     ///     where
     ///         Self: Sized,
@@ -301,22 +301,22 @@ pub trait LoadValueB64 {
     ///         let mut b64_buf = [0u8; F];
     ///         let b64_len = fopen_r(path)?.read_slice_to_end(&mut b64_buf)?;
     ///         let b64_dat = &b64_buf[..b64_len];
-    /// 
+    ///
     ///         let mut buf = [0u8; 4];
     ///         b64_decode(b64_dat, &mut buf)?;
     ///         Ok(MyInt(u32::from_le_bytes(buf)))
     ///     }
     /// }
-    /// 
+    ///
     /// let dir = tempdir()?;
     /// let path = dir.path().join("my_int");
-    /// 
+    ///
     /// let orig = MyInt(17);
     /// orig.store_b64::<10, _>(&path)?;
-    /// 
+    ///
     /// let copy = MyInt::load_b64::<10, _>(&path)?;
     /// assert_eq!(orig, copy);
-    /// 
+    ///
     /// Ok::<(), anyhow::Error>(())
     /// ```
     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
