@@ -23,3 +23,15 @@ jobs:
       - run: .ci/run-regression.sh 100 20
       - run: |
           [ $(ls -1 output/ate/out | wc -l) -eq 100 ]
+
+  boot-race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo build --bin rosenpass --release
+      - run: chmod +x .ci/boot_race.sh
+      - run: cargo run --release --bin rosenpass gen-keys .ci/a.toml
+      - run: cargo run --release --bin rosenpass gen-keys .ci/b.toml
+      - run: .ci/boot_race.sh 5 2 .ci/a.toml .ci/b.toml
+      - run: .ci/boot_race.sh 5 1 .ci/a.toml .ci/b.toml
+      - run: .ci/boot_race.sh 5 0 .ci/a.toml .ci/b.toml
