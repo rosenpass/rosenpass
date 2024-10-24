@@ -41,7 +41,7 @@ pub enum BrokerInterface {
 
 /// struct holding all CLI arguments for `clap` crate to parse
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about)]
+#[command(author, version, about, long_about, arg_required_else_help = true)]
 pub struct CliArgs {
     /// lowest log level to show – log messages at higher levels will be omitted
     #[arg(long = "log-level", value_name = "LOG_LEVEL", group = "log-level")]
@@ -80,7 +80,15 @@ pub struct CliArgs {
     psk_broker_spawn: bool,
 
     #[command(subcommand)]
-    pub command: CliCommand,
+    pub command: Option<CliCommand>,
+
+    /// Generate man page
+    #[clap(long, value_name = "out_dir")]
+    pub generate_manpage: Option<PathBuf>,
+
+    /// Generate completion file for a shell
+    #[clap(long, value_name = "shell")]
+    pub print_completions: Option<clap_complete::Shell>,
 }
 
 impl CliArgs {
@@ -218,10 +226,6 @@ pub enum CliCommand {
 
     /// Validate a configuration
     Validate { config_files: Vec<PathBuf> },
-
-    /// Show the rosenpass manpage
-    // TODO make this the default, but only after the manpage has been adjusted once the CLI stabilizes
-    Man,
 }
 
 impl CliArgs {
@@ -236,16 +240,7 @@ impl CliArgs {
     ) -> anyhow::Result<()> {
         use CliCommand::*;
         match &self.command {
-            Man => {
-                let man_cmd = std::process::Command::new("man")
-                    .args(["1", "rosenpass"])
-                    .status();
-
-                if !(man_cmd.is_ok() && man_cmd.unwrap().success()) {
-                    println!(include_str!(env!("ROSENPASS_MAN")));
-                }
-            }
-            GenConfig { config_file, force } => {
+            Some(GenConfig { config_file, force }) => {
                 ensure!(
                     *force || !config_file.exists(),
                     "config file {config_file:?} already exists"
@@ -255,7 +250,7 @@ impl CliArgs {
             }
 
             // Deprecated - use gen-keys instead
-            Keygen { args } => {
+            Some(Keygen { args }) => {
                 log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
 
                 let mut public_key: Option<PathBuf> = None;
@@ -288,12 +283,12 @@ impl CliArgs {
                 generate_and_save_keypair(secret_key.unwrap(), public_key.unwrap())?;
             }
 
-            GenKeys {
+            Some(GenKeys {
                 config_file,
                 public_key,
                 secret_key,
                 force,
-            } => {
+            }) => {
                 // figure out where the key file is specified, in the config file or directly as flag?
                 let (pkf, skf) = match (config_file, public_key, secret_key) {
                     (Some(config_file), _, _) => {
@@ -337,7 +332,7 @@ impl CliArgs {
                 generate_and_save_keypair(skf, pkf)?;
             }
 
-            ExchangeConfig { config_file } => {
+            Some(ExchangeConfig { config_file }) => {
                 ensure!(
                     config_file.exists(),
                     "config file '{config_file:?}' does not exist"
@@ -351,11 +346,11 @@ impl CliArgs {
                 Self::event_loop(config, broker_interface, test_helpers)?;
             }
 
-            Exchange {
+            Some(Exchange {
                 first_arg,
                 rest_of_args,
                 config_file,
-            } => {
+            }) => {
                 let mut rest_of_args = rest_of_args.clone();
                 rest_of_args.insert(0, first_arg.clone());
                 let args = rest_of_args;
@@ -372,7 +367,7 @@ impl CliArgs {
                 Self::event_loop(config, broker_interface, test_helpers)?;
             }
 
-            Validate { config_files } => {
+            Some(Validate { config_files }) => {
                 for file in config_files {
                     match config::Rosenpass::load(file) {
                         Ok(config) => {
@@ -386,6 +381,8 @@ impl CliArgs {
                     }
                 }
             }
+
+            &None => {} // calp print help if no command is given
         }
 
         Ok(())
