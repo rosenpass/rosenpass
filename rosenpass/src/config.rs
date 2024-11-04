@@ -491,37 +491,30 @@ impl Rosenpass {
     }
 }
 
-impl Rosenpass {
-    /// Generate an example configuration
-    pub fn example_config() -> Self {
-        let peer = RosenpassPeer {
-            public_key: "/path/to/rp-peer-public-key".into(),
-            endpoint: Some("my-peer.test:9999".into()),
-            key_out: Some("/path/to/rp-key-out.txt".into()),
-            pre_shared_key: Some("additional pre shared key".into()),
-            wg: Some(WireGuard {
-                device: "wirgeguard device e.g. wg0".into(),
-                peer: "wireguard public key".into(),
-                extra_params: vec!["passed to".into(), "wg set".into()],
-            }),
-        };
-
-        Self {
-            keypair: Some(Keypair {
-                public_key: "/path/to/rp-public-key".into(),
-                secret_key: "/path/to/rp-secret-key".into(),
-            }),
-            peers: vec![peer],
-            ..Self::new(None)
-        }
-    }
-}
-
 impl Default for Verbosity {
     fn default() -> Self {
         Self::Quiet
     }
 }
+
+pub static EXAMPLE_CONFIG: &str = r###"public_key = "/path/to/rp-public-key"
+secret_key = "/path/to/rp-secret-key"
+listen = []
+verbosity = "Verbose"
+
+[[peers]]
+# Commented out fields are optional
+public_key = "/path/to/rp-peer-public-key"
+endpoint = "127.0.0.1:9998"
+# pre_shared_key = "/path/to/preshared-key"
+
+# Choose to store the key in a file via `key_out` or pass it to WireGuard by
+# defining `device` and `peer`. You may choose to do both.
+key_out = "/path/to/rp-key-out.txt" # path to store the key
+# device = "wg0" # WireGuard interface
+#peer = "RULdRAtUw7SFfVfGD..." # WireGuard public key
+# extra_params = [] # passed to WireGuard `wg set`
+"###;
 
 #[cfg(test)]
 mod test {

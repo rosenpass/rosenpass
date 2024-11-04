@@ -246,7 +246,7 @@ impl CliArgs {
                     "config file {config_file:?} already exists"
                 );
 
-                config::Rosenpass::example_config().store(config_file)?;
+                std::fs::write(config_file, config::EXAMPLE_CONFIG)?;
             }
 
             // Deprecated - use gen-keys instead
