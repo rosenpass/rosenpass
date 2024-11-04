@@ -6,7 +6,8 @@
 //! ## TODO
 //! - support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
 //! - provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
-
+use crate::protocol::{SPk, SSk};
+use rosenpass_util::file::LoadValue;
 use std::{
     collections::HashSet,
     fs,
@@ -207,23 +208,33 @@ impl Rosenpass {
     }
 
     /// Validate a configuration
-    ///
-    /// ## TODO
-    /// - check that files do not just exist but are also readable
-    /// - warn if neither out_key nor exchange_command of a peer is defined (v.i.)
     pub fn validate(&self) -> anyhow::Result<()> {
         if let Some(ref keypair) = self.keypair {
             // check the public key file exists
             ensure!(
                 keypair.public_key.is_file(),
-                "could not find public-key file {:?}: no such file",
+                "could not find public-key file {:?}: no such file. Consider running `rosenpass gen-keys` to generate a new keypair.",
+                keypair.public_key
+            );
+
+            // check the public-key file is a valid key
+            ensure!(
+                SPk::load(&keypair.public_key).is_ok(),
+                "could not load public-key file {:?}: invalid key",
                 keypair.public_key
             );
 
             // check the secret-key file exists
             ensure!(
                 keypair.secret_key.is_file(),
-                "could not find secret-key file {:?}: no such file",
+                "could not find secret-key file {:?}: no such file. Consider running `rosenpass gen-keys` to generate a new keypair.",
+                keypair.secret_key
+            );
+
+            // check the secret-key file is a valid key
+            ensure!(
+                SSk::load(&keypair.secret_key).is_ok(),
+                "could not load public-key file {:?}: invalid key",
                 keypair.secret_key
             );
         }
@@ -236,6 +247,13 @@ impl Rosenpass {
                 peer.public_key
             );
 
+            // check peer's public-key file is a valid key
+            ensure!(
+                SPk::load(&peer.public_key).is_ok(),
+                "peer {i} public-key file {:?} is invalid",
+                peer.public_key
+            );
+
             // check endpoint is usable
             if let Some(addr) = peer.endpoint.as_ref() {
                 ensure!(
@@ -245,7 +263,22 @@ impl Rosenpass {
                 );
             }
 
-            // TODO warn if neither out_key nor exchange_command is defined
+            // check if `key_out` or `device` and `peer` are defined
+            if peer.key_out.is_none() {
+                if let Some(wg) = &peer.wg {
+                    if wg.device.is_empty() || wg.peer.is_empty() {
+                        ensure!(
+                            false,
+                            "peer {i} has neither `key_out` nor valid wireguard config defined"
+                        );
+                    }
+                } else {
+                    ensure!(
+                        false,
+                        "peer {i} has neither `key_out` nor valid wireguard config defined"
+                    );
+                }
+            }
         }
 
         Ok(())
