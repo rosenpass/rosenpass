@@ -125,6 +125,18 @@ impl<T> GuaranteedValue for Guaranteed<T> {
     }
 }
 
+/// Checks a condition is true and returns an error if not.
+///
+/// # Examples
+///
+/// ```rust
+/// # use rosenpass_util::result::ensure_or;
+/// let result = ensure_or(5 > 3, "not greater");
+/// assert!(result.is_ok());
+///
+/// let result = ensure_or(5 < 3, "not less");
+/// assert!(result.is_err());
+/// ```
 pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
     match b {
         true => Ok(()),
@@ -132,6 +144,18 @@ pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
     }
 }
 
+/// Evaluates to an error if the condition is true.
+///
+/// # Examples
+///
+/// ```rust
+/// # use rosenpass_util::result::bail_if;
+/// let result = bail_if(false, "not bailed");
+/// assert!(result.is_ok());
+///
+/// let result = bail_if(true, "bailed");
+/// assert!(result.is_err());
+/// ```
 pub fn bail_if<E>(b: bool, err: E) -> Result<(), E> {
     ensure_or(!b, err)
 }
