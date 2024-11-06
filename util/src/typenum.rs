@@ -16,6 +16,7 @@ macro_rules! typenum2const {
 
 /// Trait implemented by constant integers to facilitate conversion to constant integers
 pub trait IntoConst<T> {
+    /// The constant value after conversion
     const VALUE: T;
 }
 
