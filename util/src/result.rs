@@ -8,7 +8,9 @@ macro_rules! attempt {
     };
 }
 
+/// Trait for the ok operation, which provides a way to convert a value into a Result
 pub trait OkExt<E>: Sized {
+    /// Wraps a value in a Result::Ok variant
     fn ok(self) -> Result<Self, E>;
 }
 
@@ -25,6 +27,7 @@ impl<T, E> OkExt<E> for T {
 ///
 /// Implementations must not panic.
 pub trait GuaranteedValue {
+    /// The value type that will be returned by guaranteed()
     type Value;
 
     /// Extract the contained value while being panic-safe, like .unwrap()
@@ -35,7 +38,11 @@ pub trait GuaranteedValue {
     fn guaranteed(self) -> Self::Value;
 }
 
+/// Extension trait for adding finally operation to types
 pub trait FinallyExt {
+    /// Executes a closure with mutable access to self and returns self
+    ///
+    /// The closure is guaranteed to be executed before returning.
     fn finally<F: FnOnce(&mut Self)>(self, f: F) -> Self;
 }
 
