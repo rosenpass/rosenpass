@@ -116,6 +116,10 @@ pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::R
 }
 
 #[cfg(not(target_os = "linux"))]
+/// Duplicate a file descriptor, setting the close on exec flag.
+///
+/// This is slightly different from [clone_fd_cloexec], as this function supports specifying an
+/// explicit destination file descriptor.
 pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::Result<()> {
     use rustix::io::{dup2, fcntl_setfd, FdFlags};
     dup2(&fd, new)?;
