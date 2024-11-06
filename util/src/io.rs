@@ -292,7 +292,7 @@ impl<T: IoErrorKind> TryIoErrorKind for T {
 ///
 /// See [tutorial in the module](self).
 pub trait IoResultKindHintExt<T>: Sized {
-    // Error trait including the ErrorKind hint
+    /// Error type including the ErrorKind hint
     type Error;
     /// Helper for accessing [std::io::Error::kind] in Results
     ///
@@ -318,7 +318,7 @@ impl<T, E: IoErrorKind> IoResultKindHintExt<T> for Result<T, E> {
 ///
 /// See [tutorial in the module](self).
 pub trait TryIoResultKindHintExt<T>: Sized {
-    // Error trait including the ErrorKind hint
+    /// Error type including the ErrorKind hint
     type Error;
     /// Helper for accessing [std::io::Error::kind] in Results where it may not be present
     ///
