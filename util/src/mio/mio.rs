@@ -6,14 +6,23 @@ use crate::{
     result::OkExt,
 };
 
+/// Module containing I/O interest flags for Unix operations
 pub mod interest {
     use mio::Interest;
+
+    /// Interest flag indicating readability
     pub const R: Interest = Interest::READABLE;
+
+    /// Interest flag indicating writability
     pub const W: Interest = Interest::WRITABLE;
+
+    /// Interest flag indicating both readability and writability
     pub const RW: Interest = R.add(W);
 }
 
+/// Extension trait providing additional functionality for Unix listener
 pub trait UnixListenerExt: Sized {
+    /// Creates a new Unix listener by claiming ownership of a raw file descriptor
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 }
 
@@ -27,9 +36,15 @@ impl UnixListenerExt for UnixListener {
     }
 }
 
+/// Extension trait providing additional functionality for Unix streams
 pub trait UnixStreamExt: Sized {
+    /// Creates a new Unix stream from an owned file descriptor
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self>;
+
+    /// Claims ownership of a raw file descriptor and creates a new Unix stream
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
+
+    /// Claims ownership of a raw file descriptor in place and creates a new Unix stream
     fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self>;
 }
 

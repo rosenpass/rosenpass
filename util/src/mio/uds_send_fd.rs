@@ -10,6 +10,7 @@ use uds::UnixStreamExt as FdPassingExt;
 
 use crate::{repeat, return_if};
 
+/// A structure that facilitates writing data and file descriptors to a Unix domain socket
 pub struct WriteWithFileDescriptors<Sock, Fd, BorrowSock, BorrowFds>
 where
     Sock: FdPassingExt,
@@ -30,6 +31,7 @@ where
     BorrowSock: Borrow<Sock>,
     BorrowFds: BorrowMut<VecDeque<Fd>>,
 {
+    /// Creates a new `WriteWithFileDescriptors` instance with the given socket and file descriptor queue
     pub fn new(socket: BorrowSock, fds: BorrowFds) -> Self {
         let _sock_dummy = PhantomData;
         let _fd_dummy = PhantomData;
@@ -41,19 +43,23 @@ where
         }
     }
 
+    /// Consumes this instance and returns the underlying socket and file descriptor queue
     pub fn into_parts(self) -> (BorrowSock, BorrowFds) {
         let Self { socket, fds, .. } = self;
         (socket, fds)
     }
 
+    /// Returns a reference to the underlying socket
     pub fn socket(&self) -> &Sock {
         self.socket.borrow()
     }
 
+    /// Returns a reference to the file descriptor queue
     pub fn fds(&self) -> &VecDeque<Fd> {
         self.fds.borrow()
     }
 
+    /// Returns a mutable reference to the file descriptor queue
     pub fn fds_mut(&mut self) -> &mut VecDeque<Fd> {
         self.fds.borrow_mut()
     }
@@ -66,6 +72,7 @@ where
     BorrowSock: BorrowMut<Sock>,
     BorrowFds: BorrowMut<VecDeque<Fd>>,
 {
+    /// Returns a mutable reference to the underlying socket
     pub fn socket_mut(&mut self) -> &mut Sock {
         self.socket.borrow_mut()
     }
