@@ -22,6 +22,7 @@ macro_rules! cat {
 }
 
 // TODO: consistent inout ordering
+/// Copy all bytes from `src` to `dst`. The lengths must match.
 pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
     dst.borrow_mut().copy_from_slice(src.borrow());
 }
@@ -41,11 +42,13 @@ pub struct Forgetting<T> {
 }
 
 impl<T> Forgetting<T> {
+    /// Creates a new `Forgetting<T>` instance containing the given value.
     pub fn new(value: T) -> Self {
         let value = Some(value);
         Self { value }
     }
 
+    /// Extracts and returns the contained value, consuming self.
     pub fn extract(mut self) -> T {
         let mut value = None;
         swap(&mut value, &mut self.value);
@@ -93,7 +96,9 @@ impl<T> Drop for Forgetting<T> {
     }
 }
 
+/// A trait that provides a method to discard a value without explicitly handling its results.
 pub trait DiscardResultExt {
+    /// Consumes and discards a value without doing anything with it.
     fn discard_result(self);
 }
 
@@ -101,7 +106,9 @@ impl<T> DiscardResultExt for T {
     fn discard_result(self) {}
 }
 
+/// Trait that provides a method to explicitly forget values.
 pub trait ForgetExt {
+    /// Consumes and forgets a value, preventing its destructor from running.
     fn forget(self);
 }
 
@@ -111,8 +118,11 @@ impl<T> ForgetExt for T {
     }
 }
 
+/// Extension trait that provides methods for swapping values.
 pub trait SwapWithExt {
+    /// Takes ownership of `other` and swaps its value with `self`, returning the original value.
     fn swap_with(&mut self, other: Self) -> Self;
+    /// Swaps the values between `self` and `other` in place.
     fn swap_with_mut(&mut self, other: &mut Self);
 }
 
@@ -127,7 +137,9 @@ impl<T> SwapWithExt for T {
     }
 }
 
+/// Extension trait that provides methods for swapping values with default values.
 pub trait SwapWithDefaultExt {
+    /// Takes the current value and replaces it with the default value, returning the original.
     fn swap_with_default(&mut self) -> Self;
 }
 
@@ -137,6 +149,7 @@ impl<T: Default> SwapWithDefaultExt for T {
     }
 }
 
+/// Extension trait that provides a method to explicitly move values.
 pub trait MoveExt {
     /// Deliberately move the value
     ///
