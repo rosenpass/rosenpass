@@ -435,4 +435,12 @@ mod tests {
         assert!(matches!(file.write(&buf), Err(_)));
         Ok(())
     }
+
+    #[test]
+    fn test_nullfd_read_write() {
+        let nullfd = open_nullfd().unwrap();
+        let mut buf = vec![0u8; 16];
+        assert_eq!(rustix::io::read(&nullfd, &mut buf).unwrap(), 0);
+        assert!(rustix::io::write(&nullfd, b"test").is_err());
+    }
 }
