@@ -1,0 +1,14 @@
+public_key = "rp-b-public-key"
+secret_key = "rp-b-secret-key"
+listen = ["127.0.0.1:9998"]
+verbosity = "Verbose"
+
+[api]
+listen_path = []
+listen_fd = []
+stream_fd = []
+
+[[peers]]
+public_key = "rp-a-public-key"
+endpoint = "127.0.0.1:9999"
+key_out = "rp-a-key-out.txt"
