@@ -5,6 +5,16 @@ use std::time::Instant;
 /// This is a simple wrapper around `std::time::Instant` that provides a
 /// convenient way to get the seconds elapsed since the creation of the
 /// `Timebase` instance.
+///
+/// # Examples
+///
+/// ```
+/// use rosenpass_util::time::Timebase;
+///
+/// let timebase = Timebase::default();
+/// let now = timebase.now();
+/// assert!(now > 0.0);
+/// ```
 
 #[derive(Clone, Debug)]
 pub struct Timebase(Instant);
