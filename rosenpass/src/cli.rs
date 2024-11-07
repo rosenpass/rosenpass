@@ -246,7 +246,7 @@ impl CliArgs {
                     "config file {config_file:?} already exists"
                 );
 
-                config::Rosenpass::example_config().store(config_file)?;
+                std::fs::write(config_file, config::EXAMPLE_CONFIG)?;
             }
 
             // Deprecated - use gen-keys instead
@@ -374,7 +374,7 @@ impl CliArgs {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
                                 Ok(_) => eprintln!("{file:?} has passed all logical checks"),
-                                Err(_) => eprintln!("{file:?} contains logical errors"),
+                                Err(err) => eprintln!("{file:?} contains logical errors: '{err}'"),
                             }
                         }
                         Err(e) => eprintln!("{file:?} is not valid: {e}"),

@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::{
     fs,
     net::UdpSocket,
@@ -5,9 +6,10 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tempfile::tempdir;
 
 use clap::Parser;
-use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs};
+use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WireguardBrokerMio, WG_KEY_LEN, WG_PEER_LEN};
 use serial_test::serial;
@@ -132,6 +134,46 @@ fn run_server_client_exchange(
     // time's up, kill the childs
     server_terminate.send(()).unwrap();
     client_terminate.send(()).unwrap();
+}
+
+// verify that EXAMPLE_CONFIG is correct
+#[test]
+fn check_example_config() {
+    setup_tests();
+    setup_logging();
+
+    let tmp_dir = tempdir().unwrap();
+    let config_path = tmp_dir.path().join("config.toml");
+    let mut config_file = File::create(config_path.to_owned()).unwrap();
+
+    config_file
+        .write_all(
+            EXAMPLE_CONFIG
+                .replace("/path/to", tmp_dir.path().to_str().unwrap())
+                .as_bytes(),
+        )
+        .unwrap();
+
+    let output = test_bin::get_test_bin(BIN)
+        .args(["gen-keys"])
+        .arg(&config_path)
+        .output()
+        .expect("EXAMPLE_CONFIG not valid");
+
+    fs::copy(
+        tmp_dir.path().join("rp-public-key"),
+        tmp_dir.path().join("rp-peer-public-key"),
+    )
+    .unwrap();
+
+    let output = test_bin::get_test_bin(BIN)
+        .args(["validate"])
+        .arg(&config_path)
+        .output()
+        .expect("EXAMPLE_CONFIG not valid");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("has passed all logical checks"));
 }
 
 // check that we can exchange keys
