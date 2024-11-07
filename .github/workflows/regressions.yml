@@ -16,7 +16,7 @@ jobs:
   multi-peer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: cargo build --bin rosenpass --release
       - run: python misc/generate_configs.py
       - run: chmod +x .ci/run-regression.sh
