@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+#![recursion_limit = "256"]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
 
 #[cfg(doctest)]

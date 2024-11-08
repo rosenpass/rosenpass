@@ -1,13 +1,16 @@
 use crate::{Beside, CondenseBeside};
 use std::borrow::BorrowMut;
 
-// The To trait is the core of the to crate; most functions with destinations will either return
-// an object that is an instance of this trait or they will return `-> impl To<Destination,
-// Return_value`.
-//
-// A quick way to implement a function with destination is to use the
-// [with_destination(|param: &mut Type| ...)] higher order function.
+/// The To trait is the core of the to crate; most functions with destinations will either return
+/// an object that is an instance of this trait or they will return `-> impl To<Destination,
+/// Return_value`.
+///
+/// A quick way to implement a function with destination is to use the
+/// [with_destination(|param: &mut Type| ...)] higher order function.
 pub trait To<Dst: ?Sized, Ret>: Sized {
+    /// Writes self to the destination `out` and returns a value of type `Ret`.
+    ///
+    /// This is the core method that must be implemented by all types implementing `To`.
     fn to(self, out: &mut Dst) -> Ret;
 
     /// Generate a destination on the fly with a lambda.

@@ -1,6 +1,7 @@
 /// Helper performing explicit unsized coercion.
 /// Used by the [to](crate::to()) function.
 pub trait DstCoercion<Dst: ?Sized> {
+    /// Performs an explicit coercion to the destination type.
     fn coerce_dest(&mut self) -> &mut Dst;
 }
 
