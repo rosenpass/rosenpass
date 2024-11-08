@@ -27,7 +27,7 @@ jobs:
   boot-race:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: cargo build --bin rosenpass --release
       - run: chmod +x .ci/boot_race/run.sh
       - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/a.toml
