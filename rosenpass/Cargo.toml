@@ -60,7 +60,7 @@ hex-literal = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 heck = { workspace = true, optional = true }
 command-fds = { workspace = true, optional = true }
-rustix = { workspace = true }
+rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 
 [build-dependencies]
@@ -83,6 +83,7 @@ experiment_api = [
     "hex-literal",
     "uds",
     "command-fds",
+    "rustix",
     "rosenpass-util/experiment_file_descriptor_passing",
     "rosenpass-wireguard-broker/experiment_api",
 ]
