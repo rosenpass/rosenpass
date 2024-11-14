@@ -20,7 +20,7 @@ in
 runCommandNoCC "lace-result" { } ''
   mkdir {bin,$out}
   tar -cvf $out/rosenpass-${stdenvNoCC.hostPlatform.system}-${version}.tar \
-    -C ${package} bin/rosenpass \
+    -C ${package} bin/rosenpass lib/systemd \
     -C ${rp} bin/rp
   cp ${oci-image} \
     $out/rosenpass-oci-image-${stdenvNoCC.hostPlatform.system}-${version}.tar.gz
