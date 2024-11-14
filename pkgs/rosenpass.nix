@@ -74,6 +74,7 @@ rustPlatform.buildRustPackage {
   postInstall = ''
     mkdir -p $out/lib/systemd/system
     install systemd/rosenpass@.service $out/lib/systemd/system
+    install systemd/rp@.service $out/lib/systemd/system
     install systemd/rosenpass.target $out/lib/systemd/system
   '';
 
