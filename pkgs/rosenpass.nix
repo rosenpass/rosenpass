@@ -12,6 +12,8 @@ let
     extensions = [
       "lock"
       "rs"
+      "service"
+      "target"
       "toml"
     ];
     # Files to explicitly include
@@ -68,6 +70,12 @@ rustPlatform.buildRustPackage {
   buildInputs = [ bash ];
 
   hardeningDisable = lib.optional isStatic "fortify";
+
+  postInstall = ''
+    mkdir -p $out/lib/systemd/system
+    install systemd/rosenpass@.service $out/lib/systemd/system
+    install systemd/rosenpass.target $out/lib/systemd/system
+  '';
 
   meta = {
     inherit (cargoToml.package) description homepage;
