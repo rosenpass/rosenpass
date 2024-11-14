@@ -1,5 +1,6 @@
 use anyhow::Error;
 use futures::lock::Mutex;
+use serde::Deserialize;
 use std::future::Future;
 use std::ops::DerefMut;
 use std::pin::Pin;
@@ -11,7 +12,7 @@ use anyhow::Result;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub struct ExchangePeer {
     pub public_keys_dir: PathBuf,
     pub endpoint: Option<SocketAddr>,
@@ -19,7 +20,7 @@ pub struct ExchangePeer {
     pub allowed_ips: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize)]
 pub struct ExchangeOptions {
     pub verbose: bool,
     pub private_keys_dir: PathBuf,
