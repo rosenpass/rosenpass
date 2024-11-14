@@ -313,6 +313,29 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             broker_peer,
             peer.endpoint.map(|x| x.to_string()),
         )?;
+
+        // Configure routes
+        if let Some(allowed_ips) = peer.allowed_ips {
+            Command::new("ip")
+                .arg("route")
+                .arg("replace")
+                .arg(allowed_ips.clone())
+                .arg("dev")
+                .arg(options.dev.clone().unwrap_or("rosenpass0".to_string()))
+                .status()
+                .expect("failed to configure route");
+            cleanup_handlers
+                .enqueue(Box::pin(async move {
+                    Command::new("ip")
+                        .arg("route")
+                        .arg("del")
+                        .arg(allowed_ips)
+                        .status()
+                        .expect("failed to remove ip");
+                    Ok(())
+                }))
+                .await;
+        }
     }
 
     let out = srv.event_loop();
