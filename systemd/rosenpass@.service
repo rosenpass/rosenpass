@@ -1,0 +1,47 @@
+[Unit]
+Description=Rosenpass key exchange for %I
+Documentation=man:rosenpass(1)
+Documentation=https://rosenpass.eu/docs
+
+After=network-online.target nss-lookup.target sys-devices-virtual-net-%i.device
+Wants=network-online.target nss-lookup.target
+BindsTo=sys-devices-virtual-net-%i.device
+PartOf=rosenpass.target
+
+[Service]
+ExecStart=rosenpass exchange-config /etc/rosenpass/%i.toml
+LoadCredential=pqsk:/etc/rosenpass/%i/pqsk
+
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE CAP_BLOCK_SUSPEND CAP_BPF CAP_CHOWN CAP_FSETID CAP_SETFCAP CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_IPC_OWNER CAP_IPC_LOCK CAP_KILL CAP_LEASE CAP_LINUX_IMMUTABLE CAP_MAC_ADMIN CAP_MAC_OVERRIDE CAP_MKNOD CAP_NET_BIND_SERVICE CAP_NET_BROADCAST CAP_NET_RAW CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_SYS_ADMIN CAP_SYS_BOOT CAP_SYS_CHROOT CAP_SYSLOG CAP_SYS_MODULE CAP_SYS_NICE CAP_SYS_RESOURCE CAP_SYS_PACCT CAP_SYS_PTRACE CAP_SYS_RAWIO CAP_SYS_TIME CAP_SYS_TTY_CONFIG CAP_WAKE_ALARM
+DynamicUser=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+PrivateDevices=true
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=noaccess
+RestrictAddressFamilies=AF_NETLINK AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+SystemCallFilter=~@clock
+SystemCallFilter=~@cpu-emulation
+SystemCallFilter=~@debug
+SystemCallFilter=~@module
+SystemCallFilter=~@mount
+SystemCallFilter=~@obsolete
+SystemCallFilter=~@privileged
+SystemCallFilter=~@raw-io
+SystemCallFilter=~@reboot
+SystemCallFilter=~@swap
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
