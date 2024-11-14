@@ -134,6 +134,7 @@
 
           checks = {
             systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
+            systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
 
             cargo-fmt = pkgs.runCommand "check-cargo-fmt"
               { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
