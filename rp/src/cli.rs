@@ -32,7 +32,7 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
         Some(command) => match command {
             CommandType::GenKey => Err(format!("{}\nUsage: rp genkey PRIVATE_KEYS_DIR", note)),
             CommandType::PubKey => Err(format!("{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR", note)),
-            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
+            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [ip <ip1>/<cidr1>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
         },
         None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange [ARGS]...", note)),
     }
@@ -142,6 +142,13 @@ impl ExchangeOptions {
                         options.dev = Some(device);
                     } else {
                         return fatal("dev option requires parameter", Some(CommandType::Exchange));
+                    }
+                }
+                "ip" => {
+                    if let Some(ip) = args.next() {
+                        options.ip = Some(ip);
+                    } else {
+                        return fatal("is option requires parameter", Some(CommandType::Exchange));
                     }
                 }
                 "listen" => {

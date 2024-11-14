@@ -1,4 +1,10 @@
-use std::{net::SocketAddr, path::PathBuf};
+use anyhow::Error;
+use futures::lock::Mutex;
+use std::future::Future;
+use std::ops::DerefMut;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::{net::SocketAddr, path::PathBuf, process::Command};
 
 use anyhow::Result;
 
@@ -18,6 +24,7 @@ pub struct ExchangeOptions {
     pub verbose: bool,
     pub private_keys_dir: PathBuf,
     pub dev: Option<String>,
+    pub ip: Option<String>,
     pub listen: Option<SocketAddr>,
     pub peers: Vec<ExchangePeer>,
 }
@@ -131,6 +138,23 @@ mod netlink {
     }
 }
 
+#[derive(Clone)]
+struct CleanupHandlers(Arc<Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>);
+
+impl CleanupHandlers {
+    fn new() -> Self {
+        CleanupHandlers(Arc::new(Mutex::new(vec![])))
+    }
+
+    async fn enqueue(&self, handler: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>) {
+        self.0.lock().await.push(Box::pin(handler))
+    }
+
+    async fn run(self) -> Result<Vec<()>, Error> {
+        futures::future::try_join_all(self.0.lock().await.deref_mut()).await
+    }
+}
+
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs;
@@ -151,14 +175,49 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
 
-    let link_name = options.dev.unwrap_or("rosenpass0".to_string());
+    let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
+    let cleanup_handlers = CleanupHandlers::new();
+    let final_cleanup_handlers = (&cleanup_handlers).clone();
+
+    cleanup_handlers
+        .enqueue(Box::pin(async move {
+            netlink::link_cleanup_standalone(link_index).await
+        }))
+        .await;
+
     ctrlc_async::set_async_handler(async move {
-        netlink::link_cleanup_standalone(link_index)
+        final_cleanup_handlers
+            .run()
             .await
             .expect("Failed to clean up");
     })?;
+
+    if let Some(ip) = options.ip {
+        let dev = options.dev.clone().unwrap_or("rosenpass0".to_string());
+        Command::new("ip")
+            .arg("address")
+            .arg("add")
+            .arg(ip.clone())
+            .arg("dev")
+            .arg(dev.clone())
+            .status()
+            .expect("failed to configure ip");
+        cleanup_handlers
+            .enqueue(Box::pin(async move {
+                Command::new("ip")
+                    .arg("address")
+                    .arg("del")
+                    .arg(ip)
+                    .arg("dev")
+                    .arg(dev)
+                    .status()
+                    .expect("failed to remove ip");
+                Ok(())
+            }))
+            .await;
+    }
 
     // Deploy the classic wireguard private key
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
