@@ -92,6 +92,90 @@ pub struct WriteToIoReturn {
 }
 
 #[derive(Clone, Copy, Debug)]
+/// Module description goes here (skipped since it already exists in #479)
+///
+/// # Examples
+///
+///  Unfinished/proof-of-concept versions below - don't try this at home
+///
+/// **TODOs**:
+///
+/// * Actually write to a sink, if that's desirable/integration tests don't suffice
+/// * Consider splitting into multiple examples in that case
+/// * Resolve all TBD notes, fixup/polish, add references/links, etc.
+/// * rustfmt ignores docstrings, check [unstable option](https://github.com/rust-lang/rustfmt/issues/3348) or fix manually?
+/// * Decide on the most important use cases vs. per-function examples (intended API usage?)
+/// * Unit test vs docstring test - unclear which approach is preferable here
+///
+/// ## Initialization and Consumption
+///
+/// The prefix-encoded message can be written as a whole or in parts:
+///
+/// ```
+/// use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+///
+/// let msg = String::from("hello world");
+/// let encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
+/// assert!(encoder.encoded_message_bytes() > msg.len());
+/// assert!(!encoder.exhausted());
+///
+/// // TBD: should demonstrate several ways of creating new encoders?
+/// // TBD: relevant use cases to cover? need to mention trade-offs/perf/sec/other concerns?
+///
+/// // TBD: write_all_to_stdio -> assert that the entire message has been written (?)
+/// // TBD: write_to_stdio -> check chunk size/completion status after each step (?)
+///
+/// let (msg_buffer, msg_length, write_offset) = encoder.into_parts();
+/// assert_eq!(msg_buffer, msg.as_bytes());
+/// assert_eq!(write_offset, 0);
+/// assert_eq!(msg_length, msg.len());
+/// ```
+///
+/// ## Writing to output streams
+///
+/// Lorem ipsum... (see above comments):
+///
+/// ```
+/// use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+///
+/// let message = String::from("hello world");
+/// let mut encoder = LengthPrefixEncoder::from_message(message.as_bytes());
+///
+/// let mut output = Vec::new();
+/// encoder.write_all_to_stdio(&mut output).unwrap();
+///
+/// // TBD: Size of the header not part of the API, are exact checks needed?
+/// assert!(output.len() > message.len());
+///
+/// // TBD: usize impl detail (obv placeholder - highly questionable)
+/// let (header, body) = output.split_at(8);
+/// // TBD LE also internal -> decode_header ?
+/// let length = u64::from_le_bytes(header.try_into().unwrap());
+///
+/// assert_eq!(length as usize, message.len());
+/// assert_eq!(body, message.as_bytes());
+/// ```
+///
+/// ## Basic error handling
+///
+/// Creating a decoder with invalid parameters triggers one of the various sanity checks:
+///
+/// ```
+/// use rosenpass_util::length_prefix_encoding::encoder::{LengthPrefixEncoder};
+///
+/// let message = vec![0u8; 32];
+/// let result = LengthPrefixEncoder::from_short_message(message, 64); // TBD use vars for sizes(clarity)?
+///
+/// //TBD: not worth demonstrating since it's part of the signature? May still want to test regardless?)
+/// match result {
+/// // There are many Errors like it, but this one is mine :)
+///     Err(e) if matches!(e, MessageLenSanityError) => {
+///         println!("No bueno!"); // TBD: Probably irrelevant, delete it? Or test something else?
+///     }
+///     _ => panic!("Expected MessageLenSanityError, but ..."), // TBD placeholder msg, output actual vs expected?
+/// }
+/// ```
+
 pub struct LengthPrefixEncoder<Buf: Borrow<[u8]>> {
     buf: Buf,
     header: [u8; HEADER_SIZE],
@@ -377,5 +461,26 @@ impl<Buf: BorrowMut<[u8]>> Zeroize for LengthPrefixEncoder<Buf> {
         self.header.zeroize();
         self.pos.zeroize();
         self.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+	// Copy/paste from the docstring example
+    fn test_lpe_sanity_error_PLACEHOLDER() {
+        let message = vec![0u8; 32];
+        let result = LengthPrefixEncoder::from_short_message(message, 64); // TBD use vars for sizes(clarity)?
+
+        match result {
+            // There are many Errors like it, but this one is mine :)
+            Err(e) if matches!(e, MessageLenSanityError) => {
+                assert!(0 > 1); // TODO remove
+                println!("No bueno!"); // TBD: Probably irrelevant, delete it? Or test something else?
+            }
+            _ => panic!("Expected MessageLenSanityError, but ..."), // TBD placeholder msg, output actual vs expected?
+        }
     }
 }
