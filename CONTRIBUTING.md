@@ -8,7 +8,7 @@ If any other issue occurs
 1. Make sure you locally checked out the head of the main branch
    - `git stash --include-untracked && git checkout main && git pull`
 2. Make sure all tests pass
-   - `cargo test`
+   - `cargo test --workspace --all-features`
 3. Make sure the current version in `rosenpass/Cargo.toml` matches that in the [last release on GitHub](https://github.com/rosenpass/rosenpass/releases)
    - Only normal releases count, release candidates and draft releases can be ignored
 4. Pick the kind of release that you want to make (`major`, `minor`, `patch`, `rc`, ...)
