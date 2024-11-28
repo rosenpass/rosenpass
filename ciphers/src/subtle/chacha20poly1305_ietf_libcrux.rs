@@ -13,7 +13,8 @@ pub const NONCE_LEN: usize = 12;
 /// Encrypts using ChaCha20Poly1305 as implemented in [libcrux](https://github.com/cryspen/libcrux).
 /// Key and nonce MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of
 /// [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN]. The last [TAG_LEN] bytes
-/// written in `ciphertext` are the tag guaranteeing integrity.
+/// written in `ciphertext` are the tag guaranteeing integrity. `ciphertext` MUST have a capacity of
+/// `plaintext.len()` + [TAG_LEN].
 ///  
 /// # Examples
 ///```rust
@@ -66,7 +67,7 @@ pub fn encrypt(
 /// `ad`. using ChaCha20Poly1305 as implemented in [libcrux](https://github.com/cryspen/libcrux).
 /// 
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
-/// [NONCE_LEN].
+/// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN].
 /// 
 /// # Examples
 ///```rust
