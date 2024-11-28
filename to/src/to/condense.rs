@@ -7,8 +7,10 @@
 /// The function [Beside::condense()](crate::Beside::condense) is a shorthand for using the
 /// condense trait.
 pub trait CondenseBeside<Val> {
+    /// The type that results from condensation.
     type Condensed;
 
+    /// Takes ownership of `self` and condenses it with the given value.
     fn condense(self, ret: Val) -> Self::Condensed;
 }
 

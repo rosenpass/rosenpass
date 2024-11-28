@@ -43,15 +43,15 @@ pub enum BrokerInterface {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about, arg_required_else_help = true)]
 pub struct CliArgs {
-    /// lowest log level to show – log messages at higher levels will be omitted
+    /// Lowest log level to show
     #[arg(long = "log-level", value_name = "LOG_LEVEL", group = "log-level")]
     log_level: Option<log::LevelFilter>,
 
-    /// show verbose log output – sets log level to "debug"
+    /// Show verbose log output – sets log level to "debug"
     #[arg(short, long, group = "log-level")]
     verbose: bool,
 
-    /// show no log output – sets log level to "error"
+    /// Show no log output – sets log level to "error"
     #[arg(short, long, group = "log-level")]
     quiet: bool,
 
@@ -59,22 +59,23 @@ pub struct CliArgs {
     #[cfg(feature = "experiment_api")]
     api: crate::api::cli::ApiCli,
 
-    /// path of the wireguard_psk broker socket to connect to
+    /// Path of the `wireguard_psk` broker socket to connect to
     #[cfg(feature = "experiment_api")]
     #[arg(long, group = "psk-broker-specs")]
     psk_broker_path: Option<PathBuf>,
 
-    /// fd of the wireguard_spk broker socket to connect to
+    /// File descriptor of the `wireguard_psk` broker socket to connect to
     ///
-    /// when this command is called from another process, the other process can open and bind the
-    /// Unix socket for the psk broker connection to use themselves, passing it to this process --
-    /// in Rust this can be achieved using the
-    /// [command-fds](https://docs.rs/command-fds/latest/command_fds/) crate
+    /// When this command is called from another process, the other process can
+    /// open and bind the Unix socket for the PSK broker connection to use
+    /// themselves, passing it to this process - in Rust this can be achieved
+    /// using the [command-fds](https://docs.rs/command-fds/latest/command_fds/)
+    /// crate
     #[cfg(feature = "experiment_api")]
     #[arg(long, group = "psk-broker-specs")]
     psk_broker_fd: Option<i32>,
 
-    /// spawn a psk broker locally using a socket pair
+    /// Spawn a PSK broker locally using a socket pair
     #[cfg(feature = "experiment_api")]
     #[arg(short, long, group = "psk-broker-specs")]
     psk_broker_spawn: bool,
@@ -82,11 +83,16 @@ pub struct CliArgs {
     #[command(subcommand)]
     pub command: Option<CliCommand>,
 
-    /// Generate man page
+    /// Generate man pages for the CLI
+    ///
+    /// This option is used to generate man pages for Rosenpass in the specified
+    /// directory and exit.
     #[clap(long, value_name = "out_dir")]
     pub generate_manpage: Option<PathBuf>,
 
     /// Generate completion file for a shell
+    ///
+    /// This option is used to generate completion files for the specified shell
     #[clap(long, value_name = "shell")]
     pub print_completions: Option<clap_complete::Shell>,
 }
@@ -143,20 +149,20 @@ impl CliArgs {
 /// represents a command specified via CLI
 #[derive(Subcommand, Debug)]
 pub enum CliCommand {
-    /// Start Rosenpass in server mode and carry on with the key exchange
+    /// Start Rosenpass key exchanges based on a configuration file
     ///
-    /// This will parse the configuration file and perform the key exchange
-    /// with the specified peers. If a peer's endpoint is specified, this
-    /// Rosenpass instance will try to initiate a key exchange with the peer,
-    /// otherwise only initiation attempts from the peer will be responded to.
+    /// This will parse the configuration file and perform key exchanges with
+    /// the specified peers. If a peer's endpoint is specified, this Rosenpass
+    /// instance will try to initiate a key exchange with the peer; otherwise,
+    /// only initiation attempts from other peers will be responded to.
     ExchangeConfig { config_file: PathBuf },
 
-    /// Start in daemon mode, performing key exchanges
+    /// Start Rosenpass key exchanges based on command line arguments
     ///
-    /// The configuration is read from the command line. The `peer` token
-    /// always separates multiple peers, e. g. if the token `peer` appears
-    /// in the WIREGUARD_EXTRA_ARGS it is not put into the WireGuard arguments
-    /// but instead a new peer is created.
+    /// The configuration is read from the command line. The `peer` token always
+    /// separates multiple peers, e.g., if the token `peer` appears in the
+    /// WIREGUARD_EXTRA_ARGS, it is not put into the WireGuard arguments but
+    /// instead a new peer is created.
     /* Explanation: `first_arg` and `rest_of_args` are combined into one
      * `Vec<String>`. They are only used to trick clap into displaying some
      * guidance on the CLI usage.
@@ -185,7 +191,10 @@ pub enum CliCommand {
         config_file: Option<PathBuf>,
     },
 
-    /// Generate a demo config file
+    /// Generate a demo config file for Rosenpass
+    ///
+    /// The generated config file will contain a single peer and all common
+    /// options.
     GenConfig {
         config_file: PathBuf,
 
@@ -194,19 +203,19 @@ pub enum CliCommand {
         force: bool,
     },
 
-    /// Generate the keys mentioned in a configFile
+    /// Generate secret & public key for Rosenpass
     ///
-    /// Generates secret- & public-key to their destination. If a config file
-    /// is provided then the key file destination is taken from there.
-    /// Otherwise the
+    /// Generates secret & public key to their destination. If a config file is
+    /// provided then the key file destination is taken from there, otherwise
+    /// the destination is taken from the CLI arguments.
     GenKeys {
         config_file: Option<PathBuf>,
 
-        /// where to write public-key to
+        /// Where to write public key to
         #[clap(short, long)]
         public_key: Option<PathBuf>,
 
-        /// where to write secret-key to
+        /// Where to write secret key to
         #[clap(short, long)]
         secret_key: Option<PathBuf>,
 
@@ -215,21 +224,27 @@ pub enum CliCommand {
         force: bool,
     },
 
-    /// Deprecated - use gen-keys instead
+    /// Validate a configuration file
+    ///
+    /// This command will validate the configuration file and print any errors
+    /// it finds. If the configuration file is valid, it will print a success.
+    /// Defined secret & public keys are checked for existence and validity.
+    Validate { config_files: Vec<PathBuf> },
+
+    /// DEPRECATED - use the gen-keys command instead
     #[allow(rustdoc::broken_intra_doc_links)]
     #[allow(rustdoc::invalid_html_tags)]
+    #[command(hide = true)]
     Keygen {
-        // NOTE yes, the legacy keygen argument initially really accepted "privet-key", not "secret-key"!
+        // NOTE yes, the legacy keygen argument initially really accepted
+        // "private-key", not "secret-key"!
         /// public-key <PATH> private-key <PATH>
         args: Vec<String>,
     },
-
-    /// Validate a configuration
-    Validate { config_files: Vec<PathBuf> },
 }
 
 impl CliArgs {
-    /// runs the command specified via CLI
+    /// Runs the command specified via CLI
     ///
     /// ## TODO
     /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
