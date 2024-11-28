@@ -14,12 +14,12 @@ pub const TAG_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::TagSize };
 pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize };
 
 /// Encrypts using ChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
-/// `key` and `nonce` MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of
-/// [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN]. The last [TAG_LEN] bytes
-/// written in `ciphertext` are the tag guaranteeing integrity.
+/// `key` MUST be chosen (pseudo-)randomly and `nonce` MOST NOT be reused. The `key` slice MUST have
+/// a length of [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN]. The last [TAG_LEN] bytes
+/// written in `ciphertext` are the tag guaranteeing integrity. `ciphertext` MUST have a capacity of
+/// `plaintext.len()` + [TAG_LEN].
 /// 
 /// # Examples
-/// 
 ///```rust
 /// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 ///
@@ -29,7 +29,7 @@ pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize 
 /// let key: &[u8] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
 /// let nonce: &[u8] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
 /// let additional_data: &[u8] = "the encrypted message is very important".as_bytes();
-/// let mut ciphertext_buffer = [0u8; PLAINTEXT_LEN + TAG_LEN];
+/// let mut ciphertext_buffer = [0u8;PLAINTEXT_LEN + TAG_LEN];
 ///
 /// let res: anyhow::Result<()> = encrypt(&mut ciphertext_buffer, key, nonce, additional_data, plaintext);
 /// assert!(res.is_ok());
@@ -59,7 +59,7 @@ pub fn encrypt(
 /// `ad`. using ChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// 
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
-/// [NONCE_LEN].
+/// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN].
 /// 
 /// # Examples
 ///```rust
