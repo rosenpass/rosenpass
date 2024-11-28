@@ -88,7 +88,7 @@ impl MioConnection {
         })
     }
 
-    pub fn shoud_close(&self) -> bool {
+    pub fn should_close(&self) -> bool {
         let exhausted = self
             .buffers
             .as_ref()
@@ -262,7 +262,7 @@ pub trait MioConnectionContext {
     }
 
     fn should_close(&self) -> bool {
-        self.mio_connection().shoud_close()
+        self.mio_connection().should_close()
     }
 }
 
