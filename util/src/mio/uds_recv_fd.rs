@@ -9,6 +9,9 @@ use uds::UnixStreamExt as FdPassingExt;
 
 use crate::fd::{claim_fd_inplace, IntoStdioErr};
 
+/// A wrapper around a socket that combines reading from the socket with tracking
+/// received file descriptors. Limits the maximum number of file descriptors that
+/// can be received in a single read operation via the `MAX_FDS` parameter.
 pub struct ReadWithFileDescriptors<const MAX_FDS: usize, Sock, BorrowSock, BorrowFds>
 where
     Sock: FdPassingExt,
@@ -27,6 +30,8 @@ where
     BorrowSock: Borrow<Sock>,
     BorrowFds: BorrowMut<VecDeque<OwnedFd>>,
 {
+    /// Creates a new `ReadWithFileDescriptors` by wrapping a socket and a file
+    /// descriptor queue.
     pub fn new(socket: BorrowSock, fds: BorrowFds) -> Self {
         let _sock_dummy = PhantomData;
         Self {
@@ -36,19 +41,24 @@ where
         }
     }
 
+    /// Consumes the wrapper and returns the underlying socket and file
+    /// descriptor queue.
     pub fn into_parts(self) -> (BorrowSock, BorrowFds) {
         let Self { socket, fds, .. } = self;
         (socket, fds)
     }
 
+    /// Returns a reference to the underlying socket.
     pub fn socket(&self) -> &Sock {
         self.socket.borrow()
     }
 
+    /// Returns a reference to the file descriptor queue.
     pub fn fds(&self) -> &VecDeque<OwnedFd> {
         self.fds.borrow()
     }
 
+    /// Returns a mutable reference to the file descriptor queue.
     pub fn fds_mut(&mut self) -> &mut VecDeque<OwnedFd> {
         self.fds.borrow_mut()
     }
@@ -61,6 +71,7 @@ where
     BorrowSock: BorrowMut<Sock>,
     BorrowFds: BorrowMut<VecDeque<OwnedFd>>,
 {
+    /// Returns a mutable reference to the underlying socket.
     pub fn socket_mut(&mut self) -> &mut Sock {
         self.socket.borrow_mut()
     }
