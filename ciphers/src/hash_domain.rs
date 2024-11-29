@@ -16,7 +16,10 @@ pub struct SecretHashDomain(Secret<KEY_LEN>);
 #[derive(Clone, Debug)]
 pub struct SecretHashDomainNamespace(Secret<KEY_LEN>);
 
+
 impl HashDomain {
+    
+    // Create HashDomain initialized with zeros. 
     pub fn zero() -> Self {
         Self([0u8; KEY_LEN])
     }
@@ -25,11 +28,13 @@ impl HashDomain {
         HashDomainNamespace(self.0)
     }
 
+    /// Turns this HashDomain into a [SecretHashDomain].
     pub fn turn_secret(self) -> SecretHashDomain {
         SecretHashDomain(Secret::from_slice(&self.0))
     }
 
     // TODO: Protocol! Use domain separation to ensure that
+    /// Mixes a new domain identified by `v` into this HashDomain creating a new one. 
     pub fn mix(self, v: &[u8]) -> Result<Self> {
         Ok(Self(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
     }
@@ -55,6 +60,7 @@ impl HashDomainNamespace {
     }
 }
 
+/// A HashDomain with its identifier stored in [secret storage](rosenpass_secret_memory::Secret).
 impl SecretHashDomain {
     pub fn invoke_primitive(k: &[u8], d: &[u8]) -> Result<SecretHashDomain> {
         let mut r = SecretHashDomain(Secret::zero());
