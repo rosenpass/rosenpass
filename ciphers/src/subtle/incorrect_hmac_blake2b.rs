@@ -20,7 +20,6 @@ pub const OUT_MAX: usize = blake2b::OUT_MAX;
 /// This is a woefully incorrect implementation of hmac_blake2b.
 /// See <https://github.com/rosenpass/rosenpass/issues/68#issuecomment-1563612222>
 ///
-///
 /// It accepts 32 byte keys, exclusively.
 ///
 /// This will be replaced, likely by Kekkac at some point soon.
