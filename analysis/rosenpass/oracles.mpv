@@ -186,7 +186,6 @@ let Oinitiator() =
   CK_EV( event OskOinitiator(ck, psk, sski, spkr, sptr); )
   MTX_EV( event IHSent(ih, psk, sski, spkr); )
   out(C, ih);
-  Oresp_hello(HS_PASS_ARGS).
 
 restriction sid:SessionId, ad1:Atom, ad2:Atom;
   event(ConsumeSidi(sid, ad1)) && event(ConsumeSidi(sid, ad2))
@@ -205,7 +204,8 @@ let rosenpass_main() = 0
   | !Oreveal_kem_pk
   | REP(INITIATOR_BOUND, Oinitiator)
   | REP(RESPONDER_BOUND, Oinit_hello)
-  | REP(RESPONDER_BOUND, Oinit_conf).
+  | REP(RESPONDER_BOUND, Oinit_conf)
+  | REP(RESPONDER_BOUND, Oresp_hello(HS_PASS_ARGS)).
 
 nounif v:seed_prec;   attacker(prepare_seed(trusted_seed( v )))/6217[hypothesis].
 nounif v:seed;        attacker(prepare_seed( v ))/6216[hypothesis].
