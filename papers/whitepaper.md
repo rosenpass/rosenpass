@@ -2,8 +2,8 @@
 template: rosenpass
 title: Rosenpass
 author:
-- Karolin Varner = Independent Researcher
-- Benjamin Lipp = Max Planck Institute for Security and Privacy (MPI-SP)
+- Karolin Varner = Rosenpass e.V., Max Planck Institute for Security and Privacy (MPI-SP)
+- Benjamin Lipp = Rosenpass e.V., Max Planck Institute for Security and Privacy (MPI-SP)
 - Wanja Zaeske
 - Lisa Schmidt = {Scientific Illustrator – \\url{mullana.de}}
 - Prabhpreet Dua
