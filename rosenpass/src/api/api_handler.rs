@@ -1,3 +1,6 @@
+// Note: This is business logic; tested through the integration tests in
+// rosenpass/tests/
+
 use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use anyhow::Context;
@@ -20,37 +23,80 @@ use crate::{
 
 use super::{supply_keypair_response_status, Server as ApiServer};
 
+/// Stores the state of the API handler.
+///
+/// This is used in the context [ApiHandlerContext]; [ApiHandlerContext] exposes both
+/// the [AppServer] and the API handler state.
+///
+/// [ApiHandlerContext] is what actually contains the API handler functions.
 #[derive(Debug)]
 pub struct ApiHandler {
     _dummy: (),
 }
 
 impl ApiHandler {
+    /// Construct an [Self]
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { _dummy: () }
     }
 }
 
+/// The implementation of the API requires both access to its own state [ApiHandler] and to the
+/// [AppServer] the API is supposed to operate on.
+///
+/// This trait provides both; it implements a pattern to allow for multiple - **potentially
+/// overlapping** mutable references to be passed to the API handler functions.
+///
+/// This relatively complex scheme is chosen to appease the borrow checker: We want flexibility
+/// with regard to where the [ApiHandler] is stored and we need a mutable reference to
+/// [ApiHandler]. We also need a mutable reference to [AppServer]. Achieving this by using the
+/// direct method would be impossible because the [ApiHandler] is actually stored somewhere inside
+/// [AppServer]. The borrow checker does not allow this.
+///
+/// What we have instead is – in practice – a reference to [AppServer] and a function (as part of
+/// the trait) that extracts an [ApiHandler] reference from [AppServer], which is allowed by the
+/// borrow checker. A benefit of the use of a trait here is that we could, if desired, also store
+/// the [ApiHandler] outside [AppServer]. It really depends on the trait.
 pub trait ApiHandlerContext {
+    /// Retrieve the [ApiHandler]
     fn api_handler(&self) -> &ApiHandler;
+    /// Retrieve the [AppServer]
     fn app_server(&self) -> &AppServer;
+    /// Retrieve the [ApiHandler]
     fn api_handler_mut(&mut self) -> &mut ApiHandler;
+    /// Retrieve the [AppServer]
     fn app_server_mut(&mut self) -> &mut AppServer;
 }
 
+/// This is the Error raised by [ApiServer::supply_keypair]; it contains both
+/// the underlying error message as well as the status value
+/// returned by the API.
+///
+/// [ApiServer::supply_keypair] generally constructs a [Self] by using one of the
+/// utility functions [SupplyKeypairErrorExt].
 #[derive(thiserror::Error, Debug)]
 #[error("Error in SupplyKeypair")]
 struct SupplyKeypairError {
+    /// The status code communicated via the Rosenpass API
     status: u128,
+    /// The underlying error that caused the Rosenpass API level Error
     #[source]
     cause: anyhow::Error,
 }
 
 trait SupplyKeypairErrorExt<T> {
+    /// Imbue any Error (that can be represented as [anyhow::Error]) with
+    /// an arbitrary error code
     fn e_custom(self, status: u128) -> Result<T, SupplyKeypairError>;
+    /// Imbue any Error (that can be represented as [anyhow::Error]) with
+    /// the [supply_keypair_response_status::INTERNAL_ERROR] error code
     fn einternal(self) -> Result<T, SupplyKeypairError>;
+    /// Imbue any Error (that can be represented as [anyhow::Error]) with
+    /// the [supply_keypair_response_status::KEYPAIR_ALREADY_SUPPLIED] error code
     fn ealready_supplied(self) -> Result<T, SupplyKeypairError>;
+    /// Imbue any Error (that can be represented as [anyhow::Error]) with
+    /// the [supply_keypair_response_status::INVALID_REQUEST] error code
     fn einvalid_req(self) -> Result<T, SupplyKeypairError>;
 }
 

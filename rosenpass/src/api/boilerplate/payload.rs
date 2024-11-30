@@ -140,8 +140,10 @@ impl Message for SupplyKeypairRequest {
 pub mod supply_keypair_response_status {
     pub const OK: u128 = 0;
     pub const KEYPAIR_ALREADY_SUPPLIED: u128 = 1;
+    // TODO: This is not actually part of the API. Remove.
     pub const INTERNAL_ERROR: u128 = 2;
     pub const INVALID_REQUEST: u128 = 3;
+    /// TODO: Deprectaed, remove
     pub const IO_ERROR: u128 = 4;
 }
 
