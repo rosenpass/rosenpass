@@ -515,6 +515,19 @@ When the responder is under load and it recieves an InitConf message, the messag
 
 # Changelog
 
+### 0.3.x
+
+#### 2024-04-16 – Denial of Service Mitigation
+
+\vspace{0.5em}
+
+Author: Prabhpreet Dua  
+Issue: [#137](https://github.com/rosenpass/rosenpass/issues/137)  
+PR: [#142](https://github.com/rosenpass/rosenpass/pull/142)  
+
+\vspace{0.5em}
+
+- Added denial of service mitigation using the WireGuard cookie mechanism
 - Added section "Denial of Service Mitigation and Cookies", and modify "Dealing with Packet Loss" for DoS cookie mechanism
 
 \printbibliography
