@@ -109,6 +109,20 @@
               proverif-patched
             ];
           };
+          # TODO: Write this as a patched version of the default environment
+          devShells.fullEnv = pkgs.mkShell {
+            inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
+            inputsFrom = [ pkgs.rosenpass ];
+            nativeBuildInputs = with pkgs; [
+              cargo-release
+              rustfmt
+              nodePackages.prettier
+              nushell # for the .ci/gen-workflow-files.nu script
+              proverif-patched
+              inputs.fenix.packages.${system}.complete.toolchain
+              pkgs.cargo-llvm-cov
+            ];
+          };
           devShells.coverage = pkgs.mkShell {
             inputsFrom = [ pkgs.rosenpass ];
             nativeBuildInputs = [
