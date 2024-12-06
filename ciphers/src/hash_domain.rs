@@ -2,7 +2,7 @@ use anyhow::Result;
 use rosenpass_secret_memory::Secret;
 use rosenpass_to::To;
 
-use crate::subtle::incorrect_hmac_blake2b as hash;
+use crate::keyed_hash as hash;
 
 pub use hash::KEY_LEN;
 

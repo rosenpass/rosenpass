@@ -17,7 +17,7 @@ use std::time::Instant;
 /// ```
 
 #[derive(Clone, Debug)]
-pub struct Timebase(Instant);
+pub struct Timebase(pub Instant);
 
 impl Default for Timebase {
     // TODO: Implement new()?
