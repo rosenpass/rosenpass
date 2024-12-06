@@ -23,6 +23,12 @@ rosenpass help
 
 Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up and running.
 
+## Contributing
+
+Contributions are generally welcome. Join our [Matrix Chat](https://matrix.to/#/#rosenpass:matrix.org) if you are looking for guidance on how to contribute or for people to collaborate with.
+
+We also have a – as of now, very minimal – [contributors guide](CONTRIBUTING.md).
+
 ## Software architecture
 
 The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
