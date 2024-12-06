@@ -21,8 +21,11 @@ pub const MAC_SIZE: usize = 16;
 pub const COOKIE_SIZE: usize = 16;
 pub const SID_LEN: usize = 4;
 
+pub type MsgEnvelopeMac = [u8; 16];
+pub type MsgEnvelopeCookie = MsgEnvelopeMac;
+
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
+#[derive(AsBytes, FromBytes, FromZeroes, Clone)]
 pub struct Envelope<M: AsBytes + FromBytes> {
     /// [MsgType] of this message
     pub msg_type: u8,
@@ -32,9 +35,9 @@ pub struct Envelope<M: AsBytes + FromBytes> {
     pub payload: M,
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
-    pub mac: [u8; 16],
+    pub mac: MsgEnvelopeMac,
     /// Currently unused, TODO: do something with this
-    pub cookie: [u8; 16],
+    pub cookie: MsgEnvelopeCookie,
 }
 
 #[repr(packed)]
@@ -70,7 +73,7 @@ pub struct RespHello {
 }
 
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
+#[derive(AsBytes, FromBytes, FromZeroes, Debug)]
 pub struct InitConf {
     /// Copied from InitHello
     pub sidi: [u8; 4],
@@ -83,7 +86,7 @@ pub struct InitConf {
 }
 
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
+#[derive(AsBytes, FromBytes, FromZeroes, Clone, Copy)]
 pub struct EmptyData {
     /// Copied from RespHello
     pub sid: [u8; 4],

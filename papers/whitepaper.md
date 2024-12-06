@@ -383,9 +383,18 @@ fn load_biscuit(nct) {
       "biscuit additional data",
       spkr, sidi, sidr);
     let pt : Biscuit = XAEAD::dec(k, n, ct, ad);
+
     // Find the peer and apply retransmission protection
     lookup_peer(pt.peerid);
-    assert(pt.biscuit_no <= peer.biscuit_used);
+
+    // In December 2024, the InitConf retransmission mechanisim was redesigned
+    // in a backwards-compatible way. See the changelog.
+    // 
+    // -- 2024-11-30, Karolin Varner
+    if (protocol_version!(< "0.3.0")) {
+        // Ensure that the biscuit is used only once
+        assert(pt.biscuit_no <= peer.biscuit_used);
+    }
 
     // Restore the chaining key
     ck ← pt.ck;
@@ -501,7 +510,7 @@ LAST_UNDER_LOAD_WINDOW = 1 //seconds
 
 The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
 
-The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
+The responder uses less complex form of the same mechanism: The responder never retransmits RespHello, instead the responder generates a new RespHello message if InitHello is retransmitted. Responder confirmation messages of completed handshake (EmptyData) messages are retransmitted by storing the most recent InitConf messages (or their hashes) and caching the associated EmptyData messages. Through this cache, InitConf retransmission is detected and the associated EmptyData message is retransmitted.
 
 ### Interaction with cookie reply system
 
@@ -516,6 +525,63 @@ When the responder is under load and it recieves an InitConf message, the messag
 # Changelog
 
 ### 0.3.x
+
+#### 2024-10-30 – InitConf retransmission updates
+
+\vspace{0.5em}
+
+Author: Karolin Varner  
+Issue: [#331](https://github.com/rosenpass/rosenpass/issues/331)  
+PR: [#513](https://github.com/rosenpass/rosenpass/pull/513)  
+
+\vspace{0.5em}
+
+We redesign the InitConf retransmission mechanism to use a hash table. This avoids the need for the InitConf handling code to account for InitConf retransmission specifically and moves the retransmission logic into less-sensitive code.
+
+Previously, we would specifically account for InitConf retransmission in the InitConf handling code by checking the biscuit number: If the biscuit number was higher than any previously seen biscuit number, then this must be a new key-exchange being completed; if the biscuit number was exactly the highest seen biscuit number, then the InitConf message is interpreted as an InitConf retransmission; in this case, an entirely new EmptyData (responder confirmation) message was generated as confirmation that InitConf has been received and that the initiator can now cease opportunistic retransmission of InitConf.
+
+This mechanism was a bit brittle; even leading to a very minor but still relevant security issue, necessitating the release of Rosenpass maintenance version 0.2.2 with a [fix for the problem](https://github.com/rosenpass/rosenpass/pull/329). We had processed the InitConf message, correctly identifying that InitConf was a retransmission, but we failed to pass this information on to the rest of the code base, leading to double emission of the same "hey, we have a new cryptographic session key" even if the `outfile` option was used to integrate Rosenpass into some external application. If this event was used anywhere to reset a nonce, then this could have led to a nonce-misuse, although for the use with WireGuard this is not an issue.
+
+By removing all retransmission handling code from the cryptographic protocol, we are taking structural measures to exclude the possibilities of similar issues.
+
+- In section "Dealing With Package Loss" we replace
+
+    \begin{quote}
+        The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
+    \end{quote}
+
+    by 
+
+    \begin{quote}
+        The responder uses less complex form of the same mechanism: The responder never retransmits RespHello, instead the responder generates a new RespHello message if InitHello is retransmitted. Responder confirmation messages of completed handshake (EmptyData) messages are retransmitted by storing the most recent InitConf messages (or their hashes) and caching the associated EmptyData messages. Through this cache, InitConf retransmission is detected and the associated EmptyData message is retransmitted.
+    \end{quote}
+
+- In function `load_biscuit` we replace
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        assert(pt.biscuit_no <= peer.biscuit_used);
+        \end{minted}
+    \end{quote}
+    ```
+
+    by
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        // In December 2024, the InitConf retransmission mechanisim was redesigned
+        // in a backwards-compatible way. See the changelog.
+        // 
+        // -- 2024-11-30, Karolin Varner
+        if (protocol_version!(< "0.3.0")) {
+            // Ensure that the biscuit is used only once
+            assert(pt.biscuit_no <= peer.biscuit_used);
+        }
+        \end{minted}
+    \end{quote}
+    ```
 
 #### 2024-04-16 – Denial of Service Mitigation
 

@@ -7,6 +7,17 @@ const_assert!(KEY_LEN == aead::KEY_LEN);
 const_assert!(KEY_LEN == xaead::KEY_LEN);
 const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 
+/// Keyed hashing
+///
+/// This should only be used for implementation details; anything with relevance
+/// to the cryptographic protocol should use the facilities in [hash_domain], (though
+/// hash domain uses this module internally)
+pub mod keyed_hash {
+    pub use crate::subtle::incorrect_hmac_blake2b::{
+        hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN,
+    };
+}
+
 /// Authenticated encryption with associated data
 pub mod aead {
     #[cfg(not(feature = "experiment_libcrux"))]
