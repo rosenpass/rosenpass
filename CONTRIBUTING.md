@@ -2,6 +2,20 @@
 
 ## Common operations
 
+### Apply code formatting
+
+Format rust code:
+
+```bash
+cargo fmt
+```
+
+Format rust code in markdown files:
+
+```bash
+./format_rust_code.sh --mode fix
+```
+
 ### Spawn a development environment with nix
 
 ```bash
