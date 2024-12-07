@@ -70,7 +70,9 @@
 //! # }
 //! ```
 
+use std::borrow::Borrow;
 use std::convert::Infallible;
+use std::fmt::Debug;
 use std::mem::size_of;
 use std::ops::Deref;
 use std::{
@@ -88,9 +90,14 @@ use memoffset::span_of;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
+use rosenpass_ciphers::keyed_hash;
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
+use rosenpass_to::ops::copy_slice;
+use rosenpass_to::To;
+use rosenpass_util::functional::ApplyExt;
+use rosenpass_util::mem::DiscardResultExt;
 use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
@@ -200,6 +207,7 @@ pub struct CryptoServer {
     // Peer/Handshake DB
     pub peers: Vec<Peer>,
     pub index: HashMap<IndexKey, PeerNo>,
+    pub known_response_hasher: KnownResponseHasher,
 
     // Tick handling
     pub peer_poll_off: usize,
@@ -229,6 +237,7 @@ pub type BiscuitKey = CookieStore<KEY_LEN>;
 pub enum IndexKey {
     Peer(PeerId),
     Sid(SessionId),
+    KnownInitConfResponse(KnownResponseHash),
 }
 
 #[derive(Debug)]
@@ -239,6 +248,7 @@ pub struct Peer {
     pub session: Option<Session>,
     pub handshake: Option<InitiatorHandshake>,
     pub initiation_requested: bool,
+    pub known_init_conf_response: Option<KnownInitConfResponse>,
 }
 
 impl Peer {
@@ -250,6 +260,7 @@ impl Peer {
             session: None,
             initiation_requested: false,
             handshake: None,
+            known_init_conf_response: None,
         }
     }
 }
@@ -306,6 +317,50 @@ pub struct InitiatorHandshake {
 
     // Cookie storage for retransmission, expires PEER_COOKIE_VALUE_EPOCH seconds after creation
     pub cookie_value: CookieStore<COOKIE_VALUE_LEN>,
+}
+
+pub struct KnownResponse<ResponseType: AsBytes + FromBytes> {
+    received_at: Timing,
+    request_mac: KnownResponseHash,
+    response: Envelope<ResponseType>,
+}
+
+impl<ResponseType: AsBytes + FromBytes> Debug for KnownResponse<ResponseType> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KnownResponse")
+            .field("received_at", &self.received_at)
+            .field("request_mac", &self.request_mac)
+            .field("response", &"...")
+            .finish()
+    }
+}
+
+pub type KnownInitConfResponse = KnownResponse<EmptyData>;
+
+pub type KnownResponseHash = Public<16>;
+
+#[derive(Debug)]
+pub struct KnownResponseHasher {
+    pub key: SymKey,
+}
+
+impl KnownResponseHasher {
+    fn new() -> Self {
+        Self {
+            key: SymKey::random(),
+        }
+    }
+
+    /// # Panic & Safety
+    ///
+    /// Panics in case of a problem with this underlying hash function
+    pub fn hash<Msg: AsBytes + FromBytes>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
+        let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
+        let hash = keyed_hash::hash(self.key.secret(), data)
+            .to_this(Public::<32>::zero)
+            .unwrap();
+        Public::from_slice(&hash[0..16]) // truncate to 16 bytes
+    }
 }
 
 #[derive(Debug)]
@@ -369,6 +424,12 @@ pub struct IniHsPtr(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SessionPtr(pub usize);
 
+/// Valid index to [CryptoServer::peers] cookie value
+pub struct PeerCookieValuePtr(usize); // TODO: Change
+
+/// Valid index to [CryptoServer::peers] known init conf response
+pub struct KnownInitConfResponsePtr(PeerNo);
+
 /// Valid index to [CryptoServer::biscuit_keys]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BiscuitKeyPtr(pub usize);
@@ -377,14 +438,17 @@ pub struct BiscuitKeyPtr(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct ServerCookieSecretPtr(pub usize);
 
-/// Valid index to [CryptoServer::peers] cookie value
-pub struct PeerCookieValuePtr(usize);
-
 impl PeerPtr {
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this PeerPtr does not exist.
     pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a Peer {
         &srv.peers[self.0]
     }
 
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this PeerPtr does not exist.
     pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut Peer {
         &mut srv.peers[self.0]
     }
@@ -399,6 +463,10 @@ impl PeerPtr {
 
     pub fn cv(&self) -> PeerCookieValuePtr {
         PeerCookieValuePtr(self.0)
+    }
+
+    pub fn known_init_conf_response(&self) -> KnownInitConfResponsePtr {
+        KnownInitConfResponsePtr(self.0)
     }
 }
 
@@ -508,6 +576,118 @@ impl PeerCookieValuePtr {
     }
 }
 
+impl KnownInitConfResponsePtr {
+    pub fn peer(&self) -> PeerPtr {
+        PeerPtr(self.0)
+    }
+
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this KnownInitConfResponsePtr does not exist.
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a KnownInitConfResponse> {
+        self.peer().get(srv).known_init_conf_response.as_ref()
+    }
+
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this KnownInitConfResponsePtr does not exist.
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> Option<&'a mut KnownInitConfResponse> {
+        self.peer().get_mut(srv).known_init_conf_response.as_mut()
+    }
+
+    /// # Panic & Safety
+    ///
+    /// The function panics if
+    ///
+    /// - the peer referenced by this KnownInitConfResponsePtr does not exist
+    /// - the peer contains a KnownInitConfResponse (i.e. if [Peer::known_init_conf_response] is Some(...)), but the index to this KnownInitConfResponsePtr is missing (i.e. there is no appropriate index
+    ///   value in [CryptoServer::index])
+    pub fn remove(&self, srv: &mut CryptoServer) -> Option<KnownInitConfResponse> {
+        let peer = self.peer();
+        let val = peer.get_mut(srv).known_init_conf_response.take()?;
+        let lookup_key = IndexKey::KnownInitConfResponse(val.request_mac);
+        srv.index.remove(&lookup_key).unwrap();
+        Some(val)
+    }
+
+    pub fn insert(&self, srv: &mut CryptoServer, known_response: KnownInitConfResponse) {
+        self.remove(srv).discard_result();
+
+        let index_key = IndexKey::KnownInitConfResponse(known_response.request_mac);
+        self.peer().get_mut(srv).known_init_conf_response = Some(known_response);
+
+        // There is a question here whether we should just discard the result…or panic if the
+        // result is Some(...).
+        //
+        // The result being anything other than None should never occur:
+        // - If we have never seen this InitConf message, then the result should be None and no value should
+        //   have been written. This is fine.
+        // - If we have seen this message before, we should have responded with a known answer –
+        //   which would be fine
+        // - If we have never seen this InitConf message before, but the hashes are the same, this
+        //   would constitute a collision on our hash function, which is security because the
+        //   cryptography (collision resistance of our hash) prevents this. If this happened, it
+        //   would be bad but we could not detect it.
+        if srv.index.insert(index_key, self.0).is_some() {
+            log::warn!(
+                r#"
+                Replaced a cached message in the InitConf known-response table
+                for network retransmission handling. This should never happen and is
+                probably a bug. Please report seeing this message at the following location:
+                
+                https://github.com/rosenpass/rosenpass/issues
+            "#
+            );
+        }
+    }
+
+    pub fn lookup_for_request_msg(
+        srv: &CryptoServer,
+        req: &Envelope<InitConf>,
+    ) -> Option<KnownInitConfResponsePtr> {
+        let index_key = Self::index_key_for_msg(srv, req);
+        let peer_no = *srv.index.get(&index_key)?;
+        Some(Self(peer_no))
+    }
+
+    pub fn lookup_response_for_request_msg<'a>(
+        srv: &'a CryptoServer,
+        req: &Envelope<InitConf>,
+    ) -> Option<&'a Envelope<EmptyData>> {
+        Self::lookup_for_request_msg(srv, req)?
+            .get(srv)
+            .map(|v| &v.response)
+    }
+
+    pub fn insert_for_request_msg(
+        srv: &mut CryptoServer,
+        peer: PeerPtr,
+        req: &Envelope<InitConf>,
+        res: Envelope<EmptyData>,
+    ) {
+        let ptr = peer.known_init_conf_response();
+        ptr.insert(
+            srv,
+            KnownInitConfResponse {
+                received_at: srv.timebase.now(),
+                request_mac: Self::index_key_hash_for_msg(srv, req),
+                response: res,
+            },
+        );
+    }
+
+    pub fn index_key_hash_for_msg(
+        srv: &CryptoServer,
+        req: &Envelope<InitConf>,
+    ) -> KnownResponseHash {
+        srv.known_response_hasher.hash(req)
+    }
+
+    pub fn index_key_for_msg(srv: &CryptoServer, req: &Envelope<InitConf>) -> IndexKey {
+        Self::index_key_hash_for_msg(srv, req).apply(IndexKey::KnownInitConfResponse)
+    }
+}
+
 // DATABASE //////////////////////////////////////
 
 impl CryptoServer {
@@ -525,6 +705,7 @@ impl CryptoServer {
             biscuit_keys: [CookieStore::new(), CookieStore::new()],
             peers: Vec::new(),
             index: HashMap::new(),
+            known_response_hasher: KnownResponseHasher::new(),
             peer_poll_off: 0,
             cookie_secrets: [CookieStore::new(), CookieStore::new()],
         }
@@ -563,6 +744,7 @@ impl CryptoServer {
             biscuit_used: BiscuitId::zero(),
             session: None,
             handshake: None,
+            known_init_conf_response: None,
             initiation_requested: false,
         };
         let peerid = peer.pidt()?;
@@ -695,6 +877,7 @@ impl Peer {
             biscuit_used: BiscuitId::zero(),
             session: None,
             handshake: None,
+            known_init_conf_response: None,
             initiation_requested: false,
         }
     }
@@ -849,6 +1032,25 @@ impl Mortal for PeerCookieValuePtr {
 
     fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.created_at(srv).map(|t| t + PEER_COOKIE_VALUE_EPOCH)
+    }
+}
+
+impl Mortal for KnownInitConfResponsePtr {
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        let t = self.get(srv)?.received_at;
+        if t < 0.0 {
+            None
+        } else {
+            Some(t)
+        }
+    }
+
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.die_at(srv)
+    }
+
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.created_at(srv).map(|t| t + REKEY_AFTER_TIME_RESPONDER)
     }
 }
 
@@ -1115,10 +1317,38 @@ impl CryptoServer {
                 ensure!(msg_in.check_seal(self)?, seal_broken);
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
-                let (peer, if_exchanged) =
-                    self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
+
+                // Check if we have a cached response
+                let peer = match KnownInitConfResponsePtr::lookup_for_request_msg(self, &msg_in) {
+                    // Cached response; copy out of cache
+                    Some(cached) => {
+                        let peer = cached.peer();
+                        let cached = cached
+                            .get(self)
+                            .map(|v| v.response.borrow())
+                            // Invalid! Found peer no with cache in index but the cache does not exist
+                            .unwrap();
+                        copy_slice(cached.as_bytes()).to(msg_out.as_bytes_mut());
+                        peer
+                    }
+
+                    // No cached response, actually call cryptographic handler
+                    None => {
+                        let peer = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload)?;
+
+                        KnownInitConfResponsePtr::insert_for_request_msg(
+                            self,
+                            peer,
+                            &msg_in,
+                            msg_out.clone(),
+                        );
+
+                        exchanged = true;
+                        peer
+                    }
+                };
+
                 len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
-                exchanged = if_exchanged;
                 peer
             }
             Ok(MsgType::EmptyData) => {
@@ -1402,7 +1632,8 @@ impl Pollable for PeerPtr {
                     PollResult::SendInitiation(*self)
                 },
             )
-            .poll_child(srv, &hs) // Defer to the handshake for polling (retransmissions)
+            .poll_child(srv, &hs)? // Defer to the handshake for polling (retransmissions)
+            .poll_child(srv, &self.known_init_conf_response())
     }
 }
 
@@ -1414,6 +1645,15 @@ impl Pollable for IniHsPtr {
             self.register_retransmission(srv)?;
             Ok(PollResult::SendRetransmission(self.peer()))
         })
+    }
+}
+
+impl Pollable for KnownInitConfResponsePtr {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+        begin_poll()
+            // Erase stale cache
+            .sched(self.life_left(srv), void_poll(|| self.remove(srv)))
+            .ok()
     }
 }
 
@@ -1701,15 +1941,6 @@ impl HandshakeState {
             .find_peer(pid) // TODO: FindPeer should return a Result<()>
             .with_context(|| format!("Could not decode biscuit for peer {pid:?}: No such peer."))?;
 
-        // Defense against replay attacks; implementations may accept
-        // the most recent biscuit no again (bn = peer.bn_{prev}) which
-        // indicates retransmission
-        // TODO: Handle retransmissions without involving the crypto code
-        ensure!(
-            constant_time::compare(&biscuit.biscuit_no, &*peer.get(srv).biscuit_used) >= 0,
-            "Rejecting biscuit: Outdated biscuit number"
-        );
-
         Ok((peer, no, hs))
     }
 
@@ -1947,12 +2178,7 @@ impl CryptoServer {
         Ok(peer)
     }
 
-    pub fn handle_init_conf(
-        &mut self,
-        ic: &InitConf,
-        rc: &mut EmptyData,
-    ) -> Result<(PeerPtr, bool)> {
-        let mut exchanged = false;
+    pub fn handle_init_conf(&mut self, ic: &InitConf, rc: &mut EmptyData) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -1972,20 +2198,23 @@ impl CryptoServer {
         core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
 
         // ICR5
-        if constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0 {
-            // ICR6
-            peer.get_mut(self).biscuit_used = biscuit_no;
+        // Defense against replay attacks; implementations may accept
+        // the most recent biscuit no again (bn = peer.bn_{prev}) which
+        // indicates retransmission
+        ensure!(
+            constant_time::compare(&*biscuit_no, &*peer.get(self).biscuit_used) > 0,
+            "Rejecting biscuit: Outdated biscuit number"
+        );
 
-            // ICR7
-            peer.session()
-                .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
-            // TODO: This should be part of the protocol specification.
-            // Abort any ongoing handshake from initiator role
-            peer.hs().take(self);
+        // ICR6
+        peer.get_mut(self).biscuit_used = biscuit_no;
 
-            // Only exchange key on new biscuit number- avoid duplicate key exchanges on retransmitted InitConf messages
-            exchanged = true;
-        }
+        // ICR7
+        peer.session()
+            .insert(self, core.enter_live(self, HandshakeRole::Responder)?)?;
+        // TODO: This should be part of the protocol specification.
+        // Abort any ongoing handshake from initiator role
+        peer.hs().take(self);
 
         // TODO: Implementing RP should be possible without touching the live session stuff
         // TODO: I fear that this may lead to race conditions; the acknowledgement may be
@@ -2023,7 +2252,7 @@ impl CryptoServer {
         let k = ses.txkm.secret();
         aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
-        Ok((peer, exchanged))
+        Ok(peer)
     }
 
     pub fn handle_resp_conf(&mut self, rc: &EmptyData) -> Result<PeerPtr> {
@@ -2140,10 +2369,11 @@ fn truncating_cast_into_nomut<T: FromBytes>(buf: &[u8]) -> Result<Ref<&[u8], T>,
 
 #[cfg(test)]
 mod test {
-    use std::{net::SocketAddrV4, ops::DerefMut, thread::sleep, time::Duration};
+    use std::{borrow::BorrowMut, net::SocketAddrV4, ops::DerefMut, thread::sleep, time::Duration};
 
     use super::*;
     use serial_test::serial;
+    use zerocopy::FromZeroes;
 
     struct VecHostIdentifier(Vec<u8>);
 
@@ -2558,5 +2788,187 @@ mod test {
                 )
                 .is_err());
         });
+    }
+
+    #[test]
+    fn init_conf_retransmission() -> anyhow::Result<()> {
+        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+
+        fn keypair() -> anyhow::Result<(SSk, SPk)> {
+            let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
+            StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+            Ok((sk, pk))
+        }
+
+        fn proc_initiation(
+            srv: &mut CryptoServer,
+            peer: PeerPtr,
+        ) -> anyhow::Result<Envelope<InitHello>> {
+            let mut buf = MsgBuf::zero();
+            srv.initiate_handshake(peer, buf.as_mut_slice())?
+                .discard_result();
+            let msg = truncating_cast_into::<Envelope<InitHello>>(buf.borrow_mut())?;
+            Ok(msg.read())
+        }
+
+        fn proc_msg<Rx: AsBytes + FromBytes, Tx: AsBytes + FromBytes>(
+            srv: &mut CryptoServer,
+            rx: &Envelope<Rx>,
+        ) -> anyhow::Result<Envelope<Tx>> {
+            let mut buf = MsgBuf::zero();
+            srv.handle_msg(rx.as_bytes(), buf.as_mut_slice())?
+                .resp
+                .context("Failed to produce RespHello message")?
+                .discard_result();
+            let msg = truncating_cast_into::<Envelope<Tx>>(buf.borrow_mut())?;
+            Ok(msg.read())
+        }
+
+        fn proc_init_hello(
+            srv: &mut CryptoServer,
+            ih: &Envelope<InitHello>,
+        ) -> anyhow::Result<Envelope<RespHello>> {
+            proc_msg::<InitHello, RespHello>(srv, ih)
+        }
+
+        fn proc_resp_hello(
+            srv: &mut CryptoServer,
+            rh: &Envelope<RespHello>,
+        ) -> anyhow::Result<Envelope<InitConf>> {
+            proc_msg::<RespHello, InitConf>(srv, rh)
+        }
+
+        fn proc_init_conf(
+            srv: &mut CryptoServer,
+            rh: &Envelope<InitConf>,
+        ) -> anyhow::Result<Envelope<EmptyData>> {
+            proc_msg::<InitConf, EmptyData>(srv, rh)
+        }
+
+        fn poll(srv: &mut CryptoServer) -> anyhow::Result<()> {
+            // Discard all events; just apply the side effects
+            while !matches!(srv.poll()?, PollResult::Sleep(_)) {}
+            Ok(())
+        }
+
+        // TODO: Implement Clone on our message types
+        fn clone_msg<Msg: AsBytes + FromBytes>(msg: &Msg) -> anyhow::Result<Msg> {
+            Ok(truncating_cast_into_nomut::<Msg>(msg.as_bytes())?.read())
+        }
+
+        fn break_payload<Msg: AsBytes + FromBytes>(
+            srv: &mut CryptoServer,
+            peer: PeerPtr,
+            msg: &Envelope<Msg>,
+        ) -> anyhow::Result<Envelope<Msg>> {
+            let mut msg = clone_msg(msg)?;
+            msg.as_bytes_mut()[memoffset::offset_of!(Envelope<Msg>, payload)] ^= 0x01;
+            msg.seal(peer, srv)?; // Recalculate seal; we do not want to focus on "seal broken" errs
+            Ok(msg)
+        }
+
+        fn time_travel_forward(srv: &mut CryptoServer, secs: f64) {
+            let dur = std::time::Duration::from_secs_f64(secs);
+            srv.timebase.0 = srv.timebase.0.checked_sub(dur).unwrap();
+        }
+
+        fn check_faulty_proc_init_conf(srv: &mut CryptoServer, ic_broken: &Envelope<InitConf>) {
+            let mut buf = MsgBuf::zero();
+            let res = srv.handle_msg(ic_broken.as_bytes(), buf.as_mut_slice());
+            assert!(res.is_err());
+        }
+
+        fn check_retransmission(
+            srv: &mut CryptoServer,
+            ic: &Envelope<InitConf>,
+            ic_broken: &Envelope<InitConf>,
+            rc: &Envelope<EmptyData>,
+        ) -> anyhow::Result<()> {
+            // Processing the same RespHello package again leads to retransmission (i.e. exactly the
+            // same output)
+            let rc_dup = proc_init_conf(srv, ic)?;
+            assert_eq!(rc.as_bytes(), rc_dup.as_bytes());
+
+            // Though if we directly call handle_resp_hello() we get an error since
+            // retransmission is not being handled by the cryptographic code
+            let mut discard_resp_conf = EmptyData::new_zeroed();
+            let res = srv.handle_init_conf(&ic.payload, &mut discard_resp_conf);
+            assert!(res.is_err());
+
+            // Obviously, a broken InitConf message should still be rejected
+            check_faulty_proc_init_conf(srv, ic_broken);
+
+            Ok(())
+        }
+
+        let (ska, pka) = keypair()?;
+        let (skb, pkb) = keypair()?;
+
+        // initialize server and a pre-shared key
+        let mut a = CryptoServer::new(ska, pka.clone());
+        let mut b = CryptoServer::new(skb, pkb.clone());
+
+        // introduce peers to each other
+        let b_peer = a.add_peer(None, pkb)?;
+        let a_peer = b.add_peer(None, pka)?;
+
+        // Execute protocol up till the responder confirmation (EmptyData)
+        let ih1 = proc_initiation(&mut a, b_peer)?;
+        let rh1 = proc_init_hello(&mut b, &ih1)?;
+        let ic1 = proc_resp_hello(&mut a, &rh1)?;
+        let rc1 = proc_init_conf(&mut b, &ic1)?;
+
+        // Modified version of ic1 and rc1, for tests that require it
+        let ic1_broken = break_payload(&mut a, b_peer, &ic1)?;
+        assert_ne!(ic1.as_bytes(), ic1_broken.as_bytes());
+
+        // Modified version of rc1, for tests that require it
+        let rc1_broken = break_payload(&mut b, a_peer, &rc1)?;
+        assert_ne!(rc1.as_bytes(), rc1_broken.as_bytes());
+
+        // Retransmission works as designed
+        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+
+        // Even with a couple of poll operations in between (which clears the cache
+        // after a time out of two minutes…we should never hit this time out in this
+        // cache)
+        for _ in 0..4 {
+            poll(&mut b)?;
+            check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+        }
+
+        // We can even validate that the data is coming out of the cache by changing the cache
+        // to use our broken messages. It does not matter that these messages are cryptographically
+        // broken since we insert them manually into the cache
+        // a_peer.known_init_conf_response()
+        KnownInitConfResponsePtr::insert_for_request_msg(
+            &mut b,
+            a_peer,
+            &ic1_broken,
+            rc1_broken.clone(),
+        );
+        check_retransmission(&mut b, &ic1_broken, &ic1, &rc1_broken)?;
+
+        // Lets reset to the correct message though
+        KnownInitConfResponsePtr::insert_for_request_msg(&mut b, a_peer, &ic1, rc1.clone());
+
+        // Again, nothing changes after calling poll
+        poll(&mut b)?;
+        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+
+        // Except if we jump forward into the future past the point where the responder
+        // starts to initiate rekeying; in this case, the automatic time out is triggered and the cache is cleared
+        time_travel_forward(&mut b, REKEY_AFTER_TIME_RESPONDER);
+
+        // As long as we do not call poll, everything is fine
+        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+
+        // But after we do, the response is gone and can not be recreated
+        // since the biscuit is stale
+        poll(&mut b)?;
+        check_faulty_proc_init_conf(&mut b, &ic1); // ic1 is now effectively broken
+        assert!(b.peers[0].known_init_conf_response.is_none()); // The cache is gone
+
+        Ok(())
     }
 }
