@@ -208,3 +208,5 @@ jobs:
         with:
           files: ./target/grcov/lcov
           verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
