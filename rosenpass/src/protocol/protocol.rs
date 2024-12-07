@@ -1358,7 +1358,6 @@ impl CryptoServer {
 
                 self.handle_resp_conf(&msg_in.payload)?
             }
-            Ok(MsgType::DataMsg) => bail!("DataMsg handling not implemented!"),
             Ok(MsgType::CookieReply) => {
                 let msg_in: Ref<&[u8], CookieReply> =
                     Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;

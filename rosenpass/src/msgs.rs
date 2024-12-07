@@ -9,6 +9,7 @@
 //! To achieve this we utilize the zerocopy library.
 //!
 use std::mem::size_of;
+use std::u8;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
@@ -16,23 +17,33 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 
-/// TODO: I don't know what this is; remove!
-pub const MSG_SIZE_LEN: usize = 1;
+/// Length of a session ID such as [InitHello::sidi]
+pub const SESSION_ID_LEN: usize = 4;
+/// Length of a biscuit ID; i.e. size of the value in [Biscuit::biscuit_no]
+pub const BISCUIT_ID_LEN: usize = 12;
 
-/// Size of the field [Envelope::reserved]
-pub const RESERVED_LEN: usize = 3;
+/// TODO: Unused, remove!
+pub const WIRE_ENVELOPE_LEN: usize = 1 + 3 + 16 + 16; // TODO verify this
+
+/// Size required to fit any message in binary form
+pub const MAX_MESSAGE_LEN: usize = 2500; // TODO fix this
+
+/// length in bytes of an unencrypted Biscuit (plain text)
+pub const BISCUIT_PT_LEN: usize = size_of::<Biscuit>();
+
+/// Length in bytes of an encrypted Biscuit (cipher text)
+pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
 
 /// Size of the field [Envelope::mac]
 pub const MAC_SIZE: usize = 16;
 /// Size of the field [Envelope::cookie]
-pub const COOKIE_SIZE: usize = 16;
-/// Size of session id fields such as [InitHello::sidi]
-pub const SID_LEN: usize = 4;
+pub const COOKIE_SIZE: usize = MAC_SIZE;
 
 /// Type of the mac field in [Envelope]
-pub type MsgEnvelopeMac = [u8; 16];
+pub type MsgEnvelopeMac = [u8; MAC_SIZE];
+
 /// Type of the cookie field in [Envelope]
-pub type MsgEnvelopeCookie = MsgEnvelopeMac;
+pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 
 /// Header and footer included in all our packages,
 /// including a type field.
@@ -311,18 +322,6 @@ pub struct Biscuit {
     pub ck: [u8; KEY_LEN],
 }
 
-// TODO: Deprecate
-/// This should be removed; it is a remnant from when we still though
-/// Rosenpass itself should handle payload transmission.
-///
-/// We might add payload transmission in the future again, but we will treat
-/// it as a protocol extension if we do.
-#[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
-pub struct DataMsg {
-    pub dummy: [u8; 4],
-}
-
 /// Specialized message for use in the cookie mechanism.
 ///
 /// See the [whitepaper](https://rosenpass.eu/whitepaper.pdf) ([/papers/whitepaper.md] in this repository) for details.
@@ -371,30 +370,6 @@ pub struct CookieReply {
     pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],
 }
 
-// Traits /////////////////////////////////////////////////////////////////////
-
-/// Appears to be unused.
-///
-/// TODO: Remove
-pub trait WireMsg: std::fmt::Debug {
-    const MSG_TYPE: MsgType;
-    const MSG_TYPE_U8: u8 = Self::MSG_TYPE as u8;
-    const BYTES: usize;
-}
-
-// Constants //////////////////////////////////////////////////////////////////
-
-/// Length of a session ID such as [InitHello::sidi]
-pub const SESSION_ID_LEN: usize = 4;
-/// Length of a biscuit ID; i.e. size of the value in [Biscuit::biscuit_no]
-pub const BISCUIT_ID_LEN: usize = 12;
-
-/// TODO: Unused, remove!
-pub const WIRE_ENVELOPE_LEN: usize = 1 + 3 + 16 + 16; // TODO verify this
-
-/// Size required to fit any message in binary form
-pub const MAX_MESSAGE_LEN: usize = 2500; // TODO fix this
-
 /// Recognized message types
 ///
 /// # Examples
@@ -434,8 +409,6 @@ pub enum MsgType {
     InitConf = 0x83,
     /// MsgType for [EmptyData]
     EmptyData = 0x84,
-    /// MsgType for [DataMsg]
-    DataMsg = 0x85,
     /// MsgType for [CookieReply]
     CookieReply = 0x86,
 }
@@ -449,7 +422,6 @@ impl TryFrom<u8> for MsgType {
             0x82 => MsgType::RespHello,
             0x83 => MsgType::InitConf,
             0x84 => MsgType::EmptyData,
-            0x85 => MsgType::DataMsg,
             0x86 => MsgType::CookieReply,
             _ => return Err(RosenpassError::InvalidMessageType(value)),
         })
@@ -461,12 +433,6 @@ impl From<MsgType> for u8 {
         val as u8
     }
 }
-
-/// length in bytes of an unencrypted Biscuit (plain text)
-pub const BISCUIT_PT_LEN: usize = size_of::<Biscuit>();
-
-/// Length in bytes of an encrypted Biscuit (cipher text)
-pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
 
 #[cfg(test)]
 mod test_constants {
