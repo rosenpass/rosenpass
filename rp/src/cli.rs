@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-use std::{iter::Peekable, net::SocketAddr};
+use std::{env, iter::Peekable, net::SocketAddr, path::PathBuf};
 
 use crate::exchange::{ExchangeOptions, ExchangePeer};
 
@@ -31,10 +30,22 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
     match command {
         Some(command) => match command {
             CommandType::GenKey => Err(format!("{}\nUsage: rp genkey PRIVATE_KEYS_DIR", note)),
-            CommandType::PubKey => Err(format!("{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR", note)),
-            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
+            CommandType::PubKey => Err(format!(
+                "{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR",
+                note
+            )),
+            CommandType::Exchange => Err(format!(
+                "{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [listen <ip>:<port>] \
+                 [rosenpass-user <user>] [broker-user <user>] [peer PUBLIC_KEYS_DIR \
+                 [endpoint <ip>:<port>] [persistent-keepalive <interval>] \
+                 [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...",
+                note
+            )),
         },
-        None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange [ARGS]...", note)),
+        None => Err(format!(
+            "{}\nUsage: rp [verbose] genkey|pubkey|exchange [ARGS]...",
+            note
+        )),
     }
 }
 
@@ -161,6 +172,26 @@ impl ExchangeOptions {
                         );
                     }
                 }
+                "rosenpass-user" => {
+                    if let Some(user) = args.next() {
+                        options.rosenpass_user = Some(user);
+                    } else {
+                        return fatal(
+                            "rosenpass-user option requires parameter",
+                            Some(CommandType::Exchange),
+                        );
+                    }
+                }
+                "broker-user" => {
+                    if let Some(user) = args.next() {
+                        options.broker_user = Some(user);
+                    } else {
+                        return fatal(
+                            "broker-user option requires parameter",
+                            Some(CommandType::Exchange),
+                        );
+                    }
+                }
                 "peer" => {
                     let peer = ExchangePeer::parse(&mut args)?;
                     options.peers.push(peer);
@@ -172,6 +203,19 @@ impl ExchangeOptions {
                     )
                 }
             }
+        }
+
+        if options.rosenpass_user.is_none() {
+            if let Ok(user) = env::var("SUDO_USER") {
+                options.rosenpass_user = Some(user);
+            } else {
+                let user = env::var("USER").unwrap();
+                options.rosenpass_user = Some(user);
+            }
+        }
+
+        if options.broker_user.is_none() {
+            options.broker_user = options.rosenpass_user.clone();
         }
 
         Ok(options)
