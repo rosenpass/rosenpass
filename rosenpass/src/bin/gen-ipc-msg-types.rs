@@ -3,6 +3,7 @@ use heck::ToShoutySnakeCase;
 
 use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
 
+/// Recursively calculate a concrete hash value for an API message type
 fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]> {
     match values.split_first() {
         Some((head, tail)) => calculate_hash_value(hd.mix(head.as_bytes())?, tail),
@@ -10,6 +11,7 @@ fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]
     }
 }
 
+/// Print a hash literal for pasting into the Rosenpass source code
 fn print_literal(path: &[&str]) -> Result<()> {
     let val = calculate_hash_value(HashDomain::zero(), path)?;
     let (last, prefix) = path.split_last().context("developer error!")?;
@@ -33,6 +35,8 @@ fn print_literal(path: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// Tree of domain separators where each leaf represents
+/// an API message ID
 #[derive(Debug, Clone)]
 enum Tree {
     Branch(String, Vec<Tree>),
@@ -68,6 +72,7 @@ impl Tree {
     }
 }
 
+/// Helper for generating hash-based message IDs for the IPC API
 fn main() -> Result<()> {
     let tree = Tree::Branch(
         "Rosenpass IPC API".to_owned(),
