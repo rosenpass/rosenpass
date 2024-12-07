@@ -23,5 +23,5 @@ RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 Keep in mind that many of Rosenpass' tests are doctests, so to get an accurate read on our code coverage, you have to include doctests:
 
 ```bash
-cargo llvm-cov --all-features --workspace --doctests --html --open
+./coverage_report.sh
 ```
