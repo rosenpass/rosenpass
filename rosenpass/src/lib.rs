@@ -43,7 +43,4 @@ pub enum RosenpassError {
         /// The message type that could not be parsed
         u128,
     ),
-    /// Unused, remove
-    #[error("could not parse API message")]
-    InvalidApiMessage,
 }
