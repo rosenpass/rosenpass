@@ -1,5 +1,4 @@
 use anyhow::Error;
-use futures::lock::Mutex;
 use serde::Deserialize;
 use std::future::Future;
 use std::ops::DerefMut;
@@ -140,11 +139,15 @@ mod netlink {
 }
 
 #[derive(Clone)]
-struct CleanupHandlers(Arc<Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>);
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+struct CleanupHandlers(
+    Arc<::futures::lock::Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>,
+);
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl CleanupHandlers {
     fn new() -> Self {
-        CleanupHandlers(Arc::new(Mutex::new(vec![])))
+        CleanupHandlers(Arc::new(::futures::lock::Mutex::new(vec![])))
     }
 
     async fn enqueue(&self, handler: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>) {
