@@ -1,3 +1,5 @@
+//! For the main function
+
 use clap::CommandFactory;
 use clap::Parser;
 use clap_mangen::roff::{roman, Roff};
@@ -5,6 +7,7 @@ use log::error;
 use rosenpass::cli::CliArgs;
 use std::process::exit;
 
+/// Printing custom man sections when generating the man page
 fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File) {
     let mut roff = Roff::default();
     roff.control("SH", [section]);
@@ -13,6 +16,8 @@ fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File)
 }
 
 /// Catches errors, prints them through the logger, then exits
+///
+/// The bulk of the command line logic is handled inside [crate::cli::CliArgs::run].
 pub fn main() {
     // parse CLI arguments
     let args = CliArgs::parse();
@@ -81,21 +86,27 @@ pub fn main() {
         }
     }
 }
+
+/// Custom main page section: Exit Status
 static EXIT_STATUS_MAN: &str = r"
 The rosenpass utility exits 0 on success, and >0 if an error occurs.";
 
+/// Custom main page section: See also.
 static SEE_ALSO_MAN: &str = r"
 rp(1), wg(1)
 
 Karolin Varner, Benjamin Lipp, Wanja Zaeske, and Lisa Schmidt, Rosenpass, https://rosenpass.eu/whitepaper.pdf, 2023.";
 
+/// Custom main page section: Standards.
 static STANDARDS_MAN: &str = r"
 This tool is the reference implementation of the Rosenpass protocol, as
 specified within the whitepaper referenced above.";
 
+/// Custom main page section: Authors.
 static AUTHORS_MAN: &str = r"
 Rosenpass was created by Karolin Varner, Benjamin Lipp, Wanja Zaeske, Marei
 Peischl, Stephan Ajuvo, and Lisa Schmidt.";
 
+/// Custom main page section: Bugs.
 static BUGS_MAN: &str = r"
 The bugs are tracked at https://github.com/rosenpass/rosenpass/issues.";

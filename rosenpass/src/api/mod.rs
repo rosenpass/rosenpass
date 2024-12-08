@@ -1,3 +1,5 @@
+//! The bulk code relating to the Rosenpass unix socket API
+
 mod api_handler;
 mod boilerplate;
 
