@@ -12,6 +12,9 @@ pub enum Command {
         public_keys_dir: PathBuf,
     },
     Exchange(ExchangeOptions),
+    ExchangeConfig {
+        config_file: PathBuf,
+    },
     Help,
 }
 
@@ -19,6 +22,7 @@ enum CommandType {
     GenKey,
     PubKey,
     Exchange,
+    ExchangeConfig,
 }
 
 #[derive(Default)]
@@ -32,9 +36,10 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
         Some(command) => match command {
             CommandType::GenKey => Err(format!("{}\nUsage: rp genkey PRIVATE_KEYS_DIR", note)),
             CommandType::PubKey => Err(format!("{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR", note)),
-            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
+            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [ip <ip1>/<cidr1>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
+            CommandType::ExchangeConfig => Err(format!("{}\nUsage: rp exchange-config <CONFIG_FILE>", note)),
         },
-        None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange [ARGS]...", note)),
+        None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange|exchange-config [ARGS]...", note)),
     }
 }
 
@@ -144,6 +149,13 @@ impl ExchangeOptions {
                         return fatal("dev option requires parameter", Some(CommandType::Exchange));
                     }
                 }
+                "ip" => {
+                    if let Some(ip) = args.next() {
+                        options.ip = Some(ip);
+                    } else {
+                        return fatal("is option requires parameter", Some(CommandType::Exchange));
+                    }
+                }
                 "listen" => {
                     if let Some(addr) = args.next() {
                         if let Ok(addr) = addr.parse::<SocketAddr>() {
@@ -245,6 +257,21 @@ impl Cli {
 
                     let options = ExchangeOptions::parse(&mut args)?;
                     cli.command = Some(Command::Exchange(options));
+                }
+                "exchange-config" => {
+                    if cli.command.is_some() {
+                        return fatal("Too many commands supplied", None);
+                    }
+
+                    if let Some(config_file) = args.next() {
+                        let config_file = PathBuf::from(config_file);
+                        cli.command = Some(Command::ExchangeConfig { config_file });
+                    } else {
+                        return fatal(
+                            "Required position argument: CONFIG_FILE",
+                            Some(CommandType::ExchangeConfig),
+                        );
+                    }
                 }
                 "help" => {
                     cli.command = Some(Command::Help);
