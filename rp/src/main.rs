@@ -1,4 +1,4 @@
-use std::process::exit;
+use std::{fs, process::exit};
 
 use cli::{Cli, Command};
 use exchange::exchange;
@@ -34,6 +34,13 @@ async fn main() {
         } => pubkey(&private_keys_dir, &public_keys_dir),
         Command::Exchange(mut options) => {
             options.verbose = cli.verbose;
+            exchange(options).await
+        }
+        Command::ExchangeConfig { config_file } => {
+            let s: String = fs::read_to_string(config_file).expect("cannot read config");
+            let mut options: exchange::ExchangeOptions =
+                toml::from_str::<exchange::ExchangeOptions>(&s).expect("cannot parse config");
+            options.verbose = options.verbose || cli.verbose;
             exchange(options).await
         }
         Command::Help => {
