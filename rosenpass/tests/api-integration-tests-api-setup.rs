@@ -33,8 +33,10 @@ struct KillChild(std::process::Child);
 
 impl Drop for KillChild {
     fn drop(&mut self) {
-        self.0.kill().discard_result();
-        self.0.wait().discard_result()
+        use rustix::process::{kill_process, Pid, Signal::Term};
+        let pid = Pid::from_child(&self.0);
+        rustix::process::kill_process(pid, Term).discard_result();
+        self.0.wait().discard_result();
     }
 }
 
@@ -153,7 +155,6 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
                 peer_b.config_file_path.to_str().context("")?,
             ])
             .stdin(Stdio::null())
-            .stderr(Stdio::null())
             .stdout(Stdio::piped())
             .spawn()?,
     );

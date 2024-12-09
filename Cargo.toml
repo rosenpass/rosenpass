@@ -74,6 +74,7 @@ hex = { version = "0.4.3" }
 heck = { version = "0.5.0" }
 libc = { version = "0.2" }
 uds = { git = "https://github.com/rosenpass/uds" }
+signal-hook = "0.3.17"
 
 #Dev dependencies
 serial_test = "3.2.0"
@@ -89,4 +90,4 @@ procspawn = { version = "1.0.1", features = ["test-support"] }
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
 command-fds = "0.2.3"
-rustix = { version = "0.38.41", features = ["net", "fs"] }
+rustix = { version = "0.38.41", features = ["net", "fs", "process"] }
