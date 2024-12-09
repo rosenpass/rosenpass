@@ -7,7 +7,36 @@ use crate::subtle::incorrect_hmac_blake2b as hash;
 pub use hash::KEY_LEN;
 
 ///
+///```rust
+/// # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
+/// use rosenpass_secret_memory::Secret;
+/// # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
 /// 
+/// const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
+/// # fn do_doc_test() -> Result<(), Box<dyn std::error::Error>> {
+/// // create use once hash domain for the protocol identifier
+/// let mut hash_domain = HashDomain::zero();
+/// hash_domain = hash_domain.mix(PROTOCOL_IDENTIFIER.as_bytes())?;
+/// // upgrade to reusable hash domain
+/// let hash_domain_namespace: HashDomainNamespace = hash_domain.dup();
+/// // derive new key
+/// let key_identifier = "my_key_identifier";
+/// let key = hash_domain_namespace.mix(key_identifier.as_bytes())?.into_value();
+/// // derive a new key based on a secret
+/// const MY_SECRET_LEN: usize = 21;
+/// let my_secret_bytes = "my super duper secret".as_bytes();
+/// let my_secret: Secret<21> = Secret::from_slice("my super duper secret".as_bytes());
+/// let secret_hash_domain: SecretHashDomain = hash_domain_namespace.mix_secret(my_secret)?;
+/// // derive a new key based on the secret key
+/// let new_key_identifier = "my_new_key_identifier".as_bytes();
+/// let new_key = secret_hash_domain.mix(new_key_identifier)?.into_secret();
+/// 
+/// # Ok(())
+/// # }
+/// # do_doc_test().unwrap();
+/// 
+///```
+///
 
 // TODO Use a proper Dec interface
 /// A use-once hash domain for a specified key that can be used directly.
@@ -50,8 +79,7 @@ impl HashDomain {
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
     /// it evaluates [hash::hash] with this HashDomain's key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
-    /// 
-    /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
+    ///
     pub fn mix(self, v: &[u8]) -> Result<Self> {
         Ok(Self(hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?))
     }
@@ -59,8 +87,6 @@ impl HashDomain {
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`
     /// by calling [SecretHashDomain::invoke_primitive] with this
     /// [HashDomain]'s key as `k` and `v` as `d`.
-    ///
-    /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
     pub fn mix_secret<const N: usize>(self, v: Secret<N>) -> Result<SecretHashDomain> {
         SecretHashDomain::invoke_primitive(&self.0, v.secret())
     }
@@ -77,8 +103,6 @@ impl HashDomainNamespace {
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
     /// it evaluates [hash::hash] with the key of this HashDomainNamespace key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
-    ///
-    /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
     pub fn mix(&self, v: &[u8]) -> Result<HashDomain> {
         Ok(HashDomain(
             hash::hash(&self.0, v).collect::<[u8; KEY_LEN]>()?,
@@ -117,7 +141,9 @@ impl SecretHashDomain {
         SecretHashDomainNamespace(self.0)
     }
 
-    /// Creates a new [SecretHashDomain] from a [Secret] `k`. 
+    /// Creates a new [SecretHashDomain] from a [Secret] `k`.
+    ///
+    /// It requires that `k` consist of exactly [KEY_LEN] bytes.
     pub fn danger_from_secret(k: Secret<KEY_LEN>) -> Self {
         Self(k)
     }
