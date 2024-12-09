@@ -121,6 +121,7 @@
               proverif-patched
               inputs.fenix.packages.${system}.complete.toolchain
               pkgs.cargo-llvm-cov
+              pkgs.grcov
             ];
           };
           devShells.coverage = pkgs.mkShell {
@@ -128,6 +129,7 @@
             nativeBuildInputs = [
               inputs.fenix.packages.${system}.complete.toolchain
               pkgs.cargo-llvm-cov
+              pkgs.grcov
             ];
           };
 
