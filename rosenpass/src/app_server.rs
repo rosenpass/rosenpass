@@ -70,6 +70,51 @@ fn ipv6_any_binding() -> SocketAddr {
     SocketAddr::V6(SocketAddrV6::new(IPV6_ANY_ADDR, 0, 0, 0))
 }
 
+fn open_sockets(sockets: &mut Vec<mio::net::UdpSocket>) -> anyhow::Result<()> {
+    macro_rules! try_register_socket {
+        ($title:expr, $binding:expr) => {{
+            let r = mio::net::UdpSocket::bind($binding);
+            match r {
+                Ok(sock) => {
+                    sockets.push(sock);
+                    Some(sockets.len() - 1)
+                }
+                Err(e) => {
+                    warn!("Could not bind to {} socket: {}", $title, e);
+                    None
+                }
+            }
+        }};
+    }
+
+    let mut have_ipv4 = false;
+    let mut have_ipv6 = false;
+
+    sockets.iter().for_each(|s| {
+        let addr = s.local_addr().unwrap();
+        if addr.is_ipv4() {
+            have_ipv4 = true;
+        } else {
+            have_ipv6 = true;
+            if !s.only_v6().unwrap_or(true) && std::env::consts::OS != "macos" {
+                have_ipv4 = true;
+            }
+        }
+    });
+
+    if !have_ipv4 {
+        log::debug!("Register IPv4 socket as fallback.");
+        try_register_socket!("IPv4", ipv4_any_binding());
+    }
+
+    if !have_ipv6 {
+        log::debug!("Register IPv6 socket as fallback.");
+        try_register_socket!("IPv6", ipv6_any_binding());
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Default)]
 pub struct MioTokenDispenser {
     counter: usize,
@@ -579,38 +624,8 @@ impl AppServer {
         // [^openbsd]: https://man.openbsd.org/ip6.4
         // [^linux]: https://man7.org/linux/man-pages/man7/ipv6.7.html
         // [^mio]: https://docs.rs/mio/0.8.6/mio/net/struct.UdpSocket.html#method.only_v6
-        if sockets.is_empty() {
-            macro_rules! try_register_socket {
-                ($title:expr, $binding:expr) => {{
-                    let r = mio::net::UdpSocket::bind($binding);
-                    match r {
-                        Ok(sock) => {
-                            sockets.push(sock);
-                            Some(sockets.len() - 1)
-                        }
-                        Err(e) => {
-                            warn!("Could not bind to {} socket: {}", $title, e);
-                            None
-                        }
-                    }
-                }};
-            }
 
-            let v6 = try_register_socket!("IPv6", ipv6_any_binding());
-
-            let need_v4 = match v6.map(|no| sockets[no].only_v6()) {
-                Some(Ok(v)) => v,
-                None => true,
-                Some(Err(e)) => {
-                    warn!("Unable to detect whether the IPv6 socket supports dual-stack operation: {}", e);
-                    true
-                }
-            };
-
-            if need_v4 {
-                try_register_socket!("IPv4", ipv4_any_binding());
-            }
-        }
+        open_sockets(&mut sockets)?;
 
         if sockets.is_empty() {
             bail!("No sockets to listen on!")
@@ -1286,5 +1301,64 @@ impl crate::api::mio::MioManagerContext for MioManagerFocus<'_> {
 
     fn app_server_mut(&mut self) -> &mut AppServer {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn helper_support_ipv4_ipv6(sockets: &Vec<mio::net::UdpSocket>) -> bool {
+        let mut supports_iv4 = false;
+        let mut supports_ipv6 = false;
+        for socket in sockets {
+            if socket.local_addr().unwrap().is_ipv4() {
+                supports_iv4 = true;
+            } else {
+                supports_ipv6 = true;
+                if !socket.only_v6().unwrap() {
+                    supports_iv4 = true;
+                }
+            }
+        }
+        supports_iv4 && supports_ipv6
+    }
+
+    #[test]
+    pub fn test_open_sockets_empty() {
+        let mut sockets = Vec::new();
+        let _ = open_sockets(&mut sockets);
+        assert!(helper_support_ipv4_ipv6(&sockets))
+    }
+
+    #[test]
+    pub fn test_open_sockets_ipv4_localhost() {
+        let mut sockets = Vec::new();
+        sockets.push(
+            mio::net::UdpSocket::bind(SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::new(127, 0, 0, 1),
+                0,
+            )))
+            .unwrap(),
+        );
+
+        let _ = open_sockets(&mut sockets);
+        assert!(helper_support_ipv4_ipv6(&sockets))
+    }
+
+    #[test]
+    pub fn test_open_sockets_ipv6_localhost() {
+        let mut sockets = Vec::new();
+        sockets.push(
+            mio::net::UdpSocket::bind(SocketAddr::V6(SocketAddrV6::new(
+                Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0),
+                0,
+                0,
+                0,
+            )))
+            .unwrap(),
+        );
+        let _ = open_sockets(&mut sockets);
+        assert!(helper_support_ipv4_ipv6(&sockets))
     }
 }
