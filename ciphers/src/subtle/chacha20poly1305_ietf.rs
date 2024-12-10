@@ -18,7 +18,7 @@ pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize 
 /// a length of [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN]. The last [TAG_LEN] bytes
 /// written in `ciphertext` are the tag guaranteeing integrity. `ciphertext` MUST have a capacity of
 /// `plaintext.len()` + [TAG_LEN].
-/// 
+///
 /// # Examples
 ///```rust
 /// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
@@ -57,10 +57,10 @@ pub fn encrypt(
 
 /// Decrypts a `ciphertext` and verifies the integrity of the `ciphertext` and the additional data
 /// `ad`. using ChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
-/// 
+///
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
 /// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN].
-/// 
+///
 /// # Examples
 ///```rust
 /// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};

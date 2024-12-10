@@ -65,10 +65,10 @@ pub fn encrypt(
 
 /// Decrypts a `ciphertext` and verifies the integrity of the `ciphertext` and the additional data
 /// `ad`. using ChaCha20Poly1305 as implemented in [libcrux](https://github.com/cryspen/libcrux).
-/// 
+///
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
 /// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN].
-/// 
+///
 /// # Examples
 ///```rust
 /// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf_libcrux::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};

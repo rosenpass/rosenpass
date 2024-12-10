@@ -9,7 +9,7 @@ use blake2::Blake2bMac;
 use rosenpass_to::{ops::copy_slice, with_destination, To};
 use rosenpass_util::typenum2const;
 
-/// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b 
+/// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
 /// with output and key length of 32 bytes (see [Blake2bMac<U32>]).
 type Impl = Blake2bMac<U32>;
 
@@ -32,20 +32,20 @@ pub const OUT_MAX: usize = OUT_LEN;
 
 /// Hashes the given `data` with the [Blake2bMac<U32>] hash function under the given `key`.
 /// The [KEY_LEN] and [OUT_LEN] are both set to 32 bytes (or 256 bits).  
-/// 
+///
 /// # Examples
-/// 
+///
 ///```rust
 /// # use rosenpass_ciphers::subtle::blake2b::hash;
 /// use rosenpass_to::To;
-/// let zero_key: [u8; 32] = [0; 32]; 
+/// let zero_key: [u8; 32] = [0; 32];
 /// let data: [u8; 32] = [255; 32];
 /// // buffer for the hash output
 /// let mut hash_data: [u8; 32] = [0u8; 32];  
 ///
 /// assert!(hash(&zero_key, &data).to(&mut hash_data).is_ok(), "Hashing has to return OK result");
 ///```
-/// 
+///
 #[inline]
 pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<()>> + 'a {
     with_destination(|out: &mut [u8]| {

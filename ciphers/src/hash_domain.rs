@@ -11,7 +11,7 @@ pub use hash::KEY_LEN;
 /// # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
 /// use rosenpass_secret_memory::Secret;
 /// # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
-/// 
+///
 /// const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
 /// # fn do_doc_test() -> Result<(), Box<dyn std::error::Error>> {
 /// // create use once hash domain for the protocol identifier
@@ -30,11 +30,11 @@ pub use hash::KEY_LEN;
 /// // derive a new key based on the secret key
 /// let new_key_identifier = "my_new_key_identifier".as_bytes();
 /// let new_key = secret_hash_domain.mix(new_key_identifier)?.into_secret();
-/// 
+///
 /// # Ok(())
 /// # }
 /// # do_doc_test().unwrap();
-/// 
+///
 ///```
 ///
 
@@ -49,7 +49,7 @@ pub struct HashDomain([u8; KEY_LEN]);
 /// use [SecretHashDomainNamespace] instead.
 #[derive(Clone, Debug)]
 pub struct HashDomainNamespace([u8; KEY_LEN]);
-/// A use-once hash domain for a specified key that can be used directly 
+/// A use-once hash domain for a specified key that can be used directly
 /// by wrapping it in [Secret]. The key must consist of [KEY_LEN] many bytes.
 #[derive(Clone, Debug)]
 pub struct SecretHashDomain(Secret<KEY_LEN>);
@@ -59,7 +59,7 @@ pub struct SecretHashDomain(Secret<KEY_LEN>);
 pub struct SecretHashDomainNamespace(Secret<KEY_LEN>);
 
 impl HashDomain {
-    /// Creates a nw [HashDomain] initialized with a all-zeros key. 
+    /// Creates a nw [HashDomain] initialized with a all-zeros key.
     pub fn zero() -> Self {
         Self([0u8; KEY_LEN])
     }
@@ -74,7 +74,7 @@ impl HashDomain {
     pub fn turn_secret(self) -> SecretHashDomain {
         SecretHashDomain(Secret::from_slice(&self.0))
     }
-    
+
     // TODO: Protocol! Use domain separation to ensure that
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
     /// it evaluates [hash::hash] with this HashDomain's key as the key and `v`
@@ -97,9 +97,7 @@ impl HashDomain {
     }
 }
 
-
 impl HashDomainNamespace {
-
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
     /// it evaluates [hash::hash] with the key of this HashDomainNamespace key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
@@ -120,10 +118,9 @@ impl HashDomainNamespace {
 }
 
 impl SecretHashDomain {
-    
     /// Create a new [SecretHashDomain] with the given key `k` and data `d` by calling
     /// [hash::hash] with `k` as the `key` and `d` s the `data`, and using the result
-    /// as the content for the new [SecretHashDomain]. 
+    /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
     pub fn invoke_primitive(k: &[u8], d: &[u8]) -> Result<SecretHashDomain> {
         let mut r = SecretHashDomain(Secret::zero());
@@ -173,7 +170,7 @@ impl SecretHashDomain {
 
     /// Evaluate [hash::hash] with this [SecretHashDomain]'s data as the `key` and
     /// `dst` as the `data` and stores the result as the new data for this [SecretHashDomain].
-    /// 
+    ///
     /// It requires that both `v` and `d` consist of exactly [KEY_LEN] many bytes.
     pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
         hash::hash(v, dst).to(self.0.secret_mut())
@@ -181,7 +178,6 @@ impl SecretHashDomain {
 }
 
 impl SecretHashDomainNamespace {
-
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`. Specifically,
     /// it evaluates [hash::hash] with the key of this HashDomainNamespace key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
