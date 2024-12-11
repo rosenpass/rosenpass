@@ -11,21 +11,35 @@ use anyhow::Result;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
 
+/// Used to define a peer for the rosenpass connection that consists of
+/// a directory for storing public keys and optionally an IP address and port of the endpoint,
+/// for how long the connection should be kept alive and a list of allowed IPs for the peer.
 #[derive(Default, Deserialize)]
 pub struct ExchangePeer {
+    /// Directory where public keys are stored
     pub public_keys_dir: PathBuf,
+    /// The IP address of the endpoint
     pub endpoint: Option<SocketAddr>,
+    /// For how long to keep the connection alive
     pub persistent_keepalive: Option<u32>,
+    /// The IPs that are allowed for this peer.
     pub allowed_ips: Option<String>,
 }
 
+/// Options for the exchange operation of the `rp` binary.
 #[derive(Default, Deserialize)]
 pub struct ExchangeOptions {
+    /// Whether the cli output should be verbose.
     pub verbose: bool,
+    /// path to the directory where private keys are stored.
     pub private_keys_dir: PathBuf,
+    /// The link rosenpass should run as. If None is given [exchange] will use `"rosenpass0"` instead.
     pub dev: Option<String>,
+    /// The IP-address rosenpass should run under
     pub ip: Option<String>,
+    /// The IP-address and port that the rosenpass [AppServer](rosenpass::app_server::AppServer) should use.
     pub listen: Option<SocketAddr>,
+    /// Other peers a connection should be initialized to
     pub peers: Vec<ExchangePeer>,
 }
 
@@ -48,8 +62,11 @@ mod netlink {
     use netlink_packet_wireguard::nlas::WgDeviceAttrs;
     use rtnetlink::Handle;
 
+    /// Creates a netlink named `link_name` and changes the state to up. It returns the index
+    /// of the interface in the list of interfaces as the result or an error if any of the
+    ///operations of creating the link or changing its state to up fails.
     pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
-        // add the link
+        // add the link, equivalent to `ip link add <link_name> type wireguard`
         rtnetlink
             .link()
             .add()
@@ -57,7 +74,8 @@ mod netlink {
             .execute()
             .await?;
 
-        // retrieve the link to be able to up it
+        // retrieve the link to be able to up it, equivalent to `ip link show` and then
+        // using the link shown that is identified by `link_name`.
         let link = rtnetlink
             .link()
             .get()
@@ -69,7 +87,7 @@ mod netlink {
             .0
             .unwrap()?;
 
-        // up the link
+        // up the link, equivalent to `ip link set dev <DEV> up`
         rtnetlink
             .link()
             .set(link.header.index)
@@ -80,12 +98,16 @@ mod netlink {
         Ok(link.header.index)
     }
 
+    /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
     pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
         rtnetlink.link().del(index).execute().await?;
 
         Ok(())
     }
 
+    /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
+    /// In contrast to [link_cleanup], this function create a new socket connection to netlink and
+    /// *ignores errors* that occur during deletion.
     pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
         let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
         tokio::spawn(connection);
@@ -138,6 +160,9 @@ mod netlink {
     }
 }
 
+/// A wrapper for a list of cleanup handlers that can be used in an asynchronous context
+/// to clean up after the usage of rosenpass or if the `rp` binary is interrupted with ctrl+c
+/// or a `SIGINT` signal in general.
 #[derive(Clone)]
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 struct CleanupHandlers(
@@ -146,19 +171,27 @@ struct CleanupHandlers(
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl CleanupHandlers {
+    /// Creates a new list of [CleanupHandlers].
     fn new() -> Self {
         CleanupHandlers(Arc::new(::futures::lock::Mutex::new(vec![])))
     }
 
+    /// Enqueues a new cleanup handler in the form of a [Future].
     async fn enqueue(&self, handler: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>) {
         self.0.lock().await.push(Box::pin(handler))
     }
 
+    /// Runs all cleanup handlers. Following the documentation of [futures::future::try_join_all]:
+    /// If any cleanup handler returns an error then all other cleanup handlers will be canceled and
+    /// an error will be returned immediately. If all cleanup handlers complete successfully,
+    /// however, then the returned future will succeed with a Vec of all the successful results.
     async fn run(self) -> Result<Vec<()>, Error> {
         futures::future::try_join_all(self.0.lock().await.deref_mut()).await
     }
 }
 
+/// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
+/// `options`.
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs;
@@ -182,6 +215,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
+    // set up a list of (initiallc empty) cleanup handlers that are to be run if
+    // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
     let cleanup_handlers = CleanupHandlers::new();
     let final_cleanup_handlers = (&cleanup_handlers).clone();
 
@@ -198,6 +233,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .expect("Failed to clean up");
     })?;
 
+    // run `ip address add <ip> dev <dev>` and enqueue
+    // `ip address del <ip> dev <dev>` as a cleanup
     if let Some(ip) = options.ip {
         let dev = options.dev.clone().unwrap_or("rosenpass0".to_string());
         Command::new("ip")
@@ -244,6 +281,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     netlink::wg_set(&mut genetlink, link_index, attr).await?;
 
+    // set up the rosenpass AppServer
     let pqsk = options.private_keys_dir.join("pqsk");
     let pqpk = options.private_keys_dir.join("pqpk");
 
@@ -271,6 +309,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
     }
 
+    // configure everything per peer
     for peer in options.peers {
         let wgpk = peer.public_keys_dir.join("wgpk");
         let pqpk = peer.public_keys_dir.join("pqpk");
@@ -318,7 +357,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             peer.endpoint.map(|x| x.to_string()),
         )?;
 
-        // Configure routes
+        // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
+        // the cleanup as `ip route del <allowed_ips>`.
         if let Some(allowed_ips) = peer.allowed_ips {
             Command::new("ip")
                 .arg("route")
