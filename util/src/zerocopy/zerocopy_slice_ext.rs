@@ -44,9 +44,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// #[derive(FromBytes, FromZeroes, AsBytes)]
     /// #[repr(C)]
     /// struct Data(u16, u16);
-    ///
-    /// let bytes = &[0x01,0x02,0x03,0x04];
-    /// let data_ref = bytes.zk_parse::<Data>().unwrap();
+    /// #[repr(align(4))]
+    /// struct AlignedBuf([u8; 4]);
+    /// let bytes = AlignedBuf([0x01,0x02,0x03,0x04]);
+    /// let data_ref = bytes.0.zk_parse::<Data>().unwrap();
     /// assert_eq!(data_ref.0, 0x0201);
     /// assert_eq!(data_ref.1, 0x0403);
     /// ```
