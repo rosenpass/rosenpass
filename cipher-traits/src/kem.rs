@@ -122,6 +122,8 @@
 //! #
 //! # let mut alice_shk: Secret<{ MyKem::SHK_LEN }> = Secret::zero();
 //! # MyKem::decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
+//! #
+//! # assert_eq!(alice_shk.secret(), bob_shk.secret());
 //! # Ok(())
 //! # }
 //!```
