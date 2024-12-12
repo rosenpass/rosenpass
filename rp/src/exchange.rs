@@ -33,11 +33,13 @@ pub struct ExchangeOptions {
     pub verbose: bool,
     /// path to the directory where private keys are stored.
     pub private_keys_dir: PathBuf,
-    /// The link rosenpass should run as. If None is given [exchange] will use `"rosenpass0"` instead.
+    /// The link rosenpass should run as. If None is given [exchange] will use `"rosenpass0"`
+    /// instead.
     pub dev: Option<String>,
-    /// The IP-address rosenpass should run under
+    /// The IP-address rosenpass should run under.
     pub ip: Option<String>,
-    /// The IP-address and port that the rosenpass [AppServer](rosenpass::app_server::AppServer) should use.
+    /// The IP-address and port that the rosenpass [AppServer](rosenpass::app_server::AppServer)
+    /// should use.
     pub listen: Option<SocketAddr>,
     /// Other peers a connection should be initialized to
     pub peers: Vec<ExchangePeer>,
@@ -64,9 +66,9 @@ mod netlink {
 
     /// Creates a netlink named `link_name` and changes the state to up. It returns the index
     /// of the interface in the list of interfaces as the result or an error if any of the
-    ///operations of creating the link or changing its state to up fails.
+    /// operations of creating the link or changing its state to up fails.
     pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
-        // add the link, equivalent to `ip link add <link_name> type wireguard`
+        // Add the link, equivalent to `ip link add <link_name> type wireguard`.
         rtnetlink
             .link()
             .add()
@@ -74,7 +76,7 @@ mod netlink {
             .execute()
             .await?;
 
-        // retrieve the link to be able to up it, equivalent to `ip link show` and then
+        // Retrieve the link to be able to up it, equivalent to `ip link show` and then
         // using the link shown that is identified by `link_name`.
         let link = rtnetlink
             .link()
@@ -87,7 +89,7 @@ mod netlink {
             .0
             .unwrap()?;
 
-        // up the link, equivalent to `ip link set dev <DEV> up`
+        // Up the link, equivalent to `ip link set dev <DEV> up`.
         rtnetlink
             .link()
             .set(link.header.index)
@@ -133,7 +135,7 @@ mod netlink {
         use netlink_packet_generic::GenlMessage;
         use netlink_packet_wireguard::{Wireguard, WireguardCmd};
 
-        // Scope our `set` command to only the device of the specified index
+        // Scope our `set` command to only the device of the specified index.
         attr.insert(0, WgDeviceAttrs::IfIndex(index));
 
         // Construct the WireGuard-specific netlink packet
@@ -142,12 +144,12 @@ mod netlink {
             nlas: attr,
         };
 
-        // Construct final message
+        // Construct final message.
         let genl = GenlMessage::from_payload(wgc);
         let mut nlmsg = NetlinkMessage::from(genl);
         nlmsg.header.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-        // Send and wait for the ACK or error
+        // Send and wait for the ACK or error.
         let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
         if let Some(res) = res {
             let res = res?;
@@ -215,7 +217,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
-    // set up a list of (initiallc empty) cleanup handlers that are to be run if
+    // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
     let cleanup_handlers = CleanupHandlers::new();
     let final_cleanup_handlers = (&cleanup_handlers).clone();
@@ -233,8 +235,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .expect("Failed to clean up");
     })?;
 
-    // run `ip address add <ip> dev <dev>` and enqueue
-    // `ip address del <ip> dev <dev>` as a cleanup
+    // Run `ip address add <ip> dev <dev>` and enqueue `ip address del <ip> dev <dev>` as a cleanup.
     if let Some(ip) = options.ip {
         let dev = options.dev.clone().unwrap_or("rosenpass0".to_string());
         Command::new("ip")
@@ -260,7 +261,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .await;
     }
 
-    // Deploy the classic wireguard private key
+    // Deploy the classic wireguard private key.
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
     tokio::spawn(connection);
 
@@ -309,7 +310,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
     }
 
-    // configure everything per peer
+    // Configure everything per peer.
     for peer in options.peers {
         let wgpk = peer.public_keys_dir.join("wgpk");
         let pqpk = peer.public_keys_dir.join("pqpk");
@@ -389,7 +390,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     match out {
         Ok(_) => Ok(()),
         Err(e) => {
-            // Check if the returned error is actually EINTR, in which case, the run actually succeeded.
+            // Check if the returned error is actually EINTR, in which case, the run actually
+            // succeeded.
             let is_ok = if let Some(e) = e.root_cause().downcast_ref::<std::io::Error>() {
                 matches!(e.kind(), std::io::ErrorKind::Interrupted)
             } else {
