@@ -14,8 +14,6 @@ use std::sync::OnceLock;
 use allocator_api2::alloc::{AllocError, Allocator};
 use memsec::malloc::MallocAllocator;
 
-use crate::alloc::memsec::malloc::MallocBox;
-use crate::alloc::memsec::memfdsec::MemfdSecVec;
 #[cfg(target_os = "linux")]
 use memsec::memfdsec::MemfdSecAllocator;
 

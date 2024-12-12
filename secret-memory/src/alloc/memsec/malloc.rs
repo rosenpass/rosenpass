@@ -7,7 +7,6 @@
 use std::fmt;
 use std::ptr::NonNull;
 
-use crate::alloc::{SecretBox, SecretVec};
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
 
 #[derive(Copy, Clone, Default)]

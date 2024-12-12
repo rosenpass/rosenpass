@@ -15,7 +15,21 @@ use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 /// Contains information in the form of a byte array that may be known to the
-/// public
+/// public.
+///
+/// # Example
+/// ```rust
+/// # use zeroize::Zeroize;
+/// # use rosenpass_secret_memory::{Public};
+///
+/// let mut my_public_data: Public<32> = Public::random();
+/// // Fill with some random data that I can use a cryptographic key later on.
+/// my_public_data.randomize();
+/// // A Public can be overwritten with zeros.
+/// my_public_data.zeroize();
+/// // If a Public is printed as Debug, its content is printed byte for byte.
+/// assert_eq!(format!("{:?}", my_public_data), "[{}]=00000000000000000000000000000000");
+/// ```
 // TODO: We should get rid of the Public type; just use a normal value
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
@@ -24,75 +38,84 @@ pub struct Public<const N: usize> {
 }
 
 impl<const N: usize> Public<N> {
-    /// Create a new [Public] from a byte slice
+    /// Create a new [Public] from a byte slice.
     pub fn from_slice(value: &[u8]) -> Self {
         copy_slice(value).to_this(Self::zero)
     }
 
-    /// Create a new [Public] from a byte array
+    /// Create a new [Public] from a byte array.
     pub fn new(value: [u8; N]) -> Self {
         Self { value }
     }
 
-    /// Create a zero initialized [Public]
+    /// Create a zero initialized [Public].
     pub fn zero() -> Self {
         Self { value: [0u8; N] }
     }
 
-    /// Create a random initialized [Public]
+    /// Create a random initialized [Public].
     pub fn random() -> Self {
         mutating(Self::zero(), |r| r.randomize())
     }
 
-    /// Randomize all bytes in an existing [Public]
+    /// Randomize all bytes in an existing [Public].
     pub fn randomize(&mut self) {
         self.try_fill(&mut crate::rand::rng()).unwrap()
     }
 }
 
 impl<const N: usize> Randomize for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
         self.value.try_fill(rng)
     }
 }
 
 impl<const N: usize> fmt::Debug for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         debug_crypto_array(&self.value, fmt)
     }
 }
 
 impl<const N: usize> Deref for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Target = [u8; N];
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn deref(&self) -> &[u8; N] {
         &self.value
     }
 }
 
 impl<const N: usize> DerefMut for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn deref_mut(&mut self) -> &mut [u8; N] {
         &mut self.value
     }
 }
 
 impl<const N: usize> Borrow<[u8; N]> for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow(&self) -> &[u8; N] {
         &self.value
     }
 }
 impl<const N: usize> BorrowMut<[u8; N]> for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow_mut(&mut self) -> &mut [u8; N] {
         &mut self.value
     }
 }
 
 impl<const N: usize> Borrow<[u8]> for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow(&self) -> &[u8] {
         &self.value
     }
 }
 impl<const N: usize> BorrowMut<[u8]> for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow_mut(&mut self) -> &mut [u8] {
         &mut self.value
     }
@@ -101,6 +124,7 @@ impl<const N: usize> BorrowMut<[u8]> for Public<N> {
 impl<const N: usize> LoadValue for Public<N> {
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let mut v = Self::random();
         fopen_r(path)?.read_exact_to_end(&mut *v)?;
@@ -111,6 +135,7 @@ impl<const N: usize> LoadValue for Public<N> {
 impl<const N: usize> StoreValue for Public<N> {
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         std::fs::write(path, **self)?;
         Ok(())
@@ -118,8 +143,10 @@ impl<const N: usize> StoreValue for Public<N> {
 }
 
 impl<const N: usize> LoadValueB64 for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
         Self: Sized,
@@ -142,6 +169,7 @@ impl<const N: usize> LoadValueB64 for Public<N> {
 impl<const N: usize> StoreValueB64 for Public<N> {
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let p = path.as_ref();
         let mut f = [0u8; F];
@@ -155,8 +183,10 @@ impl<const N: usize> StoreValueB64 for Public<N> {
 }
 
 impl<const N: usize> StoreValueB64Writer for Public<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64_writer<const F: usize, W: std::io::Write>(
         &self,
         mut writer: W,
@@ -172,89 +202,117 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
     }
 }
 
+/// A [Box] around a [Public] so that the latter one can be allocated on the heap.
+///
+/// # Example
+/// ```rust
+/// # use zeroize::Zeroize;
+/// # use rosenpass_secret_memory::{Public, PublicBox};
+///
+/// let mut my_public_data: Public<32> = Public::random();
+/// let mut my_bbox: PublicBox<32> = PublicBox{ inner: Box::new(my_public_data)};
+///
+/// // Now we can practically handle it just as we would handle the Public itself:
+/// // Fill with some random data that I can use a cryptographic key later on.
+/// my_public_data.randomize();
+/// // A Public can be overwritten with zeros.
+/// my_public_data.zeroize();
+/// // If a Public is printed as Debug, its content is printed byte for byte.
+/// assert_eq!(format!("{:?}", my_public_data), "[{}]=00000000000000000000000000000000");
+/// ```
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct PublicBox<const N: usize> {
+    /// The inner [Box] around the [Public].
     pub inner: Box<Public<N>>,
 }
 
 impl<const N: usize> PublicBox<N> {
-    /// Create a new [PublicBox] from a byte slice
+    /// Create a new [PublicBox] from a byte slice.
     pub fn from_slice(value: &[u8]) -> Self {
         Self {
             inner: Box::new(Public::from_slice(value)),
         }
     }
 
-    /// Create a new [PublicBox] from a byte array
+    /// Create a new [PublicBox] from a byte array.
     pub fn new(value: [u8; N]) -> Self {
         Self {
             inner: Box::new(Public::new(value)),
         }
     }
 
-    /// Create a zero initialized [PublicBox]
+    /// Create a zero initialized [PublicBox].
     pub fn zero() -> Self {
         Self {
             inner: Box::new(Public::zero()),
         }
     }
 
-    /// Create a random initialized [PublicBox]
+    /// Create a random initialized [PublicBox].
     pub fn random() -> Self {
         Self {
             inner: Box::new(Public::random()),
         }
     }
 
-    /// Randomize all bytes in an existing [PublicBox]
+    /// Randomize all bytes in an existing [PublicBox].
     pub fn randomize(&mut self) {
         self.inner.randomize()
     }
 }
 
 impl<const N: usize> Randomize for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
         self.inner.try_fill(rng)
     }
 }
 
 impl<const N: usize> fmt::Debug for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         debug_crypto_array(&**self, fmt)
     }
 }
 
 impl<const N: usize> Deref for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Target = [u8; N];
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn deref(&self) -> &[u8; N] {
         self.inner.deref()
     }
 }
 
 impl<const N: usize> DerefMut for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn deref_mut(&mut self) -> &mut [u8; N] {
         self.inner.deref_mut()
     }
 }
 
 impl<const N: usize> Borrow<[u8]> for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow(&self) -> &[u8] {
         self.deref()
     }
 }
 
 impl<const N: usize> BorrowMut<[u8]> for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     fn borrow_mut(&mut self) -> &mut [u8] {
         self.deref_mut()
     }
 }
 
 impl<const N: usize> LoadValue for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
     // This is implemented separately from Public to avoid allocating too much stack memory
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let mut p = Self::random();
         fopen_r(path)?.read_exact_to_end(p.deref_mut())?;
@@ -263,22 +321,26 @@ impl<const N: usize> LoadValue for PublicBox<N> {
 }
 
 impl<const N: usize> StoreValue for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         self.inner.store(path)
     }
 }
 
 impl<const N: usize> LoadValueB64 for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
-    // This is implemented separately from Public to avoid allocating too much stack memory
+    // This is implemented separately from Public to avoid allocating too much stack memory.
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
         Self: Sized,
     {
-        // A vector is used here to ensure heap allocation without copy from stack
+        // A vector is used here to ensure heap allocation without copy from stack.
         let mut f = vec![0u8; F];
         let mut v = PublicBox::zero();
         let p = path.as_ref();
@@ -295,16 +357,20 @@ impl<const N: usize> LoadValueB64 for PublicBox<N> {
 }
 
 impl<const N: usize> StoreValueB64 for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         self.inner.store_b64::<F, P>(path)
     }
 }
 
 impl<const N: usize> StoreValueB64Writer for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64_writer<const F: usize, W: std::io::Write>(
         &self,
         writer: W,
