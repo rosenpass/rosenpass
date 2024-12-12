@@ -38,9 +38,9 @@ enum CommandType {
 /// A new [Cli] is created by calling [Cli::parse] with the appropriate arguments.
 #[derive(Default)]
 pub struct Cli {
-    /// whether the output should be verbose.
+    /// Whether the output should be verbose.
     pub verbose: bool,
-    /// the command specified by the given arguments.
+    /// The command specified by the given arguments.
     pub command: Option<Command>,
 }
 

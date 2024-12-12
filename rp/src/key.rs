@@ -104,11 +104,11 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
         Public::from_slice(public.as_bytes())
     };
 
-    // store the wireguard public key
+    // Store the wireguard public key.
     wgpk.store_b64::<WG_B64_LEN, _>(public_wgpk)?;
     wgpk.zeroize();
 
-    // copy the pq-public key to the public directory
+    // Copy the pq-public key to the public directory.
     fs::copy(private_pqpk, public_pqpk)?;
 
     Ok(())
