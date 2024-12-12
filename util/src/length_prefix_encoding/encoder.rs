@@ -121,6 +121,54 @@ pub struct WriteToIoReturn {
 
 #[derive(Clone, Copy, Debug)]
 /// An encoder for length-prefixed messages.
+///
+/// # Examples
+///
+///  ## Writing to output streams
+///
+/// Simplified usage example:
+///
+/// ```rust
+/// use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+/// use rosenpass_util::length_prefix_encoding::encoder::HEADER_SIZE;
+///
+/// let message = String::from("hello world");
+/// let mut encoder = LengthPrefixEncoder::from_message(message.as_bytes());
+///
+/// let mut output = Vec::new();
+/// encoder.write_all_to_stdio(&mut output).expect("failed to write_all");
+///
+/// assert_eq!(output.len(), message.len() + HEADER_SIZE);
+///
+/// let (header, body) = output.split_at(HEADER_SIZE);
+/// let length = u64::from_le_bytes(header.try_into().unwrap());
+///
+/// assert_eq!(length as usize, message.len());
+/// assert_eq!(body, message.as_bytes());
+/// ```
+///
+/// For more examples, see also:
+///
+/// * [Self::write_all_to_stdio]
+/// * [Self::write_to_stdio]
+///
+///
+/// ## Basic error handling
+///
+/// Creating an encoder with invalid parameters triggers one of the various sanity checks:
+///
+/// ```rust
+/// use rosenpass_util::length_prefix_encoding::encoder::{LengthPrefixEncoder, MessageLenSanityError};
+///
+/// let message_size = 32;
+/// let message = vec![0u8; message_size];
+///
+/// // The sanity check prevents an unsafe out-of-bounds access here
+/// let err = LengthPrefixEncoder::from_short_message(message, 2 * message_size)
+///	    .expect_err("OOB access should fail");
+/// assert!(matches!(err, MessageLenSanityError::MessageTooLarge(_)));
+/// ```
+
 pub struct LengthPrefixEncoder<Buf: Borrow<[u8]>> {
     buf: Buf,
     header: [u8; HEADER_SIZE],
@@ -145,6 +193,10 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     }
 
     /// Creates a new encoder using part of the buffer as a message
+    ///
+    /// # Example
+    ///
+    /// See [Basic error handling](#basic-error-handling)
     pub fn from_short_message(msg: Buf, len: usize) -> Result<Self, MessageLenSanityError> {
         let mut r = Self::from_message(msg);
         r.set_message_len(len)?;
@@ -159,12 +211,39 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     }
 
     /// Consumes the encoder and returns the underlying buffer
+    ///
+    ///	# Example
+    ///
+    /// ```rust
+    /// use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+    ///
+    /// let msg = String::from("hello world");
+    /// let encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
+    /// let msg_buffer = encoder.into_buffer();
+    /// assert_eq!(msg_buffer, msg.as_bytes());
+    /// ```
     pub fn into_buffer(self) -> Buf {
         let Self { buf, .. } = self;
         buf
     }
 
     /// Consumes the encoder and returns buffer, message length and write position
+    ///
+    ///	# Example
+    ///
+    /// ```rust
+    /// use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+    ///
+    /// let msg = String::from("hello world");
+    /// let encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
+    /// assert!(encoder.encoded_message_bytes() > msg.len());
+    /// assert!(!encoder.exhausted());
+    ///
+    /// let (msg_buffer, msg_length, write_offset) = encoder.into_parts();
+    /// assert_eq!(msg_buffer, msg.as_bytes());
+    /// assert_eq!(write_offset, 0);
+    /// assert_eq!(msg_length, msg.len());
+    /// ```
     pub fn into_parts(self) -> (Buf, usize, usize) {
         let len = self.message_len();
         let pos = self.writing_position();
@@ -179,6 +258,25 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     }
 
     /// Writes the full message to an IO writer, retrying on interrupts
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::io::Cursor;
+    /// # use rosenpass_util::length_prefix_encoding::encoder::{LengthPrefixEncoder, HEADER_SIZE};
+    /// let msg = String::from("message in a bottle");
+    /// let prefixed_msg_size = msg.len() + HEADER_SIZE;
+    ///
+    /// let mut encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
+    ///
+    /// // Fast-forward - behaves as if the HEADER had already been written; only the message remains
+    /// encoder
+    /// 	.set_header_offset(HEADER_SIZE)
+    /// 	.expect("failed to move cursor");
+    /// let mut sink = Cursor::new(vec![0; prefixed_msg_size + 1]);
+    /// encoder.write_all_to_stdio(&mut sink).expect("write failed");
+    /// assert_eq!(&sink.get_ref()[0..msg.len()], msg.as_bytes());
+    /// ```
     pub fn write_all_to_stdio<W: io::Write>(&mut self, mut w: W) -> io::Result<()> {
         use io::ErrorKind as K;
         loop {
@@ -196,6 +294,44 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     }
 
     /// Attempts to write the next chunk of data to an IO writer, returning the number of bytes written and completion flag
+    ///
+    /// # Example
+    ///
+    ///	```rust
+    /// # use std::io::Cursor;
+    /// # use rosenpass_util::length_prefix_encoding::encoder::{LengthPrefixEncoder, WriteToIoReturn, HEADER_SIZE};
+    ///	let msg = String::from("Hello world");
+    ///	let prefixed_msg_size = msg.len() + HEADER_SIZE;
+    ///
+    ///	let mut encoder = LengthPrefixEncoder::from_parts(msg.as_bytes(), msg.len(), 0).unwrap();
+    ///	assert_eq!(encoder.encoded_message_bytes(), prefixed_msg_size);
+    ///	assert!(!encoder.exhausted());
+    ///
+    ///	let mut dummy_stdout = Cursor::new(vec![0; prefixed_msg_size + 1]);
+    ///
+    ///	loop {
+    ///		let result: WriteToIoReturn = encoder
+    ///			.write_to_stdio(&mut dummy_stdout)
+    ///			.expect("write failed");
+    ///		if dummy_stdout.position() as usize >= prefixed_msg_size {
+    ///			// The entire message should've been written (and the encoder state reflect this)
+    ///			assert!(result.done);
+    ///			assert_eq!(result.bytes_written, msg.len());
+    ///			assert_eq!(encoder.header_written(), (msg.len() as u64).to_le_bytes());
+    ///			assert_eq!(encoder.message_written(), msg.as_bytes());
+    ///			break;
+    ///		}
+    ///	}
+    ///	let buffer_bytes = dummy_stdout.get_ref();
+    ///	match String::from_utf8(buffer_bytes.to_vec()) {
+    ///		Ok(buffer_str) => assert_eq!(&buffer_str[HEADER_SIZE..prefixed_msg_size], msg),
+    ///		Err(err) => println!("Error converting buffer to String: {:?}", err),
+    ///	}
+    ///	assert_eq!(
+    ///		&dummy_stdout.get_ref()[HEADER_SIZE..prefixed_msg_size],
+    ///		msg.as_bytes()
+    ///	);
+    /// ```
     pub fn write_to_stdio<W: io::Write>(&mut self, mut w: W) -> io::Result<WriteToIoReturn> {
         if self.exhausted() {
             return Ok(WriteToIoReturn {
