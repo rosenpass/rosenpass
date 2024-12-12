@@ -14,6 +14,7 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
 
+/// The length of wireguard keys as a length in base 64 encoding.
 pub const WG_B64_LEN: usize = 32 * 5 / 3;
 
 #[cfg(not(target_family = "unix"))]
@@ -24,6 +25,14 @@ pub fn genkey(_: &Path) -> Result<()> {
     ))
 }
 
+/// Generates a new symmetric keys for wireguard and asymmetric keys for rosenpass
+/// in the provided `private_keys_dir`.
+///  
+/// It checks whether the directory `private_keys_dir` points to exists and creates it otherwise.
+/// If it exists, it ensures that the permission is set to 0700 and aborts otherwise. If the
+/// directory is newly created, the appropriate permissions are set.
+///
+/// Already existing keys are not overwritten.
 #[cfg(target_family = "unix")]
 pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if private_keys_dir.exists() {
@@ -70,6 +79,11 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Creates a new directory under `public_keys_dir` and stores the public keys for rosenpass and for
+/// wireguard that correspond to the private keys in `private_keys_dir` in `public_keys_dir`.
+///
+/// If `public_keys_dir` already exists, the wireguard private key or the rosenpass public key
+/// are not present in `private_keys_dir`, an error is returned.
 pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
     if public_keys_dir.exists() {
         return Err(anyhow!("Directory {:?} already exists", public_keys_dir));
@@ -90,9 +104,11 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
         Public::from_slice(public.as_bytes())
     };
 
+    // Store the wireguard public key.
     wgpk.store_b64::<WG_B64_LEN, _>(public_wgpk)?;
     wgpk.zeroize();
 
+    // Copy the pq-public key to the public directory.
     fs::copy(private_pqpk, public_pqpk)?;
 
     Ok(())

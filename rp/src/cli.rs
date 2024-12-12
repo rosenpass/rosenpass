@@ -3,6 +3,11 @@ use std::{iter::Peekable, net::SocketAddr};
 
 use crate::exchange::{ExchangeOptions, ExchangePeer};
 
+/// The different commands supported by the `rp` binary.
+/// [GenKey](crate::cli::Command::GenKey), [PubKey](crate::cli::Command::PubKey),
+/// [Exchange](crate::cli::Command::Exchange) and
+/// [ExchangeConfig](crate::cli::Command::ExchangeConfig)
+/// contain information specific to the respective command.  
 pub enum Command {
     GenKey {
         private_keys_dir: PathBuf,
@@ -18,6 +23,10 @@ pub enum Command {
     Help,
 }
 
+/// The different command types supported by the `rp` binary.
+/// This enum is exclusively used in [fatal] and when calling [fatal] and is therefore
+/// limited to the command types that can fail. E.g., the help command can not fail and is therefore
+/// not part of the [CommandType]-enum.
 enum CommandType {
     GenKey,
     PubKey,
@@ -25,12 +34,24 @@ enum CommandType {
     ExchangeConfig,
 }
 
+/// This structure captures the result of parsing the  arguments to the `rp` binary.
+/// A new [Cli] is created by calling [Cli::parse] with the appropriate arguments.
 #[derive(Default)]
 pub struct Cli {
+    /// Whether the output should be verbose.
     pub verbose: bool,
+    /// The command specified by the given arguments.
     pub command: Option<Command>,
 }
 
+/// Processes a fatal error when parsing cli arguments.
+/// It *always* returns an [Err(String)], where such that the contained [String] explains
+/// the parsing error, including the provided `note`.
+///
+/// # Generic Parameters
+/// the generic parameter `T` is given to make the [Result]-type compatible with the respective
+/// return type of the calling function.
+///
 fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
     match command {
         Some(command) => match command {
@@ -44,6 +65,9 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
 }
 
 impl ExchangePeer {
+    /// Parses peer parameters given to the `rp` binary in the context of an `exchange` operation.
+    /// It returns a result with either [ExchangePeer] that contains the parameters of the peer
+    /// or an error describing why the arguments could not be parsed.
     pub fn parse(args: &mut &mut Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut peer = ExchangePeer::default();
 
@@ -126,6 +150,9 @@ impl ExchangePeer {
 }
 
 impl ExchangeOptions {
+    /// Parses the arguments given to the `rp` binary *if the `exchange` operation is given*.
+    /// It returns a result with either [ExchangeOptions] that contains the result of parsing the
+    /// arguments or an error describing why the arguments could not be parsed.
     pub fn parse(mut args: &mut Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut options = ExchangeOptions::default();
 
@@ -191,6 +218,9 @@ impl ExchangeOptions {
 }
 
 impl Cli {
+    /// Parses the arguments given to the `rp` binary. It returns a result with either
+    /// a [Cli] that contains the result of parsing the arguments or an error describing
+    /// why the arguments could not be parsed.
     pub fn parse(mut args: Peekable<impl Iterator<Item = String>>) -> Result<Self, String> {
         let mut cli = Cli::default();
 
