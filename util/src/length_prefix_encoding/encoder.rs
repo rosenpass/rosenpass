@@ -1,3 +1,12 @@
+//! Utilities for encoding length-prefixed messages that can be transmitted via I/O streams.
+//!
+//! Messages are prefixed with an unsigned 64-bit little-endian length header, followed by the
+//! message payload. Each [`LengthPrefixEncoder`] maintains internal buffers and additional state for as-yet
+//! incomplete messages.
+//!
+//! It also performs sanity checks and handles typical error conditions that may be encountered
+//! when writing structured data to an output sink (such as stdout or an active socket connection).
+
 use std::{
     borrow::{Borrow, BorrowMut},
     cmp::min,
