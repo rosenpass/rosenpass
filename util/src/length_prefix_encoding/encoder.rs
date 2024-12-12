@@ -9,31 +9,32 @@ use zeroize::Zeroize;
 
 use crate::{io::IoResultKindHintExt, result::ensure_or};
 
-/// Size of the length prefix header in bytes - equal to the size of a u64
+/// Size in bytes of the message header carrying length information.
+/// Currently, HEADER_SIZE is always 8 bytes and encodes a 64-bit little-endian number.
 pub const HEADER_SIZE: usize = std::mem::size_of::<u64>();
 
 #[derive(Error, Debug, Clone, Copy)]
 #[error("Write position is out of buffer bounds")]
-/// Error type indicating that a write position is beyond the boundaries of the allocated buffer
+/// Error indicating that the given offset exceeds the bounds of the allocated buffer.
 pub struct PositionOutOfBufferBounds;
 
 #[derive(Error, Debug, Clone, Copy)]
 #[error("Write position is out of message bounds")]
-/// Error type indicating that a write position is beyond the boundaries of the message
+/// Error indicating that the given offset exceeds the bounds of the message.
 pub struct PositionOutOfMessageBounds;
 
 #[derive(Error, Debug, Clone, Copy)]
 #[error("Write position is out of header bounds")]
-/// Error type indicating that a write position is beyond the boundaries of the header
+/// Error indicating that the given offset exceeds the bounds of the header.
 pub struct PositionOutOfHeaderBounds;
 
 #[derive(Error, Debug, Clone, Copy)]
 #[error("Message length is bigger than buffer length")]
-/// Error type indicating that the message length is larger than the available buffer space
+/// Error indicating that the message size is larger than the available buffer space.
 pub struct MessageTooLarge;
 
 #[derive(Error, Debug, Clone, Copy)]
-/// Error type for message length sanity checks
+/// Error enum representing sanity check failures related to the message size.
 pub enum MessageLenSanityError {
     /// Error indicating position is beyond message boundaries
     #[error("{0:?}")]
@@ -44,7 +45,7 @@ pub enum MessageLenSanityError {
 }
 
 #[derive(Error, Debug, Clone, Copy)]
-/// Error type for position bounds checking
+/// Error enum representing sanity check failures related to out-of-bounds memory access.
 pub enum PositionSanityError {
     /// Error indicating position is beyond message boundaries
     #[error("{0:?}")]
@@ -55,7 +56,7 @@ pub enum PositionSanityError {
 }
 
 #[derive(Error, Debug, Clone, Copy)]
-/// Error type combining all sanity check errors
+/// Error enum representing sanity check failures of any kind.
 pub enum SanityError {
     /// Error indicating position is beyond message boundaries
     #[error("{0:?}")]
@@ -101,7 +102,7 @@ impl From<PositionSanityError> for SanityError {
     }
 }
 
-/// Result of a write operation on an IO stream
+/// Return type for `WriteToIo` operations, containing the number of bytes written and a completion flag.
 pub struct WriteToIoReturn {
     /// Number of bytes successfully written in this operation
     pub bytes_written: usize,
@@ -110,7 +111,7 @@ pub struct WriteToIoReturn {
 }
 
 #[derive(Clone, Copy, Debug)]
-/// Length-prefixed encoder that adds a length header to data before writing
+/// An encoder for length-prefixed messages.
 pub struct LengthPrefixEncoder<Buf: Borrow<[u8]>> {
     buf: Buf,
     header: [u8; HEADER_SIZE],
@@ -185,7 +186,7 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
         }
     }
 
-    /// Writes the next chunk of data to an IO writer and returns number of bytes written and completion status
+    /// Attempts to write the next chunk of data to an IO writer, returning the number of bytes written and completion flag
     pub fn write_to_stdio<W: io::Write>(&mut self, mut w: W) -> io::Result<WriteToIoReturn> {
         if self.exhausted() {
             return Ok(WriteToIoReturn {
