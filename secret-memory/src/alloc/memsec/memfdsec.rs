@@ -1,3 +1,9 @@
+//! This module provides a wrapper [MallocAllocator] around the memfdsec allocator in
+//! [memsec]. The wrapper implements the [Allocator] trait and thus makes the memfdsec allocator
+//! usable as a drop-in replacement wherever the [Allocator] trait is required.
+//!
+//! The module also provides the [MemfdSecVec] and [MemfdSecBox] types.
+
 #![cfg(target_os = "linux")]
 use std::fmt;
 use std::ptr::NonNull;
@@ -7,31 +13,80 @@ use allocator_api2::alloc::{AllocError, Allocator, Layout};
 #[derive(Copy, Clone, Default)]
 struct MemfdSecAllocatorContents;
 
-/// Memory allocation using using the memsec crate
+/// A wrapper around the memfdsec allocator in [memsec] that implements the [Allocator] trait from
+/// the [allocator_api2] crate.
 #[derive(Copy, Clone, Default)]
 pub struct MemfdSecAllocator {
     _dummy_private_data: MemfdSecAllocatorContents,
 }
 
-/// A box backed by the memsec allocator
+/// A [allocator_api2::boxed::Box](allocator_api2::boxed::Box) backed by the memfdsec allocator
+/// from the [memsec] crate.
 pub type MemfdSecBox<T> = allocator_api2::boxed::Box<T, MemfdSecAllocator>;
 
-/// A vector backed by the memsec allocator
+/// A [allocator_api2::vec::Vec](allocator_api2::vec::Vec) backed by the memfdsec allocator
+/// from the [memsec] crate.
 pub type MemfdSecVec<T> = allocator_api2::vec::Vec<T, MemfdSecAllocator>;
 
+/// Try to allocate a [MemfdSecBox] for the type `T`. If `T` is zero-sized the allocation
+/// still works. It returns an error if the allocation fails.
+///
+/// # Example
+/// ```rust
+/// # use rosenpass_secret_memory::alloc::memsec::memfdsec::{memfdsec_box_try, MemfdSecBox};
+/// # fn do_test() -> Result<(), Box<dyn std::error::Error>> {
+/// let data: u8 = 42;
+/// let memfdsec_box: MemfdSecBox<u8> = memfdsec_box_try(data)?;
+/// # assert_eq!(*memfdsec_box, 42u8);
+/// # Ok(())
+/// # }
+/// ```
 pub fn memfdsec_box_try<T>(x: T) -> Result<MemfdSecBox<T>, AllocError> {
     MemfdSecBox::<T>::try_new_in(x, MemfdSecAllocator::new())
 }
 
+/// Allocate a [MemfdSecBox] for the type `T`. If `T` is zero-sized the allocation
+/// still works.
+///
+/// # Example
+/// ```rust
+/// # use rosenpass_secret_memory::alloc::memsec::memfdsec::{memfdsec_box, MemfdSecBox};
+/// let data: u8 = 42;
+/// let memfdsec_box: MemfdSecBox<u8> = memfdsec_box(data);
+/// # assert_eq!(*memfdsec_box, 42u8);
+/// ```
 pub fn memfdsec_box<T>(x: T) -> MemfdSecBox<T> {
     MemfdSecBox::<T>::new_in(x, MemfdSecAllocator::new())
 }
 
+/// Allocate a [MemfdSecVec] for the type `T`. No memory will be actually allocated
+/// until elements are pushed to the vector.
+///
+/// # Example
+/// ```rust
+/// # use rosenpass_secret_memory::alloc::memsec::memfdsec::{memfdsec_vec, MemfdSecVec};
+/// let mut memfdsec_vec: MemfdSecVec<u8> = memfdsec_vec();
+/// memfdsec_vec.push(0u8);
+/// memfdsec_vec.push(1u8);
+/// memfdsec_vec.push(2u8);
+/// # let mut element = memfdsec_vec.pop();
+/// # assert!(element.is_some());
+/// # assert_eq!(element.unwrap(), 2u8);
+/// # element = memfdsec_vec.pop();
+/// # assert!(element.is_some());
+/// # assert_eq!(element.unwrap(), 1u8);
+/// # element = memfdsec_vec.pop();
+/// # assert!(element.is_some());
+/// # assert_eq!(element.unwrap(), 0u8);
+/// # element = memfdsec_vec.pop();
+/// # assert!(element.is_none());
+/// ```
 pub fn memfdsec_vec<T>() -> MemfdSecVec<T> {
     MemfdSecVec::<T>::new_in(MemfdSecAllocator::new())
 }
 
 impl MemfdSecAllocator {
+    /// Create a new [MemfdSecAllocator].
     pub fn new() -> Self {
         Self {
             _dummy_private_data: MemfdSecAllocatorContents,
@@ -95,6 +150,9 @@ mod test {
         memfdsec_allocation_impl::<8>(&alloc);
         memfdsec_allocation_impl::<64>(&alloc);
         memfdsec_allocation_impl::<999>(&alloc);
+
+        // Also test the debug-print for good measure
+        let _ = format!("{:?}", alloc);
     }
 
     fn memfdsec_allocation_impl<const N: usize>(alloc: &MemfdSecAllocator) {
