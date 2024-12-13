@@ -6,7 +6,7 @@ use crate::{
     result::OkExt,
 };
 
-/// Module containing I/O interest flags for Unix operations
+/// Module containing I/O interest flags for Unix operations (see also: [mio::Interest])
 pub mod interest {
     use mio::Interest;
 
