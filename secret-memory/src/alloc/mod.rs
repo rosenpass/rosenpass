@@ -53,8 +53,14 @@ pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
 /// # use rosenpass_secret_memory::alloc::{get_or_init_secret_alloc_type, set_secret_alloc_type,
 /// # SecretAlloc, SecretAllocType};
 /// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
-/// let alloc_typpe = get_or_init_secret_alloc_type(SecretAllocType::MemsecMemfdSec);
-/// assert_eq!(alloc_typpe, SecretAllocType::MemsecMalloc);
+/// #[cfg(target_os = "linux")] {
+///     let alloc_typpe = get_or_init_secret_alloc_type(SecretAllocType::MemsecMemfdSec);
+///     assert_eq!(alloc_typpe, SecretAllocType::MemsecMalloc);
+/// }
+/// #[cfg(not(target_os = "linux"))] {
+///     let alloc_typpe = get_or_init_secret_alloc_type(SecretAllocType::MemsecMalloc);
+///     assert_eq!(alloc_typpe, SecretAllocType::MemsecMalloc);
+/// }
 ///```
 pub fn get_or_init_secret_alloc_type(alloc_type: SecretAllocType) -> SecretAllocType {
     *ALLOC_TYPE.get_or_init(|| alloc_type)
