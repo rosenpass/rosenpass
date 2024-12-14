@@ -386,6 +386,7 @@ mod tests {
     #[allow(clippy::module_inception)]
     mod tests {
         use crate::{Public, PublicBox};
+        use rand::Fill;
         use rosenpass_util::{
             b64::b64_encode,
             file::{
@@ -514,6 +515,113 @@ mod tests {
         #[test]
         fn test_public_box_load_store_base64() {
             run_base64_load_store_test::<PublicBox<N>>();
+        }
+
+        /// Test the debug print function for [Public]
+        #[test]
+        fn test_debug_public() {
+            let p: Public<32> = Public::zero();
+            let _ = format!("{:?}", p);
+        }
+
+        /// Test that [Public] is correctly borrowed to a u8 array.
+        #[test]
+        fn test_borrow_public_sized() {
+            let p: Public<32> = Public::zero();
+            let borrowed: &[u8; 32] = &p;
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [Public] is correctly borrowed to a mutable u8 array.
+        #[test]
+        fn test_borrow_public_sized_mut() {
+            let mut p: Public<32> = Public::zero();
+            let borrowed: &mut [u8; 32] = &mut p;
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [Public] is correctly borrowed to a u8 slice.
+        #[test]
+        fn test_borrow_public_unsized() {
+            use std::borrow::Borrow;
+            let p: Public<32> = Public::zero();
+            let borrowed: &[u8] = p.borrow();
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [Public] is correctly borrowed to a mutable u8 slice.
+        #[test]
+        fn test_borrow_public_unsized_mut() {
+            use std::borrow::BorrowMut;
+            let mut p: Public<32> = Public::zero();
+            let borrowed: &mut [u8] = p.borrow_mut();
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [PublicBox] is correctly created from a slice.
+        #[test]
+        fn test_public_box_from_slice() {
+            let my_slice: &[u8; 32] = &[0; 32];
+            let p: PublicBox<32> = PublicBox::from_slice(my_slice);
+            assert_eq!(p.deref(), my_slice);
+        }
+
+        /// Test that [PublicBox] can correctly be created with its [PublicBox::new] function.
+        #[test]
+        fn test_public_box_new() {
+            let pb = PublicBox::new([42; 32]);
+            assert_eq!(pb.deref(), &[42; 32]);
+        }
+
+        /// Test the randomize functionality of [PublicBox].
+        #[test]
+        fn test_public_box_randomize() {
+            let mut pb: PublicBox<32> = PublicBox::zero();
+            pb.randomize();
+            pb.try_fill(&mut crate::rand::rng()).unwrap();
+            // Can't really assert anything here until we have can predict the randomness
+            // by derandomizing the RNG for tests.
+        }
+
+        /// Test the [Debug] print of [PublicBox]
+        #[test]
+        fn test_public_box_debug() {
+            let pb: PublicBox<32> = PublicBox::new([42; 32]);
+            let _ = format!("{:?}", pb);
+        }
+
+        /// Test that [PublicBox] is correctly borrowed to a u8 array.
+        #[test]
+        fn test_borrow_public_box_sized() {
+            let p: PublicBox<32> = PublicBox::zero();
+            let borrowed: &[u8; 32] = &p;
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [PublicBox] is correctly borrowed to a mutable u8 array.
+        #[test]
+        fn test_borrow_public_box_sized_mut() {
+            let mut p: PublicBox<32> = PublicBox::zero();
+            let borrowed: &mut [u8; 32] = &mut p;
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [PublicBox] is correctly borrowed to a u8 slice.
+        #[test]
+        fn test_borrow_public_box_unsized() {
+            use std::borrow::Borrow;
+            let p: PublicBox<32> = PublicBox::zero();
+            let borrowed: &[u8] = p.borrow();
+            assert_eq!(borrowed, &[0; 32]);
+        }
+
+        /// Test that [Public] is correctly borrowed to a mutable u8 slice.
+        #[test]
+        fn test_borrow_public_box_unsized_mut() {
+            use std::borrow::BorrowMut;
+            let mut p: PublicBox<32> = PublicBox::zero();
+            let borrowed: &mut [u8] = p.borrow_mut();
+            assert_eq!(borrowed, &[0; 32]);
         }
     }
 }

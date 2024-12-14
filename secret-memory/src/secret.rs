@@ -379,7 +379,10 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::test_spawn_process_provided_policies;
+    use crate::{
+        secret_policy_try_use_memfd_secrets, secret_policy_use_only_malloc_secrets,
+        test_spawn_process_provided_policies,
+    };
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -522,5 +525,34 @@ mod test {
             let metadata = fs::metadata(&new_file).unwrap();
             assert_eq!(metadata.permissions().mode() & 0o000777, 0o600);
         });
+    }
+
+    /// Test the creation of a [ZeroizingSecretBox] using its [new](ZeroizingSecretBox::new)
+    /// function.
+    #[test]
+    fn test_zeroizing_secret_box_new() {
+        struct DummyZeroizing {
+            inner_dummy: [u8; 32],
+        }
+        impl Zeroize for DummyZeroizing {
+            fn zeroize(&mut self) {
+                self.inner_dummy = [0; 32];
+            }
+        }
+        let dummy = DummyZeroizing {
+            inner_dummy: [42; 32],
+        };
+        secret_policy_use_only_malloc_secrets();
+        let mut zsb: ZeroizingSecretBox<DummyZeroizing> = ZeroizingSecretBox::new(dummy);
+        zsb.zeroize();
+        assert_eq!(zsb.inner_dummy, [0; 32]);
+    }
+
+    /// Test the debug print of [Secret].
+    #[test]
+    fn test_debug_secret() {
+        secret_policy_use_only_malloc_secrets();
+        let my_secret: Secret<32> = Secret::zero();
+        assert_eq!(format!("{:?}", my_secret), "<SECRET>");
     }
 }
