@@ -35,8 +35,15 @@ impl Drop for KillChild {
     fn drop(&mut self) {
         use rustix::process::{kill_process, Pid, Signal::Term};
         let pid = Pid::from_child(&self.0);
-        rustix::process::kill_process(pid, Term).discard_result();
-        self.0.wait().discard_result();
+        // We seriously need to start handling signals with signalfd, our current signal handling
+        // system is a bit broken; there is probably a few functions that just restart on EINTR
+        // so the signal is absorbed
+        loop {
+            rustix::process::kill_process(pid, Term).discard_result();
+            if self.0.try_wait().unwrap().is_some() {
+                break;
+            }
+        }
     }
 }
 
