@@ -93,6 +93,9 @@
           packages.package-deb = pkgs.callPackage ./pkgs/package-deb.nix {
             rosenpass = pkgs.pkgsStatic.rosenpass;
           };
+          packages.package-rpm = pkgs.callPackage ./pkgs/package-rpm.nix {
+            rosenpass = pkgs.pkgsStatic.rosenpass;
+          };
 
           #
           ### Reading materials ###
@@ -163,9 +166,10 @@
               { nativeBuildInputs = [ pkgs.nodePackages.prettier ]; } ''
               cd ${./.} && prettier --check . && touch $out
             '';
-          } // pkgs.lib.optionalAttrs (system == "x86_64-linux") (import ./tests/packaging/deb.nix {
+          } // pkgs.lib.optionalAttrs (system == "x86_64-linux") (import ./tests/legacy-distro-packaging.nix {
             inherit pkgs;
             rosenpass-deb = self.packages.${system}.package-deb;
+            rosenpass-rpm = self.packages.${system}.package-rpm;
           });
 
           formatter = pkgs.nixpkgs-fmt;
