@@ -6,9 +6,15 @@
     # for rust nightly with llvm-tools-preview
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
+
+    # TODO: Switch to github:numtide/nix-vm-tests when pull request
+    # https://github.com/numtide/nix-vm-test/pull/71 is through
+    nix-vm-test.url = "github:tfc/nix-vm-test";
+    nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
+    nix-vm-test.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, nix-vm-test, ... }@inputs:
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
 
 
@@ -77,10 +83,16 @@
             inherit system;
 
             # apply our own overlay, overriding/inserting our packages as defined in ./pkgs
-            overlays = [ self.overlays.default ];
+            overlays = [
+              self.overlays.default
+              nix-vm-test.overlays.default
+            ];
           };
         in
         {
+          packages.package-deb = pkgs.callPackage ./pkgs/package-deb.nix {
+            rosenpass = pkgs.pkgsStatic.rosenpass;
+          };
 
           #
           ### Reading materials ###
@@ -151,7 +163,10 @@
               { nativeBuildInputs = [ pkgs.nodePackages.prettier ]; } ''
               cd ${./.} && prettier --check . && touch $out
             '';
-          };
+          } // pkgs.lib.optionalAttrs (system == "x86_64-linux") (import ./tests/packaging/deb.nix {
+            inherit pkgs;
+            rosenpass-deb = self.packages.${system}.package-deb;
+          });
 
           formatter = pkgs.nixpkgs-fmt;
         }))
