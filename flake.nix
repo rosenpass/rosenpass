@@ -7,9 +7,7 @@
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
 
-    # TODO: Switch to github:numtide/nix-vm-tests when pull request
-    # https://github.com/numtide/nix-vm-test/pull/71 is through
-    nix-vm-test.url = "github:tfc/nix-vm-test";
+    nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
   };
