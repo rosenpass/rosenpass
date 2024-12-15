@@ -8,7 +8,9 @@
 //! encapsulation.
 //!
 //! The [Kem] Trait describes the basic API offered by a Key Encapsulation
-//! Mechanism. Two implementations for it are provided, [StaticKEM] and [EphemeralKEM].
+//! Mechanism. Two implementations for it are provided:
+//! [Kyber512](../../rosenpass_oqs/kyber_512/enum.Kyber512.html) and
+//! [ClassicMceliece460896](../../rosenpass_oqs/classic_mceliece_460896/enum.ClassicMceliece460896.html).
 //!
 //! An example where Alice generates a keypair and gives her public key to Bob, for Bob to
 //! encapsulate a symmetric key and Alice to decapsulate it would look as follows.

@@ -10,7 +10,7 @@ use rosenpass_to::{ops::copy_slice, with_destination, To};
 use rosenpass_util::typenum2const;
 
 /// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
-/// with output and key length of 32 bytes (see [Blake2bMac<U32>]).
+/// with output and key length of 32 bytes (see [Blake2bMac]).
 type Impl = Blake2bMac<U32>;
 
 type KeyLen = <Impl as KeySizeUser>::KeySize;
@@ -21,17 +21,17 @@ const KEY_LEN: usize = typenum2const! { KeyLen };
 /// The output length for BLAKE2b supported by this API. Currently 32 Bytes.
 const OUT_LEN: usize = typenum2const! { OutLen };
 
-/// Minimal key length supported by this API (identical to [KEY_LEN])
+/// Minimal key length supported by this API.
 pub const KEY_MIN: usize = KEY_LEN;
-/// maximal key length supported by this API (identical to [KEY_LEN])
+/// maximal key length supported by this API.
 pub const KEY_MAX: usize = KEY_LEN;
-/// minimal output length supported by this API (identical [OUT_LEN])
+/// minimal output length supported by this API.
 pub const OUT_MIN: usize = OUT_LEN;
-/// maximal output length supported by this API (identical [OUT_LEN])
+/// maximal output length supported by this API.
 pub const OUT_MAX: usize = OUT_LEN;
 
-/// Hashes the given `data` with the [Blake2bMac<U32>] hash function under the given `key`.
-/// The [KEY_LEN] and [OUT_LEN] are both set to 32 bytes (or 256 bits).  
+/// Hashes the given `data` with the [Blake2bMac] hash function under the given `key`.
+/// The both the length of the output the length of the key 32 bytes (or 256 bits).  
 ///
 /// # Examples
 ///
