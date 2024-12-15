@@ -16,7 +16,11 @@
 //! # Example Handshake
 //!
 //! This example illustrates a minimal setup for a key-exchange between two
-//! [CryptoServer].
+//! [CryptoServer]s; this is what we use for some testing purposes but it is not
+//! what should be used in a real world application, as timing-based events
+//! are handled by [CryptoServer::poll].
+//!
+//! See [CryptoServer::poll] on how to use crypto server in polling mode for production usage.
 //!
 //! ```
 //! use std::ops::DerefMut;
