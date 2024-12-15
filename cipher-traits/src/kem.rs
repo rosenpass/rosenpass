@@ -19,11 +19,10 @@
 //!```rust
 //! use rosenpass_cipher_traits::Kem;
 //! use rosenpass_oqs::Kyber512;
-//! use rosenpass_secret_memory::Secret;
+//! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //!
-//! # fn do_doc_test() -> Result<(), Box<dyn std::error::Error>> {
 //! type MyKem = Kyber512;
-//!
+//! secret_policy_use_only_malloc_secrets();
 //! let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
 //! MyKem::keygen(alice_sk.secret_mut(), &mut alice_pk)?;
@@ -36,8 +35,7 @@
 //! MyKem::decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
 //!
 //! # assert_eq!(alice_shk.secret(), bob_shk.secret());
-//! # Ok(())
-//! # }
+//! # Ok::<(), anyhow::Error>(())
 //!```
 //!
 //! Implementing the [Kem]-trait for a KEM is easy. Mostly, you must format the KEM's
@@ -109,11 +107,10 @@
 //!         Ok(())
 //!     }
 //! }
-//! # use rosenpass_secret_memory::Secret;
+//! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //! #
-//! # fn do_doc_test() -> Result<(), Box<dyn std::error::Error>> {
 //! # type MyKem = DummyKem;
-//! #
+//! # secret_policy_use_only_malloc_secrets();
 //! # let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! # let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
 //! # MyKem::keygen(alice_sk.secret_mut(), &mut alice_pk)?;
@@ -126,8 +123,8 @@
 //! # MyKem::decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
 //! #
 //! # assert_eq!(alice_shk.secret(), bob_shk.secret());
-//! # Ok(())
-//! # }
+//! #
+//! # Ok::<(), String>(())
 //!```
 //!
 
