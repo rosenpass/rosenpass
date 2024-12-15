@@ -1,7 +1,7 @@
 //! This module provides utilities for decoding length-prefixed messages from I/O streams.
 //!
 //! Messages are prefixed with an unsigned 64-bit little-endian length header, followed by the
-//! message payload. The [`LengthPrefixDecoder`] is a central component here, maintaining
+//! message payload. The [`decoder::LengthPrefixDecoder`] is a central component here, maintaining
 //! internal buffers and state for partial reads and boundary checks.
 //!
 //! The module defines errors to handle size mismatches, I/O issues, and boundary violations
@@ -408,6 +408,17 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     }
 
     /// Consumes the decoder and returns the underlying buffer.
+    ///
+    /// # Examples
+    /// ```
+    /// # use std::io::Cursor;
+    /// # use rosenpass_util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
+    /// let mut data = Cursor::new([4u64.to_le_bytes().as_slice(), b"cats"].concat());
+    /// let mut decoder = LengthPrefixDecoder::new(vec![0; 8]);
+    /// decoder.read_all_from_stdio(&mut data).expect("read failed");
+    /// let buffer: Vec<u8> = decoder.into_message_buffer();
+    /// assert_eq!(buffer, vec![99, 97, 116, 115, 0, 0, 0, 0]);
+    /// ```
     pub fn into_message_buffer(self) -> Buf {
         let Self { buf, .. } = self;
         buf
@@ -612,9 +623,16 @@ mod tests {
 
         // Header-related assertions
         assert!(decoder.has_header());
+        assert_eq!(decoder.has_message().ok(), Some(false));
         assert_eq!(decoder.header_buffer_offset(), HEADER_SIZE);
         assert_eq!(decoder.header_buffer_avail().len(), HEADER_SIZE);
         assert_eq!(decoder.header_buffer_left().len(), 0);
+        {
+            let header_buffer_mut: &mut [u8] = decoder.header_buffer_avail_mut();
+            assert_eq!(header_buffer_mut, &[8, 0, 0, 0, 0, 0, 0, 0]);
+            let header_buffer_ref: &[u8] = decoder.header_buffer_avail();
+            assert_eq!(header_buffer_ref, &[8, 0, 0, 0, 0, 0, 0, 0]);
+        }
         assert_eq!(decoder.get_header(), Some(8));
         assert_eq!(decoder.message_size(), Some(8));
         assert_eq!(decoder.encoded_message_bytes(), Some(8 + HEADER_SIZE));
@@ -623,7 +641,9 @@ mod tests {
         assert_eq!(*decoder.bytes_read(), 12);
         assert_eq!(decoder.message_buffer_offset(), 4); // "cats" is 4 bytes
         assert_eq!(decoder.message_buffer_avail(), b"cats");
+        assert_eq!(decoder.message_buffer_avail_mut(), b"cats");
         assert_eq!(decoder.message_buffer_left().len(), 5); // buffer size is 9, 4 read -> 5 left
+        assert_eq!(decoder.message_buffer_left_mut().len(), 5);
         assert!(!decoder.has_message().unwrap()); // not fully read
 
         // Message fragment assertions
@@ -634,6 +654,10 @@ mod tests {
         let frag_left = decoder.message_fragment_left().unwrap().unwrap();
         assert_eq!(frag_left.len(), 4); // 4 bytes remain to complete the message
         assert_eq!(decoder.message().unwrap(), None); // full message not yet available
+
+        // disassemble the decoder and reassemble it
+        let (header, buf, off) = decoder.clone().into_parts();
+        let mut decoder = LengthPrefixDecoder::from_parts(header, buf, off);
 
         let mut data = Cursor::new(Vec::from(b"dogs"));
         loop_read(&mut decoder, &mut data);
@@ -657,5 +681,11 @@ mod tests {
 
         // No more data needed to complete the message.
         assert!(decoder.next_slice_to_write_to().unwrap().is_none());
+
+        // clear the decoder
+        decoder.clear();
+        assert_eq!(decoder.buf, vec![0; 9]);
+        assert_eq!(decoder.off, 0);
+        assert_eq!(decoder.header, [0; HEADER_SIZE]);
     }
 }
