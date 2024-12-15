@@ -40,6 +40,7 @@ pub type MemfdSecVec<T> = allocator_api2::vec::Vec<T, MemfdSecAllocator>;
 /// # assert_eq!(*memfdsec_box, 42u8);
 /// # Ok(())
 /// # }
+/// # let _ = do_test();
 /// ```
 pub fn memfdsec_box_try<T>(x: T) -> Result<MemfdSecBox<T>, AllocError> {
     MemfdSecBox::<T>::try_new_in(x, MemfdSecAllocator::new())

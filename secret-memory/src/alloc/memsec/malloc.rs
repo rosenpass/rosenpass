@@ -39,6 +39,7 @@ pub type MallocVec<T> = allocator_api2::vec::Vec<T, MallocAllocator>;
 /// # assert_eq!(*malloc_box, 42u8);
 /// # Ok(())
 /// # }
+/// # let _ = do_test();
 /// ```
 pub fn malloc_box_try<T>(x: T) -> Result<MallocBox<T>, AllocError> {
     MallocBox::<T>::try_new_in(x, MallocAllocator::new())

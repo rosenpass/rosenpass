@@ -38,6 +38,7 @@ static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 /// }
 /// # Ok(())
 /// # }
+/// # let _ = do_test();
 /// ```
 pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
     ALLOC_TYPE.set(alloc_type).unwrap();
@@ -135,6 +136,7 @@ pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 /// # assert_eq!(*secret_box, 42u8);
 /// # Ok(())
 /// # }
+/// # let _ = do_test();
 /// ```
 pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
     SecretBox::<T>::try_new_in(x, SecretAlloc::default())
