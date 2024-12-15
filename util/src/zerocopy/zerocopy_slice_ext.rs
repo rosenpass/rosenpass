@@ -7,7 +7,7 @@ use super::RefMaker;
 
 /// Extension trait for performing zero-copy parsing operations on byte slices.
 ///
-/// This trait adds methods for creating [`Ref`](zerocopy::Ref) references from
+/// This trait adds methods for creating [`Ref`] references from
 /// slices by using the [`RefMaker`] type internally.
 pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// Creates a new `RefMaker` for the given slice.
@@ -58,7 +58,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
 
     /// Parses a prefix of the slice into a zero-copy reference.
     ///
-    /// Uses only the first [std::mem::size_of::<T>()] bytes of `T`.
+    /// Uses only the first [`std::mem::size_of::<T>()`] bytes of `T`.
     ///
     /// # Errors
     ///
@@ -86,7 +86,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
 
     /// Parses a suffix of the slice into a zero-copy reference.
     ///
-    /// Uses only the last [std::mem::size_of::<T>()] bytes of `T`.
+    /// Uses only the last [`std::mem::size_of::<T>()`] bytes of `T`.
     ///
     /// # Errors
     ///

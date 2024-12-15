@@ -61,7 +61,7 @@ impl<B, T> RefMaker<B, T> {
     }
 
     /// Returns the size in bytes required by the target type `T`.
-    /// This is currently defined as [std::mem::size_of] of `T`.
+    /// This is currently defined as [`std::mem::size_of::<T>`] of `T`.
     pub const fn target_size() -> usize {
         std::mem::size_of::<T>()
     }
@@ -109,15 +109,14 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// let bytes: &[u8] = &[0x01, 0x02, 0x03];
     /// let parse_error = RefMaker::<_, Data>::new(bytes).parse()
     ///     .expect_err("Should error");
-    /// assert_eq!(format!("{:?}", parse_error),
+    /// assert_eq!(parse_error.to_string(),
     ///     "Buffer is undersized at 3 bytes (need 4 bytes)!");
     ///
     /// // errors if the byte buffer is misaligned
     /// let bytes = [1u8, 2, 3, 4, 5, 6, 7, 8];
     /// let parse_error = RefMaker::<_, Data>::new(&bytes[1..5]).parse()
     ///     .expect_err("Should error");
-    /// assert_eq!(format!("{:?}", parse_error),
-    ///    "Parser error!");
+    /// assert_eq!(parse_error.to_string(), "Parser error!");
     /// ```
     pub fn parse(self) -> anyhow::Result<Ref<B, T>> {
         self.ensure_fit()?;

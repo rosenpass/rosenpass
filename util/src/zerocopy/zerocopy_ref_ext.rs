@@ -8,8 +8,7 @@ use zerocopy::{ByteSlice, ByteSliceMut, Ref};
 /// This can be useful when you need a reference that is tied to a slice rather
 /// than the original buffer type `B`.
 ///
-/// Note: This trait is implemented to [Ref](zerocopy::Ref) of byte slices
-/// (`&[u8]`).
+/// Note: This trait is implemented to [`Ref`] of byte slices (`&[u8]`).
 pub trait ZerocopyEmancipateExt<B, T> {
     /// Converts this reference into a reference backed by a plain byte slice.
     ///
@@ -36,7 +35,7 @@ pub trait ZerocopyEmancipateExt<B, T> {
 ///
 /// Similar to [`ZerocopyEmancipateExt`], but for mutable references.
 ///
-/// Note: this trait is implemented to [Ref](zerocopy::Ref) of mutable byte
+/// Note: this trait is implemented to [`Ref`] of mutable byte
 /// slices (`&mut [u8]`).
 pub trait ZerocopyEmancipateMutExt<B, T> {
     /// Converts this reference into a mutable reference backed by a plain
