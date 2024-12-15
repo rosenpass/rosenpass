@@ -61,7 +61,7 @@ impl<T: Zeroize> ZeroizingSecretBox<T> {
 }
 
 impl<T: Zeroize + ?Sized> ZeroizingSecretBox<T> {
-    /// Creates a new [ZeroizingSecretBox] from a [SecretBox<T>] for the type `T`,
+    /// Creates a new [ZeroizingSecretBox] from a [SecretBox] for the type `T`,
     /// which must implement [Zeroize] but does not have to be [Sized].
     fn from_secret_box(inner: SecretBox<T>) -> Self {
         Self(Some(inner))

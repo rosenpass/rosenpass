@@ -28,8 +28,8 @@
 //!    that of [Secret].
 //! 2. The [debug] module provides functionality to easily create debug output for objects that are
 //!    backed by byte arrays or slices, like for example [Secret].
-//! 3. The [file] module provides functionality to store [Secrets](crate::Secret) und [Public]
-//!    in files such that the file's [Visibility](rosenpass_util::file::Visibility)
+//! 3. The [mod@file] module provides functionality to store [Secrets](crate::Secret)
+//!    and [Public] in files such that the file's [Visibility](rosenpass_util::file::Visibility)
 //!    corresponds to the confidentiality of the data.
 //! 4. The [rand] module provides a simple way of generating randomness.
 

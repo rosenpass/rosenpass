@@ -44,7 +44,7 @@ pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
     ALLOC_TYPE.set(alloc_type).unwrap();
 }
 
-/// Initializes [ALLOC_TYPE] with `alloc_type` if it is not initialized yet. Returns
+/// Initializes type of allocator to be sued with `alloc_type` if it is not initialized yet. Returns
 /// the current [SecretAllocType] afterward.
 ///
 /// # Example

@@ -19,11 +19,11 @@ pub struct MallocAllocator {
     _dummy_private_data: MallocAllocatorContents,
 }
 
-/// A [allocator_api2::boxed::Box](allocator_api2::boxed::Box) backed by the memsec allocator
+/// A [allocator_api2::boxed::Box] backed by the memsec allocator
 /// from the [memsec] crate.
 pub type MallocBox<T> = allocator_api2::boxed::Box<T, MallocAllocator>;
 
-/// A [allocator_api2::vec::Vec](allocator_api2::vec::Vec) backed by the memsec allocator
+/// A [allocator_api2::vec::Vec] backed by the memsec allocator
 /// from the [memsec] crate.
 pub type MallocVec<T> = allocator_api2::vec::Vec<T, MallocAllocator>;
 

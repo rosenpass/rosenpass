@@ -1,4 +1,4 @@
-//! This module provides a wrapper [MallocAllocator] around the memfdsec allocator in
+//! This module provides a wrapper [MemfdSecAllocator] around the memfdsec allocator in
 //! [memsec]. The wrapper implements the [Allocator] trait and thus makes the memfdsec allocator
 //! usable as a drop-in replacement wherever the [Allocator] trait is required.
 //!
@@ -20,11 +20,11 @@ pub struct MemfdSecAllocator {
     _dummy_private_data: MemfdSecAllocatorContents,
 }
 
-/// A [allocator_api2::boxed::Box](allocator_api2::boxed::Box) backed by the memfdsec allocator
+/// A [allocator_api2::boxed::Box] backed by the memfdsec allocator
 /// from the [memsec] crate.
 pub type MemfdSecBox<T> = allocator_api2::boxed::Box<T, MemfdSecAllocator>;
 
-/// A [allocator_api2::vec::Vec](allocator_api2::vec::Vec) backed by the memfdsec allocator
+/// A [allocator_api2::vec::Vec] backed by the memfdsec allocator
 /// from the [memsec] crate.
 pub type MemfdSecVec<T> = allocator_api2::vec::Vec<T, MemfdSecAllocator>;
 
