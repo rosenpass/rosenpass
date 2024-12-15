@@ -2,7 +2,7 @@
 
 let
   wg-deb = pkgs.fetchurl {
-    url = "http://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20210914-1.1_amd64.deb";
+    url = "https://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20210914-1.1_amd64.deb";
     hash = "sha256-s/hCUisQLR19kEbV6d8JXzzTAWUPM+NV0APgHizRGA4=";
   };
   wg-rpm = pkgs.fetchurl {
