@@ -20,7 +20,7 @@ pub mod interest {
     pub const RW: Interest = R.add(W);
 }
 
-/// Extension trait providing additional functionality for Unix listener
+/// Extension trait providing additional functionality for a Unix listener
 ///
 /// # Example
 ///
@@ -61,6 +61,7 @@ pub mod interest {
 /// ```
 pub trait UnixListenerExt: Sized {
     /// Creates a new Unix listener by claiming ownership of a raw file descriptor
+    /// (see [fd::claim_fd](crate::fd::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 }
 
@@ -74,15 +75,17 @@ impl UnixListenerExt for UnixListener {
     }
 }
 
-/// Extension trait providing additional functionality for Unix streams
+/// Extension trait providing additional functionality for a Unix stream
 pub trait UnixStreamExt: Sized {
     /// Creates a new Unix stream from an owned file descriptor
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor and creates a new Unix stream
+    /// (see [fd::claim_fd](crate::fd::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor in place and creates a new Unix stream
+    ///  (see [fd::claim_fd_inplace](crate::fd::claim_fd_inplace))
     fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self>;
 }
 
