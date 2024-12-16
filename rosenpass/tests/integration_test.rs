@@ -160,6 +160,9 @@ fn check_example_config() {
         .output()
         .expect("EXAMPLE_CONFIG not valid");
 
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(stderr, "");
+
     fs::copy(
         tmp_dir.path().join("rp-public-key"),
         tmp_dir.path().join("rp-peer-public-key"),
