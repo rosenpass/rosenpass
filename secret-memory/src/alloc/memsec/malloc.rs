@@ -33,13 +33,10 @@ pub type MallocVec<T> = allocator_api2::vec::Vec<T, MallocAllocator>;
 /// # Example
 /// ```rust
 /// # use rosenpass_secret_memory::alloc::memsec::malloc::{malloc_box_try, MallocBox};
-/// # fn do_test() -> Result<(), Box<dyn std::error::Error>> {
 /// let data: u8 = 42;
 /// let malloc_box: MallocBox<u8> = malloc_box_try(data)?;
 /// # assert_eq!(*malloc_box, 42u8);
-/// # Ok(())
-/// # }
-/// # let _ = do_test();
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 pub fn malloc_box_try<T>(x: T) -> Result<MallocBox<T>, AllocError> {
     MallocBox::<T>::try_new_in(x, MallocAllocator::new())

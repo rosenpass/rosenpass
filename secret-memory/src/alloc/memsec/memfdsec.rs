@@ -34,13 +34,10 @@ pub type MemfdSecVec<T> = allocator_api2::vec::Vec<T, MemfdSecAllocator>;
 /// # Example
 /// ```rust
 /// # use rosenpass_secret_memory::alloc::memsec::memfdsec::{memfdsec_box_try, MemfdSecBox};
-/// # fn do_test() -> Result<(), Box<dyn std::error::Error>> {
 /// let data: u8 = 42;
 /// let memfdsec_box: MemfdSecBox<u8> = memfdsec_box_try(data)?;
 /// # assert_eq!(*memfdsec_box, 42u8);
-/// # Ok(())
-/// # }
-/// # let _ = do_test();
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 pub fn memfdsec_box_try<T>(x: T) -> Result<MemfdSecBox<T>, AllocError> {
     MemfdSecBox::<T>::try_new_in(x, MemfdSecAllocator::new())

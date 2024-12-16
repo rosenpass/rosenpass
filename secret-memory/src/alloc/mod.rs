@@ -30,15 +30,13 @@ static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 /// # use std::alloc::Layout;
 /// # use allocator_api2::alloc::Allocator;
 /// # use rosenpass_secret_memory::alloc::{set_secret_alloc_type, SecretAlloc, SecretAllocType};
-/// # fn do_test () -> Result<(), Box<dyn std::error::Error>> {
 /// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
 /// let secret_alloc = SecretAlloc::default();
 /// unsafe {
-///     let memory = secret_alloc.allocate(Layout::from_size_align_unchecked(42, 64))?;
+///     let memory = secret_alloc.allocate(Layout::from_size_align_unchecked(128, 32))?;
 /// }
-/// # Ok(())
-/// # }
-/// # let _ = do_test();
+/// # Ok::<(), anyhow::Error>(())
+/// ```
 /// ```
 pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
     ALLOC_TYPE.set(alloc_type).unwrap();
@@ -128,15 +126,12 @@ pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 /// ```rust
 /// # use rosenpass_secret_memory::alloc::{secret_box_try, SecretBox};
 /// # use rosenpass_secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// # use rosenpass_secret_memory::alloc::set_secret_alloc_type;
+/// use rosenpass_secret_memory::alloc::set_secret_alloc_type;
 /// set_secret_alloc_type(MemsecMalloc);
-/// # fn do_test() -> Result<(), Box<dyn std::error::Error>> {
 /// let data: u8 = 42;
 /// let secret_box: SecretBox<u8> = secret_box_try(data)?;
 /// # assert_eq!(*secret_box, 42u8);
-/// # Ok(())
-/// # }
-/// # let _ = do_test();
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
     SecretBox::<T>::try_new_in(x, SecretAlloc::default())
