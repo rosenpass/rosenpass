@@ -13,7 +13,6 @@ pub use hash::KEY_LEN;
 /// # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
 ///
 /// const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
-/// # fn do_doc_test() -> Result<(), Box<dyn std::error::Error>> {
 /// // create use once hash domain for the protocol identifier
 /// let mut hash_domain = HashDomain::zero();
 /// hash_domain = hash_domain.mix(PROTOCOL_IDENTIFIER.as_bytes())?;
@@ -31,10 +30,7 @@ pub use hash::KEY_LEN;
 /// let new_key_identifier = "my_new_key_identifier".as_bytes();
 /// let new_key = secret_hash_domain.mix(new_key_identifier)?.into_secret();
 ///
-/// # Ok(())
-/// # }
-/// # do_doc_test().unwrap();
-///
+/// # Ok::<(), anyhow::Error>(())
 ///```
 ///
 
