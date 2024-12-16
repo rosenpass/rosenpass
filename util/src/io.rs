@@ -244,7 +244,6 @@
 use std::{borrow::Borrow, io};
 
 use anyhow::ensure;
-use zerocopy::AsBytes;
 
 /// Generic trait for accessing [std::io::Error::kind]
 ///

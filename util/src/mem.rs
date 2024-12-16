@@ -1,10 +1,33 @@
+//!
+//! This module provides functions for copying data, concatenating byte arrays,
+//! and various traits and types that help manage values, including preventing
+//! drops, discarding results, and swapping values.
+
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::min;
 use std::mem::{forget, swap};
 use std::ops::{Deref, DerefMut};
 
-/// Concatenate two byte arrays
 // TODO: Zeroize result?
+/// Concatenate multiple byte slices into a fixed-size byte array.
+///
+/// # Panics
+///
+/// Panics if the concatenated length does not match the declared length.
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::cat;
+/// let arr = cat!(6; b"abc", b"def");
+/// assert_eq!(&arr, b"abcdef");
+///
+/// let err = std::panic::catch_unwind(|| cat!(5; b"abc", b"def"));
+/// assert!(matches!(err, Err(_)));
+///
+/// let err = std::panic::catch_unwind(|| cat!(7; b"abc", b"def"));
+/// assert!(matches!(err, Err(_)));
+/// ```
 #[macro_export]
 macro_rules! cat {
     ($len:expr; $($toks:expr),+) => {{
@@ -22,12 +45,37 @@ macro_rules! cat {
 }
 
 // TODO: consistent inout ordering
-/// Copy all bytes from `src` to `dst`. The lengths must match.
+/// Copy bytes from `src` to `dst`, requiring equal lengths.
+///
+/// # Panics
+///
+/// Panics if lengths differ.
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::mem::cpy;
+/// let src = [1, 2, 3];
+/// let mut dst = [0; 3];
+/// cpy(&src, &mut dst);
+/// assert_eq!(dst, [1, 2, 3]);
+/// ```
 pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
     dst.borrow_mut().copy_from_slice(src.borrow());
 }
 
-/// Copy from `src` to `dst`. If `src` and `dst` are not of equal length, copy as many bytes as possible.
+/// Copy from `src` to `dst`. If `src` and `dst` are not of equal length,
+/// copy as many bytes as possible.
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::mem::cpy_min;
+/// let src = [1, 2, 3, 4];
+/// let mut dst = [0; 2];
+/// cpy_min(&src, &mut dst);
+/// assert_eq!(dst, [1, 2]);
+/// ```
 pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
     let src = src.borrow();
     let dst = dst.borrow_mut();
@@ -35,20 +83,30 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
     dst[..len].copy_from_slice(&src[..len]);
 }
 
-/// Wrapper type to inhibit calling [std::mem::Drop] when the underlying variable is freed
+/// Wrapper type to inhibit calling [std::mem::Drop] when the underlying
+/// variable is freed
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::mem::Forgetting;
+/// let f = Forgetting::new(String::from("hello"));
+/// assert_eq!(&*f, "hello");
+/// let val = f.extract();
+/// assert_eq!(val, "hello");
+/// ```
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Default)]
 pub struct Forgetting<T> {
     value: Option<T>,
 }
 
 impl<T> Forgetting<T> {
-    /// Creates a new `Forgetting<T>` instance containing the given value.
+    /// Create a new `Forgetting` wrapping `value`.
     pub fn new(value: T) -> Self {
-        let value = Some(value);
-        Self { value }
+        Self { value: Some(value) }
     }
 
-    /// Extracts and returns the contained value, consuming self.
+    /// Consume and return the inner value.
     pub fn extract(mut self) -> T {
         let mut value = None;
         swap(&mut value, &mut self.value);
@@ -97,6 +155,13 @@ impl<T> Drop for Forgetting<T> {
 }
 
 /// A trait that provides a method to discard a value without explicitly handling its results.
+///
+/// # Examples
+///
+/// ```rust
+/// # use rosenpass_util::mem::DiscardResultExt;
+/// let result: () = (|| { return 42 })().discard_result(); // Just discard
+/// ```
 pub trait DiscardResultExt {
     /// Consumes and discards a value without doing anything with it.
     fn discard_result(self);
@@ -107,8 +172,16 @@ impl<T> DiscardResultExt for T {
 }
 
 /// Trait that provides a method to explicitly forget values.
+///
+/// # Examples
+///
+/// ```rust
+/// # use rosenpass_util::mem::ForgetExt;
+/// let s = String::from("no drop");
+/// s.forget(); // destructor not run
+/// ```
 pub trait ForgetExt {
-    /// Consumes and forgets a value, preventing its destructor from running.
+    /// Forget the value.
     fn forget(self);
 }
 
@@ -119,10 +192,23 @@ impl<T> ForgetExt for T {
 }
 
 /// Extension trait that provides methods for swapping values.
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::mem::SwapWithExt;
+/// let mut x = 10;
+/// let mut y = x.swap_with(20);
+/// assert_eq!(x, 20);
+/// assert_eq!(y, 10);
+/// y.swap_with_mut(&mut x);
+/// assert_eq!(x, 10);
+/// assert_eq!(y, 20);
+/// ```
 pub trait SwapWithExt {
-    /// Takes ownership of `other` and swaps its value with `self`, returning the original value.
+    /// Swap values and return the old value of `self`.
     fn swap_with(&mut self, other: Self) -> Self;
-    /// Swaps the values between `self` and `other` in place.
+    /// Swap values in place with another mutable reference.
     fn swap_with_mut(&mut self, other: &mut Self);
 }
 
@@ -138,8 +224,18 @@ impl<T> SwapWithExt for T {
 }
 
 /// Extension trait that provides methods for swapping values with default values.
+///
+/// # Examples
+///
+/// ```rust
+/// # use rosenpass_util::mem::SwapWithDefaultExt;
+/// let mut s = String::from("abc");
+/// let old = s.swap_with_default();
+/// assert_eq!(old, "abc");
+/// assert_eq!(s, "");
+/// ```
 pub trait SwapWithDefaultExt {
-    /// Takes the current value and replaces it with the default value, returning the original.
+    /// Swap with `Self::default()`.
     fn swap_with_default(&mut self) -> Self;
 }
 
@@ -150,6 +246,26 @@ impl<T: Default> SwapWithDefaultExt for T {
 }
 
 /// Extension trait that provides a method to explicitly move values.
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::rc::Rc;
+/// use rosenpass_util::mem::MoveExt;
+/// let val = 42;
+/// let another_val = val.move_here();
+/// assert_eq!(another_val, 42);
+/// // val is now inaccessible
+///
+/// let value = Rc::new(42);
+/// let clone = Rc::clone(&value);
+///
+/// assert_eq!(Rc::strong_count(&value), 2);
+///
+/// clone.move_here(); // this will drop the second reference
+///
+/// assert_eq!(Rc::strong_count(&value), 1);
+/// ```
 pub trait MoveExt {
     /// Deliberately move the value
     ///
@@ -161,5 +277,31 @@ pub trait MoveExt {
 impl<T: Sized> MoveExt for T {
     fn move_here(self) -> Self {
         self
+    }
+}
+
+#[cfg(test)]
+mod test_forgetting {
+    use crate::mem::Forgetting;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::Ordering::SeqCst;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_forgetting() {
+        let drop_was_called = Arc::new(AtomicBool::new(false));
+        struct SetFlagOnDrop(Arc<AtomicBool>);
+        impl Drop for SetFlagOnDrop {
+            fn drop(&mut self) {
+                self.0.store(true, SeqCst);
+            }
+        }
+        drop(SetFlagOnDrop(drop_was_called.clone()));
+        assert!(drop_was_called.load(SeqCst));
+        // reset flag and use Forgetting
+        drop_was_called.store(false, SeqCst);
+        let forgetting = Forgetting::new(SetFlagOnDrop(drop_was_called.clone()));
+        drop(forgetting);
+        assert_eq!(drop_was_called.load(SeqCst), false);
     }
 }
