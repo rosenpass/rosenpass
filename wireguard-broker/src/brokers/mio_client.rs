@@ -1,3 +1,52 @@
+//! Asynchronous WireGuard PSK broker client using mio for non-blocking I/O.
+//!
+//! This module provides a client implementation that communicates with a WireGuard broker
+//! through Unix domain sockets using non-blocking I/O operations. It's designed to be used
+//! in event-driven applications using the mio event framework.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! # use mio::net::UnixStream;
+//! # use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
+//! # use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
+//! # use mio::{Events, Interest, Poll, Token};
+//! # use rosenpass_secret_memory::{Public, Secret};
+//! # use rosenpass_wireguard_broker::api::config::NetworkBrokerConfig;
+//! # use rosenpass_wireguard_broker::SerializedBrokerConfig;
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let socket = UnixStream::connect("/path/to/broker.sock")?;
+//! let mut client = MioBrokerClient::new(socket);
+//!
+//! // Set up mio polling
+//! let mut poll = Poll::new()?;
+//! let mut events = Events::with_capacity(128);
+//! client.register(&poll.registry(), Token(0))?;
+//!
+//! // Prepare PSK configuration
+//! let network_config = NetworkBrokerConfig {
+//!     iface: "wg0",
+//!     peer_id: &Public::zero(),  // Replace with actual peer ID
+//!     psk: &Secret::zero(),      // Replace with actual PSK
+//! };
+//!
+//! // Convert to serialized format and send
+//! let config: SerializedBrokerConfig = network_config.into();
+//! client.set_psk(config)?;
+//!
+//! // Process responses in event loop
+//! loop {
+//!     poll.poll(&mut events, None)?;
+//!     for event in &events {
+//!         if event.token() == Token(0) {
+//!             client.process_poll()?;
+//!         }
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
 use anyhow::{bail, Context};
 use mio::Interest;
 use rosenpass_secret_memory::Secret;
@@ -13,12 +62,44 @@ use crate::api::client::{
 };
 use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 
+/// WireGuard broker client using mio for non-blocking I/O operations.
+///
+/// This client communicates with a WireGuard broker through a Unix domain socket,
+/// using length-prefixed messages for communication. It supports both the basic
+/// `WireGuardBroker` operations and non-blocking I/O through the
+/// `WireguardBrokerMio` trait.
+///
+/// # Examples
+///
+/// ```no_run
+/// use mio::net::UnixStream;
+/// use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
+/// use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
+/// use rosenpass_secret_memory::{Public, Secret};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let socket = UnixStream::connect("/path/to/broker.sock")?;
+/// let mut client = MioBrokerClient::new(socket);
+///
+/// // Set a PSK
+/// let config = SerializedBrokerConfig {
+///     interface: "wg0".as_bytes(),
+///     peer_id: &Public::zero(),  // Replace with actual peer ID
+///     psk: &Secret::zero(),      // Replace with actual PSK
+///     additional_params: &[],
+/// };
+///
+/// client.set_psk(config)?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct MioBrokerClient {
     inner: BrokerClient<MioBrokerClientIo>,
     mio_token: Option<mio::Token>,
 }
 
+/// A buffer wrapper that provides secure memory for sensitive data.
 #[derive(Debug)]
 struct SecretBuffer<const N: usize>(pub Secret<N>);
 
@@ -43,6 +124,10 @@ impl<const N: usize> BorrowMut<[u8]> for SecretBuffer<N> {
 type ReadBuffer = LengthPrefixDecoder<SecretBuffer<4096>>;
 type WriteBuffer = LengthPrefixEncoder<SecretBuffer<4096>>;
 
+/// I/O implementation for the broker client using non-blocking operations.
+///
+/// This type handles the low-level details of sending and receiving length-prefixed
+/// messages over a Unix domain socket.
 #[derive(Debug)]
 struct MioBrokerClientIo {
     socket: mio::net::UnixStream,
@@ -51,6 +136,10 @@ struct MioBrokerClientIo {
 }
 
 impl MioBrokerClient {
+    /// Creates a new client from a Unix domain socket.
+    ///
+    /// The socket should be connected to a WireGuard broker server that speaks
+    /// the same protocol.
     pub fn new(socket: mio::net::UnixStream) -> Self {
         let read_buffer = LengthPrefixDecoder::new(SecretBuffer::new());
         let write_buffer = LengthPrefixEncoder::from_buffer(SecretBuffer::new());
@@ -66,6 +155,10 @@ impl MioBrokerClient {
         }
     }
 
+    /// Polls for and processes any pending responses from the broker.
+    ///
+    /// This method should be called when the socket becomes readable according
+    /// to mio events.
     fn poll(&mut self) -> anyhow::Result<()> {
         self.inner.io_mut().flush()?;
 
