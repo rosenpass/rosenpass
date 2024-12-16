@@ -167,6 +167,8 @@ const EVENT_CAPACITY: usize = 20;
 // TODO add user control via unix domain socket and stdin/stdout
 #[derive(Debug)]
 pub struct AppServer {
+    #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
+    pub term_signal: terminate::TerminateRequested,
     pub crypto_site: ConstructionSite<BuildCryptoServer, CryptoServer>,
     pub sockets: Vec<mio::net::UdpSocket>,
     pub events: mio::Events,
@@ -633,6 +635,8 @@ impl AppServer {
         };
 
         Ok(Self {
+            #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
+            term_signal: terminate::TerminateRequested::new()?,
             crypto_site,
             peers: Vec::new(),
             verbosity,
@@ -754,17 +758,34 @@ impl AppServer {
         Ok(AppPeerPtr(pn))
     }
 
-    pub fn listen_loop(&mut self) -> anyhow::Result<()> {
+    pub fn event_loop(&mut self) -> anyhow::Result<()> {
         const INIT_SLEEP: f64 = 0.01;
         const MAX_FAILURES: i32 = 10;
         let mut failure_cnt = 0;
 
         loop {
             let msgs_processed = 0usize;
-            let err = match self.event_loop() {
+            let err = match self.event_loop_without_error_handling() {
                 Ok(()) => return Ok(()),
                 Err(e) => e,
             };
+
+            #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
+            {
+                let terminated_by_signal = err
+                    .downcast_ref::<std::io::Error>()
+                    .filter(|e| e.kind() == std::io::ErrorKind::Interrupted)
+                    .filter(|_| self.term_signal.value())
+                    .is_some();
+                if terminated_by_signal {
+                    log::warn!(
+                        "\
+                        Terminated by signal; this signal handler is correct during coverage testing \
+                        but should be otherwise disabled"
+                    );
+                    return Ok(());
+                }
+            }
 
             // This should not happen…
             failure_cnt = if msgs_processed > 0 {
@@ -790,7 +811,7 @@ impl AppServer {
         }
     }
 
-    pub fn event_loop(&mut self) -> anyhow::Result<()> {
+    pub fn event_loop_without_error_handling(&mut self) -> anyhow::Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
 
         /// if socket address for peer is known, call closure
@@ -1286,5 +1307,50 @@ impl crate::api::mio::MioManagerContext for MioManagerFocus<'_> {
 
     fn app_server_mut(&mut self) -> &mut AppServer {
         self.0
+    }
+}
+
+/// These signal handlers are used exclusively used during coverage testing
+/// to ensure that the llvm-cov can produce reports during integration tests
+/// with multiple processes where subprocesses are terminated via kill(2).
+///
+/// llvm-cov does not support producing coverage reports when the process exits
+/// through a signal, so this is necessary.
+///
+/// The functionality of exiting gracefully upon reception of a terminating signal
+/// is desired for the production variant of Rosenpass, but we should make sure
+/// to use a higher quality implementation; in particular, we should use signalfd(2).
+///
+#[cfg(feature = "internal_signal_handling_for_coverage_reports")]
+mod terminate {
+    use signal_hook::flag::register as sig_register;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+
+    /// Automatically register a signal handler for common termination signals;
+    /// whether one of these signals was issued can be polled using [Self::value].
+    ///
+    /// The signal handler is not removed when this struct goes out of scope.
+    #[derive(Debug)]
+    pub struct TerminateRequested {
+        value: Arc<AtomicBool>,
+    }
+
+    impl TerminateRequested {
+        /// Register signal handlers watching for common termination signals
+        pub fn new() -> anyhow::Result<Self> {
+            let value = Arc::new(AtomicBool::new(false));
+            for sig in signal_hook::consts::TERM_SIGNALS.iter().copied() {
+                sig_register(sig, Arc::clone(&value))?;
+            }
+            Ok(Self { value })
+        }
+
+        /// Check whether a termination signal has been set
+        pub fn value(&self) -> bool {
+            self.value.load(Ordering::Relaxed)
+        }
     }
 }
