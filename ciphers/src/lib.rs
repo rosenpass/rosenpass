@@ -41,10 +41,11 @@ pub mod xaead {
 pub mod hash_domain;
 
 /// This crate includes two key encapsulation mechanisms.
-/// Namely ClassicMceliece460896 (as [StaticKem]) and Kyber512 (as [EphemeralKem]).
+/// Namely ClassicMceliece460896 (also referred to as `StaticKem` sometimes) and
+/// Kyber512 (also referred to as  `EphemeralKem` sometimes).
 ///
-/// See [rosenpass_oqs::ClassicMceliece460896](rosenpass_oqs::ClassicMceliece460896)
-/// and [rosenpass_oqs::Kyber512](rosenpass_oqs::Kyber512) for more details on the specific KEMS.
+/// See [rosenpass_oqs::ClassicMceliece460896]
+/// and [rosenpass_oqs::Kyber512] for more details on the specific KEMS.
 ///
 pub mod kem {
     pub use rosenpass_oqs::ClassicMceliece460896 as StaticKem;
