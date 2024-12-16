@@ -21,7 +21,7 @@ main() {
     open="1"
   fi
 
-  exc cargo llvm-cov --all-features --workspace --doctests
+  exc cargo llvm-cov --all-features --workspace --doctests --branch
 
   exc rm -rf "${OUTPUT_DIR}"
   exc mkdir -p "${OUTPUT_DIR}"
