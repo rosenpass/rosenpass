@@ -231,13 +231,13 @@ impl AppPeer {
     ///   current_endpoint: Some(Endpoint::discovery_from_hostname("0.0.0.0:1".to_string())?),
     /// };
     ///
-    /// fn same(fst: Option<&Endpoint>, snd: Option<&Endpoint>) -> bool {
-    ///     if fst.is_none() && snd.is_none() {
+    /// fn same(a: Option<&Endpoint>, b: Option<&Endpoint>) -> bool {
+    ///     if a.is_none() && b.is_none() {
     ///         return true;
     ///     }
     ///
-    ///     run(|| Some(std::ptr::eq(fst?, snd?)) )
-    ///         .unwrap_or(fst.is_some() == snd.is_some())
+    ///     run(|| Some(std::ptr::eq(a?, b?)) )
+    ///         .unwrap_or(a.is_some() == b.is_some())
     /// }
     ///
     /// assert!(same(peer.endpoint(), peer.current_endpoint.as_ref()));
@@ -552,7 +552,7 @@ pub struct SocketBoundEndpoint {
     /// Byte representation of this socket bound network address.
     /// Generated through [SocketBoundEndpoint::to_bytes].
     ///
-    /// Read though [HostIdentification::encode]
+    /// Read through [HostIdentification::encode]
     bytes: (usize, [u8; SocketBoundEndpoint::BUFFER_SIZE]),
 }
 
@@ -665,7 +665,7 @@ impl Endpoint {
         Some(Self::discovery_from_addresses(addrs))
     }
 
-    /// Send a message to the address referenced to by this endpoint or to one of
+    /// Send a message to the address referenced by this endpoint or to one of
     /// the endpoints if we are in the peer discovery phase for this endpoint
     pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         use Endpoint::*;
@@ -756,7 +756,7 @@ impl HostPathDiscoveryEndpoint {
     }
 
     /// Calculates and stores the next value for [Self::scouting_state]
-    /// given the address and socket we just send a scouting [crate::msgs::InitHello] message
+    /// given the address and socket we just sent a scouting [crate::msgs::InitHello] message
     /// to
     fn insert_next_scout_offset(&self, srv: &AppServer, addr_no: usize, sock_no: usize) {
         self.scouting_state.set((
@@ -946,7 +946,7 @@ impl AppServer {
     /// This may return an error if [Self] was initialized without a keypair
     /// and no keypair has been supplied since then.
     ///
-    /// I.e. will return an error if [Self::crypto_site] is not fully erect
+    /// I.e. will return an error if [Self::crypto_site] is not fully initialized
     pub fn crypto_server(&self) -> anyhow::Result<&CryptoServer> {
         self.crypto_site
             .product_ref()
@@ -958,7 +958,7 @@ impl AppServer {
     /// This may return an error if [Self] was initialized without a keypair
     /// and no keypair has been supplied since then.
     ///
-    /// I.e. will return an error if [Self::crypto_site] is not fully erect
+    /// I.e. will return an error if [Self::crypto_site] is not fully initialized
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
         self.crypto_site
             .product_mut()
