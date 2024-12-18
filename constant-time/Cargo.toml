@@ -20,3 +20,6 @@ memsec = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

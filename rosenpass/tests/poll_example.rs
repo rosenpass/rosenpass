@@ -2,11 +2,9 @@
 use std::{
     borrow::{Borrow, BorrowMut},
     collections::VecDeque,
-    fmt::{Debug, Write},
-    ops::{DerefMut, RangeBounds},
+    ops::DerefMut,
 };
 
-use rand::distributions::uniform::SampleBorrow;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_util::result::OkExt;
@@ -28,48 +26,53 @@ fn test_successful_exchange_with_poll() -> anyhow::Result<()> {
     sim.poll_loop(150)?; // Poll 75 times
     let transcript = sim.transcript;
 
-    let completions: Vec<_> = transcript
+    let _completions: Vec<_> = transcript
         .iter()
         .filter(|elm| matches!(elm, (_, TranscriptEvent::CompletedExchange(_))))
         .collect();
 
+    #[cfg(not(coverage))]
     assert!(
-        !completions.is_empty(),
+        !_completions.is_empty(),
         "\
         Should have performed a successful key exchanged!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
+    #[cfg(not(coverage))]
     assert!(
-        completions[0].0 < 20.0,
+        _completions[0].0 < 20.0,
         "\
         First key exchange should happen in under twenty seconds!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
 
+    #[cfg(not(coverage))]
     assert!(
-        completions.len() >= 3,
+        _completions.len() >= 3,
         "\
         Should have at least two renegotiations!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
+    #[cfg(not(coverage))]
     assert!(
-        (110.0..175.0).contains(&completions[1].0),
+        (110.0..175.0).contains(&_completions[1].0),
         "\
         First renegotiation should happen in between two and three minutes!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
-    assert!((110.0..175.0).contains(&(completions[2].0 - completions[1].0)), "\
+    #[cfg(not(coverage))]
+    assert!((110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)), "\
         First renegotiation should happen in between two and three minutes after the first renegotiation!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         ");
 
     Ok(())
@@ -106,48 +109,53 @@ fn test_successful_exchange_under_packet_loss() -> anyhow::Result<()> {
     }
 
     let transcript = sim.transcript;
-    let completions: Vec<_> = transcript
+    let _completions: Vec<_> = transcript
         .iter()
         .filter(|elm| matches!(elm, (_, TranscriptEvent::CompletedExchange(_))))
         .collect();
 
+    #[cfg(not(coverage))]
     assert!(
-        !completions.is_empty(),
+        !_completions.is_empty(),
         "\
         Should have performed a successful key exchanged!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
+    #[cfg(not(coverage))]
     assert!(
-        completions[0].0 < 10.0,
+        _completions[0].0 < 10.0,
         "\
           First key exchange should happen in under twenty seconds!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
 
+    #[cfg(not(coverage))]
     assert!(
-        completions.len() >= 3,
+        _completions.len() >= 3,
         "\
         Should have at least two renegotiations!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
+    #[cfg(not(coverage))]
     assert!(
-        (110.0..175.0).contains(&completions[1].0),
+        (110.0..175.0).contains(&_completions[1].0),
         "\
         First renegotiation should happen in between two and three minutes!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         "
     );
-    assert!((110.0..175.0).contains(&(completions[2].0 - completions[1].0)), "\
+    #[cfg(not(coverage))]
+    assert!((110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)), "\
         First renegotiation should happen in between two and three minutes after the first renegotiation!\n\
           Transcript: {transcript:?}\n\
-          Completions: {completions:?}\
+          Completions: {_completions:?}\
         ");
 
     Ok(())
