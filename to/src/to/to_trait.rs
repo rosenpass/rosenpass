@@ -1,4 +1,5 @@
-//! TODO: Mod docu
+//! Module that contains the [To] crate which is the container used to
+//! implement the core functionality of this crate.
 
 use crate::{Beside, CondenseBeside};
 use std::borrow::BorrowMut;
