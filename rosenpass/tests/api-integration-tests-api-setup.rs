@@ -39,7 +39,7 @@ impl Drop for KillChild {
         // system is a bit broken; there is probably a few functions that just restart on EINTR
         // so the signal is absorbed
         loop {
-            rustix::process::kill_process(pid, Term).discard_result();
+            kill_process(pid, Term).discard_result();
             if self.0.try_wait().unwrap().is_some() {
                 break;
             }

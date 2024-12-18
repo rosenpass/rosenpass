@@ -17,13 +17,14 @@ use rosenpass_to::{to, with_destination, To};
 use std::ops::BitXorAssign;
 
 // Destination functions return some value that implements the To trait.
-// Unfortunately dealing with lifetimes is a bit more finicky than it would#
+// Unfortunately dealing with lifetimes is a bit more finicky than it would
 // be without destination parameters
 fn xor_slice<'a, T>(src: &'a [T]) -> impl To<[T], ()> + 'a
 where
     T: BitXorAssign + Clone,
 {
     // Custom implementations of the to trait can be created, but the easiest
+    // way to create them is to use the provided helper functions like with_destination.
     with_destination(move |dst: &mut [T]| {
         assert!(src.len() == dst.len());
         for (d, s) in dst.iter_mut().zip(src.iter()) {

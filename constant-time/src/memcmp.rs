@@ -113,9 +113,10 @@ mod tests {
         // Pearson correlation
         let correlation = cv / (sd_x * sd_y);
         println!("correlation: {:.6?}", correlation);
+        #[cfg(not(coverage))]
         assert!(
             correlation.abs() < 0.01,
             "execution time correlates with result"
-        )
+        );
     }
 }
