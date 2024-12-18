@@ -1,5 +1,5 @@
 use std::{fs, process::exit};
-
+use std::iter::Peekable;
 use cli::{Cli, Command};
 use exchange::exchange;
 use key::{genkey, pubkey};
@@ -11,12 +11,16 @@ mod key;
 
 #[tokio::main]
 async fn main() {
+    run(std::env::args().peekable()).await
+}
+
+async fn run(args: Peekable<impl Iterator<Item = String>>) {
     #[cfg(feature = "experiment_memfd_secret")]
     policy::secret_policy_try_use_memfd_secrets();
     #[cfg(not(feature = "experiment_memfd_secret"))]
     policy::secret_policy_use_only_malloc_secrets();
-
-    let cli = match Cli::parse(std::env::args().peekable()) {
+    
+    let cli = match Cli::parse(args) {
         Ok(cli) => cli,
         Err(err) => {
             eprintln!("{}", err);
@@ -55,5 +59,17 @@ async fn main() {
             eprintln!("An error occurred: {}", err);
             exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rosenpass_secret_memory::policy;
+    use crate::{run};
+
+    #[tokio::test]
+    async fn smoke_test() {
+        let genkey_args: Vec<String> = vec!["rp".to_string(), "genkey".to_string(), "/tmp/keys-dir".to_string()];
+        run(genkey_args.into_iter().peekable()).await;
     }
 }
