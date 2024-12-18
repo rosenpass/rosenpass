@@ -23,7 +23,7 @@ main() {
 
   exc cargo llvm-cov --all-features --workspace --doctests --branch
 
-  exc cp -rv target/llvm-cov-target/doctestbins target/llvm-cov-target/debug/deps/doctestbins
+  exc mv -v target/llvm-cov-target/doctestbins target/llvm-cov-target/debug/deps/
   exc rm -rf "${OUTPUT_DIR}"
   exc mkdir -p "${OUTPUT_DIR}"
   exc grcov target/llvm-cov-target/ --llvm  -s . --branch \
