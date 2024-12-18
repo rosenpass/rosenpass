@@ -2,14 +2,29 @@
 
 use core::ptr;
 
-/// Little endian memcmp version of quinier/memsec
-/// https://github.com/quininer/memsec/blob/bbc647967ff6d20d6dccf1c85f5d9037fcadd3b0/src/lib.rs#L30
+/// Little endian memcmp version of [quinier/memsec](https://github.com/quininer/memsec/blob/bbc647967ff6d20d6dccf1c85f5d9037fcadd3b0/src/lib.rs#L30)
 ///
 /// # Panic & Safety
 ///
 /// Both input arrays must be at least of the indicated length.
 ///
 /// See [std::ptr::read_volatile] on safety.
+///
+/// # Examples
+/// ```
+/// let a = [1, 2, 3, 4];
+/// let b = [1, 2, 3, 4];
+/// let c = [1, 2, 2, 5];
+/// let d = [1, 2, 2, 4];
+///
+/// unsafe {
+///     use rosenpass_constant_time::memcmp_le;
+///     assert_eq!(memcmp_le(a.as_ptr(), b.as_ptr(), 4), 0);
+///     assert!(memcmp_le(a.as_ptr(), c.as_ptr(), 4) < 0);
+///     assert!(memcmp_le(a.as_ptr(), d.as_ptr(), 4) > 0);
+///     assert_eq!(memcmp_le(a.as_ptr(), b.as_ptr(), 2), 0);
+/// }
+/// ```
 #[inline(never)]
 pub unsafe fn memcmp_le(b1: *const u8, b2: *const u8, len: usize) -> i32 {
     let mut res = 0;
@@ -76,4 +91,24 @@ pub fn memcmp_le_test() {
 pub fn compare(a: &[u8], b: &[u8]) -> i32 {
     assert!(a.len() == b.len());
     unsafe { memcmp_le(a.as_ptr(), b.as_ptr(), a.len()) }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compare::memcmp_le;
+
+    #[test]
+    fn memcmp_le_test() {
+        let a = [1, 2, 3, 4];
+        let b = [1, 2, 3, 4];
+        let c = [1, 2, 2, 5];
+        let d = [1, 2, 2, 4];
+
+        unsafe {
+            assert_eq!(memcmp_le(a.as_ptr(), b.as_ptr(), 4), 0);
+            assert!(memcmp_le(a.as_ptr(), c.as_ptr(), 4) < 0);
+            assert!(memcmp_le(a.as_ptr(), d.as_ptr(), 4) > 0);
+            assert_eq!(memcmp_le(a.as_ptr(), b.as_ptr(), 2), 0);
+        }
+    }
 }

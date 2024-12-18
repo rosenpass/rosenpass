@@ -6,8 +6,16 @@ use core::hint::black_box;
 /// and increment that integer.
 ///
 /// # Leaks
-/// TODO: mention here if this function leaks any information, see
-/// <https://github.com/rosenpass/rosenpass/issues/232>
+/// This function may leak timing information in the following ways:
+///
+/// - The function execution time is linearly proportional to the input length
+/// - The number of carry operations that occur may affect timing slightly
+/// - Memory access patterns are sequential and predictable
+///
+/// The carry operation timing variation is mitigated through the use of black_box,
+/// but the linear scaling with input size is inherent to the operation.
+/// These timing characteristics are generally considered acceptable for most
+/// cryptographic counter implementations.
 ///
 /// ## Tests
 /// For discussion on how to ensure the constant-time execution of this function, see
