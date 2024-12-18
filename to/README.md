@@ -24,7 +24,7 @@ where
     T: BitXorAssign + Clone,
 {
     // Custom implementations of the to trait can be created, but the easiest
-    // way to create them is to use the provided helper functions like with_destination. 
+    // way to create them is to use the provided helper functions like with_destination.
     with_destination(move |dst: &mut [T]| {
         assert!(src.len() == dst.len());
         for (d, s) in dst.iter_mut().zip(src.iter()) {
