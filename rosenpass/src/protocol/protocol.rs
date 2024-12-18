@@ -2899,7 +2899,7 @@ impl CryptoServer {
     /// This is a lot of code. If you want to read the file outside of the documentation,
     /// check out `rosenpass/tests/poll_example.rs" in the repository.
     ///
-    #[doc = "```"]
+    #[doc = "```ignore"]
     #[doc = include_str!("../../tests/poll_example.rs")]
     #[doc = "```"]
     pub fn poll(&mut self) -> Result<PollResult> {
