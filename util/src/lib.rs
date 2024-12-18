@@ -22,7 +22,7 @@ pub mod io;
 pub mod length_prefix_encoding;
 /// Memory manipulation and allocation utilities.
 pub mod mem;
-/// MIO integration utilities.
+/// [MIO (Metal I/O)](https://docs.rs/crate/mio/) integration utilities.
 pub mod mio;
 /// Extended Option type functionality.
 pub mod option;
