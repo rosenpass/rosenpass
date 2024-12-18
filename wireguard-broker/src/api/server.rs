@@ -78,10 +78,10 @@ where
         let typ = msgs::MsgType::try_from(*typ)?;
         let msgs::MsgType::SetPsk = typ; // Assert type
 
-        let req = zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::new(req)
-            .ok_or(InvalidMessage)?;
-        let mut res = zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::new(res)
-            .ok_or(InvalidMessage)?;
+        let req =
+            zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::new(req).ok_or(InvalidMessage)?;
+        let mut res =
+            zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::new(res).ok_or(InvalidMessage)?;
         res.msg_type = msgs::MsgType::SetPsk as u8;
         self.handle_set_psk(&req.payload, &mut res.payload)?;
 

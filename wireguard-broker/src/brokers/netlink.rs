@@ -11,8 +11,9 @@
 //! use rosenpass_secret_memory::{Public, Secret};
 //! use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! use rosenpass_wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
+//! # use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+//! # secret_policy_use_only_malloc_secrets();
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut broker = NetlinkWireGuardBroker::new()?;
 //!
 //! let config = SerializedBrokerConfig {
@@ -23,8 +24,7 @@
 //! };
 //!
 //! broker.set_psk(config)?;
-//! # Ok(())
-//! # }
+//! # Ok::<(), anyhow::Error>(())
 //! ```
 
 use std::fmt::Debug;
@@ -62,18 +62,41 @@ pub enum SetPskError {
     NetlinkError(#[from] NetlinkError),
 }
 
+/// # Example
+/// ```
+/// # use wireguard_uapi::err::NlError;
+/// # use wireguard_uapi::linux::err::SetDeviceError;
+/// use rosenpass_wireguard_broker::brokers::netlink::SetPskError;
+/// let set_device_error: SetDeviceError = SetDeviceError::NlError(NlError::Msg("test-error".to_string()));
+/// let set_psk_error: SetPskError = set_device_error.into();
+/// ```
 impl From<wg::err::SetDeviceError> for SetPskError {
     fn from(err: wg::err::SetDeviceError) -> Self {
         NetlinkError::from(err).into()
     }
 }
 
+/// # Example
+/// ```
+/// # use wireguard_uapi::err::NlError;
+/// # use wireguard_uapi::linux::err::GetDeviceError;
+/// # use rosenpass_wireguard_broker::brokers::netlink::SetPskError;
+/// let get_device_error: GetDeviceError = GetDeviceError::NlError(NlError::Msg("test-error".to_string()));
+/// let set_psk_error: SetPskError = get_device_error.into();
+/// ```
 impl From<wg::err::GetDeviceError> for SetPskError {
     fn from(err: wg::err::GetDeviceError) -> Self {
         NetlinkError::from(err).into()
     }
 }
 
+/// # Example
+/// ```
+/// use rosenpass_wireguard_broker::api::msgs::SetPskError as SetPskMsgsError;
+/// use rosenpass_wireguard_broker::brokers::netlink::SetPskError as SetPskNetlinkError;
+/// let set_psk_nlink_error: SetPskNetlinkError = SetPskNetlinkError::NoSuchInterface;
+/// let set_psk_msgs_error = SetPskMsgsError::from(set_psk_nlink_error);
+/// ```
 use msgs::SetPskError as SetPskMsgsError;
 use SetPskError as SetPskNetlinkError;
 impl From<SetPskNetlinkError> for SetPskMsgsError {
@@ -92,7 +115,7 @@ impl From<SetPskNetlinkError> for SetPskMsgsError {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// use rosenpass_wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
 /// use rosenpass_wireguard_broker::WireGuardBroker;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -161,6 +184,30 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
 
         self.sock.set_device(set_dev)?;
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Public, Secret};
+    #[test]
+    fn smoke_test() -> Result<(), Box<dyn std::error::Error>> {
+        secret_policy_use_only_malloc_secrets();
+        let result = NetlinkWireGuardBroker::new();
+        assert!(result.is_ok());
+        let mut broker = result.unwrap();
+        let peer_id = Public::zero();
+        let psk = Secret::zero();
+        let config: SerializedBrokerConfig = NetworkBrokerConfig {
+            iface: "wg0",
+            peer_id: &peer_id,
+            psk: &psk,
+        }
+        .into();
+        let result = broker.set_psk(config);
+        assert!(result.is_err());
         Ok(())
     }
 }
