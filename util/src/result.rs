@@ -1,6 +1,24 @@
 use std::convert::Infallible;
 
 /// Try block basically…returns a result and allows the use of the question mark operator inside
+///
+/// # Examples
+/// ```rust
+/// # use anyhow::Result;
+/// # use rosenpass_util::attempt;
+/// let result: Result<i32> = attempt!({
+///     let x = 42;
+///     Ok(x)
+/// });
+///
+/// assert_eq!(result.unwrap(), 42);
+///
+/// let error_result: Result<()> = attempt!({
+///     Err(anyhow::anyhow!("some error"))
+/// });
+///
+/// assert!(error_result.is_err());
+/// ```
 #[macro_export]
 macro_rules! attempt {
     ($block:expr) => {
@@ -9,6 +27,19 @@ macro_rules! attempt {
 }
 
 /// Trait for the ok operation, which provides a way to convert a value into a Result
+/// # Examples
+/// ```rust
+/// # use rosenpass_util::result::OkExt;
+/// let value: i32 = 42;
+/// let result: Result<i32, &str> = value.ok();
+///
+/// assert_eq!(result, Ok(42));
+///
+/// let value = "hello";
+/// let result: Result<&str, &str> = value.ok();
+///
+/// assert_eq!(result, Ok("hello"));
+/// ```
 pub trait OkExt<E>: Sized {
     /// Wraps a value in a Result::Ok variant
     fn ok(self) -> Result<Self, E>;
@@ -26,6 +57,11 @@ impl<T, E> OkExt<E> for T {
 /// the function will not panic.
 ///
 /// Implementations must not panic.
+/// # Examples
+/// ```
+/// # use rosenpass_util::result::GuaranteedValue;
+/// let x:u32 = 10u8.try_into().guaranteed();
+/// ```
 pub trait GuaranteedValue {
     /// The value type that will be returned by guaranteed()
     type Value;

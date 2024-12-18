@@ -78,8 +78,8 @@ pub trait Build<T>: Sized {
 
 /// A type that can be incrementally built from a type that can [Build] it
 ///
-/// This is similar to an option, where [Self::Void] is [std::Option::None],
-/// [Self::Product] is [std::Option::Some], except that there is a third
+/// This is similar to an option, where [Self::Void] is [std::option::Option::None],
+/// [Self::Product] is [std::option::Option::Some], except that there is a third
 /// intermediate state [Self::Builder] that represents a Some/Product value
 /// in the process of being made.
 ///
@@ -508,9 +508,9 @@ where
         matches!(self, Self::Void)
     }
 
-    /// Returns `true` if the construction site is [`InProgress`].
+    /// Returns `true` if the construction site is in the [`Builder`] phase.
     ///
-    /// [`InProgress`]: ConstructionSite::InProgress
+    /// [`Builder`]: ConstructionSite::Builder
     ///
     /// # Examples
     ///
@@ -541,9 +541,10 @@ where
         matches!(self, Self::Builder(..))
     }
 
-    /// Returns `true` if the construction site is [`Done`].
+    /// Returns `true` if the construction site is in the [`Product`] phase and
+    /// is therefore done.
     ///
-    /// [`Done`]: ConstructionSite::Done
+    /// [`Product`]: ConstructionSite::Product
     ///
     /// # Examples
     ///

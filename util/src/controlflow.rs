@@ -1,4 +1,4 @@
-/// A collection of control flow utility macros
+//! A collection of control flow utility macros
 
 #[macro_export]
 /// A simple for loop to repeat a $body a number of times
@@ -33,7 +33,7 @@ macro_rules! repeat {
 ///     0
 /// }
 /// assert_eq!(test_fn(), 0);
-
+///
 /// fn test_fn2() -> i32 {
 ///     return_unless!(false, 1);
 ///     0
@@ -65,7 +65,7 @@ macro_rules! return_unless {
 ///     0
 /// }
 /// assert_eq!(test_fn(), 1);
-
+///
 /// fn test_fn2() -> i32 {
 ///     return_if!(false, 1);
 ///     0
@@ -98,7 +98,7 @@ macro_rules! return_if {
 ///     sum += 1;
 /// }
 /// assert_eq!(sum, 5);
-
+///
 /// let mut sum = 0;
 /// 'one: for _ in 0..10 {
 ///     for j in 0..20 {
@@ -134,7 +134,7 @@ macro_rules! break_if {
 ///     sum += 1;
 /// }
 /// assert_eq!(sum, 9);
-
+///
 /// let mut sum = 0;
 /// 'one: for i in 0..10 {
 ///     continue_if!(i == 5, 'one);

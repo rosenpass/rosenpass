@@ -3,7 +3,23 @@ use typenum::int::{NInt, PInt, Z0};
 use typenum::marker_traits as markers;
 use typenum::uint::{UInt, UTerm};
 
-/// Convenience macro to convert type numbers to constant integers
+/// Convenience macro to convert [`typenum`] type numbers to constant integers.
+///
+/// This macro takes a [`typenum`] type-level integer (like `U5`, `P3`, or `N7`)
+/// and converts it into its equivalent constant integer value at compile time.
+/// By default, it converts to a suitable unsigned integer type, but you can
+/// specify a target type explicitly using `typenum2const!(Type as i32)`,
+/// for example.
+///
+/// # Examples
+///
+/// ```rust
+/// # use typenum::consts::U10;
+/// # use rosenpass_util::typenum2const;
+///
+/// const TEN: u32 = typenum2const!(U10 as u32);
+/// assert_eq!(TEN, 10);
+/// ```
 #[macro_export]
 macro_rules! typenum2const {
     ($val:ty) => {
@@ -14,35 +30,80 @@ macro_rules! typenum2const {
     };
 }
 
-/// Trait implemented by constant integers to facilitate conversion to constant integers
+/// A trait implemented by type-level integers to facilitate their conversion
+/// into constant values.
+///
+/// Types from the [`typenum`] crate (like `U5`, `P3`, or `N7`) can implement
+/// `IntoConst` to produce a compile-time constant integer of the specified
+/// type. This trait is part of the underlying mechanism used by the
+/// [`crate::typenum2const`] macro.
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::typenum2const;
+/// use typenum::consts::U42;
+/// use rosenpass_util::typenum::IntoConst;
+///
+/// // Directly using IntoConst:
+/// const VALUE: u64 = <U42 as IntoConst<u64>>::VALUE;
+/// assert_eq!(VALUE, 42);
+///
+/// // Or via the macro:
+/// const VALUE_MACRO: u64 = typenum2const!(U42 as u64);
+/// assert_eq!(VALUE_MACRO, 42);
+/// ```
 pub trait IntoConst<T> {
-    /// The constant value after conversion
+    /// The constant value after conversion.
     const VALUE: T;
 }
 
 #[allow(dead_code)]
+/// Internal struct for applying a negative sign to an unsigned type-level integer during conversion.
+///
+/// This is part of the implementation detail for signed conversions. It uses
+/// [`AssociatedUnsigned`] to determine the underlying unsigned type and negates its value.
 struct ConstApplyNegSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
     *const T,
     *const Param,
 );
 
 #[allow(dead_code)]
+/// Internal struct for applying a positive sign to an unsigned type-level integer during conversion.
+///
+/// This is used as part of converting a positive signed type-level integer to its runtime integer
+/// value, ensuring that the correct unsigned representation is known via [`AssociatedUnsigned`].
 struct ConstApplyPosSign<T: AssociatedUnsigned, Param: IntoConst<<T as AssociatedUnsigned>::Type>>(
     *const T,
     *const Param,
 );
 
 #[allow(dead_code)]
-struct ConstLshift<T, Param: IntoConst<T>, const SHIFT: i32>(*const T, *const Param); // impl IntoConst<T>
+/// Internal struct representing a left-shift operation on a type-level integer.
+///
+/// Used as part of compile-time computations. `SHIFT` determines how many bits the value will be
+/// shifted to the left.
+struct ConstLshift<T, Param: IntoConst<T>, const SHIFT: i32>(*const T, *const Param);
 
 #[allow(dead_code)]
-struct ConstAdd<T, Lhs: IntoConst<T>, Rhs: IntoConst<T>>(*const T, *const Lhs, *const Rhs); // impl IntoConst<T>
+/// Internal struct representing an addition operation between two type-level integers.
+///
+/// `ConstAdd` is another building block for compile-time arithmetic on type-level integers before
+/// their conversion to runtime constants.
+struct ConstAdd<T, Lhs: IntoConst<T>, Rhs: IntoConst<T>>(*const T, *const Lhs, *const Rhs);
 
-/// Assigns an unsigned type to a signed type
+/// Associates an unsigned type with a signed type, enabling conversions between signed and unsigned
+/// representations of compile-time integers.
+///
+/// This trait is used internally to facilitate the conversion of signed [`typenum`] integers by
+/// referencing their underlying unsigned representation.
 trait AssociatedUnsigned {
+    /// The associated unsigned type.
     type Type;
 }
 
+/// Internal macro implementing the [`IntoConst`] trait for a given mapping from a type-level integer
+/// to a concrete integer type.
 macro_rules! impl_into_const {
     ( $from:ty as $to:ty := $impl:expr) => {
         impl IntoConst<$to> for $from {
@@ -51,6 +112,10 @@ macro_rules! impl_into_const {
     };
 }
 
+/// Internal macro implementing common `IntoConst` logic for various numeric types.
+///
+/// It sets up `Z0`, `B0`, `B1`, `UTerm`, and also provides default implementations for
+/// `ConstLshift` and `ConstAdd`.
 macro_rules! impl_numeric_into_const_common {
     ($type:ty) => {
         impl_into_const! { Z0 as $type := 0 }
@@ -73,6 +138,10 @@ macro_rules! impl_numeric_into_const_common {
     };
 }
 
+/// Internal macro implementing `IntoConst` for unsigned integer types.
+///
+/// It sets up conversions for multiple unsigned integer target types and
+/// provides the positive sign application implementation.
 macro_rules! impl_numeric_into_const_unsigned {
     ($($to_list:ty),*) =>  {
         $( impl_numeric_into_const_unsigned! { @impl $to_list } )*
@@ -91,6 +160,9 @@ macro_rules! impl_numeric_into_const_unsigned {
     };
 }
 
+/// Internal macro implementing `IntoConst` for signed integer types.
+///
+/// It uses their associated unsigned types to handle positive and negative conversions correctly.
 macro_rules! impl_numeric_into_const_signed {
     ($($to_list:ty : $unsigned_list:ty),*) =>  {
         $( impl_numeric_into_const_signed! { @impl $to_list : $unsigned_list} )*
@@ -110,9 +182,8 @@ macro_rules! impl_numeric_into_const_signed {
         impl<Param: IntoConst<$unsigned>> IntoConst<$type> for ConstApplyNegSign<$type, Param> {
             const VALUE : $type =
                 if Param::VALUE == (1 as $unsigned).rotate_right(1) {
-                    // Handle the negative value without an associated positive value (e.g. -128
-                    // for i8)
-                    < $type >::MIN
+                    // Handling negative values at boundaries, such as i8::MIN
+                    <$type>::MIN
                 } else {
                     -(Param::VALUE as $type)
                 };
@@ -122,10 +193,10 @@ macro_rules! impl_numeric_into_const_signed {
 
 impl_into_const! { B0 as bool := false }
 impl_into_const! { B1 as bool := true }
+
 impl_numeric_into_const_unsigned! { usize, u8, u16, u32, u64, u128 }
 impl_numeric_into_const_signed! { isize : usize, i8 : u8, i16 : u16, i32 : u32, i64 : u64, i128 : u128 }
 
-// Unsigned type numbers to const integers
 impl<Ret, Rest, Bit> IntoConst<Ret> for UInt<Rest, Bit>
 where
     Rest: IntoConst<Ret>,
@@ -133,26 +204,28 @@ where
     ConstLshift<Ret, Rest, 1>: IntoConst<Ret>,
     ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit>: IntoConst<Ret>,
 {
+    /// Converts an unsigned [`UInt`] typenum into its corresponding constant integer by
+    /// decomposing it into shifts and additions on its subparts.
     const VALUE: Ret = <ConstAdd<Ret, ConstLshift<Ret, Rest, 1>, Bit> as IntoConst<Ret>>::VALUE;
 }
 
-// Signed type numbers with positive sign to const integers
 impl<Ret, Unsigned> IntoConst<Ret> for PInt<Unsigned>
 where
     Ret: AssociatedUnsigned,
     Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
     ConstApplyPosSign<Ret, Unsigned>: IntoConst<Ret>,
 {
+    /// Converts a positive signed [`PInt`] typenum into its corresponding constant integer.
     const VALUE: Ret = <ConstApplyPosSign<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
 }
 
-// Signed type numbers with negative sign to const integers
 impl<Ret, Unsigned> IntoConst<Ret> for NInt<Unsigned>
 where
     Ret: AssociatedUnsigned,
     Unsigned: markers::Unsigned + markers::NonZero + IntoConst<<Ret as AssociatedUnsigned>::Type>,
     ConstApplyNegSign<Ret, Unsigned>: IntoConst<Ret>,
 {
+    /// Converts a negative signed [`NInt`] typenum into its corresponding constant integer.
     const VALUE: Ret = <ConstApplyNegSign<Ret, Unsigned> as IntoConst<Ret>>::VALUE;
 }
 
