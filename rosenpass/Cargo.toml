@@ -91,3 +91,6 @@ experiment_api = [
 internal_signal_handling_for_coverage_reports = ["signal-hook"]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
