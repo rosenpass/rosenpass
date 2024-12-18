@@ -102,7 +102,7 @@ macro_rules! hash_domain {
 ///
 /// See the [module](self) documentation on how to use the hash domains in general
 pub fn protocol() -> Result<HashDomain> {
-    HashDomain::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
+    HashDomain::zero().mix("Rosenpass v1 mceliece460896 MlKem512 ChaChaPoly1305 BLAKE2s".as_bytes())
 }
 
 hash_domain_ns!(
