@@ -184,7 +184,7 @@ impl SecretMemoryPool {
 /// my_secret.randomize();
 /// // In case I accidentally print my secret in a debug, it's still not leaked:
 /// assert_eq!(format!("{:?}", my_secret), "<SECRET>");
-/// // The data will be zeroized either way in the end, but for good measure, let's zeroize anymay.
+/// // If you need to, you can zeroize a [Secret] at any time it's necessary:
 /// my_secret.zeroize();
 /// ```
 pub struct Secret<const N: usize> {
