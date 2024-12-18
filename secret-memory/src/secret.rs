@@ -86,7 +86,7 @@ impl<T: Zeroize + ?Sized> Zeroize for ZeroizingSecretBox<T> {
 }
 
 impl<T: Zeroize + ?Sized> Drop for ZeroizingSecretBox<T> {
-    /// Relaases the memory of this [ZeroizingSecretBox]. In contrast to usual implementations
+    /// Releases the memory of this [ZeroizingSecretBox]. In contrast to usual implementations
     /// of [Drop], we zeroize the memory before dropping it. This fulfills the promises we make
     /// by implementing [ZeroizeOnDrop].
     fn drop(&mut self) {
@@ -184,7 +184,7 @@ impl SecretMemoryPool {
 /// my_secret.randomize();
 /// // In case I accidentally print my secret in a debug, it's still not leaked:
 /// assert_eq!(format!("{:?}", my_secret), "<SECRET>");
-/// // The data will be zeroized either way in the end, but for good measure, let's zeroize anymay
+/// // The data will be zeroized either way in the end, but for good measure, let's zeroize anymay.
 /// my_secret.zeroize();
 /// ```
 pub struct Secret<const N: usize> {
@@ -244,7 +244,7 @@ impl<const N: usize> Randomize for Secret<N> {
     }
 }
 
-// Indicate that a Secret is always zeroized when it is dropped.
+// Indicate that a [Secret] is always zeroized when it is dropped.
 impl<const N: usize> ZeroizeOnDrop for Secret<N> {}
 impl<const N: usize> Zeroize for Secret<N> {
     // No extra documentation here because the Trait already provides a good documentation.
@@ -257,7 +257,7 @@ impl<const N: usize> Zeroize for Secret<N> {
 
 // Our implementation of Drop gives back the allocated secret memory to the secret memory pool.
 impl<const N: usize> Drop for Secret<N> {
-    /// Relaases the memory of this [Secret]. In contrast to usual implementations to [Drop] we
+    /// Release the memory of this [Secret]. In contrast to usual implementations to [Drop] we
     /// do the following:
     /// 1. The memory of this [Secret] gets zeroized as required by [ZeroizeOnDrop].
     /// 2. The memory is returned to a memory pool of specially secure memory to be reused.
