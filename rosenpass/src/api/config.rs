@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub struct ApiConfig {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
     /// connections on

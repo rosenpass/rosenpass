@@ -1,3 +1,8 @@
+//! Contains the code used to parse command line parameters for rosenpass.
+//!
+//! [CliArgs::run] is called by the rosenpass main function and contains the
+//! bulk of our boostrapping code while the main function just sets up the basic environment
+
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::Kem;
@@ -31,15 +36,25 @@ use {
     std::thread,
 };
 
-/// enum representing a choice of interface to a WireGuard broker
+/// How to reach a WireGuard PSK Broker
 #[derive(Debug)]
 pub enum BrokerInterface {
+    /// The PSK Broker is listening on a unix socket at the given path
     Socket(PathBuf),
+    /// The PSK Broker broker is already connected to this process; a
+    /// unix socket stream can be reached at the given file descriptor.
+    ///
+    /// This is generally used with file descriptor passing.
     FileDescriptor(i32),
+    /// Create a socketpair(3p), spawn the PSK broker process from within rosenpass,
+    /// and hand one end of the socketpair to the broker process via file
+    /// descriptor passing to the subprocess
     SocketPair,
 }
 
-/// struct holding all CLI arguments for `clap` crate to parse
+/// Command line arguments to the Rosenpass binary.
+///
+/// Used for parsing with [clap].
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about, arg_required_else_help = true)]
 pub struct CliArgs {
@@ -80,6 +95,7 @@ pub struct CliArgs {
     #[arg(short, long, group = "psk-broker-specs")]
     psk_broker_spawn: bool,
 
+    /// The subcommand to be invoked
     #[command(subcommand)]
     pub command: Option<CliCommand>,
 
@@ -98,6 +114,10 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
+    /// Apply the command line parameters to the Rosenpass configuration struct
+    ///
+    /// Generally the flow of control here is that all the command line parameters
+    /// are merged into the configuration file to avoid much code duplication.
     pub fn apply_to_config(&self, _cfg: &mut config::Rosenpass) -> anyhow::Result<()> {
         #[cfg(feature = "experiment_api")]
         self.api.apply_to_config(_cfg)?;
@@ -123,9 +143,11 @@ impl CliArgs {
         None
     }
 
+    /// Return the WireGuard PSK broker interface configured.
+    ///
+    /// Returns `None` if the `experiment_api` feature is disabled.
+
     #[cfg(feature = "experiment_api")]
-    /// returns the broker interface set by CLI args
-    /// returns `None` if the `experiment_api` feature isn't enabled
     pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         if let Some(path_ref) = self.psk_broker_path.as_ref() {
             Some(BrokerInterface::Socket(path_ref.to_path_buf()))
@@ -138,9 +160,10 @@ impl CliArgs {
         }
     }
 
+    /// Return the WireGuard PSK broker interface configured.
+    ///
+    /// Returns `None` if the `experiment_api` feature is disabled.
     #[cfg(not(feature = "experiment_api"))]
-    /// returns the broker interface set by CLI args
-    /// returns `None` if the `experiment_api` feature isn't enabled
     pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         None
     }
@@ -244,15 +267,17 @@ pub enum CliCommand {
 }
 
 impl CliArgs {
-    /// Runs the command specified via CLI
+    /// Run Rosenpass with the given command line parameters
     ///
-    /// ## TODO
-    /// - This method consumes the [`CliCommand`] value. It might be wise to use a reference...
+    /// This contains the bulk of our startup logic with
+    /// the main function just setting up the basic environment
+    /// and then calling this function.
     pub fn run(
         self,
         broker_interface: Option<BrokerInterface>,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
+        // TODO: This method consumes the [`CliCommand`] value. It might be wise to use a reference...
         use CliCommand::*;
         match &self.command {
             Some(GenConfig { config_file, force }) => {
@@ -403,6 +428,7 @@ impl CliArgs {
         Ok(())
     }
 
+    /// Used by [Self::run] to start the Rosenpass key exchange server
     fn event_loop(
         config: config::Rosenpass,
         broker_interface: Option<BrokerInterface>,
@@ -470,6 +496,19 @@ impl CliArgs {
         srv.event_loop()
     }
 
+    /// Create the WireGuard PSK broker to be used by
+    /// [crate::app_server::AppServer].
+    ///
+    /// If the `experiment_api`
+    /// feature flag is set, then this communicates with a PSK broker
+    /// running in a different process as configured via
+    /// the `psk_broker_path`, `psk_broker_fd`, and `psk_broker_spawn`
+    /// fields.
+    ///
+    /// If the `experiment_api`
+    /// feature flag is not set, then this returns a [NativeUnixBroker],
+    /// sending pre-shared keys directly to WireGuard from within this
+    /// process.
     #[cfg(feature = "experiment_api")]
     fn create_broker(
         broker_interface: Option<BrokerInterface>,
@@ -485,6 +524,19 @@ impl CliArgs {
         }
     }
 
+    /// Create the WireGuard PSK broker to be used by
+    /// [crate::app_server::AppServer].
+    ///
+    /// If the `experiment_api`
+    /// feature flag is set, then this communicates with a PSK broker
+    /// running in a different process as configured via
+    /// the `psk_broker_path`, `psk_broker_fd`, and `psk_broker_spawn`
+    /// fields.
+    ///
+    /// If the `experiment_api`
+    /// feature flag is not set, then this returns a [NativeUnixBroker],
+    /// sending pre-shared keys directly to WireGuard from within this
+    /// process.
     #[cfg(not(feature = "experiment_api"))]
     fn create_broker(
         _broker_interface: Option<BrokerInterface>,
@@ -492,6 +544,10 @@ impl CliArgs {
         Ok(Box::new(NativeUnixBroker::new()))
     }
 
+    /// Used by [Self::create_broker] if the `experiment_api` is configured
+    /// to set up the connection with the PSK broker process as configured
+    /// via the `psk_broker_path`, `psk_broker_fd`, and `psk_broker_spawn`
+    /// fields.
     #[cfg(feature = "experiment_api")]
     fn get_broker_socket(broker_interface: BrokerInterface) -> Result<UnixStream, anyhow::Error> {
         // Connect to the psk broker unix socket if one was specified
@@ -549,7 +605,7 @@ impl CliArgs {
 }
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
-fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
+pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
     let mut ssk = crate::protocol::SSk::random();
     let mut spk = crate::protocol::SPk::random();
     StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
