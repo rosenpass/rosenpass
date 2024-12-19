@@ -10,7 +10,7 @@ let
   arch = builtins.head (builtins.split "-" system);
 in
 
-runCommand "rosenpass-${version}.deb" { } ''
+runCommand "rosenpass-${version}.rpm" { } ''
   mkdir -p rpmbuild/SPECS
 
   cat << EOF > rpmbuild/SPECS/rosenpass.spec
