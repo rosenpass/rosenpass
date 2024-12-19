@@ -11,6 +11,43 @@ use uds::UnixStreamExt as FdPassingExt;
 use crate::{repeat, return_if};
 
 /// A structure that facilitates writing data and file descriptors to a Unix domain socket
+///
+/// # Example
+///
+/// ```rust
+/// use std::io::{Read, Write};
+/// use std::net::UdpSocket;
+/// use std::os::fd::{AsFd, AsRawFd};
+///
+/// use mio::net::UnixStream;
+/// use rosenpass_util::mio::WriteWithFileDescriptors;
+///
+/// // Create socket descriptors that should be sent (not limited to UDP sockets)
+/// let peer_endpoint = "[::1]:0";
+/// let peer_socket = UdpSocket::bind(peer_endpoint).expect("bind failed");
+/// let peer_socket_fd = peer_socket.as_fd();
+/// let mut fds_to_send = vec![&peer_socket_fd].into();
+///
+/// // Create writable end (must be an Unix Domain Socket)
+/// // In this case, the readable end of the connection can be ignored
+/// let (mut dummy_sink, io_stream) = UnixStream::pair().expect("failed to create socket pair");
+/// let mut writable_stream = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(
+/// &io_stream, &mut fds_to_send);
+///
+/// // Send data and file descriptors (note that at least one byte should be written)
+/// writable_stream.write(&[0xffu8; 42]).expect("failed to write");
+/// // Discard data; the dummy_sink is only required to keep the connection alive here
+/// let mut recv_buffer = Vec::<u8>::new();
+/// dummy_sink.read(&mut recv_buffer[..]).expect("error reading from socket");
+/// writable_stream.flush().expect("failed to flush"); // Currently a NOOP
+///
+/// // The wrapped components can still be accessed
+/// let (socket, fds) = writable_stream.into_parts();
+/// assert_eq!(socket.as_raw_fd(), io_stream.as_raw_fd());
+/// assert!(fds_to_send.is_empty(), "Failed to send file descriptors");
+///
+/// // Shutdown, cleanup, etc. goes here ...
+/// ```
 pub struct WriteWithFileDescriptors<Sock, Fd, BorrowSock, BorrowFds>
 where
     Sock: FdPassingExt,
