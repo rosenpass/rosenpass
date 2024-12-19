@@ -51,19 +51,19 @@ let
 in
 {
   package-deb-debian-13 = test {
-    tester = pkgs.testers.legacyDistros.debian."13";
+    tester = pkgs.testers.nonNixOSDistros.debian."13";
     installPrefix = "dpkg --install";
     suffix = "deb";
     source = pkgsDirDeb;
   };
   package-deb-ubuntu-23_10 = test {
-    tester = pkgs.testers.legacyDistros.ubuntu."23_10";
+    tester = pkgs.testers.nonNixOSDistros.ubuntu."23_10";
     installPrefix = "dpkg --install";
     suffix = "deb";
     source = pkgsDirDeb;
   };
   package-rpm-fedora_40 = test {
-    tester = pkgs.testers.legacyDistros.fedora."40";
+    tester = pkgs.testers.nonNixOSDistros.fedora."40";
     installPrefix = "rpm -i";
     suffix = "rpm";
     source = pkgsDirRpm;
