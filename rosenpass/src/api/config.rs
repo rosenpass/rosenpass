@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;
 
+/// Configuration options for the Rosenpass API
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub struct ApiConfig {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
@@ -23,6 +24,10 @@ pub struct ApiConfig {
 }
 
 impl ApiConfig {
+    /// Construct appropriate [UnixListener]s for each of the API
+    /// listeners and connections configured in [Self] and invoke
+    /// [AppServer::add_api_listener] for each to add them to the
+    /// [AppServer].
     pub fn apply_to_app_server(&self, srv: &mut AppServer) -> anyhow::Result<()> {
         for path in self.listen_path.iter() {
             srv.add_api_listener(UnixListener::bind(path)?)?;
@@ -39,10 +44,12 @@ impl ApiConfig {
         Ok(())
     }
 
+    /// Sum of all the API sources configured in here
     pub fn count_api_sources(&self) -> usize {
         self.listen_path.len() + self.listen_fd.len() + self.stream_fd.len()
     }
 
+    /// Checks if [Self::count_api_sources] is greater than zero
     pub fn has_api_sources(&self) -> bool {
         self.count_api_sources() > 0
     }

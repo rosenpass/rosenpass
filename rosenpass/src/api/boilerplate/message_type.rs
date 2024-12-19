@@ -35,10 +35,15 @@ const ADD_PSK_BROKER_REQUEST: RawMsgType =
 const ADD_PSK_BROKER_RESPONSE: RawMsgType =
     RawMsgType::from_le_bytes(hex!("bd25 e418 ffb0 6930    248b 217e 2fae e353"));
 
+/// Message properties global to the message type
 pub trait MessageAttributes {
+    /// Get the size of the message
+    ///
+    /// # Exampleds
     fn message_size(&self) -> usize;
 }
 
+/// API request message types as an enum
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum RequestMsgType {
     Ping,
@@ -47,6 +52,7 @@ pub enum RequestMsgType {
     AddPskBroker,
 }
 
+/// API response messages types as an enum
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum ResponseMsgType {
     Ping,
@@ -131,8 +137,17 @@ impl From<ResponseMsgType> for RawMsgType {
     }
 }
 
+/// Extension trait for [RawMsgType].
+///
+/// We are using an extension trait rather than just using methods
+/// because [RawMsgType] is a type alias, so we can not define methods
+/// on it.
 pub trait RawMsgTypeExt {
+    /// Try to convert this to a [RequestMsgType]; alias for the appropriate [TryFrom]
+    /// implementation
     fn into_request_msg_type(self) -> Result<RequestMsgType, RosenpassError>;
+    /// Try to convert this to a [ResponseMsgType]; alias for the appropriate [TryFrom]
+    /// implementation
     fn into_response_msg_type(self) -> Result<ResponseMsgType, RosenpassError>;
 }
 
@@ -146,8 +161,11 @@ impl RawMsgTypeExt for RawMsgType {
     }
 }
 
+/// Extension trait for [rosenpass_util::zerocopy::RefMaker].
 pub trait RefMakerRawMsgTypeExt {
+    /// Parse a request message type from bytes
     fn parse_request_msg_type(self) -> anyhow::Result<RequestMsgType>;
+    /// Parse a response message type from bytes
     fn parse_response_msg_type(self) -> anyhow::Result<ResponseMsgType>;
 }
 
