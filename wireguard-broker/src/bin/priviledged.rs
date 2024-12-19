@@ -1,3 +1,12 @@
+//! This module defines the Unix socket broker that interacts with the Linux-specific
+//! WireGuard broker through a privileged process.
+//!
+//! It manages communication using length-prefixed
+//! messages that are read from standard-input.
+//! On each input message the process responds through its standard-output
+//!
+//! The functionality is only supported on Linux systems.
+
 fn main() {
     #[cfg(target_os = "linux")]
     linux::main().unwrap();
@@ -8,20 +17,33 @@ fn main() {
 
 #[cfg(target_os = "linux")]
 pub mod linux {
+    //! Linux-specific implementation for the broker that communicates with the WireGuard broker.
+
     use std::io::{stdin, stdout, Read, Write};
 
     use rosenpass_wireguard_broker::api::msgs;
     use rosenpass_wireguard_broker::api::server::BrokerServer;
     use rosenpass_wireguard_broker::brokers::netlink as wg;
 
+    /// Represents errors that can occur during WireGuard broker operations
     #[derive(thiserror::Error, Debug)]
     pub enum BrokerAppError {
+        /// Wraps standard I/O errors that may occur during broker operations
         #[error(transparent)]
         IoError(#[from] std::io::Error),
+
+        /// Wraps WireGuard connection errors
         #[error(transparent)]
         WgConnectError(#[from] wg::ConnectError),
+
+        /// Wraps errors that occur when setting WireGuard Pre-Shared Keys (PSK)
         #[error(transparent)]
         WgSetPskError(#[from] wg::SetPskError),
+
+        /// Indicates that a received message exceeds the maximum allowed size
+        ///
+        /// # Arguments
+        /// * `u64` - The size of the oversized message in bytes
         #[error("Oversized message {}; something about the request is fatally wrong", .0)]
         OversizedMessage(u64),
     }

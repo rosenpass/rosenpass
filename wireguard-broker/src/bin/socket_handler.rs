@@ -1,3 +1,6 @@
+//! Provides an asynchronous Unix socket handler for managing connections between clients
+//! and privileged WireGuard broker processes.
+
 use std::process::Stdio;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -12,6 +15,7 @@ use clap::{ArgGroup, Parser};
 use rosenpass_util::fd::claim_fd;
 use rosenpass_wireguard_broker::api::msgs;
 
+/// Command-line arguments for configuring the socket handler
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[clap(group(
@@ -45,11 +49,13 @@ struct Args {
     command: Vec<String>,
 }
 
+/// Represents a request to the broker with a channel for receiving the response
 struct BrokerRequest {
     reply_to: oneshot::Sender<BrokerResponse>,
     request: Vec<u8>,
 }
 
+/// Contains the broker's response data
 struct BrokerResponse {
     response: Vec<u8>,
 }
@@ -87,6 +93,7 @@ async fn main() -> Result<()> {
     }
 }
 
+/// Manages communication with the privileged broker process
 async fn direct_broker_process(
     mut queue: mpsc::Receiver<BrokerRequest>,
     cmd: Vec<String>,
@@ -131,6 +138,7 @@ async fn direct_broker_process(
     }
 }
 
+/// Accepts and handles incoming client connections
 async fn listen_for_clients(queue: mpsc::Sender<BrokerRequest>, sock: UnixListener) -> Result<()> {
     loop {
         let (stream, _addr) = sock.accept().await?;
@@ -145,6 +153,7 @@ async fn listen_for_clients(queue: mpsc::Sender<BrokerRequest>, sock: UnixListen
     // NOTE: If loop can ever terminate we need to join the spawned tasks
 }
 
+/// Handles individual client connections and message processing
 async fn on_accept(queue: mpsc::Sender<BrokerRequest>, mut stream: UnixStream) -> Result<()> {
     let mut req_buf = Vec::new();
 

@@ -1,3 +1,35 @@
+//! Native Unix implementation of the WireGuard PSK broker using the `wg` command-line tool.
+//!
+//! This module provides an implementation that works on Unix systems by executing the `wg`
+//! command-line tool to set pre-shared keys. It requires the `wg` tool to be installed and
+//! accessible in the system PATH.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use rosenpass_secret_memory::{Public, Secret};
+//! use rosenpass_wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
+//! use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
+//!
+//! # fn main() -> Result<(), anyhow::Error> {
+//! // Create a broker instance
+//! let mut broker = NativeUnixBroker::new();
+//!
+//! // Create configuration
+//! let config = NativeUnixBrokerConfigBase {
+//!     interface: "wg0".to_string(),
+//!     peer_id: Public::zero(), // Replace with actual peer ID
+//!     extra_params: Vec::new(),
+//! };
+//!
+//! // Set PSK using the broker
+//! let psk = Secret::<WG_KEY_LEN>::zero(); // Replace with actual PSK
+//! let serialized_config = config.create_config(&psk);
+//! broker.set_psk(serialized_config)?;
+//! # Ok(())
+//! # }
+//! ```
+
 use std::fmt::Debug;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -12,9 +44,21 @@ use rosenpass_util::{b64::B64Display, file::StoreValueB64Writer};
 use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio};
 use crate::{WG_KEY_LEN, WG_PEER_LEN};
 
+/// Maximum size of a base64-encoded WireGuard key in bytes
 const MAX_B64_KEY_SIZE: usize = WG_KEY_LEN * 5 / 3;
+/// Maximum size of a base64-encoded WireGuard peer ID in bytes
 const MAX_B64_PEER_ID_SIZE: usize = WG_PEER_LEN * 5 / 3;
 
+/// A WireGuard broker implementation that uses the native `wg` command-line tool.
+///
+/// This broker executes the `wg` command to set pre-shared keys. It supports both synchronous
+/// operations through the `WireGuardBroker` trait and asynchronous operations through the
+/// `WireguardBrokerMio` trait.
+///
+/// # Requirements
+///
+/// - The `wg` command-line tool must be installed and in the system PATH
+/// - The user running the broker must have sufficient permissions to execute `wg` commands
 #[derive(Debug)]
 pub struct NativeUnixBroker {
     mio_token: Option<mio::Token>,
@@ -110,16 +154,63 @@ impl WireguardBrokerMio for NativeUnixBroker {
     }
 }
 
+/// Base configuration for the native Unix WireGuard broker.
+///
+/// This configuration type is used to store persistent broker settings and create
+/// serialized configurations for individual PSK operations.
+///
+/// # Examples
+///
+/// ```
+/// use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
+/// use rosenpass_secret_memory::Public;
+/// use rosenpass_wireguard_broker::WG_PEER_LEN;
+///
+/// let config = NativeUnixBrokerConfigBase {
+///     interface: "wg0".to_string(),
+///     peer_id: Public::zero(),
+///     extra_params: Vec::new(),
+/// };
+/// ```
 #[derive(Debug, Builder)]
 #[builder(pattern = "mutable")]
 pub struct NativeUnixBrokerConfigBase {
+    /// Name of the WireGuard interface (e.g., "wg0")
     pub interface: String,
+    /// Public key of the peer
     pub peer_id: Public<WG_PEER_LEN>,
+    /// Additional parameters to pass to the wg command
     #[builder(private)]
     pub extra_params: Vec<u8>,
 }
 
 impl NativeUnixBrokerConfigBaseBuilder {
+    /// Sets the peer ID from a base64-encoded string.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_id` - Base64-encoded peer public key
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use rosenpass_wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
+    /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
+    /// // set peer id to [48;32] encoded as base64
+    /// peer_cfg.peer_id_b64("MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=")?;
+    /// peer_cfg.interface("wg0".to_string());
+    /// peer_cfg.extra_params_ser(&vec![])?;
+    /// let peer_cfg = peer_cfg.build()?;
+    /// assert_eq!(peer_cfg.peer_id.value, [48u8;32]);
+    ///
+    /// let error = NativeUnixBrokerConfigBaseBuilder::default()
+    /// .peer_id_b64("MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA") // invalid base64 encoding
+    /// .err().unwrap();
+    /// assert_eq!(error.to_string(), "Failed to parse peer id b64");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn peer_id_b64(
         &mut self,
         peer_id: &str,
@@ -133,6 +224,29 @@ impl NativeUnixBrokerConfigBaseBuilder {
         Ok(self.peer_id(peer_id_b64))
     }
 
+    /// Sets additional parameters for the wg command.
+    ///
+    /// Note: This function cannot fail as `Vec<String>` is always serializable.
+    ///
+    /// # Examples
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
+    ///
+    /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
+    /// // Set typical wireguard parameters
+    /// peer_cfg.interface("wg0".to_string());
+    /// peer_cfg.peer_id_b64("Zm9v")?;
+    /// peer_cfg.extra_params_ser(&vec![
+    ///     "persistent-keepalive".to_string(),
+    ///     "25".to_string(),
+    ///     "allowed-ips".to_string(),
+    ///     "10.0.0.2/32".to_string(),
+    /// ])?;
+    /// let peer_cfg = peer_cfg.build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn extra_params_ser(
         &mut self,
         extra_params: &Vec<String>,
@@ -157,12 +271,17 @@ impl WireguardBrokerCfg for NativeUnixBrokerConfigBase {
     }
 }
 
+/// Runtime configuration for a single PSK operation.
 #[derive(Debug, Builder)]
 #[builder(pattern = "mutable")]
 pub struct NativeUnixBrokerConfig<'a> {
+    /// WireGuard interface name
     pub interface: &'a str,
+    /// Public key of the peer
     pub peer_id: &'a Public<WG_PEER_LEN>,
+    /// Pre-shared key to set
     pub psk: &'a Secret<WG_KEY_LEN>,
+    /// Additional wg command parameters
     pub extra_params: Vec<String>,
 }
 
