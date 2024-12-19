@@ -6,6 +6,7 @@ use crate::config::Rosenpass as RosenpassConfig;
 
 use super::config::ApiConfig;
 
+/// Additional command line arguments for the API
 #[cfg(feature = "experiment_api")]
 #[derive(Args, Debug)]
 pub struct ApiCli {
@@ -27,10 +28,14 @@ pub struct ApiCli {
 }
 
 impl ApiCli {
+    /// Copy the parameters set here into the [RosenpassConfig].
+    /// Forwards to [Self::apply_to_api_config]:
     pub fn apply_to_config(&self, cfg: &mut RosenpassConfig) -> anyhow::Result<()> {
         self.apply_to_api_config(&mut cfg.api)
     }
 
+    /// Fills the values from [ApiConfig::listen_path], [ApiConfig::listen_fd], and
+    /// [ApiConfig::stream_fd] with the values from [Self]
     pub fn apply_to_api_config(&self, cfg: &mut ApiConfig) -> anyhow::Result<()> {
         cfg.listen_path.extend_from_slice(&self.api_listen_path);
         cfg.listen_fd.extend_from_slice(&self.api_listen_fd);

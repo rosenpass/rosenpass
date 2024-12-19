@@ -2,10 +2,21 @@ use super::{ByteSliceRefExt, Message, PingRequest, PingResponse, RequestRef, Req
 use std::{collections::VecDeque, os::fd::OwnedFd};
 use zerocopy::{ByteSlice, ByteSliceMut};
 
+/// The rosenpass API implementation functions.
+///
+/// Implemented by [crate::api::ApiHandler].
+///
+/// # Examples
+///
+/// See the example of how to use the API in [crate::api].
 pub trait Server {
     /// This implements the handler for the [crate::api::RequestMsgType::Ping] API message
     ///
     /// It merely takes a buffer and returns that same buffer.
+    ///
+    /// # Examples
+    ///
+    /// See the example of how to use the API in [crate::api].
     fn ping(
         &mut self,
         req: &PingRequest,
@@ -54,6 +65,10 @@ pub trait Server {
     /// The file descriptors for the keys need not be backed by a file on disk. You can supply a
     /// [memfd](https://man.archlinux.org/man/memfd.2.en) or [memfd_secret](https://man.archlinux.org/man/memfd_secret.2.en)
     /// backed file descriptor if the server keys are not backed by a file system file.
+    ///
+    /// # Examples
+    ///
+    /// See the example of how to use the API in [crate::api].
     fn supply_keypair(
         &mut self,
         req: &super::SupplyKeypairRequest,
@@ -80,8 +95,13 @@ pub trait Server {
     ///
     /// # Description
     ///
-    /// This endpoint allows you to supply a UDP listen socket; it will be used to perform
+    /// This endpoint allows you to supply a UDP listen socket; it will be used to perform key
+    /// key exchanges using the Rosenpass protocol.
     /// cryptographic key exchanges via the Rosenpass protocol.
+    ///
+    /// # Examples
+    ///
+    /// See the example of how to use the API in [crate::api].
     fn add_listen_socket(
         &mut self,
         req: &super::AddListenSocketRequest,
@@ -89,6 +109,31 @@ pub trait Server {
         res: &mut super::AddListenSocketResponse,
     ) -> anyhow::Result<()>;
 
+    /// Supply a new PSK broker listen socket through file descriptor passing via the API
+    ///
+    /// This implements the handler for the [crate::api::RequestMsgType::AddPskBroker] API message.
+    ///
+    /// # File descriptors
+    ///
+    /// 1. The listen socket; must be backed by a unix domain stream socket
+    ///
+    /// # API Return Status
+    ///
+    /// 1. [crate::api::add_psk_broker_response_status::OK] - Indicates success
+    /// 2. [crate::api::add_psk_broker_response_status::INVALID_REQUEST] – Malformed request; could be:
+    ///     - Missing file descriptors for public key
+    ///     - Invalid file descriptor type
+    /// 3. [crate::api::add_psk_broker_response_status::INTERNAL_ERROR] – Some other, non-fatal error
+    ///    occured. Check the logs on log
+    ///
+    /// # Description
+    ///
+    /// This endpoint allows you to supply a UDP listen socket; it will be used to transmit
+    /// cryptographic keys exchanged to WireGuard.
+    ///
+    /// # Examples
+    ///
+    /// See the example of how to use the API in [crate::api].
     fn add_psk_broker(
         &mut self,
         req: &super::AddPskBrokerRequest,
@@ -96,6 +141,11 @@ pub trait Server {
         res: &mut super::AddPskBrokerResponse,
     ) -> anyhow::Result<()>;
 
+    /// Similar to [Self::handle_message], but takes a [RequestResponsePair]
+    /// instead of taking to separate byte buffers.
+    ///
+    /// I.e. this function uses the explicit type tag encoded in [RequestResponsePair]
+    /// rather than reading the type tag from the request buffer.
     fn dispatch<ReqBuf, ResBuf>(
         &mut self,
         p: &mut RequestResponsePair<ReqBuf, ResBuf>,
@@ -117,6 +167,14 @@ pub trait Server {
         }
     }
 
+    /// Called by [crate::api::mio::MioConnection] when a new API request was received.
+    ///
+    /// The parameters are:
+    ///
+    /// - `req` – A buffer containing the request
+    /// - `res_fds` – A list of file descriptors received during the API call (i.e. this is used
+    ///    with unix socket file descriptor passing)
+    /// - `res` – The buffer to store the response in.
     fn handle_message<ReqBuf, ResBuf>(
         &mut self,
         req: ReqBuf,

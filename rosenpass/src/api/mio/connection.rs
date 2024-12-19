@@ -53,6 +53,9 @@ struct MioConnectionBuffers {
 }
 
 #[derive(Debug)]
+/// Represents a single connection with an API client.
+/// Includes the necessary buffers, the [ApiHandler],
+/// and the [UnixStream] that is used for communication.
 pub struct MioConnection {
     io: UnixStream,
     mio_token: mio::Token,
@@ -62,6 +65,8 @@ pub struct MioConnection {
 }
 
 impl MioConnection {
+    /// Construct a new [Self] for the given app server from the unix socket stream
+    /// to communicate on.
     pub fn new(app_server: &mut AppServer, mut io: UnixStream) -> std::io::Result<Self> {
         let mio_token = app_server.mio_token_dispenser.dispense();
         app_server
@@ -88,6 +93,8 @@ impl MioConnection {
         })
     }
 
+    /// Checks if this unix stream should be closed by the enclosing
+    /// structure
     pub fn should_close(&self) -> bool {
         let exhausted = self
             .buffers
@@ -97,22 +104,30 @@ impl MioConnection {
         self.invalid_read && exhausted
     }
 
+    /// Close and deregister this particular API connection
     pub fn close(mut self, app_server: &mut AppServer) -> anyhow::Result<()> {
         app_server.mio_poll.registry().deregister(&mut self.io)?;
         Ok(())
     }
 
+    /// Retrieve the mio token
     pub fn mio_token(&self) -> mio::Token {
         self.mio_token
     }
 }
 
+/// We require references to both [MioConnection] and to the [AppServer] that contains it.
 pub trait MioConnectionContext {
+    /// Reference to the [MioConnection] we are focusing on
     fn mio_connection(&self) -> &MioConnection;
+    /// Reference to the [AppServer] that contains the [Self::mio_connection]
     fn app_server(&self) -> &AppServer;
+    /// Mutable reference to the [MioConnection] we are focusing on
     fn mio_connection_mut(&mut self) -> &mut MioConnection;
+    /// Mutable reference to the [AppServer] that contains the [Self::mio_connection]
     fn app_server_mut(&mut self) -> &mut AppServer;
 
+    /// Called by [AppServer::poll] regularly to process any incoming (and outgoing) API messages
     fn poll(&mut self) -> anyhow::Result<()> {
         macro_rules! short {
             ($e:expr) => {
@@ -133,6 +148,7 @@ pub trait MioConnectionContext {
         Ok(())
     }
 
+    /// Called by [Self::poll] to process incoming messages
     fn handle_incoming_message(&mut self) -> anyhow::Result<Option<()>> {
         self.with_buffers_stolen(|this, bufs| {
             // Acquire request & response. Caller is responsible to make sure
@@ -156,6 +172,7 @@ pub trait MioConnectionContext {
         })
     }
 
+    /// Called by [Self::poll] to write data in the send buffer to the unix stream
     fn flush_write_buffer(&mut self) -> anyhow::Result<Option<()>> {
         if self.write_buf_mut().exhausted() {
             return Ok(Some(()));
@@ -194,6 +211,7 @@ pub trait MioConnectionContext {
         }
     }
 
+    /// Called by [Self::poll] to check for messages to receive
     fn recv(&mut self) -> anyhow::Result<Option<()>> {
         if !self.write_buf_mut().exhausted() || self.mio_connection().invalid_read {
             return Ok(None);
@@ -257,10 +275,12 @@ pub trait MioConnectionContext {
         }
     }
 
+    /// Forwards to [MioConnection::mio_token]
     fn mio_token(&self) -> mio::Token {
         self.mio_connection().mio_token()
     }
 
+    /// Forwards to [MioConnection::should_close]
     fn should_close(&self) -> bool {
         self.mio_connection().should_close()
     }
@@ -299,6 +319,7 @@ trait MioConnectionContextPrivate: MioConnectionContext {
 
 impl<T> MioConnectionContextPrivate for T where T: ?Sized + MioConnectionContext {}
 
+/// Every [MioConnectionContext] is also a [ApiHandlerContext]
 impl<T> ApiHandlerContext for T
 where
     T: ?Sized + MioConnectionContext,
