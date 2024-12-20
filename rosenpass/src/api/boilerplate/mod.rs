@@ -1,3 +1,7 @@
+//! Boring, repetitive code related to message parsing for the API.
+//!
+//! Most of this should be automatically generated though some derive macro at some point.
+
 mod byte_slice_ext;
 mod message_trait;
 mod message_type;

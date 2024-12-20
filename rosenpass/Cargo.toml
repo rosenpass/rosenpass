@@ -26,6 +26,10 @@ required-features = ["experiment_api", "internal_testing"]
 name = "api-integration-tests-api-setup"
 required-features = ["experiment_api", "internal_testing"]
 
+[[test]]
+name = "gen-ipc-msg-types"
+required-features = ["experiment_api", "internal_testing", "internal_bin_gen_ipc_msg_types"]
+
 [[bench]]
 name = "handshake"
 harness = false

@@ -4,24 +4,63 @@ use zerocopy::{ByteSlice, ByteSliceMut, Ref};
 
 use super::{ByteSliceRefExt, MessageAttributes, PingRequest, RequestMsgType};
 
+/// Helper for producing API message request references, [RequestRef].
+///
+/// This is to [RequestRef] as [rosenpass_util::zerocopy::RefMaker] is to
+/// [zerocopy::Ref].
 struct RequestRefMaker<B> {
     buf: B,
     msg_type: RequestMsgType,
 }
 
 impl<B: ByteSlice> RequestRef<B> {
+    /// Produce a [RequestRef] from a raw message buffer,
+    /// reading the type from the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use zerocopy::AsBytes;
+    ///
+    /// use rosenpass::api::{PingRequest, RequestRef, RequestMsgType};
+    ///
+    /// let msg = PingRequest::new([0u8; 256]);
+    ///
+    /// // TODO: HEISENBUG: This is necessary for some reason to make the rest of the example work
+    /// let typ = msg.msg_type;
+    /// assert_eq!(typ, rosenpass::api::PING_REQUEST);
+    ///
+    /// let buf = msg.as_bytes();
+    /// let msg_ref = RequestRef::parse(buf)?;
+    /// assert!(matches!(msg_ref, RequestRef::Ping(_)));
+    ///
+    /// assert_eq!(msg_ref.message_type(), RequestMsgType::Ping);
+    ///
+    /// assert!(std::ptr::eq(buf, msg_ref.bytes()));
+    ///
+    /// Ok::<(), anyhow::Error>(())
+    /// ```
     pub fn parse(buf: B) -> anyhow::Result<Self> {
         RequestRefMaker::new(buf)?.parse()
     }
 
+    /// Produce a [ResponseRef] from the prefix of a raw message buffer,
+    /// reading the type from the buffer.
     pub fn parse_from_prefix(buf: B) -> anyhow::Result<Self> {
         RequestRefMaker::new(buf)?.from_prefix()?.parse()
     }
 
+    /// Produce a [ResponseRef] from the prefix of a raw message buffer,
+    /// reading the type from the buffer.
     pub fn parse_from_suffix(buf: B) -> anyhow::Result<Self> {
         RequestRefMaker::new(buf)?.from_suffix()?.parse()
     }
 
+    /// Get the message type [Self] contains
+    ///
+    /// # Examples
+    ///
+    /// See [Self::parse]
     pub fn message_type(&self) -> RequestMsgType {
         match self {
             Self::Ping(_) => RequestMsgType::Ping,
@@ -110,6 +149,7 @@ impl<B: ByteSlice> RequestRefMaker<B> {
     }
 }
 
+/// Reference to a API message response, typed as an enum.
 pub enum RequestRef<B> {
     Ping(Ref<B, PingRequest>),
     SupplyKeypair(Ref<B, super::SupplyKeypairRequest>),
@@ -121,6 +161,11 @@ impl<B> RequestRef<B>
 where
     B: ByteSlice,
 {
+    /// Access the byte data of this reference
+    ///
+    /// # Examples
+    ///
+    /// See [Self::parse].
     pub fn bytes(&self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes(),
@@ -135,6 +180,7 @@ impl<B> RequestRef<B>
 where
     B: ByteSliceMut,
 {
+    /// Access the byte data of this reference; mutably
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
             Self::Ping(r) => r.bytes_mut(),
