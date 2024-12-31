@@ -22,5 +22,5 @@ macro_rules! oqs_call {
 
 #[macro_use]
 mod kem_macro;
-oqs_kem!(kyber_512);
+oqs_kem!(ml_kem_512);
 oqs_kem!(classic_mceliece_460896);
