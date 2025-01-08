@@ -5,6 +5,10 @@
 
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
+
+use std::ops::DerefMut;
+use std::path::PathBuf;
+
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
@@ -12,8 +16,6 @@ use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
-use std::ops::DerefMut;
-use std::path::PathBuf;
 
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};

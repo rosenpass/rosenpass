@@ -24,3 +24,6 @@ macro_rules! oqs_call {
 mod kem_macro;
 oqs_kem!(kyber_512);
 oqs_kem!(classic_mceliece_460896);
+
+impl rosenpass_cipher_traits::KemKyber512 for Kyber512 {}
+impl rosenpass_cipher_traits::KemClassicMceliece460896 for ClassicMceliece460896 {}

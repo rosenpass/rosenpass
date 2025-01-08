@@ -1,4 +1,5 @@
 use anyhow::Result;
+
 use rosenpass_secret_memory::Secret;
 use rosenpass_to::To;
 
@@ -118,7 +119,8 @@ impl SecretHashDomain {
     /// [hash::hash] with `k` as the `key` and `d` s the `data`, and using the result
     /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
-    pub fn invoke_primitive(k: &[u8], d: &[u8]) -> Result<SecretHashDomain> {
+    /// TODO: The 32 should be a named constant
+    pub fn invoke_primitive(k: &[u8; 32], d: &[u8]) -> Result<SecretHashDomain> {
         let mut r = SecretHashDomain(Secret::zero());
         hash::hash(k, d).to(r.0.secret_mut())?;
         Ok(r)
@@ -168,7 +170,7 @@ impl SecretHashDomain {
     /// `dst` as the `data` and stores the result as the new data for this [SecretHashDomain].
     ///
     /// It requires that both `v` and `d` consist of exactly [KEY_LEN] many bytes.
-    pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
+    pub fn into_secret_slice(mut self, v: &[u8; KEY_LEN], dst: &[u8]) -> Result<()> {
         hash::hash(v, dst).to(self.0.secret_mut())
     }
 }

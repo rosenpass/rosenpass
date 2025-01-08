@@ -4,7 +4,6 @@
 //! files.
 
 use std::borrow::Borrow;
-use std::convert::Infallible;
 use std::fmt::Debug;
 use std::mem::size_of;
 use std::ops::Deref;
@@ -3207,29 +3206,75 @@ impl HandshakeState {
     ///
     /// This is used to include asymmetric cryptography in the rosenpass protocol
     // I loathe "error: constant expression depends on a generic parameter"
-    pub fn encaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
+    pub fn encaps_and_mix<
+        const SK_LEN: usize,
+        const PK_LEN: usize,
+        const CT_LEN: usize,
+        const SHK_LEN: usize,
+        T: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN>,
+    >(
         &mut self,
-        ct: &mut [u8],
-        pk: &[u8],
+        ct: &mut [u8; CT_LEN],
+        pk: &[u8; PK_LEN],
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::encaps(shk.secret_mut(), ct, pk)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
+    pub fn encaps_and_mix_static(
+        &mut self,
+        ct: &mut [u8; StaticKem::CT_LEN],
+        pk: &[u8; StaticKem::PK_LEN],
+    ) -> Result<&mut Self> {
+        self.encaps_and_mix::<{StaticKem::SK_LEN}, {StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(ct, pk)
+    }
+
+    pub fn encaps_and_mix_ephemeral(
+        &mut self,
+        ct: &mut [u8; EphemeralKem::CT_LEN],
+        pk: &[u8; EphemeralKem::PK_LEN],
+    ) -> Result<&mut Self> {
+        self.encaps_and_mix::<{EphemeralKem::SK_LEN}, {EphemeralKem::PK_LEN}, {EphemeralKem::CT_LEN}, {EphemeralKem::SHK_LEN}, EphemeralKem>(ct, pk)
+    }
+
     /// Decapsulation (decryption) counterpart to [Self::encaps_and_mix].
     ///
     /// Makes sure that the same values are mixed into the chaining that where mixed in on the
     /// sender side.
-    pub fn decaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
+    pub fn decaps_and_mix<
+        const SK_LEN: usize,
+        const PK_LEN: usize,
+        const CT_LEN: usize,
+        const SHK_LEN: usize,
+        T: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN>,
+    >(
         &mut self,
-        sk: &[u8],
-        pk: &[u8],
-        ct: &[u8],
+        sk: &[u8; SK_LEN],
+        pk: &[u8; PK_LEN],
+        ct: &[u8; CT_LEN],
     ) -> Result<&mut Self> {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::decaps(shk.secret_mut(), sk, ct)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
+    }
+
+    pub fn decaps_and_mix_static(
+        &mut self,
+        sk: &[u8; StaticKem::SK_LEN],
+        pk: &[u8; StaticKem::PK_LEN],
+        ct: &[u8; StaticKem::CT_LEN],
+    ) -> Result<&mut Self> {
+        self.decaps_and_mix::<{StaticKem::SK_LEN}, {StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(sk, pk, ct)
+    }
+
+    pub fn decaps_and_mix_ephemeral(
+        &mut self,
+        sk: &[u8; EphemeralKem::SK_LEN],
+        pk: &[u8; EphemeralKem::PK_LEN],
+        ct: &[u8; EphemeralKem::CT_LEN],
+    ) -> Result<&mut Self> {
+        self.decaps_and_mix::<{EphemeralKem::SK_LEN}, {EphemeralKem::PK_LEN}, {EphemeralKem::CT_LEN}, {EphemeralKem::SHK_LEN}, EphemeralKem>(sk, pk, ct)
     }
 
     /// Store the chaining key inside a cookie value called a "biscuit".
@@ -3277,7 +3322,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
-        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
+        xaead::encrypt(biscuit_ct, k, &n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -3303,11 +3348,16 @@ impl HandshakeState {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
             Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+
+        let (nonce, ciphertext) = biscuit_ct.split_at(xaead::NONCE_LEN);
+        let nonce: &[u8; xaead::NONCE_LEN] = nonce.try_into().unwrap();
+
         xaead::decrypt(
             biscuit.as_bytes_mut(),
             bk.get(srv).value.secret(),
+            nonce,
             &ad,
-            biscuit_ct,
+            ciphertext,
         )?;
 
         // Reconstruct the biscuit fields
@@ -3391,7 +3441,7 @@ impl CryptoServer {
         ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
-        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+        EphemeralKem::keygen(hs.eski.secret_mut(), &mut hs.epki)?;
         ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -3399,10 +3449,7 @@ impl CryptoServer {
 
         // IHI5
         hs.core
-            .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-                ih.sctr.as_mut_slice(),
-                peer.get(self).spkt.deref(),
-            )?;
+            .encaps_and_mix_static(&mut ih.sctr, peer.get(self).spkt.deref())?;
 
         // IHI6
         hs.core
@@ -3436,11 +3483,7 @@ impl CryptoServer {
         core.mix(&ih.sidi)?.mix(&ih.epki)?;
 
         // IHR5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.deref(),
-            &ih.sctr,
-        )?;
+        core.decaps_and_mix_static(self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
 
         // IHR6
         let peer = {
@@ -3466,13 +3509,10 @@ impl CryptoServer {
         core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHR4
-        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
+        core.encaps_and_mix_ephemeral(&mut rh.ecti, &ih.epki)?;
 
         // RHR5
-        core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            &mut rh.scti,
-            peer.get(self).spkt.deref(),
-        )?;
+        core.encaps_and_mix_static(&mut rh.scti, peer.get(self).spkt.deref())?;
 
         // RHR6
         core.store_biscuit(self, peer, &mut rh.biscuit)?;
@@ -3532,18 +3572,10 @@ impl CryptoServer {
         core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHI4
-        core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
-            hs!().eski.secret(),
-            hs!().epki.deref(),
-            &rh.ecti,
-        )?;
+        core.decaps_and_mix_ephemeral(hs!().eski.secret(), hs!().epki.deref(), &rh.ecti)?;
 
         // RHI5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.deref(),
-            &rh.scti,
-        )?;
+        core.decaps_and_mix_static(self.sskm.secret(), self.spkm.deref(), &rh.scti)?;
 
         // RHI6
         core.mix(&rh.biscuit)?;
@@ -3753,7 +3785,10 @@ impl CryptoServer {
                 let cookie_key = hash_domains::cookie_key()?.mix(spkt)?.into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
+                let (nonce, ciphertext) = cr.inner.cookie_encrypted.split_at(24);
+                let nonce: &[u8; 24] = nonce.try_into().unwrap();
+
+                xaead::decrypt(cookie_value, &cookie_key, nonce, &mac, ciphertext)?;
 
                 // Immediately retransmit on recieving a cookie reply message
                 peer.hs().register_immediate_retransmission(self)?;

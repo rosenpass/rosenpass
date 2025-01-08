@@ -9,12 +9,9 @@
 //! To achieve this we utilize the zerocopy library.
 //!
 use std::mem::size_of;
-use std::u8;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 
 /// Length of a session ID such as [InitHello::sidi]
@@ -38,6 +35,11 @@ pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG
 pub const MAC_SIZE: usize = 16;
 /// Size of the field [Envelope::cookie]
 pub const COOKIE_SIZE: usize = MAC_SIZE;
+
+const STATIC_KEM_CT_LEN: usize = rosenpass_cipher_traits::kem_classic_mceliece460896::CT_LEN;
+
+const EPHEMERAL_KEM_CT_LEN: usize = rosenpass_cipher_traits::kem_kyber512::CT_LEN;
+const EPHEMERAL_KEM_PK_LEN: usize = rosenpass_cipher_traits::kem_kyber512::PK_LEN;
 
 /// Type of the mac field in [Envelope]
 pub type MsgEnvelopeMac = [u8; MAC_SIZE];
@@ -132,9 +134,9 @@ pub struct InitHello {
     /// Randomly generated connection id
     pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Public Key
-    pub epki: [u8; EphemeralKem::PK_LEN],
+    pub epki: [u8; EPHEMERAL_KEM_PK_LEN],
     /// Classic McEliece Ciphertext
-    pub sctr: [u8; StaticKem::CT_LEN],
+    pub sctr: [u8; STATIC_KEM_CT_LEN],
     /// Encryped: 16 byte hash of McEliece initiator static key
     pub pidic: [u8; aead::TAG_LEN + 32],
     /// Encrypted TAI64N Time Stamp (against replay attacks)
@@ -183,9 +185,9 @@ pub struct RespHello {
     /// Copied from InitHello
     pub sidi: [u8; 4],
     /// Kyber 512 Ephemeral Ciphertext
-    pub ecti: [u8; EphemeralKem::CT_LEN],
+    pub ecti: [u8; EPHEMERAL_KEM_CT_LEN],
     /// Classic McEliece Ciphertext
-    pub scti: [u8; StaticKem::CT_LEN],
+    pub scti: [u8; STATIC_KEM_CT_LEN],
     /// Empty encrypted message (just an auth tag)
     pub auth: [u8; aead::TAG_LEN],
     /// Responders handshake state in encrypted form
