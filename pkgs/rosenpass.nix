@@ -50,6 +50,8 @@ rustPlatform.buildRustPackage {
   cargoBuildOptions = [ "--package" package ];
   cargoTestOptions = [ "--package" package ];
 
+  buildFeatures = [ "experiment_api" ];
+
   doCheck = true;
 
   cargoLock = {
