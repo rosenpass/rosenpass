@@ -4,7 +4,7 @@ use crate::Provider;
 
 pub use rosenpass_cipher_traits::aead_chacha20poly1305::{KEY_LEN, NONCE_LEN, TAG_LEN};
 
-/// Encrypts using ChaCha20Poly1305 using the default crypto provider.
+/// Encrypts using ChaCha20Poly1305 using the configured crypto provider.
 /// `key` MUST be chosen (pseudo-)randomly and `nonce` MOST NOT be reused. The `key` slice MUST have
 /// a length of [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN]. The last [TAG_LEN] bytes
 /// written in `ciphertext` are the tag guaranteeing integrity. `ciphertext` MUST have a capacity of
@@ -40,7 +40,7 @@ pub fn encrypt(
 }
 
 /// Decrypts a `ciphertext` and verifies the integrity of the `ciphertext` and the additional data
-/// `ad`.
+/// `ad` using the configured crypto provider.
 ///
 /// The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN].
 ///

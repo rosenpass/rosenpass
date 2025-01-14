@@ -19,19 +19,14 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
         plaintext: &[u8],
     ) -> Result<(), Error> {
         let (ciphertext, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
-
-        use libcrux::aead as C;
-        let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.to_owned()));
-        let crux_iv = C::Iv(nonce.to_owned());
-
-        copy_slice(plaintext).to(ciphertext);
-        let crux_tag = libcrux::aead::encrypt(&crux_key, ciphertext, crux_iv, ad)
+        let (ctxt, tag) = libcrux_chacha20poly1305::encrypt(key, plaintext, ciphertext, ad, nonce)
             .map_err(|_| Error::InternalError)?;
-        copy_slice(crux_tag.as_ref()).to(mac);
+        copy_slice(tag).to(mac);
 
-        match crux_key {
-            C::Key::Chacha20Poly1305(mut k) => k.0.zeroize(),
-            _ => unreachable!(),
+        // return an error of the destination buffer is longer than expected
+        // because the caller wouldn't know where the end is
+        if ctxt.len() + tag.len() != ciphertext.len() {
+            return Error::InternalError;
         }
 
         Ok(())
@@ -45,23 +40,13 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
         ciphertext: &[u8],
     ) -> Result<(), Error> {
         let (ciphertext, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
+        let ptxt = libcrux_chacha20poly1305::decrypt(key, plaintext, ciphertext, ad, nonce)
+            .map_err(|_| Error::DecryptError)?;
 
-        use libcrux::aead as C;
-        let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.to_owned()));
-        let crux_iv = C::Iv(nonce.to_owned());
-        let crux_tag = C::Tag::from_slice(mac).unwrap();
-
-        copy_slice(ciphertext).to(plaintext);
-        libcrux::aead::decrypt(&crux_key, plaintext, crux_iv, ad, &crux_tag).map_err(|err| {
-            match err {
-                C::Error::DecryptionFailed => Error::DecryptError,
-                _ => Error::InternalError,
-            }
-        })?;
-
-        match crux_key {
-            C::Key::Chacha20Poly1305(mut k) => k.0.zeroize(),
-            _ => unreachable!(),
+        // return an error of the destination buffer is longer than expected
+        // because the caller wouldn't know where the end is
+        if ptxt.len() != plaintext.len() {
+            return Error::DecryptError;
         }
 
         Ok(())
