@@ -4159,7 +4159,7 @@ mod test {
             let retx_init_hello_len = loop {
                 match a.poll().unwrap() {
                     PollResult::SendRetransmission(peer) => {
-                        break (a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap());
+                        break a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap();
                     }
                     PollResult::Sleep(time) => {
                         sleep(Duration::from_secs_f64(time));

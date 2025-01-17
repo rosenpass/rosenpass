@@ -1,21 +1,18 @@
 use std::{
     net::SocketAddr,
     ops::DerefMut,
-    path::PathBuf,
     str::FromStr,
     sync::mpsc,
     thread::{self, sleep},
     time::Duration,
 };
 
-use anyhow::ensure;
 use rosenpass::{
-    app_server::{ipv4_any_binding, ipv6_any_binding, AppServer, AppServerTest, MAX_B64_KEY_SIZE},
+    app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
     protocol::{SPk, SSk, SymKey},
 };
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
-use rosenpass_secret_memory::Secret;
 use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 
 #[test]
