@@ -1,0 +1,124 @@
+# The graph table configures how the dependency graph is constructed and thus
+# which crates the checks are performed against
+[graph]
+# If true, metadata will be collected with `--all-features`. Note that this can't
+# be toggled off if true, if you want to conditionally enable `--all-features` it
+# is recommended to pass `--all-features` on the cmd line instead
+all-features = true
+# If true, metadata will be collected with `--no-default-features`. The same
+# caveat with `all-features` applies
+no-default-features = false
+
+# The output table provides options for how/if diagnostics are outputted
+[output]
+# When outputting inclusion graphs in diagnostics that include features, this
+# option can be used to specify the depth at which feature edges will be added.
+# This option is included since the graphs can be quite large and the addition
+# of features from the crate(s) to all of the graph roots can be far too verbose.
+# This option can be overridden via `--feature-depth` on the cmd line
+feature-depth = 1
+
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+# A list of advisory IDs to ignore. Note that ignored advisories will still
+# output a note when they are encountered.
+ignore = [
+]
+# If this is true, then cargo deny will use the git executable to fetch advisory database.
+# If this is false, then it uses a built-in git library.
+# Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.
+# See Git Authentication for more information about setting up git authentication.
+#git-fetch-with-cli = true
+
+# This section is considered when running `cargo deny check #licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+# List of explicitly allowed licenses
+# See https://spdx.org/licenses/ for list of possible licenses
+# [possible values: any SPDX 3.11 short identifier (+ optional exception)].
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "ISC",
+]
+# The confidence threshold for detecting a license from license text.
+# The higher the value, the more closely the license text must be to the
+# canonical license text of a valid SPDX license file.
+# [possible values: any between 0.0 and 1.0].
+confidence-threshold = 0.8
+# Allow 1 or more licenses on a per-crate basis, so that particular licenses
+# aren't accepted for every possible crate as with the normal allow list
+exceptions = [
+    # Each entry is the crate and version constraint, and its specific allow
+    # list
+    { allow = ["Unicode-DFS-2016"], crate = "unicode-ident" },
+]
+
+[licenses.private]
+# If true, ignores workspace crates that aren't published, or are only
+# published to private registries.
+# To see how to mark a crate as unpublished (to the official registry),
+# visit https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish-field.
+ignore = true
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+# The graph highlighting used when creating dotgraphs for crates
+# with multiple versions
+# * lowest-version - The path to the lowest versioned duplicate is highlighted
+# * simplest-path - The path to the version with the fewest edges is highlighted
+# * all - Both lowest-version and simplest-path are used
+highlight = "all"
+# The default lint level for `default` features for crates that are members of
+# the workspace that is being checked. This can be overridden by allowing/denying
+# `default` on a crate-by-crate basis if desired.
+workspace-default-features = "allow"
+# The default lint level for `default` features for external crates that are not
+# members of the workspace. This can be overridden by allowing/denying `default`
+# on a crate-by-crate basis if desired.
+external-default-features = "allow"
+# List of crates that are allowed. Use with care!
+allow = [
+]
+# List of crates to deny
+deny = [
+]
+
+skip-tree = [
+
+]
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+# Lint level for what to happen when a crate from a crate registry that is not
+# in the allow list is encountered
+unknown-registry = "warn"
+# Lint level for what to happen when a crate from a git repository that is not
+# in the allow list is encountered
+unknown-git = "warn"
+# List of URLs for allowed crate registries. Defaults to the crates.io index
+# if not specified. If it is specified but empty, no registries are allowed.
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of URLs for allowed Git repositories
+allow-git = ["git+https://github.com/rosenpass/memsec.git?branch=master"]
+
+[sources.allow-org]
+# github.com organizations to allow git sources for
+github = []
+# gitlab.com organizations to allow git sources for
+gitlab = []
+# bitbucket.org organizations to allow git sources for
+bitbucket = []
