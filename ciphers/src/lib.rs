@@ -14,9 +14,12 @@ const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 /// to the cryptographic protocol should use the facilities in [hash_domain], (though
 /// hash domain uses this module internally)
 pub mod keyed_hash {
+    #[cfg(not(feature = "experiment_sha3"))]
     pub use crate::subtle::incorrect_hmac_blake2b::{
         hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN,
     };
+    #[cfg(feature = "experiment_sha3")]
+    pub use crate::subtle::keyed_shake256::{hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN};
 }
 
 /// Authenticated encryption with associated data
