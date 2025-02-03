@@ -294,7 +294,7 @@ jobs:
     steps:
       - run: |
           DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi-aarch64 binfmt-support qemu-user-static
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
         with:
@@ -315,7 +315,7 @@ jobs:
     steps:
       - run: |
           DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi-aarch64 binfmt-support qemu-user-static
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
         with:
@@ -354,7 +354,7 @@ jobs:
     steps:
       - run: |
           DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi-aarch64 binfmt-support qemu-user-static
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
         with:
