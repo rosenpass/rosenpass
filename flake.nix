@@ -114,6 +114,7 @@
             inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
             inputsFrom = [ pkgs.rosenpass ];
             nativeBuildInputs = with pkgs; [
+              cargo-audit
               cargo-release
               rustfmt
               nodePackages.prettier
