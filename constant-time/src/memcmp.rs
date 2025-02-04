@@ -45,6 +45,7 @@ mod tests {
     /// This test function will run an equal amount of comparisons on two different sets of parameters:
     /// - completely equal slices
     /// - completely unequal slices.
+    /// All comparisons are executed in a randomized order. The test will fail if one of the
     /// two sets is checked for equality significantly faster than the other set
     /// (absolute correlation coefficient ≥ 0.01)
     fn memcmp_runs_in_constant_time() {
