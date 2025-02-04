@@ -34,6 +34,7 @@ pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
 #[cfg(all(test, feature = "constant_time_tests"))]
 mod tests {
     use super::*;
+    use core::hint::black_box;
     use rand::seq::SliceRandom;
     use rand::thread_rng;
     use std::time::Instant;
@@ -44,20 +45,17 @@ mod tests {
     /// This test function will run an equal amount of comparisons on two different sets of parameters:
     /// - completely equal slices
     /// - completely unequal slices.
-    /// All comparisons are executed in a randomized order. The test will fail if one of the
     /// two sets is checked for equality significantly faster than the other set
     /// (absolute correlation coefficient ≥ 0.01)
     fn memcmp_runs_in_constant_time() {
         // prepare data to compare
         let n: usize = 1E6 as usize; // number of comparisons to run
-        let len = 1024; // length of each slice passed as parameters to the tested comparison function
-        let a1 = "a".repeat(len);
-        let a2 = a1.clone();
-        let b = "b".repeat(len);
+        const LEN: usize = 1024; // length of each slice passed as parameters to the tested comparison function
 
-        let a1 = a1.as_bytes();
-        let a2 = a2.as_bytes();
-        let b = b.as_bytes();
+        let a = [b'a'; LEN];
+        let b = [b'b'; LEN];
+
+        let mut tmp = [0u8; LEN];
 
         // vector representing all timing tests
         //
@@ -71,12 +69,14 @@ mod tests {
 
         // run comparisons / call function to test
         for test in tests.iter_mut() {
+            let src = match test.0 {
+                true => a,
+                false => b,
+            };
+            tmp.copy_from_slice(&src);
+
             let now = Instant::now();
-            if test.0 {
-                memcmp(a1, a2);
-            } else {
-                memcmp(a1, b);
-            }
+            memcmp(black_box(&a), black_box(&tmp));
             test.1 = now.elapsed();
             // println!("eq: {}, elapsed: {:.2?}", test.0, test.1);
         }
@@ -117,6 +117,6 @@ mod tests {
         assert!(
             correlation.abs() < 0.01,
             "execution time correlates with result"
-        );
+        )
     }
 }
