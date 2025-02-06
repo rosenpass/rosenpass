@@ -28,7 +28,11 @@ required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
 name = "gen-ipc-msg-types"
-required-features = ["experiment_api", "internal_testing", "internal_bin_gen_ipc_msg_types"]
+required-features = [
+    "experiment_api",
+    "internal_testing",
+    "internal_bin_gen_ipc_msg_types",
+]
 
 [[bench]]
 name = "handshake"
@@ -60,11 +64,11 @@ home = { workspace = true }
 derive_builder = { workspace = true }
 rosenpass-wireguard-broker = { workspace = true }
 zeroize = { workspace = true }
+rustix = { workspace = true, optional = true }
 hex-literal = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 heck = { workspace = true, optional = true }
 command-fds = { workspace = true, optional = true }
-rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 signal-hook = { workspace = true, optional = true }
 
@@ -78,7 +82,6 @@ stacker = { workspace = true }
 serial_test = { workspace = true }
 procspawn = { workspace = true }
 tempfile = { workspace = true }
-rustix = { workspace = true }
 
 [features]
 default = []

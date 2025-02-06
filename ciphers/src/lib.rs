@@ -1,5 +1,7 @@
 use static_assertions::const_assert;
 
+pub mod hash_domain;
+pub mod providers;
 pub mod subtle;
 
 /// All keyed primitives in this crate use 32 byte keys
@@ -14,31 +16,20 @@ const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 /// to the cryptographic protocol should use the facilities in [hash_domain], (though
 /// hash domain uses this module internally)
 pub mod keyed_hash {
-    pub use crate::subtle::incorrect_hmac_blake2b::{
-        hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN,
-    };
+    pub use crate::subtle::incorrect_hmac_blake2b::{hash, KEY_LEN};
 }
 
 /// Authenticated encryption with associated data
 /// Chacha20poly1305 is used.
 pub mod aead {
-    #[cfg(not(feature = "experiment_libcrux"))]
-    pub use crate::subtle::chacha20poly1305_ietf::{decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN};
-    #[cfg(feature = "experiment_libcrux")]
-    pub use crate::subtle::chacha20poly1305_ietf_libcrux::{
-        decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
-    };
+    pub use crate::subtle::chacha20poly1305::{decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN};
 }
 
 /// Authenticated encryption with associated data with a constant nonce
 /// XChacha20poly1305 is used.
 pub mod xaead {
-    pub use crate::subtle::xchacha20poly1305_ietf::{
-        decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
-    };
+    pub use crate::subtle::xchacha20poly1305::{decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN};
 }
-
-pub mod hash_domain;
 
 /// This crate includes two key encapsulation mechanisms.
 /// Namely ClassicMceliece460896 (also referred to as `StaticKem` sometimes) and
@@ -48,6 +39,12 @@ pub mod hash_domain;
 /// and [rosenpass_oqs::Kyber512] for more details on the specific KEMS.
 ///
 pub mod kem {
-    pub use rosenpass_oqs::ClassicMceliece460896 as StaticKem;
-    pub use rosenpass_oqs::Kyber512 as EphemeralKem;
+    pub type StaticKem =
+        <crate::Provider as rosenpass_cipher_traits::Provider>::ClassicMceliece460896;
+    pub type EphemeralKem = <crate::Provider as rosenpass_cipher_traits::Provider>::Kyber512;
 }
+
+#[cfg(not(feature = "experiment_libcrux"))]
+pub type Provider = providers::basic::BasicProvider;
+#[cfg(feature = "experiment_libcrux")]
+pub type Provider = providers::libcrux::LibcruxProvider;

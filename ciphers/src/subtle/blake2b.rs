@@ -1,25 +1,16 @@
-use zeroize::Zeroizing;
+use rosenpass_cipher_traits::{KeyedHash, KeyedHashError as Error};
 
-use blake2::digest::crypto_common::generic_array::GenericArray;
-use blake2::digest::crypto_common::typenum::U32;
-use blake2::digest::crypto_common::KeySizeUser;
-use blake2::digest::{FixedOutput, Mac, OutputSizeUser};
-use blake2::Blake2bMac;
+use crate::Provider;
 
-use rosenpass_to::{ops::copy_slice, with_destination, To};
-use rosenpass_util::typenum2const;
+use rosenpass_to::{with_destination, To};
 
-/// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
-/// with output and key length of 32 bytes (see [Blake2bMac]).
-type Impl = Blake2bMac<U32>;
-
-type KeyLen = <Impl as KeySizeUser>::KeySize;
-type OutLen = <Impl as OutputSizeUser>::OutputSize;
+// NOTE: typenum2const gives 64 for KeyLen. This didn't ahve an effect before, because that value
+// wasn't really used, but we use it now.
 
 /// The key length for BLAKE2b supported by this API. Currently 32 Bytes.
-const KEY_LEN: usize = typenum2const! { KeyLen };
+const KEY_LEN: usize = 32;
 /// The output length for BLAKE2b supported by this API. Currently 32 Bytes.
-const OUT_LEN: usize = typenum2const! { OutLen };
+const OUT_LEN: usize = 32;
 
 /// Minimal key length supported by this API.
 pub const KEY_MIN: usize = KEY_LEN;
@@ -47,19 +38,11 @@ pub const OUT_MAX: usize = OUT_LEN;
 ///```
 ///
 #[inline]
-pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<()>> + 'a {
-    with_destination(|out: &mut [u8]| {
-        let mut h = Impl::new_from_slice(key)?;
-        h.update(data);
-
-        // Jesus christ, blake2 crate, your usage of GenericArray might be nice and fancy
-        // but it introduces a ton of complexity. This cost me half an hour just to figure
-        // out the right way to use the imports while allowing for zeroization.
-        // An API based on slices might actually be simpler.
-        let mut tmp = Zeroizing::new([0u8; OUT_LEN]);
-        let tmp = GenericArray::from_mut_slice(tmp.as_mut());
-        h.finalize_into(tmp);
-        copy_slice(tmp.as_ref()).to(out);
-        Ok(())
+pub fn hash<'a>(
+    key: &'a [u8; KEY_LEN],
+    data: &'a [u8],
+) -> impl To<[u8; OUT_LEN], Result<(), Error>> + 'a {
+    with_destination(|out: &mut [u8; OUT_LEN]| {
+        <Provider as rosenpass_cipher_traits::Provider>::KeyedBlake2b::keyed_hash(key, data, out)
     })
 }
