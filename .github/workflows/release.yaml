@@ -69,3 +69,24 @@ jobs:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: result/*
+  linux-packages:
+    name: Build and upload DEB and RPM packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - uses: cachix/cachix-action@v15
+        with:
+          name: rosenpass
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build DEB package
+        run: nix build .#package-deb --print-build-logs
+      - name: Build RPM package
+        run: nix build .#package-rpm --print-build-logs
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: ${{ contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          files: |
+            result-*/*
