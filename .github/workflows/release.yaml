@@ -75,14 +75,14 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Build DEB package
-        run: nix build .#package-deb --print-build-logs
-      - name: Build RPM package
-        run: nix build .#package-rpm --print-build-logs
+      - name: Build DEB & RPM package
+        run: |
+          mkdir packages
+          for f in $(nix build .#package-deb .#package-rpm --print-out-paths); do cp "$f" "packages/${f#*-}"; done
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: |
-            result-*/*
+            packages/*
