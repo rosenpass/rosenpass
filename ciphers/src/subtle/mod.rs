@@ -10,6 +10,6 @@ pub mod chacha20poly1305_ietf;
 pub mod chacha20poly1305_ietf_libcrux;
 pub mod xchacha20poly1305_ietf;
 mod hash_functions;
-pub mod hash_choice;
+pub mod either_hash;
 
 pub use hash_functions::{blake2b, incorrect_hmac_blake2b, keyed_shake256}; 
