@@ -40,6 +40,7 @@ use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
 use crate::{hash_domains, msgs::*, RosenpassError};
+#[allow(unused_imports)]
 use crate::test_vec_integration::{SecretMomento, PublicMomento};
 // CONSTANTS & SETTINGS //////////////////////////
 

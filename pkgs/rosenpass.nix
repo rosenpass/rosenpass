@@ -57,6 +57,7 @@ rustPlatform.buildRustPackage {
     outputHashes = {
       "memsec-0.6.3" = "sha256-4ri+IEqLd77cLcul3lZrmpDKj4cwuYJ8oPRAiQNGeLw=";
       "uds-0.4.2" = "sha256-qlxr/iJt2AV4WryePIvqm/8/MK/iqtzegztNliR93W8=";
+      "assert_tv-0.4.0" = "sha256-8R9OOujW2Uzw2cSADjMNFmqUcTxZOcC8rWmtJDTkc1k=";
     };
   };
 

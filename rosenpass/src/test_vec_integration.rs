@@ -1,14 +1,20 @@
 
+#[cfg(feature = "tv")]
 use anyhow::anyhow;
+#[cfg(feature = "tv")]
 use assert_tv::{tv_const, TestVectorMomento};
 #[cfg(feature = "tv")]
 use base64::Engine;
 #[cfg(feature = "tv")]
 use serde_json::Value;
+#[cfg(feature = "tv")]
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
 #[cfg(feature = "tv")]
 use std::time::{Duration, UNIX_EPOCH};
-use crate::protocol::{CookieStore, CryptoServer};
+#[cfg(feature = "tv")]
+use crate::protocol::CookieStore;
+#[cfg(feature = "tv")]
+use crate::protocol::CryptoServer;
 
 pub struct SecretMomento;
 
