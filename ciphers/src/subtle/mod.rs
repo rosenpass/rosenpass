@@ -11,3 +11,6 @@ pub mod chacha20poly1305_ietf;
 pub mod chacha20poly1305_ietf_libcrux;
 pub mod incorrect_hmac_blake2b;
 pub mod xchacha20poly1305_ietf;
+pub mod hash_functions;
+
+pub use hash_functions::{keyed_shake256}; 
