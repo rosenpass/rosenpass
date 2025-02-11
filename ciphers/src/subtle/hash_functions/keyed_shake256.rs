@@ -2,6 +2,7 @@ use anyhow::ensure;
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 use rosenpass_cipher_traits::KeyedHash;
+use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SHAKE256Core<const KEY_LEN: usize, const HASH_LEN: usize>;
@@ -63,3 +64,9 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> SHAKE256Core<KEY_LEN, HASH_LEN
         Self
     }
 }
+
+pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
+InferKeyedHash<SHAKE256Core<KEY_LEN, HASH_LEN>, KEY_LEN, HASH_LEN>;
+
+pub type SHAKE256_32<const KEY_LEN: usize, const OUT_LEN: usize> = SHAKE256<32, 32>;
+
