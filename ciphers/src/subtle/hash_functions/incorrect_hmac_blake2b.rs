@@ -1,10 +1,11 @@
 use anyhow::ensure;
 use zeroize::Zeroizing;
-
+use rosenpass_cipher_traits::KeyedHash;
 use rosenpass_constant_time::xor;
 use rosenpass_to::{ops::copy_slice, with_destination, To};
 
-use crate::subtle::blake2b;
+use crate::subtle::hash_functions::blake2b;
+use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 
 /// The key length, 32 bytes or 256 bits.
 pub const KEY_LEN: usize = 32;
@@ -65,3 +66,16 @@ pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<(
         Ok(())
     })
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Blake2bCore;
+
+impl KeyedHash<32, 32> for Blake2bCore {
+    type Error = anyhow::Error;
+
+    fn keyed_hash(key: &[u8; 32], data: &[u8], out: &mut [u8; 32]) -> Result<(), Self::Error> {
+        hash(key, data).to(out)
+    }
+}
+
+pub type Blake2b = InferKeyedHash<Blake2bCore, 32, 32>;
