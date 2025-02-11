@@ -28,3 +28,5 @@ where
         }
     }
 }
+
+pub type EitherShakeOrBlake = HashChoice<32, 32, anyhow::Error, SHAKE256Core<32, 32>, Blake2bCore>;
