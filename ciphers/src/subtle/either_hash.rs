@@ -28,14 +28,3 @@ where
         }
     }
 }
-
-pub type EitherShakeOrBlake = EitherHash<32, 32, anyhow::Error, SHAKE256Core<32, 32>, Blake2bCore>;
-
-impl Clone for EitherShakeOrBlake {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Left(l) => Self::Left(l.clone()),
-            Self::Right(r) => Self::Right(r.clone()),
-        }
-    }
-}
