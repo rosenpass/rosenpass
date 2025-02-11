@@ -1,18 +1,16 @@
 #![allow(unused_imports)]
 
-use std::ops::DerefMut;
 use anyhow::anyhow;
 use assert_tv::{tv_const, tv_output};
 use assert_tv_macros::test_vec;
-use serde_json::{Value};
-use rosenpass_secret_memory::policy::*;
+use rosenpass::protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey};
+use rosenpass::test_vec_integration::{PublicBoxMomento, PublicMomento, SecretMomento};
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
-use rosenpass::{
-    protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
-};
-use rosenpass::test_vec_integration::{PublicBoxMomento, PublicMomento, SecretMomento};
+use rosenpass_secret_memory::policy::*;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
+use serde_json::Value;
+use std::ops::DerefMut;
 
 #[test_vec(format = "json")]
 fn crypto_server_test_vector_1() -> anyhow::Result<()> {
@@ -49,7 +47,9 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
 
     // let a and b communicate
     while let Some(len) = maybe_len {
-        tv_output!(a_buf.clone(), PublicMomento, {format!("msg-{}", message_index)});
+        tv_output!(a_buf.clone(), PublicMomento, {
+            format!("msg-{}", message_index)
+        });
         message_index += 1;
         maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
         std::mem::swap(&mut a, &mut b);
@@ -59,21 +59,23 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     // all done! Extract the shared keys and ensure they are identical
     let a_key = a.osk(PeerPtr(0))?;
     let b_key = b.osk(PeerPtr(0))?;
-    assert_eq!(a_key.secret(), b_key.secret(),
-               "the key exchanged failed to establish a shared secret");
+    assert_eq!(
+        a_key.secret(),
+        b_key.secret(),
+        "the key exchanged failed to establish a shared secret"
+    );
     tv_output!(a_key, SecretMomento, "exchanged-key", "final exchanged key");
     Ok(())
- }
+}
 
-
-fn gen_keypair(peer_name: &'static str,) -> (SSk, SPk) {
+fn gen_keypair(peer_name: &'static str) -> (SSk, SPk) {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
     StaticKem::keygen(sk.secret_mut(), pk.deref_mut()).expect("Error generating keypair");
     let sk: SSk = tv_const!(
         sk,
         SecretMomento,
-        format!("{}_sk", peer_name), // name
-        format!("{} secret key", peer_name) // description
+        format!("{}_sk", peer_name),         // name
+        format!("{} secret key", peer_name)  // description
     );
     let pk: SPk = tv_const!(
         pk,
@@ -83,4 +85,3 @@ fn gen_keypair(peer_name: &'static str,) -> (SSk, SPk) {
     );
     (sk, pk)
 }
-

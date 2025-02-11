@@ -1,4 +1,3 @@
-
 use assert_tv::tv_if_enabled;
 
 pub struct SecretMomento;

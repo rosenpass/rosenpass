@@ -18,8 +18,8 @@ use std::{
 
 use anyhow::{bail, ensure, Context, Result};
 use assert_tv::{tv_const, tv_if_enabled, tv_output};
-use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use rand::Fill as Randomize;
 
 use memoffset::span_of;
@@ -37,9 +37,9 @@ use rosenpass_util::mem::DiscardResultExt;
 use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
-use crate::{hash_domains, msgs::*, RosenpassError};
 #[allow(unused_imports)]
-use crate::test_vec_integration::{SecretMomento, PublicMomento};
+use crate::test_vec_integration::{PublicMomento, SecretMomento};
+use crate::{hash_domains, msgs::*, RosenpassError};
 // CONSTANTS & SETTINGS //////////////////////////
 
 /// A type for time, e.g. for backoff before re-tries
@@ -3405,7 +3405,11 @@ impl CryptoServer {
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
         // hs.cookie_value.created_at = tv_const!(hs.cookie_value.created_at, "init_handshake-cookie-created_at");
-        hs.cookie_value.value = tv_const!(hs.cookie_value.value, SecretMomento, "init_handshake-cookie-secret");
+        hs.cookie_value.value = tv_const!(
+            hs.cookie_value.value,
+            SecretMomento,
+            "init_handshake-cookie-secret"
+        );
 
         // IHI1
         hs.core.init(peer.get(self).spkt.deref())?;
@@ -3418,12 +3422,16 @@ impl CryptoServer {
         // IHI3
         EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         hs.eski = tv_const!(hs.eski, SecretMomento, "init-handshake-eski");
-        hs.epki = tv_const!(hs.epki, PublicMomento,"init-handshake-epki");
+        hs.epki = tv_const!(hs.epki, PublicMomento, "init-handshake-epki");
         ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
         hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
-        tv_output!(hs.core.ck.clone().danger_into_secret(), SecretMomento, "init-handshake-mix-1");
+        tv_output!(
+            hs.core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "init-handshake-mix-1"
+        );
 
         // IHI5
         hs.core
@@ -3432,25 +3440,40 @@ impl CryptoServer {
                 peer.get(self).spkt.deref(),
             )?;
 
-
-        tv_output!(hs.core.ck.clone().danger_into_secret(), SecretMomento, "init-handshake-mix-2");
+        tv_output!(
+            hs.core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "init-handshake-mix-2"
+        );
 
         // IHI6
         hs.core
             .encrypt_and_mix(ih.pidic.as_mut_slice(), self.pidm()?.as_ref())?;
         tv_output!(STANDARD.encode(ih.pidic), "init-handshake-pidic");
-        tv_output!(hs.core.ck.clone().danger_into_secret(), SecretMomento, "init-handshake-mix-3");
+        tv_output!(
+            hs.core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "init-handshake-mix-3"
+        );
 
         // IHI7
         hs.core
             .mix(self.spkm.deref())?
             .mix(peer.get(self).psk.secret())?;
-        tv_output!(hs.core.ck.clone().danger_into_secret(), SecretMomento, "init-handshake-mix-4");
+        tv_output!(
+            hs.core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "init-handshake-mix-4"
+        );
 
         // IHI8
         hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
         tv_output!(STANDARD.encode(ih.auth), "init-handshake-auth");
-        tv_output!(hs.core.ck.clone().danger_into_secret(), SecretMomento, "init-handshake-mix-5");
+        tv_output!(
+            hs.core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "init-handshake-mix-5"
+        );
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
@@ -3469,7 +3492,11 @@ impl CryptoServer {
 
         // IHR4
         core.mix(&ih.sidi)?.mix(&ih.epki)?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-IHR4");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-IHR4"
+        );
 
         // IHR5
         core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
@@ -3477,7 +3504,11 @@ impl CryptoServer {
             self.spkm.deref(),
             &ih.sctr,
         )?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-IHR5");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-IHR5"
+        );
 
         // IHR6
         let peer = {
@@ -3486,16 +3517,28 @@ impl CryptoServer {
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
         };
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-IHR8");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-IHR8"
+        );
 
         // IHR7
         core.mix(peer.get(self).spkt.deref())?
             .mix(peer.get(self).psk.secret())?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-IHR7");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-IHR7"
+        );
 
         // IHR8
         core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-IHR8");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-IHR8"
+        );
 
         // RHR1
         core.sidr.randomize();
@@ -3505,27 +3548,47 @@ impl CryptoServer {
 
         // RHR3
         core.mix(&rh.sidr)?.mix(&rh.sidi)?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-RHR3");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-RHR3"
+        );
 
         // RHR4
         core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-RHR4");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-RHR4"
+        );
 
         // RHR5
         core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
             &mut rh.scti,
             peer.get(self).spkt.deref(),
         )?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-RHR5");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-RHR5"
+        );
 
         // RHR6
         core.store_biscuit(self, peer, &mut rh.biscuit)?;
 
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-RHR6");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-RHR6"
+        );
 
         // RHR7
         core.encrypt_and_mix(&mut rh.auth, &[])?;
-        tv_output!(core.ck.clone().danger_into_secret(), SecretMomento, "handle-init-hello-RHR7");
+        tv_output!(
+            core.ck.clone().danger_into_secret(),
+            SecretMomento,
+            "handle-init-hello-RHR7"
+        );
 
         Ok(peer)
     }
