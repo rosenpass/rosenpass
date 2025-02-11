@@ -33,6 +33,7 @@ pub const OUT_MAX: usize = OUT_LEN;
 /// Hashes the given `data` with the [Blake2bMac] hash function under the given `key`.
 /// The both the length of the output the length of the key 32 bytes (or 256 bits).  
 ///
+/// TODO: Adapt example
 /// # Examples
 ///
 ///```rust
