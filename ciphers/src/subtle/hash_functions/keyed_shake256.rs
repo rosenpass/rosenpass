@@ -66,7 +66,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> SHAKE256Core<KEY_LEN, HASH_LEN
     }
 }
 
-/// TODO use nferred hash somehow here
+/// TODO use inferred hash somehow here
 /// ```rust
 /// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256};
 /// use rosenpass_cipher_traits::KeyedHashInstance;
