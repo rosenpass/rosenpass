@@ -127,20 +127,20 @@ dependencies = [
 
 [[package]]
 name = "assert_tv"
-version = "0.4.0"
-source = "git+https://github.com/aminfa/assert_tv#e7295bb6db4fd5b9f0e82e296f83212e3d9c5b3d"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d47941b05de5f971801e7adb3cad849808731016ba160acded05f2bb11cba6b0"
 dependencies = [
  "anyhow",
- "log",
  "serde",
  "serde_json",
- "serde_yaml",
 ]
 
 [[package]]
 name = "assert_tv_macros"
-version = "0.4.0"
-source = "git+https://github.com/aminfa/assert_tv#e7295bb6db4fd5b9f0e82e296f83212e3d9c5b3d"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd3281c02d5556c98af43c2906869eae5742ca98bc7988ecaf2a01d02a44b6cc"
 dependencies = [
  "assert_tv",
  "proc-macro2",
@@ -2124,19 +2124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
-]
-
-[[package]]
 name = "serial_test"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2448,12 +2435,6 @@ dependencies = [
  "crypto-common",
  "subtle",
 ]
-
-[[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "utf8parse"

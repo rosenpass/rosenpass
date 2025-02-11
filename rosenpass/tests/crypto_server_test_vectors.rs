@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::ops::DerefMut;
 use anyhow::anyhow;
 use assert_tv::{tv_const, tv_output};
@@ -9,11 +11,13 @@ use rosenpass_ciphers::kem::StaticKem;
 use rosenpass::{
     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
 };
-use rosenpass::test_vec_integration::{de_randomize_time_base_cookie_secrets, PublicBoxMomento, PublicMomento, SecretMomento};
+use rosenpass::test_vec_integration::{PublicBoxMomento, PublicMomento, SecretMomento};
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
 
-#[test_vec(feature="tv", format = "json")]
+#[test_vec(format = "json")]
 fn crypto_server_test_vector_1() -> anyhow::Result<()> {
+    use rosenpass::test_vec_integration::de_randomize_time_base_cookie_secrets;
+
     // Set security policy for storing secrets
     secret_policy_try_use_memfd_secrets();
 
@@ -45,7 +49,7 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
 
     // let a and b communicate
     while let Some(len) = maybe_len {
-        tv_output!(a_buf.clone(), PublicMomento, format!("msg-{}", message_index));
+        tv_output!(a_buf.clone(), PublicMomento, {format!("msg-{}", message_index)});
         message_index += 1;
         maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
         std::mem::swap(&mut a, &mut b);

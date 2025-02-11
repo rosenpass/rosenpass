@@ -17,10 +17,8 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context, Result};
-use assert_tv::{tv_const, tv_output};
-#[cfg(feature = "tv")]
+use assert_tv::{tv_const, tv_if_enabled, tv_output};
 use base64::Engine;
-#[cfg(feature = "tv")]
 use base64::engine::general_purpose::STANDARD;
 use rand::Fill as Randomize;
 
@@ -1582,8 +1580,7 @@ impl CryptoServer {
         let r = if t < u { a } else { b };
         let tb = self.timebase.clone();
         r.get_mut(self).randomize(&tb);
-        #[cfg(feature = "tv")]
-        {
+        tv_if_enabled! {
             self.biscuit_keys[r.0].value =
                 tv_const!(
                 self.biscuit_keys[r.0].value,
@@ -3231,8 +3228,7 @@ impl HandshakeState {
         let mut shk = Secret::<SHK_LEN>::zero();
         T::encaps(shk.secret_mut(), ct, pk)?;
 
-        #[cfg(feature = "tv")]
-        {
+        tv_if_enabled! {
             shk = tv_const!(shk, SecretMomento, "encaps-shk");
             let ct_b64: String = tv_const!(STANDARD.encode(ct.as_bytes()), "encaps-ct");
             ct.copy_from_slice(STANDARD.decode(ct_b64.as_str())?.as_slice());
