@@ -53,7 +53,7 @@ pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<(
         let mut h = Impl::new_from_slice(key)?;
         h.update(data);
 
-        // Jesus christ, blake2 crate, your usage of GenericArray might be nice and fancy
+        // Jesus christ, blake2 crate, your usage of GenericArray might be nice and fancy,
         // but it introduces a ton of complexity. This cost me half an hour just to figure
         // out the right way to use the imports while allowing for zeroization.
         // An API based on slices might actually be simpler.
