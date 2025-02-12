@@ -10,8 +10,6 @@ tv_if_enabled! {
     use base64::Engine;
     use serde_json::Value;
     use rosenpass_secret_memory::{Public, PublicBox, Secret};
-    use std::time::{Duration, UNIX_EPOCH};
-    use crate::protocol::CookieStore;
     use crate::protocol::CryptoServer;
 
     impl<const N: usize> TestVectorMomento<Secret<N>> for SecretMomento {

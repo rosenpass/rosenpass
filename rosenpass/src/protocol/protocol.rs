@@ -3404,25 +3404,31 @@ impl CryptoServer {
     /// on the initiator side, producing the InitHello message.
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(self);
-        // hs.cookie_value.created_at = tv_const!(hs.cookie_value.created_at, "init_handshake-cookie-created_at");
-        hs.cookie_value.value = tv_const!(
-            hs.cookie_value.value,
-            SecretMomento,
-            "init_handshake-cookie-secret"
-        );
+        tv_if_enabled! {
+            // hs.cookie_value.created_at = tv_const!(hs.cookie_value.created_at, "init_handshake-cookie-created_at");
+            hs.cookie_value.value = tv_const!(
+                hs.cookie_value.value,
+                SecretMomento,
+                "init_handshake-cookie-secret"
+            );
+        }
 
         // IHI1
         hs.core.init(peer.get(self).spkt.deref())?;
 
         // IHI2
         hs.core.sidi.randomize();
-        hs.core.sidi = tv_const!(hs.core.sidi, PublicMomento, "init-handshake-sidi");
+        tv_if_enabled! {
+            hs.core.sidi = tv_const!(hs.core.sidi, PublicMomento, "init-handshake-sidi");
+        }
         ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
         EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
-        hs.eski = tv_const!(hs.eski, SecretMomento, "init-handshake-eski");
-        hs.epki = tv_const!(hs.epki, PublicMomento, "init-handshake-epki");
+        tv_if_enabled! {
+            hs.eski = tv_const!(hs.eski, SecretMomento, "init-handshake-eski");
+            hs.epki = tv_const!(hs.epki, PublicMomento, "init-handshake-epki");
+        }
         ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -3542,7 +3548,9 @@ impl CryptoServer {
 
         // RHR1
         core.sidr.randomize();
-        core.sidr = tv_const!(core.sidr, PublicMomento, "resp-hello-sidr");
+        tv_if_enabled! {
+            core.sidr = tv_const!(core.sidr, PublicMomento, "resp-hello-sidr");
+        }
         rh.sidi.copy_from_slice(core.sidi.as_ref());
         rh.sidr.copy_from_slice(core.sidr.as_ref());
 
