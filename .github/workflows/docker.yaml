@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  docker-image-rp:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/utilacy/rp
+          tags: |
+            type=edge,branch=main
+            type=semver,pattern={{version}}
+          labels: |
+            maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.title=Rosenpass
+            org.opencontainers.image.description=The rp command-line integrates Rosenpass and WireGuard to help you create a VPN
+            org.opencontainers.image.vendor=Rosenpass e.V.
+            org.opencontainers.image.licenses=MIT OR Apache-2.0"
+            org.opencontainers.image.url=https://rosenpass.eu
+            org.opencontainers.image.documentation=https://rosenpass.eu/docs/
+            org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
+      -
+        name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: rp
+          platforms: linux/amd64 #,linux/arm64,linux/arm/v7
+  docker-image-rosenpass:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/utilacy/rosenpass
+          tags: |
+            type=edge,branch=main
+            type=semver,pattern={{version}}
+          labels: |
+            maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.title=Rosenpass
+            org.opencontainers.image.description=Reference implementation of the protocol rosenpass protocol
+            org.opencontainers.image.vendor=Rosenpass e.V.
+            org.opencontainers.image.licenses=MIT OR Apache-2.0"
+            org.opencontainers.image.url=https://rosenpass.eu
+            org.opencontainers.image.documentation=https://rosenpass.eu/docs/
+            org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
+      -
+        name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: rosenpass
+          platforms: linux/amd64 #,linux/arm64,linux/arm/v7
