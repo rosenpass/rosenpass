@@ -490,6 +490,7 @@ impl CliArgs {
                 cfg_peer.key_out,
                 broker_peer,
                 cfg_peer.endpoint.clone(),
+                cfg_peer.protocol_version.into(),
             )?;
         }
 

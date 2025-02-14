@@ -9,20 +9,26 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_util::result::OkExt;
 
-use rosenpass::protocol::{
-    testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult,
-    SPk, SSk, SymKey, Timing, UNENDING,
-};
+use rosenpass::protocol::{testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult, ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING};
 
 // TODO: Most of the utility functions in here should probably be moved to
 // rosenpass::protocol::testutils;
 
 #[test]
-fn test_successful_exchange_with_poll() -> anyhow::Result<()> {
+fn test_successful_exchange_with_poll_v02() -> anyhow::Result<()> {
+    test_successful_exchange_with_poll(ProtocolVersion::V02)
+}
+
+#[test]
+fn test_successful_exchange_with_poll_v03() -> anyhow::Result<()> {
+    test_successful_exchange_with_poll(ProtocolVersion::V03)
+}
+
+fn test_successful_exchange_with_poll(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
-    let mut sim = RosenpassSimulator::new()?;
+    let mut sim = RosenpassSimulator::new(protocol_version)?;
     sim.poll_loop(150)?; // Poll 75 times
     let transcript = sim.transcript;
 
@@ -79,12 +85,21 @@ fn test_successful_exchange_with_poll() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_successful_exchange_under_packet_loss() -> anyhow::Result<()> {
+fn test_successful_exchange_under_packet_loss_v02() -> anyhow::Result<()> {
+    test_successful_exchange_under_packet_loss(ProtocolVersion::V02)
+}
+
+#[test]
+fn test_successful_exchange_under_packet_loss_v03() -> anyhow::Result<()> {
+    test_successful_exchange_under_packet_loss(ProtocolVersion::V03)
+}
+
+fn test_successful_exchange_under_packet_loss(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     // Create the simulator
-    let mut sim = RosenpassSimulator::new()?;
+    let mut sim = RosenpassSimulator::new(protocol_version)?;
 
     // Make sure the servers are set to under load condition
     sim.srv_a.under_load = true;
@@ -272,7 +287,7 @@ struct SimulatorServer {
 
 impl RosenpassSimulator {
     /// Set up the simulator
-    fn new() -> anyhow::Result<Self> {
+    fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
         // Set up the first server
         let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
         StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
@@ -285,8 +300,8 @@ impl RosenpassSimulator {
 
         // Generate a PSK and introduce the Peers to each other.
         let psk = SymKey::random();
-        let peer_a = srv_a.add_peer(Some(psk.clone()), peer_b_pk)?;
-        let peer_b = srv_b.add_peer(Some(psk), peer_a_pk)?;
+        let peer_a = srv_a.add_peer(Some(psk.clone()), peer_b_pk, protocol_version.clone())?;
+        let peer_b = srv_b.add_peer(Some(psk), peer_a_pk, protocol_version.clone())?;
 
         // Set up the individual server data structures
         let srv_a = SimulatorServer::new(srv_a, peer_b);
@@ -314,8 +329,8 @@ impl RosenpassSimulator {
         Ok(())
     }
 
-    /// Every call to poll produces one [TranscriptEvent] and
-    /// and implicitly adds it to [Self:::transcript]
+    /// Every call to poll produces one [TranscriptEvent]
+    /// and implicitly adds it to [Self::transcript]
     fn poll(&mut self) -> anyhow::Result<&TranscriptEvent> {
         let ev = TranscriptEvent::begin_poll()
             .try_fold_with(|| self.poll_focus.poll(self))?

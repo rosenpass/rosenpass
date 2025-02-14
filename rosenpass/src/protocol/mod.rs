@@ -33,6 +33,7 @@
 //! # fn main() -> anyhow::Result<()> {
 //! // Set security policy for storing secrets
 //!
+//! use rosenpass::protocol::ProtocolVersion;
 //! secret_policy_try_use_memfd_secrets();
 //!
 //! // initialize secret and public key for peer a ...
@@ -49,8 +50,8 @@
 //! let mut b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 //!
 //! // introduce peers to each other
-//! a.add_peer(Some(psk.clone()), peer_b_pk)?;
-//! b.add_peer(Some(psk), peer_a_pk)?;
+//! a.add_peer(Some(psk.clone()), peer_b_pk, ProtocolVersion::V03)?;
+//! b.add_peer(Some(psk), peer_a_pk, ProtocolVersion::V03)?;
 //!
 //! // declare buffers for message exchange
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
