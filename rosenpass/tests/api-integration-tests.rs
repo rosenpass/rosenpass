@@ -17,6 +17,7 @@ use tempfile::TempDir;
 use zerocopy::AsBytes;
 
 use rosenpass::protocol::SymKey;
+use rosenpass::config::ProtocolVersion;
 
 struct KillChild(std::process::Child);
 
@@ -37,7 +38,16 @@ impl Drop for KillChild {
 }
 
 #[test]
-fn api_integration_test() -> anyhow::Result<()> {
+fn api_integration_test_v02() -> anyhow::Result<()> {
+    api_integration_test(ProtocolVersion::V02)
+}
+
+fn api_integration_test_v03() -> anyhow::Result<()> {
+    api_integration_test(ProtocolVersion::V03)
+}
+
+
+fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
@@ -73,6 +83,7 @@ fn api_integration_test() -> anyhow::Result<()> {
             endpoint: None,
             pre_shared_key: None,
             wg: None,
+            protocol_version: protocol_version.clone(),
         }],
     };
 
@@ -93,6 +104,7 @@ fn api_integration_test() -> anyhow::Result<()> {
             endpoint: Some(peer_a_endpoint.to_owned()),
             pre_shared_key: None,
             wg: None,
+            protocol_version: protocol_version.clone(),
         }],
     };
 

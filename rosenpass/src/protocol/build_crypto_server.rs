@@ -4,7 +4,7 @@ use rosenpass_util::{
     result::ensure_or,
 };
 use thiserror::Error;
-
+use crate::config::ProtocolVersion;
 use super::{CryptoServer, PeerPtr, SPk, SSk, SymKey};
 
 #[derive(Debug, Clone)]
@@ -146,17 +146,18 @@ pub struct MissingKeypair;
 /// ```rust
 /// use rosenpass_util::build::Build;
 /// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams, SPk, SymKey};
+/// use rosenpass::config::ProtocolVersion;
 ///
 /// // We have to define the security policy before using Secrets.
 /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let keypair = Keypair::random();
-/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random() };
-/// let peer2 = PeerParams { psk: None, pk: SPk::random() };
+/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random(), protocol_version: ProtocolVersion::V02 };
+/// let peer2 = PeerParams { psk: None, pk: SPk::random(), protocol_version: ProtocolVersion::V02 };
 ///
 /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![peer1]);
-/// builder.add_peer(peer2.psk.clone(), peer2.pk);
+/// builder.add_peer(peer2.psk.clone(), peer2.pk, ProtocolVersion::V02);
 ///
 /// let server = builder.build().expect("build failed");
 /// assert_eq!(server.peers.len(), 2);
@@ -186,8 +187,8 @@ impl Build<CryptoServer> for BuildCryptoServer {
 
         let mut srv = CryptoServer::new(sk, pk);
 
-        for (idx, PeerParams { psk, pk }) in self.peers.into_iter().enumerate() {
-            let PeerPtr(idx2) = srv.add_peer(psk, pk)?;
+        for (idx, PeerParams { psk, pk , protocol_version}) in self.peers.into_iter().enumerate() {
+            let PeerPtr(idx2) = srv.add_peer(psk, pk, protocol_version.into())?;
             assert!(idx == idx2, "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error.")
         }
 
@@ -208,6 +209,8 @@ pub struct PeerParams {
     pub psk: Option<SymKey>,
     /// Public key identifying the peer.
     pub pk: SPk,
+    /// The used protocol version.
+    pub protocol_version: ProtocolVersion,
 }
 
 impl BuildCryptoServer {
@@ -305,6 +308,7 @@ impl BuildCryptoServer {
     /// Adding peers to an existing builder:
     ///
     /// ```rust
+    /// use rosenpass::config::ProtocolVersion;
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
@@ -323,7 +327,7 @@ impl BuildCryptoServer {
     /// // Now we've found a peer that should be added to the configuration
     /// let pre_shared_key = SymKey::random();
     /// let public_key = SPk::random();
-    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone());
+    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone(), ProtocolVersion::V02);
     ///
     /// // New server instances will then start with the peer being registered already
     /// let server = builder.build().expect("build failed");
@@ -333,16 +337,16 @@ impl BuildCryptoServer {
     /// assert_eq!(peer.spkt, public_key);
     /// assert_eq!(peer_psk.secret(), pre_shared_key.secret());
     /// ```
-    pub fn with_added_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> &mut Self {
+    pub fn with_added_peer(&mut self, psk: Option<SymKey>, pk: SPk, protocol_version: ProtocolVersion) -> &mut Self {
         // TODO: Check here already whether peer was already added
-        self.peers.push(PeerParams { psk, pk });
+        self.peers.push(PeerParams { psk, pk, protocol_version });
         self
     }
 
     /// Add a new entry to the list of registered peers, with or without a pre-shared key.
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> PeerPtr {
+    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, protocol_version: ProtocolVersion) -> PeerPtr {
         let id = PeerPtr(self.peers.len());
-        self.with_added_peer(psk, pk);
+        self.with_added_peer(psk, pk, protocol_version);
         id
     }
 
@@ -356,6 +360,8 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
+    /// use rosenpass::config::ProtocolVersion;
+    /// use rosenpass::hash_domains::protocol;
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
@@ -365,7 +371,7 @@ impl BuildCryptoServer {
     /// let keypair = Keypair::random();
     /// let peer_pk = SPk::random();
     /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![]);
-    /// builder.add_peer(None, peer_pk);
+    /// builder.add_peer(None, peer_pk, ProtocolVersion::V02);
     ///
     /// // Extract configuration parameters from the decomissioned builder
     /// let (keypair_option, peers) = builder.take_parts();
