@@ -109,6 +109,14 @@ pub enum Verbosity {
     Verbose,
 }
 
+/// TODO: Documentation
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Default)]
+pub enum ProtocolVersion {
+    #[default]
+    V02,
+    V03,
+}
+
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RosenpassPeer {
@@ -138,6 +146,10 @@ pub struct RosenpassPeer {
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
+
+    #[serde(default)]
+    /// The protocol version to use for the exchange
+    pub protocol_version: ProtocolVersion,
 }
 
 /// Information for supplying exchanged keys directly to WireGuard
