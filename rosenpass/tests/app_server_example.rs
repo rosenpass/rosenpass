@@ -13,13 +13,23 @@ use rosenpass::{
     app_server::{ipv4_any_binding, ipv6_any_binding, AppServer, AppServerTest, MAX_B64_KEY_SIZE},
     protocol::{SPk, SSk, SymKey},
 };
+use rosenpass::config::ProtocolVersion;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::Secret;
 use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 
 #[test]
-fn key_exchange_with_app_server() -> anyhow::Result<()> {
+fn key_exchange_with_app_server_v02() -> anyhow::Result<()> {
+    key_exchange_with_app_server(ProtocolVersion::V02)
+}
+
+#[test]
+fn key_exchange_with_app_server_v03() -> anyhow::Result<()> {
+    key_exchange_with_app_server(ProtocolVersion::V03)
+}
+
+fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
     let outfile_a = tmpdir.path().join("osk_a");
     let outfile_b = tmpdir.path().join("osk_b");
@@ -57,7 +67,7 @@ fn key_exchange_with_app_server() -> anyhow::Result<()> {
                 let port = otr_port;
                 let hostname = is_client.then(|| format!("[::1]:{port}"));
                 srv.app_srv
-                    .add_peer(psk, pk, outfile, broker_peer, hostname)?;
+                    .add_peer(psk, pk, outfile, broker_peer, hostname, protocol_version.clone())?;
 
                 srv.app_srv.event_loop()
             })
