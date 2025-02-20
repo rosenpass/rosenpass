@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "rosenpass-marzipan"
+version = "0.1.0"
+description = ""
+authors = ["Author Name <author@example.com>"]
+# readme = "README.md"
+# license = "BSD"
+packages = [
+    { include = "**/*.[hp]y", from = "src", to = "rosenpass_marzipan" },
+    { include = "**/*.lark", from = "src", to = "rosenpass_marzipan" },
+]
+
+[tool.poetry.scripts]
+rosenpass-marzipan = 'rosenpass_marzipan:main'
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+hy = "^1.0.0"
+lark = "^1.2.2"
+hyrule = "^0.8.0"
+
+[tool.poetry.group.dev.dependencies]
+poetry = "^2.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
