@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use heck::ToShoutySnakeCase;
 
-use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
 use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
 use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
 use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
 
 /// Recursively calculate a concrete hash value for an API message type
 fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]> {

@@ -1,8 +1,8 @@
 use anyhow::ensure;
-use zeroize::Zeroizing;
 use rosenpass_cipher_traits::KeyedHash;
 use rosenpass_constant_time::xor;
 use rosenpass_to::{ops::copy_slice, with_destination, To};
+use zeroize::Zeroizing;
 
 use crate::subtle::hash_functions::blake2b;
 use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
