@@ -53,8 +53,6 @@ impl<
         Static: KeyedHash<KEY_LEN, HASH_LEN, Error = anyhow::Error>,
     > KeyedHashInstance<KEY_LEN, HASH_LEN> for InferKeyedHash<Static, KEY_LEN, HASH_LEN>
 {
-    type KeyType = [u8; KEY_LEN];
-    type OutputType = [u8; HASH_LEN];
     type Error = anyhow::Error;
 
     fn keyed_hash(&self, key: &[u8; KEY_LEN], data: &[u8], out: &mut [u8; HASH_LEN]) -> Result<()> {
