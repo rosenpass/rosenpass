@@ -9,8 +9,6 @@ pub trait KeyedHash<const KEY_LEN: usize, const HASH_LEN: usize> {
 }
 
 pub trait KeyedHashInstance<const KEY_LEN: usize, const HASH_LEN: usize> {
-    type KeyType;
-    type OutputType;
     type Error;
 
     fn keyed_hash(

@@ -21,8 +21,6 @@ where
     L: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
     R: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
 {
-    type KeyType = [u8; KEY_LEN];
-    type OutputType = [u8; HASH_LEN];
     type Error = Error;
 
     fn keyed_hash(
