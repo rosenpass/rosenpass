@@ -3,28 +3,27 @@ name: ci
 on:
   push:
     branches:
-      - 'main'
+      - "main"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - 'main'
+      - "main"
 
 jobs:
   docker-image-rp:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      -
-        name: Docker meta
+      - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/utilacy/rp
+          images: ghcr.io/rosenpass/rp
           tags: |
             type=edge,branch=main
+            type=sha,branch=main
             type=semver,pattern={{version}}
           labels: |
             maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
@@ -36,17 +35,13 @@ jobs:
             org.opencontainers.image.url=https://rosenpass.eu
             org.opencontainers.image.documentation=https://rosenpass.eu/docs/
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
-      -
-        name: Log in to registry
+      - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      -
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -55,21 +50,20 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rp
-          platforms: linux/amd64 #,linux/arm64,linux/arm/v7
+          platforms: amd64,arm64
   docker-image-rosenpass:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      -
-        name: Docker meta
+      - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/utilacy/rosenpass
+          images: ghcr.io/rosenpass/rosenpass
           tags: |
             type=edge,branch=main
+            type=sha,branch=main
             type=semver,pattern={{version}}
           labels: |
             maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
@@ -81,17 +75,13 @@ jobs:
             org.opencontainers.image.url=https://rosenpass.eu
             org.opencontainers.image.documentation=https://rosenpass.eu/docs/
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
-      -
-        name: Log in to registry
+      - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      -
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -100,4 +90,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rosenpass
-          platforms: linux/amd64 #,linux/arm64,linux/arm/v7
+          platforms: amd64,arm64
