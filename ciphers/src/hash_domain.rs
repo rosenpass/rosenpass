@@ -4,9 +4,9 @@ use rosenpass_to::To;
 
 use crate::keyed_hash as hash;
 
+use crate::subtle::either_hash::EitherShakeOrBlake;
 pub use hash::KEY_LEN;
 use rosenpass_cipher_traits::KeyedHashInstance;
-use crate::subtle::either_hash::EitherShakeOrBlake;
 
 ///
 ///```rust
@@ -125,7 +125,11 @@ impl SecretHashDomain {
     /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
     /// TODO: docu
-    pub fn invoke_primitive(k: &[u8], d: &[u8], hash_choice: EitherShakeOrBlake) -> Result<SecretHashDomain> {
+    pub fn invoke_primitive(
+        k: &[u8],
+        d: &[u8],
+        hash_choice: EitherShakeOrBlake,
+    ) -> Result<SecretHashDomain> {
         let mut new_secret_key = Secret::zero();
         hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
         let mut r = SecretHashDomain(new_secret_key, hash_choice);

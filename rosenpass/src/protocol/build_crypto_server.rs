@@ -1,11 +1,11 @@
+use super::{CryptoServer, PeerPtr, SPk, SSk, SymKey};
+use crate::config::ProtocolVersion;
 use rosenpass_util::{
     build::Build,
     mem::{DiscardResultExt, SwapWithDefaultExt},
     result::ensure_or,
 };
 use thiserror::Error;
-use crate::config::ProtocolVersion;
-use super::{CryptoServer, PeerPtr, SPk, SSk, SymKey};
 
 #[derive(Debug, Clone)]
 /// A pair of matching public/secret keys used to launch the crypto server.
@@ -187,7 +187,15 @@ impl Build<CryptoServer> for BuildCryptoServer {
 
         let mut srv = CryptoServer::new(sk, pk);
 
-        for (idx, PeerParams { psk, pk , protocol_version}) in self.peers.into_iter().enumerate() {
+        for (
+            idx,
+            PeerParams {
+                psk,
+                pk,
+                protocol_version,
+            },
+        ) in self.peers.into_iter().enumerate()
+        {
             let PeerPtr(idx2) = srv.add_peer(psk, pk, protocol_version.into())?;
             assert!(idx == idx2, "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error.")
         }
@@ -337,14 +345,28 @@ impl BuildCryptoServer {
     /// assert_eq!(peer.spkt, public_key);
     /// assert_eq!(peer_psk.secret(), pre_shared_key.secret());
     /// ```
-    pub fn with_added_peer(&mut self, psk: Option<SymKey>, pk: SPk, protocol_version: ProtocolVersion) -> &mut Self {
+    pub fn with_added_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+    ) -> &mut Self {
         // TODO: Check here already whether peer was already added
-        self.peers.push(PeerParams { psk, pk, protocol_version });
+        self.peers.push(PeerParams {
+            psk,
+            pk,
+            protocol_version,
+        });
         self
     }
 
     /// Add a new entry to the list of registered peers, with or without a pre-shared key.
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, protocol_version: ProtocolVersion) -> PeerPtr {
+    pub fn add_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+    ) -> PeerPtr {
         let id = PeerPtr(self.peers.len());
         self.with_added_peer(psk, pk, protocol_version);
         id

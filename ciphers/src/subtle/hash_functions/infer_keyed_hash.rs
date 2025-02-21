@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
 use anyhow::Result;
 use rosenpass_cipher_traits::{KeyedHash, KeyedHashInstance};
+use std::marker::PhantomData;
 
 /// This is a helper to allow for type parameter inference when calling functions
 /// that need a [KeyedHash].
@@ -19,11 +19,13 @@ impl<Static, const KEY_LEN: usize, const HASH_LEN: usize> InferKeyedHash<Static,
 where
     Static: KeyedHash<KEY_LEN, HASH_LEN, Error = anyhow::Error>,
 {
-    pub const KEY_LEN : usize = KEY_LEN;
+    pub const KEY_LEN: usize = KEY_LEN;
     pub const HASH_LEN: usize = HASH_LEN;
 
     pub const fn new() -> Self {
-        Self { _phantom_keyed_hasher: PhantomData }
+        Self {
+            _phantom_keyed_hasher: PhantomData,
+        }
     }
 
     /// This just forwards to [KeyedHash::keyed_hash] of the type parameter `Static`
@@ -45,7 +47,12 @@ where
     }
 }
 
-impl<const KEY_LEN: usize, const HASH_LEN: usize, Static: KeyedHash<KEY_LEN, HASH_LEN, Error = anyhow::Error>> KeyedHashInstance<KEY_LEN, HASH_LEN> for InferKeyedHash<Static, KEY_LEN, HASH_LEN> {
+impl<
+        const KEY_LEN: usize,
+        const HASH_LEN: usize,
+        Static: KeyedHash<KEY_LEN, HASH_LEN, Error = anyhow::Error>,
+    > KeyedHashInstance<KEY_LEN, HASH_LEN> for InferKeyedHash<Static, KEY_LEN, HASH_LEN>
+{
     type KeyType = [u8; KEY_LEN];
     type OutputType = [u8; HASH_LEN];
     type Error = anyhow::Error;
@@ -57,7 +64,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize, Static: KeyedHash<KEY_LEN, HAS
 
 /// Helper traits /////////////////////////////////////////////
 
-impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Default for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
+impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Default
+    for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
 where
     Static: KeyedHash<KEY_LEN, OUT_LEN, Error = anyhow::Error>,
 {
@@ -66,7 +74,8 @@ where
     }
 }
 
-impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Clone for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
+impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Clone
+    for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
 where
     Static: KeyedHash<KEY_LEN, OUT_LEN, Error = anyhow::Error>,
 {
@@ -75,7 +84,8 @@ where
     }
 }
 
-impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Copy for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
+impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Copy
+    for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
 where
     Static: KeyedHash<KEY_LEN, OUT_LEN, Error = anyhow::Error>,
 {

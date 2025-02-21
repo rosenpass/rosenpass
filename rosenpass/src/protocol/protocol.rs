@@ -19,11 +19,15 @@ use std::{
 use anyhow::{bail, ensure, Context, Result};
 use rand::Fill as Randomize;
 
+use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::keyed_hash;
+use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
+use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
+use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
@@ -33,10 +37,6 @@ use rosenpass_util::functional::ApplyExt;
 use rosenpass_util::mem::DiscardResultExt;
 use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
-use rosenpass_ciphers::subtle::either_hash::{EitherShakeOrBlake};
-use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
-use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
-use crate::{hash_domains, msgs::*, RosenpassError};
 
 // CONSTANTS & SETTINGS //////////////////////////
 
@@ -369,7 +369,7 @@ pub enum IndexKey {
 #[derive(Debug, Clone)]
 pub enum ProtocolVersion {
     V02,
-    V03
+    V03,
 }
 
 impl ProtocolVersion {
@@ -1434,7 +1434,7 @@ impl CryptoServer {
     }
 
     /// Add a peer with an optional pre shared key (`psk`) and its public key (`pk`)
-    /// 
+    ///
     /// TODO: Adapt documentation
     ///
     /// ```
@@ -1460,7 +1460,12 @@ impl CryptoServer {
     ///
     /// Ok::<(), anyhow::Error>(())
     /// ```
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, protocol_version: ProtocolVersion) -> Result<PeerPtr> {
+    pub fn add_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+    ) -> Result<PeerPtr> {
         let peer = Peer {
             psk: psk.unwrap_or_else(SymKey::zero),
             spkt: pk,
@@ -2306,7 +2311,7 @@ impl CryptoServer {
         log::debug!("Rx {:?}, processing", msg_type);
 
         let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
-        
+
         let peer = match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
@@ -2314,23 +2319,31 @@ impl CryptoServer {
 
                 // At this point, we do not know the hash functon used by the peer, thus we try both,
                 // with a preference for SHAKE256.
-                let peer_shake256 = self.handle_init_hello(&msg_in.payload, &mut msg_out.payload, EitherShakeOrBlake::Left(SHAKE256Core));
+                let peer_shake256 = self.handle_init_hello(
+                    &msg_in.payload,
+                    &mut msg_out.payload,
+                    EitherShakeOrBlake::Left(SHAKE256Core),
+                );
                 let (peer, peer_hash_choice) = match peer_shake256 {
-                    Ok(peer ) => (peer, EitherShakeOrBlake::Left(SHAKE256Core)),
+                    Ok(peer) => (peer, EitherShakeOrBlake::Left(SHAKE256Core)),
                     Err(_) => {
-                        let peer_blake2b = self.handle_init_hello(&msg_in.payload, &mut msg_out.payload, EitherShakeOrBlake::Right(Blake2bCore));
+                        let peer_blake2b = self.handle_init_hello(
+                            &msg_in.payload,
+                            &mut msg_out.payload,
+                            EitherShakeOrBlake::Right(Blake2bCore),
+                        );
                         match peer_blake2b {
                             Ok(peer) => (peer, EitherShakeOrBlake::Right(Blake2bCore)),
-                            Err(_) => bail!("No valid hash function found for InitHello")
+                            Err(_) => bail!("No valid hash function found for InitHello"),
                         }
                     }
                 };
                 // Now, we make sure that the hash function used by the peer is the same as the one
                 // that is specified in the local configuration.
                 self.verify_hash_choice_match(peer, peer_hash_choice.clone())?;
-                
+
                 ensure!(msg_in.check_seal(self, peer_hash_choice)?, seal_broken);
-                
+
                 len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
                 peer
             }
@@ -2340,8 +2353,11 @@ impl CryptoServer {
 
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
-                ensure!(msg_in.check_seal(self, peer.get(self).protocol_version.shake_or_blake())?, seal_broken);
-                
+                ensure!(
+                    msg_in.check_seal(self, peer.get(self).protocol_version.shake_or_blake())?,
+                    seal_broken
+                );
+
                 len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
                 peer.hs()
                     .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
@@ -2351,7 +2367,6 @@ impl CryptoServer {
             Ok(MsgType::InitConf) => {
                 let msg_in: Ref<&[u8], Envelope<InitConf>> =
                     Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
-                
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
 
@@ -2360,7 +2375,13 @@ impl CryptoServer {
                     // Cached response; copy out of cache
                     Some(cached) => {
                         let peer = cached.peer();
-                        ensure!(msg_in.check_seal(self, peer.get(self).protocol_version.shake_or_blake())?, seal_broken);
+                        ensure!(
+                            msg_in.check_seal(
+                                self,
+                                peer.get(self).protocol_version.shake_or_blake()
+                            )?,
+                            seal_broken
+                        );
                         let cached = cached
                             .get(self)
                             .map(|v| v.response.borrow())
@@ -2374,14 +2395,22 @@ impl CryptoServer {
                     None => {
                         // At this point, we do not know the hash functon used by the peer, thus we try both,
                         // with a preference for SHAKE256.
-                        let peer_shake256 = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload, EitherShakeOrBlake::Left(SHAKE256Core));
+                        let peer_shake256 = self.handle_init_conf(
+                            &msg_in.payload,
+                            &mut msg_out.payload,
+                            EitherShakeOrBlake::Left(SHAKE256Core),
+                        );
                         let (peer, peer_hash_choice) = match peer_shake256 {
                             Ok(peer) => (peer, EitherShakeOrBlake::Left(SHAKE256Core)),
                             Err(_) => {
-                                let peer_blake2b = self.handle_init_conf(&msg_in.payload, &mut msg_out.payload, EitherShakeOrBlake::Right(Blake2bCore));
+                                let peer_blake2b = self.handle_init_conf(
+                                    &msg_in.payload,
+                                    &mut msg_out.payload,
+                                    EitherShakeOrBlake::Right(Blake2bCore),
+                                );
                                 match peer_blake2b {
                                     Ok(peer) => (peer, EitherShakeOrBlake::Right(Blake2bCore)),
-                                    Err(_) => bail!("No valid hash function found for InitHello")
+                                    Err(_) => bail!("No valid hash function found for InitHello"),
                                 }
                             }
                         };
@@ -2389,7 +2418,7 @@ impl CryptoServer {
                         // that is specified in the local configuration.
                         self.verify_hash_choice_match(peer, peer_hash_choice.clone())?;
                         ensure!(msg_in.check_seal(self, peer_hash_choice)?, seal_broken);
-                        
+
                         KnownInitConfResponsePtr::insert_for_request_msg(
                             self,
                             peer,
@@ -2428,9 +2457,13 @@ impl CryptoServer {
             resp: if len == 0 { None } else { Some(len) },
         })
     }
-    
+
     /// TODO documentation
-    fn verify_hash_choice_match(&self, peer: PeerPtr, peer_hash_choice: EitherShakeOrBlake) -> Result<()> {
+    fn verify_hash_choice_match(
+        &self,
+        peer: PeerPtr,
+        peer_hash_choice: EitherShakeOrBlake,
+    ) -> Result<()> {
         match peer.get(self).protocol_version.shake_or_blake() {
             EitherShakeOrBlake::Left(SHAKE256Core) => match peer_hash_choice {
                 EitherShakeOrBlake::Left(SHAKE256Core) => Ok(()),
@@ -2439,7 +2472,7 @@ impl CryptoServer {
             EitherShakeOrBlake::Right(Blake2bCore) => match peer_hash_choice {
                 EitherShakeOrBlake::Left(SHAKE256Core) => bail!("Hash function mismatch"),
                 EitherShakeOrBlake::Right(Blake2bCore) => Ok(()),
-            }
+            },
         }
     }
 
@@ -3209,7 +3242,11 @@ where
     M: AsBytes + FromBytes,
 {
     /// Internal business logic: Check the message authentication code produced by [Self::seal]
-    pub fn check_seal(&self, srv: &CryptoServer, shake_or_blake: EitherShakeOrBlake) -> Result<bool> {
+    pub fn check_seal(
+        &self,
+        srv: &CryptoServer,
+        shake_or_blake: EitherShakeOrBlake,
+    ) -> Result<bool> {
         let expected = hash_domains::mac(shake_or_blake)?
             .mix(srv.spkm.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
@@ -3257,21 +3294,31 @@ impl HandshakeState {
     /// Initialize the handshake state with the responder public key and the protocol domain
     /// separator
     pub fn init(&mut self, spkr: &[u8]) -> Result<&mut Self> {
-        self.ck = hash_domains::ckinit(self.ck.shake_or_blake().clone())?.turn_secret().mix(spkr)?.dup();
+        self.ck = hash_domains::ckinit(self.ck.shake_or_blake().clone())?
+            .turn_secret()
+            .mix(spkr)?
+            .dup();
         Ok(self)
     }
 
     /// Mix some data into the chaining key. This is used for mixing cryptographic keys and public
     /// data alike into the chaining key
     pub fn mix(&mut self, a: &[u8]) -> Result<&mut Self> {
-        self.ck = self.ck.mix(&hash_domains::mix(self.ck.shake_or_blake().clone())?)?.mix(a)?.dup();
+        self.ck = self
+            .ck
+            .mix(&hash_domains::mix(self.ck.shake_or_blake().clone())?)?
+            .mix(a)?
+            .dup();
         Ok(self)
     }
 
     /// Encrypt some data with a value derived from the current chaining key and mix that data
     /// into the protocol state.
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?.into_secret();
+        let k = self
+            .ck
+            .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
+            .into_secret();
         aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
@@ -3281,7 +3328,10 @@ impl HandshakeState {
     /// Makes sure that the same values are mixed into the chaining that where mixed in on the
     /// sender side.
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
-        let k = self.ck.mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?.into_secret();
+        let k = self
+            .ck
+            .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
+            .into_secret();
         aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
@@ -3373,7 +3423,7 @@ impl HandshakeState {
         biscuit_ct: &[u8],
         sidi: SessionId,
         sidr: SessionId,
-        shake_or_blake: EitherShakeOrBlake
+        shake_or_blake: EitherShakeOrBlake,
     ) -> Result<(PeerPtr, BiscuitId, HandshakeState)> {
         // The first bit of the biscuit indicates which biscuit key was used
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
@@ -3404,7 +3454,11 @@ impl HandshakeState {
             .find_peer(pid) // TODO: FindPeer should return a Result<()>
             .with_context(|| format!("Could not decode biscuit for peer {pid:?}: No such peer."))?;
 
-        let ck = SecretHashDomain::danger_from_secret(Secret::from_slice(&biscuit.ck), peer.get(srv).protocol_version.shake_or_blake()).dup();
+        let ck = SecretHashDomain::danger_from_secret(
+            Secret::from_slice(&biscuit.ck),
+            peer.get(srv).protocol_version.shake_or_blake(),
+        )
+        .dup();
         // Reconstruct the handshake state
         let mut hs = Self { sidi, sidr, ck };
         hs.mix(biscuit_ct)?;
@@ -3417,10 +3471,19 @@ impl HandshakeState {
     /// This called by either party.
     ///
     /// `role` indicates whether the local peer was an initiator or responder in the handshake.
-    pub fn enter_live(self, srv: &CryptoServer, role: HandshakeRole, either_shake_or_blake: EitherShakeOrBlake) -> Result<Session> {
+    pub fn enter_live(
+        self,
+        srv: &CryptoServer,
+        role: HandshakeRole,
+        either_shake_or_blake: EitherShakeOrBlake,
+    ) -> Result<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
-        let tki = ck.mix(&hash_domains::ini_enc(either_shake_or_blake.clone())?)?.into_secret();
-        let tkr = ck.mix(&hash_domains::res_enc(either_shake_or_blake)?)?.into_secret();
+        let tki = ck
+            .mix(&hash_domains::ini_enc(either_shake_or_blake.clone())?)?
+            .into_secret();
+        let tkr = ck
+            .mix(&hash_domains::res_enc(either_shake_or_blake)?)?
+            .into_secret();
         let created_at = srv.timebase.now();
         let (ntx, nrx) = (0, 0);
         let (mysid, peersid, ktx, krx) = match role {
@@ -3458,7 +3521,12 @@ impl CryptoServer {
             .get(self)
             .as_ref()
             .with_context(|| format!("No current session for peer {:?}", peer))?;
-        Ok(session.ck.mix(&hash_domains::osk(peer.get(self).protocol_version.shake_or_blake())?)?.into_secret())
+        Ok(session
+            .ck
+            .mix(&hash_domains::osk(
+                peer.get(self).protocol_version.shake_or_blake(),
+            )?)?
+            .into_secret())
     }
 }
 
@@ -3466,7 +3534,10 @@ impl CryptoServer {
     /// Core cryptographic protocol implementation: Kicks of the handshake
     /// on the initiator side, producing the InitHello message.
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
-        let mut hs = InitiatorHandshake::zero_with_timestamp(self, peer.get(self).protocol_version.shake_or_blake());
+        let mut hs = InitiatorHandshake::zero_with_timestamp(
+            self,
+            peer.get(self).protocol_version.shake_or_blake(),
+        );
 
         // IHI1
         hs.core.init(peer.get(self).spkt.deref())?;
@@ -3490,8 +3561,11 @@ impl CryptoServer {
             )?;
 
         // IHI6
-        hs.core
-            .encrypt_and_mix(ih.pidic.as_mut_slice(), self.pidm(peer.get(self).protocol_version.shake_or_blake())?.as_ref())?;
+        hs.core.encrypt_and_mix(
+            ih.pidic.as_mut_slice(),
+            self.pidm(peer.get(self).protocol_version.shake_or_blake())?
+                .as_ref(),
+        )?;
 
         // IHI7
         hs.core
@@ -3510,7 +3584,12 @@ impl CryptoServer {
     /// Core cryptographic protocol implementation: Parses an [InitHello] message and produces a
     /// [RespHello] message on the responder side.
     /// TODO: Document Hash Functon usage
-    pub fn handle_init_hello(&mut self, ih: &InitHello, rh: &mut RespHello, shake_or_blake: EitherShakeOrBlake) -> Result<PeerPtr> {
+    pub fn handle_init_hello(
+        &mut self,
+        ih: &InitHello,
+        rh: &mut RespHello,
+        shake_or_blake: EitherShakeOrBlake,
+    ) -> Result<PeerPtr> {
         let mut core = HandshakeState::zero(shake_or_blake);
 
         core.sidi = SessionId::from_slice(&ih.sidi);
@@ -3655,8 +3734,14 @@ impl CryptoServer {
         // we still need it for InitConf message retransmission to function.
 
         // ICI7
-        peer.session()
-            .insert(self, core.enter_live(self, HandshakeRole::Initiator, peer.get(self).protocol_version.shake_or_blake())?)?;
+        peer.session().insert(
+            self,
+            core.enter_live(
+                self,
+                HandshakeRole::Initiator,
+                peer.get(self).protocol_version.shake_or_blake(),
+            )?,
+        )?;
         hs_mut!().core.erase();
         hs_mut!().next = HandshakeStateMachine::RespConf;
 
@@ -3669,7 +3754,12 @@ impl CryptoServer {
     /// This concludes the handshake on the cryptographic level; the [EmptyData] message is just
     /// an acknowledgement message telling the initiator to stop performing retransmissions.
     /// TODO: documentation
-    pub fn handle_init_conf(&mut self, ic: &InitConf, rc: &mut EmptyData, shake_or_blake: EitherShakeOrBlake) -> Result<PeerPtr> {
+    pub fn handle_init_conf(
+        &mut self,
+        ic: &InitConf,
+        rc: &mut EmptyData,
+        shake_or_blake: EitherShakeOrBlake,
+    ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
@@ -3702,8 +3792,14 @@ impl CryptoServer {
         peer.get_mut(self).biscuit_used = biscuit_no;
 
         // ICR7
-        peer.session()
-            .insert(self, core.enter_live(self, HandshakeRole::Responder, peer.get(self).protocol_version.shake_or_blake())?)?;
+        peer.session().insert(
+            self,
+            core.enter_live(
+                self,
+                HandshakeRole::Responder,
+                peer.get(self).protocol_version.shake_or_blake(),
+            )?,
+        )?;
         // TODO: This should be part of the protocol specification.
         // Abort any ongoing handshake from initiator role
         peer.hs().take(self);
@@ -3751,13 +3847,20 @@ impl CryptoServer {
     /// message then terminates the handshake.
     ///
     /// The EmptyData message is just there to tell the initiator to abort retransmissions.
-    pub fn handle_resp_conf(&mut self, msg_in: &Ref<&[u8], Envelope<EmptyData>>, seal_broken: String) -> Result<PeerPtr> {
+    pub fn handle_resp_conf(
+        &mut self,
+        msg_in: &Ref<&[u8], Envelope<EmptyData>>,
+        seal_broken: String,
+    ) -> Result<PeerPtr> {
         let rc: &EmptyData = &msg_in.payload;
         let sid = SessionId::from_slice(&rc.sid);
         let hs = self
             .lookup_handshake(sid)
             .with_context(|| format!("Got RespConf packet for non-existent session {sid:?}"))?;
-        ensure!(msg_in.check_seal(self, hs.peer().get(self).protocol_version.shake_or_blake())?, seal_broken);
+        ensure!(
+            msg_in.check_seal(self, hs.peer().get(self).protocol_version.shake_or_blake())?,
+            seal_broken
+        );
         let ses = hs.peer().session();
 
         let exp = hs.get(self).as_ref().map(|h| h.next);
@@ -3840,7 +3943,9 @@ impl CryptoServer {
                 }?;
 
                 let spkt = peer.get(self).spkt.deref();
-                let cookie_key = hash_domains::cookie_key(EitherShakeOrBlake::Left(SHAKE256Core))?.mix(spkt)?.into_value();
+                let cookie_key = hash_domains::cookie_key(EitherShakeOrBlake::Left(SHAKE256Core))?
+                    .mix(spkt)?
+                    .into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
                 xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
@@ -3968,7 +4073,6 @@ mod test {
     fn handles_incorrect_size_messages_v03() {
         handles_incorrect_size_messages(ProtocolVersion::V03)
     }
-
 
     /// Ensure that the protocol implementation can deal with truncated
     /// messages and with overlong messages.
@@ -4268,20 +4372,21 @@ mod test {
 
             assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
-            let expected_cookie_value = hash_domains::cookie_value(protocol_version.shake_or_blake())
-                .unwrap()
-                .mix(
-                    b.active_or_retired_cookie_secrets()[0]
-                        .unwrap()
-                        .get(&b)
-                        .value
-                        .secret(),
-                )
-                .unwrap()
-                .mix(ip_addr_port_a.encode())
-                .unwrap()
-                .into_value()[..16]
-                .to_vec();
+            let expected_cookie_value =
+                hash_domains::cookie_value(protocol_version.shake_or_blake())
+                    .unwrap()
+                    .mix(
+                        b.active_or_retired_cookie_secrets()[0]
+                            .unwrap()
+                            .get(&b)
+                            .value
+                            .secret(),
+                    )
+                    .unwrap()
+                    .mix(ip_addr_port_a.encode())
+                    .unwrap()
+                    .into_value()[..16]
+                    .to_vec();
 
             assert_eq!(
                 PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
@@ -4331,7 +4436,9 @@ mod test {
         cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
     }
 
-    fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version: ProtocolVersion) {
+    fn cookie_reply_mechanism_initiator_bails_on_message_under_load(
+        protocol_version: ProtocolVersion,
+    ) {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
@@ -4409,10 +4516,7 @@ mod test {
             Ok((sk, pk))
         }
 
-        fn proc_initiation(
-            srv: &mut CryptoServer,
-            peer: PeerPtr,
-        ) -> Result<Envelope<InitHello>> {
+        fn proc_initiation(srv: &mut CryptoServer, peer: PeerPtr) -> Result<Envelope<InitHello>> {
             let mut buf = MsgBuf::zero();
             srv.initiate_handshake(peer, buf.as_mut_slice())?
                 .discard_result();
@@ -4482,8 +4586,12 @@ mod test {
             assert!(res.is_err());
         }
 
-        // we this as a closure in orer to use the protocol_version variable in it. 
-        let check_retransmission = |srv: &mut CryptoServer, ic: &Envelope<InitConf>, ic_broken: &Envelope<InitConf>, rc: &Envelope<EmptyData>| -> Result<()> {
+        // we this as a closure in orer to use the protocol_version variable in it.
+        let check_retransmission = |srv: &mut CryptoServer,
+                                    ic: &Envelope<InitConf>,
+                                    ic_broken: &Envelope<InitConf>,
+                                    rc: &Envelope<EmptyData>|
+         -> Result<()> {
             // Processing the same RespHello package again leads to retransmission (i.e. exactly the
             // same output)
             let rc_dup = proc_init_conf(srv, ic)?;
@@ -4492,7 +4600,11 @@ mod test {
             // Though if we directly call handle_resp_hello() we get an error since
             // retransmission is not being handled by the cryptographic code
             let mut discard_resp_conf = EmptyData::new_zeroed();
-            let res = srv.handle_init_conf(&ic.payload, &mut discard_resp_conf, protocol_version.clone().shake_or_blake());
+            let res = srv.handle_init_conf(
+                &ic.payload,
+                &mut discard_resp_conf,
+                protocol_version.clone().shake_or_blake(),
+            );
             assert!(res.is_err());
 
             // Obviously, a broken InitConf message should still be rejected
