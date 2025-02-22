@@ -67,6 +67,9 @@ command-fds = { workspace = true, optional = true }
 rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 signal-hook = { workspace = true, optional = true }
+assert_tv = { workspace = true }
+base64 = { workspace=true }
+serde_json = { workspace=true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -79,6 +82,8 @@ serial_test = { workspace = true }
 procspawn = { workspace = true }
 tempfile = { workspace = true }
 rustix = { workspace = true }
+assert_tv = { workspace = true }
+assert_tv_macros = { workspace = true }
 
 [features]
 default = []
