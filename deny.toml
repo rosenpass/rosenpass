@@ -56,7 +56,9 @@ confidence-threshold = 0.8
 exceptions = [
     # Each entry is the crate and version constraint, and its specific allow
     # list
-    { allow = ["Unicode-DFS-2016"], crate = "unicode-ident" },
+    { allow = ["Unicode-DFS-2016", "Unicode-3.0"], crate = "unicode-ident" },
+    { allow = ["NCSA"], crate = "libfuzzer-sys" },
+
 ]
 
 [licenses.private]

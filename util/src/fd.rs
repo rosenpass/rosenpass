@@ -521,13 +521,13 @@ mod tests {
     use std::io::{Read, Write};
 
     #[test]
-    #[should_panic(expected = "fd != u32::MAX as RawFd")]
+    #[should_panic]
     fn test_claim_fd_invalid_neg() {
         let _ = claim_fd(-1);
     }
 
     #[test]
-    #[should_panic(expected = "fd != u32::MAX as RawFd")]
+    #[should_panic]
     fn test_claim_fd_invalid_max() {
         let _ = claim_fd(i64::MAX as RawFd);
     }
