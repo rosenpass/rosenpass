@@ -46,7 +46,6 @@ fn main_fn_generates_manpages() -> anyhow::Result<()> {
         "rosenpass-exchange-config.1",
         "rosenpass-gen-config.1",
         "rosenpass-gen-keys.1",
-        "rosenpass-keygen.1",
         "rosenpass-validate.1",
     ];
 
@@ -56,7 +55,10 @@ fn main_fn_generates_manpages() -> anyhow::Result<()> {
         .map(|name| (name, dir.path().join(name)))
         .map(|(name, path)| {
             let res = std::process::Command::new("man").arg(path).output()?;
-            assert!(res.status.success());
+            assert!(
+                res.status.success(),
+                "Error rendering manpage {name} using man"
+            );
             let body = res
                 .stdout
                 .apply(String::from_utf8)?
@@ -64,7 +66,6 @@ fn main_fn_generates_manpages() -> anyhow::Result<()> {
             Ok((name, body))
         })
         .collect::<anyhow::Result<_>>()?;
-
     for (name, body) in man_texts.iter() {
         expect_sections(body, &["NAME", "SYNOPSIS", "OPTIONS"])?;
 
