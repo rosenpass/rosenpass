@@ -25,9 +25,7 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::keyed_hash;
-use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
-use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+use rosenpass_ciphers::subtle::either_hash::KeyedHash;
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
@@ -373,10 +371,10 @@ pub enum ProtocolVersion {
 }
 
 impl ProtocolVersion {
-    pub fn shake_or_blake(&self) -> EitherShakeOrBlake {
+    pub fn shake_or_blake(&self) -> KeyedHash {
         match self {
-            ProtocolVersion::V02 => EitherShakeOrBlake::Right(Blake2bCore),
-            ProtocolVersion::V03 => EitherShakeOrBlake::Left(SHAKE256Core),
+            ProtocolVersion::V02 => KeyedHash::incorrect_hmac_blake2b(),
+            ProtocolVersion::V03 => KeyedHash::keyed_shake256(),
         }
     }
 }
@@ -505,7 +503,7 @@ impl Peer {
             initiation_requested: false,
             handshake: None,
             known_init_conf_response: None,
-            protocol_version: protocol_version,
+            protocol_version,
         }
     }
 }
@@ -1418,7 +1416,7 @@ impl CryptoServer {
 
     /// Calculate the peer ID of this CryptoServer
     #[rustfmt::skip]
-    pub fn pidm(&self, shake_or_blake: EitherShakeOrBlake) -> Result<PeerId> {
+    pub fn pidm(&self, shake_or_blake: KeyedHash) -> Result<PeerId> {
         Ok(Public::new(
             hash_domains::peerid(shake_or_blake)?
                 .mix(self.spkm.deref())?
@@ -1474,7 +1472,7 @@ impl CryptoServer {
             handshake: None,
             known_init_conf_response: None,
             initiation_requested: false,
-            protocol_version: protocol_version,
+            protocol_version,
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -1671,7 +1669,7 @@ impl Peer {
             handshake: None,
             known_init_conf_response: None,
             initiation_requested: false,
-            protocol_version: protocol_version,
+            protocol_version,
         }
     }
 
@@ -1702,11 +1700,11 @@ impl Session {
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
-    /// let s = Session::zero(EitherShakeOrBlake::Left(SHAKE256Core));
+    /// let s = Session::zero(EitherShakeOrBlake::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
     /// assert_eq!(s.handshake_role, HandshakeRole::Initiator);
     /// ```
-    pub fn zero(shake_or_blake: EitherShakeOrBlake) -> Self {
+    pub fn zero(shake_or_blake: KeyedHash) -> Self {
         Self {
             created_at: 0.0,
             sidm: SessionId::zero(),
@@ -2177,7 +2175,7 @@ impl CryptoServer {
                 let cookie_secret = cookie_secret.get(self).value.secret();
                 let mut cookie_value = [0u8; 16];
                 cookie_value.copy_from_slice(
-                    &hash_domains::cookie_value(EitherShakeOrBlake::Left(SHAKE256Core))?
+                    &hash_domains::cookie_value(KeyedHash::keyed_shake256())?
                         .mix(cookie_secret)?
                         .mix(host_identification.encode())?
                         .into_value()[..16],
@@ -2193,7 +2191,7 @@ impl CryptoServer {
                 let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
                     .ok_or(RosenpassError::BufferSizeMismatch)?;
                 expected.copy_from_slice(
-                    &hash_domains::cookie(EitherShakeOrBlake::Left(SHAKE256Core))?
+                    &hash_domains::cookie(KeyedHash::keyed_shake256())?
                         .mix(&cookie_value)?
                         .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
                         .into_value()[..16],
@@ -2230,7 +2228,7 @@ impl CryptoServer {
         );
 
         let cookie_value = active_cookie_value.unwrap();
-        let cookie_key = hash_domains::cookie_key(EitherShakeOrBlake::Left(SHAKE256Core))?
+        let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
             .mix(self.spkm.deref())?
             .into_value();
 
@@ -2322,18 +2320,18 @@ impl CryptoServer {
                 let peer_shake256 = self.handle_init_hello(
                     &msg_in.payload,
                     &mut msg_out.payload,
-                    EitherShakeOrBlake::Left(SHAKE256Core),
+                    KeyedHash::keyed_shake256(),
                 );
                 let (peer, peer_hash_choice) = match peer_shake256 {
-                    Ok(peer) => (peer, EitherShakeOrBlake::Left(SHAKE256Core)),
+                    Ok(peer) => (peer, KeyedHash::keyed_shake256()),
                     Err(_) => {
                         let peer_blake2b = self.handle_init_hello(
                             &msg_in.payload,
                             &mut msg_out.payload,
-                            EitherShakeOrBlake::Right(Blake2bCore),
+                            KeyedHash::incorrect_hmac_blake2b(),
                         );
                         match peer_blake2b {
-                            Ok(peer) => (peer, EitherShakeOrBlake::Right(Blake2bCore)),
+                            Ok(peer) => (peer, KeyedHash::incorrect_hmac_blake2b()),
                             Err(_) => bail!("No valid hash function found for InitHello"),
                         }
                     }
@@ -2398,18 +2396,18 @@ impl CryptoServer {
                         let peer_shake256 = self.handle_init_conf(
                             &msg_in.payload,
                             &mut msg_out.payload,
-                            EitherShakeOrBlake::Left(SHAKE256Core),
+                            KeyedHash::keyed_shake256(),
                         );
                         let (peer, peer_hash_choice) = match peer_shake256 {
-                            Ok(peer) => (peer, EitherShakeOrBlake::Left(SHAKE256Core)),
+                            Ok(peer) => (peer, KeyedHash::keyed_shake256()),
                             Err(_) => {
                                 let peer_blake2b = self.handle_init_conf(
                                     &msg_in.payload,
                                     &mut msg_out.payload,
-                                    EitherShakeOrBlake::Right(Blake2bCore),
+                                    KeyedHash::incorrect_hmac_blake2b(),
                                 );
                                 match peer_blake2b {
-                                    Ok(peer) => (peer, EitherShakeOrBlake::Right(Blake2bCore)),
+                                    Ok(peer) => (peer, KeyedHash::incorrect_hmac_blake2b()),
                                     Err(_) => bail!("No valid hash function found for InitHello"),
                                 }
                             }
@@ -2459,19 +2457,15 @@ impl CryptoServer {
     }
 
     /// TODO documentation
-    fn verify_hash_choice_match(
-        &self,
-        peer: PeerPtr,
-        peer_hash_choice: EitherShakeOrBlake,
-    ) -> Result<()> {
+    fn verify_hash_choice_match(&self, peer: PeerPtr, peer_hash_choice: KeyedHash) -> Result<()> {
         match peer.get(self).protocol_version.shake_or_blake() {
-            EitherShakeOrBlake::Left(SHAKE256Core) => match peer_hash_choice {
-                EitherShakeOrBlake::Left(SHAKE256Core) => Ok(()),
-                EitherShakeOrBlake::Right(Blake2bCore) => bail!("Hash function mismatch"),
+            KeyedHash::KeyedShake256(_) => match peer_hash_choice {
+                KeyedHash::KeyedShake256(_) => Ok(()),
+                KeyedHash::IncorrectHmacBlake2b(_) => bail!("Hash function mismatch"),
             },
-            EitherShakeOrBlake::Right(Blake2bCore) => match peer_hash_choice {
-                EitherShakeOrBlake::Left(SHAKE256Core) => bail!("Hash function mismatch"),
-                EitherShakeOrBlake::Right(Blake2bCore) => Ok(()),
+            KeyedHash::IncorrectHmacBlake2b(_) => match peer_hash_choice {
+                KeyedHash::KeyedShake256(_) => bail!("Hash function mismatch"),
+                KeyedHash::IncorrectHmacBlake2b(_) => Ok(()),
             },
         }
     }
@@ -3242,11 +3236,7 @@ where
     M: AsBytes + FromBytes,
 {
     /// Internal business logic: Check the message authentication code produced by [Self::seal]
-    pub fn check_seal(
-        &self,
-        srv: &CryptoServer,
-        shake_or_blake: EitherShakeOrBlake,
-    ) -> Result<bool> {
+    pub fn check_seal(&self, srv: &CryptoServer, shake_or_blake: KeyedHash) -> Result<bool> {
         let expected = hash_domains::mac(shake_or_blake)?
             .mix(srv.spkm.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
@@ -3259,7 +3249,7 @@ where
 
 impl InitiatorHandshake {
     /// Zero initialization of an InitiatorHandshake, with up to date timestamp
-    pub fn zero_with_timestamp(srv: &CryptoServer, shake_or_blake: EitherShakeOrBlake) -> Self {
+    pub fn zero_with_timestamp(srv: &CryptoServer, shake_or_blake: KeyedHash) -> Self {
         InitiatorHandshake {
             created_at: srv.timebase.now(),
             next: HandshakeStateMachine::RespHello,
@@ -3278,7 +3268,7 @@ impl InitiatorHandshake {
 
 impl HandshakeState {
     /// Zero initialization of an HandshakeState
-    pub fn zero(shake_or_blake: EitherShakeOrBlake) -> Self {
+    pub fn zero(shake_or_blake: KeyedHash) -> Self {
         Self {
             sidi: SessionId::zero(),
             sidr: SessionId::zero(),
@@ -3423,7 +3413,7 @@ impl HandshakeState {
         biscuit_ct: &[u8],
         sidi: SessionId,
         sidr: SessionId,
-        shake_or_blake: EitherShakeOrBlake,
+        shake_or_blake: KeyedHash,
     ) -> Result<(PeerPtr, BiscuitId, HandshakeState)> {
         // The first bit of the biscuit indicates which biscuit key was used
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
@@ -3475,7 +3465,7 @@ impl HandshakeState {
         self,
         srv: &CryptoServer,
         role: HandshakeRole,
-        either_shake_or_blake: EitherShakeOrBlake,
+        either_shake_or_blake: KeyedHash,
     ) -> Result<Session> {
         let HandshakeState { ck, sidi, sidr } = self;
         let tki = ck
@@ -3588,7 +3578,7 @@ impl CryptoServer {
         &mut self,
         ih: &InitHello,
         rh: &mut RespHello,
-        shake_or_blake: EitherShakeOrBlake,
+        shake_or_blake: KeyedHash,
     ) -> Result<PeerPtr> {
         let mut core = HandshakeState::zero(shake_or_blake);
 
@@ -3758,7 +3748,7 @@ impl CryptoServer {
         &mut self,
         ic: &InitConf,
         rc: &mut EmptyData,
-        shake_or_blake: EitherShakeOrBlake,
+        shake_or_blake: KeyedHash,
     ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
@@ -3943,7 +3933,7 @@ impl CryptoServer {
                 }?;
 
                 let spkt = peer.get(self).spkt.deref();
-                let cookie_key = hash_domains::cookie_key(EitherShakeOrBlake::Left(SHAKE256Core))?
+                let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
                     .mix(spkt)?
                     .into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();

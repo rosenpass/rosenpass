@@ -1,6 +1,6 @@
 use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 use anyhow::ensure;
-use rosenpass_cipher_traits::KeyedHash;
+use rosenpass_cipher_traits::keyed_hash::KeyedHash;
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 
@@ -68,6 +68,12 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
 impl<const KEY_LEN: usize, const HASH_LEN: usize> SHAKE256Core<KEY_LEN, HASH_LEN> {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_LEN, HASH_LEN> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
