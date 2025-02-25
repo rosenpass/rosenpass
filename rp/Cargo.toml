@@ -14,7 +14,7 @@ anyhow = { workspace = true }
 base64ct = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
-x25519-dalek = { version = "2", features = ["static_secrets"] }
+x25519-dalek = { workspace = true, features = ["static_secrets"] }
 zeroize = { workspace = true }
 
 rosenpass = { workspace = true }
@@ -26,8 +26,8 @@ rosenpass-wireguard-broker = { workspace = true }
 
 tokio = { workspace = true }
 
-futures = "0.3"
-futures-util = "0.3"
+futures = { workspace = true }
+futures-util = { workspace = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 ctrlc-async = "3.2"
