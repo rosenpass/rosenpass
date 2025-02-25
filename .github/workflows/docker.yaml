@@ -11,7 +11,95 @@ on:
       - "main"
 
 jobs:
+  # --------------------------------
+  # 1. BUILD & TEST
+  # --------------------------------
+  build-and-test-rp:
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-latest-arm64' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build (no push) and Load
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .docker/Dockerfile
+          # no pushing here, so we can test locally
+          push: false
+          # load the built image into the local Docker daemon on the runner
+          load: true
+          target: rp
+          tags: rp:test
+          platforms: linux/${{ matrix.arch }}
+      - name: Integration Test - Standalone Key Exchange
+        run: |
+          # Create separate workdirs
+          mkdir -p workdir-server workdir-client
+
+          # Create a Docker network
+          docker network create -d bridge rp
+
+          echo "=== GENERATE SERVER KEYS ==="
+          docker run --rm \
+            -v $PWD/workdir-server:/workdir \
+            rp:test gen-keys \
+              --public-key=workdir/server-public \
+              --secret-key=workdir/server-secret
+
+          echo "=== GENERATE CLIENT KEYS ==="
+          docker run --rm \
+            -v $PWD/workdir-client:/workdir \
+            rp:test gen-keys \
+              --public-key=workdir/client-public \
+              --secret-key=workdir/client-secret
+
+          echo "=== SHARE PUBLIC KEYS ==="
+          cp workdir-client/client-public workdir-server/client-public
+          cp workdir-server/server-public workdir-client/server-public
+
+          echo "=== START SERVER CONTAINER ==="
+          docker run -d --rm \
+            --name rpserver \
+            --network rp \
+            -v $PWD/workdir-server:/workdir \
+            rp:test exchange \
+              private-key workdir/server-secret \
+              public-key  workdir/server-public \
+              listen 0.0.0.0:9999 \
+              peer public-key workdir/client-public \
+              outfile workdir/server-sharedkey
+
+          # Get the container IP of the server
+          SERVER_IP=$(docker inspect --format='{{.NetworkSettings.Networks.rp.IPAddress}}' rpserver)
+          echo "SERVER_IP=$SERVER_IP"
+
+          echo "=== START CLIENT CONTAINER ==="
+          docker run --rm \
+            --name rpclient \
+            --network rp \
+            -v $PWD/workdir-client:/workdir \
+            rp:test exchange \
+              private-key workdir/client-secret \
+              public-key  workdir/client-public \
+              peer public-key workdir/server-public \
+              endpoint ${SERVER_IP}:9999 \
+              outfile workdir/client-sharedkey
+
+          echo "=== COMPARE SHARED KEYS ==="
+          cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
+
+          echo "Standalone Key Exchange test OK."
+  # --------------------------------
+  # 2. PUSH (only if tests pass)
+  # --------------------------------
   docker-image-rp:
+    needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
@@ -55,6 +143,7 @@ jobs:
           target: rp
           platforms: linux/${{ matrix.arch }}
   docker-image-rosenpass:
+    needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
