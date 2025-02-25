@@ -1,14 +1,13 @@
 //!
 //!```rust
 //! # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
-//! use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-//! use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+//! use rosenpass_ciphers::keyed_hash::KeyedHash;
 //! use rosenpass_secret_memory::Secret;
 //! # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
 //!
 //! const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
 //! // create use once hash domain for the protocol identifier
-//! let mut hash_domain = HashDomain::zero(EitherShakeOrBlake::Left(SHAKE256Core));
+//! let mut hash_domain = HashDomain::zero(KeyedHash::keyed_shake256());
 //! hash_domain = hash_domain.mix(PROTOCOL_IDENTIFIER.as_bytes())?;
 //! // upgrade to reusable hash domain
 //! let hash_domain_namespace: HashDomainNamespace = hash_domain.dup();
@@ -30,12 +29,9 @@
 
 use anyhow::Result;
 use rosenpass_secret_memory::Secret;
-use rosenpass_to::To;
 
-use crate::keyed_hash as hash;
+pub use crate::keyed_hash::{KeyedHash, KEY_LEN};
 
-use crate::subtle::either_hash::KeyedHash;
-pub use hash::KEY_LEN;
 use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
 
 // TODO Use a proper Dec interface
@@ -120,6 +116,8 @@ impl HashDomainNamespace {
 }
 
 impl SecretHashDomain {
+    // XXX: Why is the old hash still used unconditionally?
+    //
     /// Create a new [SecretHashDomain] with the given key `k` and data `d` by calling
     /// [hash::hash] with `k` as the `key` and `d` s the `data`, and using the result
     /// as the content for the new [SecretHashDomain].
@@ -133,7 +131,7 @@ impl SecretHashDomain {
         let mut new_secret_key = Secret::zero();
         hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
         let mut r = SecretHashDomain(new_secret_key, hash_choice);
-        hash::hash(k, d).to(r.0.secret_mut())?;
+        KeyedHash::incorrect_hmac_blake2b().keyed_hash(k.try_into()?, d, r.0.secret_mut())?;
         Ok(r)
     }
 
@@ -177,13 +175,23 @@ impl SecretHashDomain {
         self.0
     }
 
-    /// Evaluate [hash::hash] with this [SecretHashDomain]'s data as the `key` and
-    /// `dst` as the `data` and stores the result as the new data for this [SecretHashDomain].
-    ///
-    /// It requires that both `v` and `d` consist of exactly [KEY_LEN] many bytes.
-    pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
-        hash::hash(v, dst).to(self.0.secret_mut())
-    }
+    /* XXX: This code was calling the specific hmac-blake2b code as well as the new KeyedHash enum
+     * (f.k.a. EitherHash). I was confused by the way the code used the local variables, because it
+     * didn't match the code. I made the code match the documentation, but I'm not sure that is
+     * correct. Either way, it doesn't look like this is used anywhere. Maybe just remove it?
+     *
+     *  /// Evaluate [hash::hash] with this [SecretHashDomain]'s data as the `key` and
+     *  /// `dst` as the `data` and stores the result as the new data for this [SecretHashDomain].
+     *  pub fn into_secret_slice(mut self, v: &[u8; KEY_LEN], dst: &[u8; KEY_LEN]) -> Result<()> {
+     *      let SecretHashDomain(secret, hash_choice) = &self;
+     *
+     *      let mut new_secret = Secret::zero();
+     *      hash_choice.keyed_hash(secret.secret(), dst, new_secret.secret_mut())?;
+     *      self.0 = new_secret;
+     *
+     *      Ok(())
+     *  }
+     */
 }
 
 impl SecretHashDomainNamespace {

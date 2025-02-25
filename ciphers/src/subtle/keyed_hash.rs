@@ -6,8 +6,8 @@ pub const HASH_LEN: usize = 32;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum KeyedHash {
-    KeyedShake256(super::hash_functions::keyed_shake256::SHAKE256<KEY_LEN, HASH_LEN>),
-    IncorrectHmacBlake2b(super::hash_functions::incorrect_hmac_blake2b::Blake2b),
+    KeyedShake256(super::rust_crypto::keyed_shake256::SHAKE256<KEY_LEN, HASH_LEN>),
+    IncorrectHmacBlake2b(super::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2b),
 }
 
 impl KeyedHash {

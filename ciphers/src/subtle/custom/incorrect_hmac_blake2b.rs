@@ -1,22 +1,16 @@
 use anyhow::ensure;
-use rosenpass_cipher_traits::keyed_hash::KeyedHash;
+use rosenpass_cipher_traits::keyed_hash::{InferKeyedHash, KeyedHash};
 use rosenpass_constant_time::xor;
-use rosenpass_to::{ops::copy_slice, with_destination, To};
+use rosenpass_to::{ops::copy_slice, To};
 use zeroize::Zeroizing;
 
-use crate::subtle::hash_functions::blake2b;
-use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
+use crate::subtle::rust_crypto::blake2b;
 
 /// The key length, 32 bytes or 256 bits.
 pub const KEY_LEN: usize = 32;
-/// The minimal key length, identical to [KEY_LEN]
-pub const KEY_MIN: usize = KEY_LEN;
-/// The maximal key length, identical to [KEY_LEN]
-pub const KEY_MAX: usize = KEY_LEN;
-/// The minimal output length, see [blake2b::OUT_MIN]
-pub const OUT_MIN: usize = blake2b::OUT_MIN;
-/// The maximal output length, see [blake2b::OUT_MAX]
-pub const OUT_MAX: usize = blake2b::OUT_MAX;
+
+/// The hash length, 32 bytes or 256 bits.
+pub const HASH_LEN: usize = 32;
 
 /// This is a woefully incorrect implementation of hmac_blake2b.
 /// See <https://github.com/rosenpass/rosenpass/issues/68#issuecomment-1563612222>
@@ -41,12 +35,20 @@ pub const OUT_MAX: usize = blake2b::OUT_MAX;
 /// # assert_eq!(hash_data, expected_hash);
 ///```
 ///
-#[inline]
-pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<()>> + 'a {
-    const IPAD: [u8; KEY_LEN] = [0x36u8; KEY_LEN];
-    const OPAD: [u8; KEY_LEN] = [0x5Cu8; KEY_LEN];
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IncorrectHmacBlake2bCore;
 
-    with_destination(|out: &mut [u8]| {
+impl KeyedHash<KEY_LEN, HASH_LEN> for IncorrectHmacBlake2bCore {
+    type Error = anyhow::Error;
+
+    fn keyed_hash(
+        key: &[u8; KEY_LEN],
+        data: &[u8],
+        out: &mut [u8; HASH_LEN],
+    ) -> Result<(), Self::Error> {
+        const IPAD: [u8; KEY_LEN] = [0x36u8; KEY_LEN];
+        const OPAD: [u8; KEY_LEN] = [0x5Cu8; KEY_LEN];
+
         // Not bothering with padding; the implementation
         // uses appropriately sized keys.
         ensure!(key.len() == KEY_LEN);
@@ -64,18 +66,7 @@ pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<(
         blake2b::hash(tmp_key.as_ref(), outer_data.as_ref()).to(out)?;
 
         Ok(())
-    })
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Blake2bCore;
-
-impl KeyedHash<32, 32> for Blake2bCore {
-    type Error = anyhow::Error;
-
-    fn keyed_hash(key: &[u8; 32], data: &[u8], out: &mut [u8; 32]) -> Result<(), Self::Error> {
-        hash(key, data).to(out)
     }
 }
 
-pub type Blake2b = InferKeyedHash<Blake2bCore, 32, 32>;
+pub type IncorrectHmacBlake2b = InferKeyedHash<IncorrectHmacBlake2bCore, KEY_LEN, HASH_LEN>;

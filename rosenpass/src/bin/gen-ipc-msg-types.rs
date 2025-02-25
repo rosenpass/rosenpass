@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 use heck::ToShoutySnakeCase;
 
-use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
+use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
 use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
 
@@ -15,7 +14,7 @@ fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]
 }
 
 /// Print a hash literal for pasting into the Rosenpass source code
-fn print_literal(path: &[&str], shake_or_blake: EitherShakeOrBlake) -> Result<()> {
+fn print_literal(path: &[&str], shake_or_blake: KeyedHash) -> Result<()> {
     let val = calculate_hash_value(HashDomain::zero(shake_or_blake), path)?;
     let (last, prefix) = path.split_last().context("developer error!")?;
     let var_name = last.to_shouty_snake_case();
@@ -54,7 +53,7 @@ impl Tree {
         }
     }
 
-    fn gen_code_inner(&self, prefix: &[&str], shake_or_blake: EitherShakeOrBlake) -> Result<()> {
+    fn gen_code_inner(&self, prefix: &[&str], shake_or_blake: KeyedHash) -> Result<()> {
         let mut path = prefix.to_owned();
         path.push(self.name());
 
@@ -70,7 +69,7 @@ impl Tree {
         Ok(())
     }
 
-    fn gen_code(&self, shake_or_blake: EitherShakeOrBlake) -> Result<()> {
+    fn gen_code(&self, shake_or_blake: KeyedHash) -> Result<()> {
         self.gen_code_inner(&[], shake_or_blake)
     }
 }
