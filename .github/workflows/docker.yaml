@@ -34,8 +34,8 @@ jobs:
           push: false
           # load the built image into the local Docker daemon on the runner
           load: true
-          target: rp
-          tags: rp:test
+          target: rosenpass
+          tags: rosenpass:test
           platforms: linux/${{ matrix.arch }}
       - name: Integration Test - Standalone Key Exchange
         run: |
@@ -48,14 +48,14 @@ jobs:
           echo "=== GENERATE SERVER KEYS ==="
           docker run --rm \
             -v $PWD/workdir-server:/workdir \
-            rp:test gen-keys \
+            rosenpass:test gen-keys \
               --public-key=workdir/server-public \
               --secret-key=workdir/server-secret
 
           echo "=== GENERATE CLIENT KEYS ==="
           docker run --rm \
             -v $PWD/workdir-client:/workdir \
-            rp:test gen-keys \
+            rosenpass:test gen-keys \
               --public-key=workdir/client-public \
               --secret-key=workdir/client-secret
 
@@ -68,7 +68,7 @@ jobs:
             --name rpserver \
             --network rp \
             -v $PWD/workdir-server:/workdir \
-            rp:test exchange \
+            rosenpass:test exchange \
               private-key workdir/server-secret \
               public-key  workdir/server-public \
               listen 0.0.0.0:9999 \
@@ -84,7 +84,7 @@ jobs:
             --name rpclient \
             --network rp \
             -v $PWD/workdir-client:/workdir \
-            rp:test exchange \
+            rosenpass:test exchange \
               private-key workdir/client-secret \
               public-key  workdir/client-public \
               peer public-key workdir/server-public \
