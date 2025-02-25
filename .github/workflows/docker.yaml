@@ -80,7 +80,7 @@ jobs:
           echo "SERVER_IP=$SERVER_IP"
 
           echo "=== START CLIENT CONTAINER ==="
-          docker run --rm \
+          docker run -d --rm \
             --name rpclient \
             --network rp \
             -v $PWD/workdir-client:/workdir \
@@ -92,6 +92,14 @@ jobs:
               outfile workdir/client-sharedkey
 
           echo "=== COMPARE SHARED KEYS ==="
+          echo "Waiting up to 30 seconds for the server to generate 'server-sharedkey'..."
+          for i in $(seq 1 30); do
+            if [ -f "workdir-server/server-sharedkey" ]; then
+              echo "server-sharedkey found!"
+              break
+            fi
+            sleep 1
+          done
           cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
 
           echo "Standalone Key Exchange test OK."
