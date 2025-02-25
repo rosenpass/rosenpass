@@ -100,7 +100,7 @@ jobs:
             fi
             sleep 1
           done
-          cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
+          sudo cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
 
           echo "Standalone Key Exchange test OK."
   # --------------------------------
