@@ -21,11 +21,11 @@ use rand::Fill as Randomize;
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
+use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::keyed_hash;
-use rosenpass_ciphers::subtle::either_hash::KeyedHash;
+use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
@@ -371,7 +371,7 @@ pub enum ProtocolVersion {
 }
 
 impl ProtocolVersion {
-    pub fn shake_or_blake(&self) -> KeyedHash {
+    pub fn keyed_hash(&self) -> KeyedHash {
         match self {
             ProtocolVersion::V02 => KeyedHash::incorrect_hmac_blake2b(),
             ProtocolVersion::V03 => KeyedHash::keyed_shake256(),
@@ -720,8 +720,13 @@ impl KnownResponseHasher {
     /// Panics in case of a problem with this underlying hash function
     pub fn hash<Msg: AsBytes + FromBytes>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
-        let hash = keyed_hash::hash(self.key.secret(), data)
-            .to_this(Public::<32>::zero)
+        // TODO: the hash choice hasn't been propagated here so far
+        let hash_choice =
+            rosenpass_ciphers::subtle::keyed_hash::KeyedHash::incorrect_hmac_blake2b();
+
+        let mut hash = [0; 32];
+        hash_choice
+            .keyed_hash(self.key.secret(), data, &mut hash)
             .unwrap();
         Public::from_slice(&hash[0..16]) // truncate to 16 bytes
     }
@@ -1682,7 +1687,7 @@ impl Peer {
     #[rustfmt::skip]
     pub fn pidt(&self) -> Result<PeerId> {
         Ok(Public::new(
-            hash_domains::peerid(self.protocol_version.shake_or_blake())?
+            hash_domains::peerid(self.protocol_version.keyed_hash())?
                 .mix(self.spkt.deref())?
                 .into_value()))
     }
@@ -1695,12 +1700,11 @@ impl Session {
     ///
     /// ```
     /// use rosenpass::protocol::{Session, HandshakeRole};
-    /// use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-    /// use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+    /// use rosenpass_ciphers::keyed_hash::KeyedHash;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
-    /// let s = Session::zero(EitherShakeOrBlake::keyed_shake256());
+    /// let s = Session::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
     /// assert_eq!(s.handshake_role, HandshakeRole::Initiator);
     /// ```
@@ -2352,7 +2356,7 @@ impl CryptoServer {
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
                 ensure!(
-                    msg_in.check_seal(self, peer.get(self).protocol_version.shake_or_blake())?,
+                    msg_in.check_seal(self, peer.get(self).protocol_version.keyed_hash())?,
                     seal_broken
                 );
 
@@ -2374,10 +2378,8 @@ impl CryptoServer {
                     Some(cached) => {
                         let peer = cached.peer();
                         ensure!(
-                            msg_in.check_seal(
-                                self,
-                                peer.get(self).protocol_version.shake_or_blake()
-                            )?,
+                            msg_in
+                                .check_seal(self, peer.get(self).protocol_version.keyed_hash())?,
                             seal_broken
                         );
                         let cached = cached
@@ -2458,7 +2460,7 @@ impl CryptoServer {
 
     /// TODO documentation
     fn verify_hash_choice_match(&self, peer: PeerPtr, peer_hash_choice: KeyedHash) -> Result<()> {
-        match peer.get(self).protocol_version.shake_or_blake() {
+        match peer.get(self).protocol_version.keyed_hash() {
             KeyedHash::KeyedShake256(_) => match peer_hash_choice {
                 KeyedHash::KeyedShake256(_) => Ok(()),
                 KeyedHash::IncorrectHmacBlake2b(_) => bail!("Hash function mismatch"),
@@ -3208,7 +3210,7 @@ where
 {
     /// Internal business logic: Calculate the message authentication code (`mac`) and also append cookie value
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        let mac = hash_domains::mac(peer.get(srv).protocol_version.shake_or_blake())?
+        let mac = hash_domains::mac(peer.get(srv).protocol_version.keyed_hash())?
             .mix(peer.get(srv).spkt.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
@@ -3221,7 +3223,7 @@ where
     /// This is called inside [Self::seal] and does not need to be called again separately.
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_key) = &peer.cv().get(srv) {
-            let cookie = hash_domains::cookie(peer.get(srv).protocol_version.shake_or_blake())?
+            let cookie = hash_domains::cookie(peer.get(srv).protocol_version.keyed_hash())?
                 .mix(cookie_key.value.secret())?
                 .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
             self.cookie
@@ -3384,7 +3386,7 @@ impl HandshakeState {
             .copy_from_slice(self.ck.clone().danger_into_secret().secret());
 
         // calculate ad contents
-        let ad = hash_domains::biscuit_ad(peer.get(srv).protocol_version.shake_or_blake())?
+        let ad = hash_domains::biscuit_ad(peer.get(srv).protocol_version.keyed_hash())?
             .mix(srv.spkm.deref())?
             .mix(self.sidi.as_slice())?
             .mix(self.sidr.as_slice())?
@@ -3446,7 +3448,7 @@ impl HandshakeState {
 
         let ck = SecretHashDomain::danger_from_secret(
             Secret::from_slice(&biscuit.ck),
-            peer.get(srv).protocol_version.shake_or_blake(),
+            peer.get(srv).protocol_version.keyed_hash(),
         )
         .dup();
         // Reconstruct the handshake state
@@ -3514,7 +3516,7 @@ impl CryptoServer {
         Ok(session
             .ck
             .mix(&hash_domains::osk(
-                peer.get(self).protocol_version.shake_or_blake(),
+                peer.get(self).protocol_version.keyed_hash(),
             )?)?
             .into_secret())
     }
@@ -3526,7 +3528,7 @@ impl CryptoServer {
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
-            peer.get(self).protocol_version.shake_or_blake(),
+            peer.get(self).protocol_version.keyed_hash(),
         );
 
         // IHI1
@@ -3553,7 +3555,7 @@ impl CryptoServer {
         // IHI6
         hs.core.encrypt_and_mix(
             ih.pidic.as_mut_slice(),
-            self.pidm(peer.get(self).protocol_version.shake_or_blake())?
+            self.pidm(peer.get(self).protocol_version.keyed_hash())?
                 .as_ref(),
         )?;
 
@@ -3729,7 +3731,7 @@ impl CryptoServer {
             core.enter_live(
                 self,
                 HandshakeRole::Initiator,
-                peer.get(self).protocol_version.shake_or_blake(),
+                peer.get(self).protocol_version.keyed_hash(),
             )?,
         )?;
         hs_mut!().core.erase();
@@ -3787,7 +3789,7 @@ impl CryptoServer {
             core.enter_live(
                 self,
                 HandshakeRole::Responder,
-                peer.get(self).protocol_version.shake_or_blake(),
+                peer.get(self).protocol_version.keyed_hash(),
             )?,
         )?;
         // TODO: This should be part of the protocol specification.
@@ -3848,7 +3850,7 @@ impl CryptoServer {
             .lookup_handshake(sid)
             .with_context(|| format!("Got RespConf packet for non-existent session {sid:?}"))?;
         ensure!(
-            msg_in.check_seal(self, hs.peer().get(self).protocol_version.shake_or_blake())?,
+            msg_in.check_seal(self, hs.peer().get(self).protocol_version.keyed_hash())?,
             seal_broken
         );
         let ses = hs.peer().session();
@@ -4362,21 +4364,20 @@ mod test {
 
             assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
-            let expected_cookie_value =
-                hash_domains::cookie_value(protocol_version.shake_or_blake())
-                    .unwrap()
-                    .mix(
-                        b.active_or_retired_cookie_secrets()[0]
-                            .unwrap()
-                            .get(&b)
-                            .value
-                            .secret(),
-                    )
-                    .unwrap()
-                    .mix(ip_addr_port_a.encode())
-                    .unwrap()
-                    .into_value()[..16]
-                    .to_vec();
+            let expected_cookie_value = hash_domains::cookie_value(protocol_version.keyed_hash())
+                .unwrap()
+                .mix(
+                    b.active_or_retired_cookie_secrets()[0]
+                        .unwrap()
+                        .get(&b)
+                        .value
+                        .secret(),
+                )
+                .unwrap()
+                .mix(ip_addr_port_a.encode())
+                .unwrap()
+                .into_value()[..16]
+                .to_vec();
 
             assert_eq!(
                 PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
@@ -4593,7 +4594,7 @@ mod test {
             let res = srv.handle_init_conf(
                 &ic.payload,
                 &mut discard_resp_conf,
-                protocol_version.clone().shake_or_blake(),
+                protocol_version.clone().keyed_hash(),
             );
             assert!(res.is_err());
 

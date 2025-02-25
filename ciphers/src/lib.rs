@@ -13,19 +13,18 @@ const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 /// This should only be used for implementation details; anything with relevance
 /// to the cryptographic protocol should use the facilities in [hash_domain], (though
 /// hash domain uses this module internally)
-pub mod keyed_hash {
-    pub use crate::subtle::incorrect_hmac_blake2b::{
-        hash, KEY_LEN, KEY_MAX, KEY_MIN, OUT_MAX, OUT_MIN,
-    };
-}
+pub use crate::subtle::keyed_hash;
 
 /// Authenticated encryption with associated data
 /// Chacha20poly1305 is used.
 pub mod aead {
-    #[cfg(not(feature = "experiment_libcrux"))]
-    pub use crate::subtle::chacha20poly1305_ietf::{decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN};
     #[cfg(feature = "experiment_libcrux")]
-    pub use crate::subtle::chacha20poly1305_ietf_libcrux::{
+    pub use crate::subtle::libcrux::chacha20poly1305_ietf::{
+        decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
+    };
+
+    #[cfg(not(feature = "experiment_libcrux"))]
+    pub use crate::subtle::rust_crypto::chacha20poly1305_ietf::{
         decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
     };
 }
@@ -33,7 +32,7 @@ pub mod aead {
 /// Authenticated encryption with associated data with a constant nonce
 /// XChacha20poly1305 is used.
 pub mod xaead {
-    pub use crate::subtle::xchacha20poly1305_ietf::{
+    pub use crate::subtle::rust_crypto::xchacha20poly1305_ietf::{
         decrypt, encrypt, KEY_LEN, NONCE_LEN, TAG_LEN,
     };
 }
