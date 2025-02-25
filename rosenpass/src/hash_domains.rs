@@ -54,9 +54,7 @@
 
 use anyhow::Result;
 use rosenpass_ciphers::hash_domain::HashDomain;
-use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
-use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+use rosenpass_ciphers::subtle::either_hash::KeyedHash;
 
 /// Declare a hash function
 ///
@@ -70,7 +68,7 @@ use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: EitherShakeOrBlake) -> ::anyhow::Result<::rosenpass_ciphers::hash_domain::HashDomain> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<::rosenpass_ciphers::hash_domain::HashDomain> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
@@ -89,7 +87,7 @@ macro_rules! hash_domain_ns {
 macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: EitherShakeOrBlake) -> ::anyhow::Result<[u8; ::rosenpass_ciphers::KEY_LEN]> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; ::rosenpass_ciphers::KEY_LEN]> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
@@ -111,12 +109,12 @@ macro_rules! hash_domain {
 /// See the source file for details about how this is used concretely.
 ///
 /// See the [module](self) documentation on how to use the hash domains in general
-pub fn protocol(hash_choice: EitherShakeOrBlake) -> Result<HashDomain> {
+pub fn protocol(hash_choice: KeyedHash) -> Result<HashDomain> {
     // TODO: Update this string that is mixed in?
     match hash_choice {
-        EitherShakeOrBlake::Left(SHAKE256Core) => HashDomain::zero(hash_choice)
+        KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice)
             .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
-        EitherShakeOrBlake::Right(Blake2bCore) => HashDomain::zero(hash_choice)
+        KeyedHash::IncorrectHmacBlake2b(_) => HashDomain::zero(hash_choice)
             .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 Blake2b".as_bytes()),
     }
 }

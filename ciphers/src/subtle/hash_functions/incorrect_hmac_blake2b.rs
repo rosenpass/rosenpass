@@ -1,5 +1,5 @@
 use anyhow::ensure;
-use rosenpass_cipher_traits::KeyedHash;
+use rosenpass_cipher_traits::keyed_hash::KeyedHash;
 use rosenpass_constant_time::xor;
 use rosenpass_to::{ops::copy_slice, with_destination, To};
 use zeroize::Zeroizing;

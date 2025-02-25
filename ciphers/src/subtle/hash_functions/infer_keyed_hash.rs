@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rosenpass_cipher_traits::{KeyedHash, KeyedHashInstance};
+use rosenpass_cipher_traits::keyed_hash::{KeyedHash, KeyedHashInstance};
 use std::marker::PhantomData;
 
 /// This is a helper to allow for type parameter inference when calling functions
@@ -53,8 +53,6 @@ impl<
         Static: KeyedHash<KEY_LEN, HASH_LEN, Error = anyhow::Error>,
     > KeyedHashInstance<KEY_LEN, HASH_LEN> for InferKeyedHash<Static, KEY_LEN, HASH_LEN>
 {
-    type KeyType = [u8; KEY_LEN];
-    type OutputType = [u8; HASH_LEN];
     type Error = anyhow::Error;
 
     fn keyed_hash(&self, key: &[u8; KEY_LEN], data: &[u8], out: &mut [u8; HASH_LEN]) -> Result<()> {
@@ -62,7 +60,7 @@ impl<
     }
 }
 
-/// Helper traits /////////////////////////////////////////////
+// Helper traits /////////////////////////////////////////////
 
 impl<Static, const KEY_LEN: usize, const OUT_LEN: usize> Default
     for InferKeyedHash<Static, KEY_LEN, OUT_LEN>
@@ -80,7 +78,7 @@ where
     Static: KeyedHash<KEY_LEN, OUT_LEN, Error = anyhow::Error>,
 {
     fn clone(&self) -> Self {
-        Self::new()
+        *self
     }
 }
 

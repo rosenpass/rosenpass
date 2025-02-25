@@ -1,29 +1,27 @@
-use crate::subtle::hash_functions::keyed_shake256::SHAKE256Core;
-use crate::subtle::incorrect_hmac_blake2b::Blake2bCore;
 use anyhow::Result;
-use rosenpass_cipher_traits::{KeyedHash, KeyedHashInstance};
+use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum EitherHash<
-    const KEY_LEN: usize,
-    const HASH_LEN: usize,
-    Error,
-    L: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
-    R: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
-> {
-    Left(L),
-    Right(R),
+pub const KEY_LEN: usize = 32;
+pub const HASH_LEN: usize = 32;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum KeyedHash {
+    KeyedShake256(super::hash_functions::keyed_shake256::SHAKE256<KEY_LEN, HASH_LEN>),
+    IncorrectHmacBlake2b(super::hash_functions::incorrect_hmac_blake2b::Blake2b),
 }
 
-impl<const KEY_LEN: usize, const HASH_LEN: usize, Error, L, R> KeyedHashInstance<KEY_LEN, HASH_LEN>
-    for EitherHash<KEY_LEN, HASH_LEN, Error, L, R>
-where
-    L: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
-    R: KeyedHash<KEY_LEN, HASH_LEN, Error = Error>,
-{
-    type KeyType = [u8; KEY_LEN];
-    type OutputType = [u8; HASH_LEN];
-    type Error = Error;
+impl KeyedHash {
+    pub fn keyed_shake256() -> Self {
+        Self::KeyedShake256(Default::default())
+    }
+
+    pub fn incorrect_hmac_blake2b() -> Self {
+        Self::IncorrectHmacBlake2b(Default::default())
+    }
+}
+
+impl KeyedHashInstance<KEY_LEN, HASH_LEN> for KeyedHash {
+    type Error = anyhow::Error;
 
     fn keyed_hash(
         &self,
@@ -32,19 +30,8 @@ where
         out: &mut [u8; HASH_LEN],
     ) -> Result<(), Self::Error> {
         match self {
-            Self::Left(_) => L::keyed_hash(key, data, out),
-            Self::Right(_) => R::keyed_hash(key, data, out),
-        }
-    }
-}
-
-pub type EitherShakeOrBlake = EitherHash<32, 32, anyhow::Error, SHAKE256Core<32, 32>, Blake2bCore>;
-
-impl Clone for EitherShakeOrBlake {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Left(l) => Self::Left(l.clone()),
-            Self::Right(r) => Self::Right(r.clone()),
+            Self::KeyedShake256(h) => h.keyed_hash(key, data, out),
+            Self::IncorrectHmacBlake2b(h) => h.keyed_hash(key, data, out),
         }
     }
 }
