@@ -78,6 +78,15 @@ Rosenpass is packaged for more and more distributions, maybe also for the distri
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 
+## Docker Images
+
+Rosenpass is also available as prebuilt Docker images:
+
+- [`ghcr.io/rosenpass/rosenpass`](https://github.com/rosenpass/rosenpass/pkgs/container/rosenpass)
+- [`ghcr.io/rosenpass/rp`](https://github.com/rosenpass/rosenpass/pkgs/container/rp)
+
+For details on how to use these images, refer to the [Docker usage guide](.docker/USAGE.md).
+
 # Mirrors
 
 Don't want to use GitHub or only have an IPv6 connection? Rosenpass has set up two mirrors for this:

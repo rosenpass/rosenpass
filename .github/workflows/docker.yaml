@@ -1,4 +1,4 @@
-name: ci
+name: Build Docker Images
 
 on:
   push:
@@ -12,7 +12,12 @@ on:
 
 jobs:
   docker-image-rp:
-    runs-on: ubuntu-latest
+    # Use a matrix to build for both AMD64 and ARM64
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    # Switch the runner based on the architecture
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-latest-arm64' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,8 +42,6 @@ jobs:
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build and push
@@ -50,9 +53,14 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rp
-          platforms: amd64,arm64
+          platforms: linux/${{ matrix.arch }}
   docker-image-rosenpass:
-    runs-on: ubuntu-latest
+    # Use a matrix to build for both AMD64 and ARM64
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    # Switch the runner based on the architecture
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-latest-arm64' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -90,4 +98,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rosenpass
-          platforms: amd64,arm64
+          platforms: linux/${{ matrix.arch }}

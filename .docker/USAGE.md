@@ -1,57 +1,14 @@
-# Rosenpass
+# Rosenpass in Docker
 
-Rosenpass is used to create post-quantum-secure VPNs. Rosenpass computes a shared key, [Wireguard](https://www.wireguard.com/papers/wireguard.pdf) uses the shared key to establish a secure connection. Rosenpass can also be used without WireGuard, deriving post-quantum-secure symmetric keys for another application.
-The Rosenpass protocol builds on “Post-quantum WireGuard” ([PQWG](https://eprint.iacr.org/2020/379)) and improves it by using a cookie mechanism to provide security against state disruption attacks.
+Rosenpass provides post-quantum-secure key exchange for VPNs. It generates symmetric keys used by [WireGuard](https://www.wireguard.com/papers/wireguard.pdf) or other applications. The protocol enhances "Post-Quantum WireGuard" ([PQWG](https://eprint.iacr.org/2020/379)) with a cookie mechanism for better security against state disruption attacks.
 
-The rosenpass tool is written in Rust and uses liboqs. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
+Prebuilt Docker images are available for easy deployment:
 
-As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
+- [`ghcr.io/rosenpass/rosenpass`](https://github.com/rosenpass/rosenpass/pkgs/container/rosenpass) – the core key exchange tool
+- [`ghcr.io/rosenpass/rp`](https://github.com/rosenpass/rosenpass/pkgs/container/rp) – a frontend for setting up WireGuard VPNs
 
-The `rp` tool written in Rust makes it easy to create a VPN using WireGuard and Rosenpass.
-
-`rp` is easy to get started with but has a few drawbacks; it runs as root, demanding access to both WireGuard
-and Rosenpass private keys, takes control of the interface and works with exactly one interface. If you do not feel confident about running Rosenpass as root, you should use the stand-alone mode to create a more secure setup using containers, jails, or virtual machines.
-
-## Building the Docker Image
-
-Clone the Rosenpass repository:
-
-```
-git clone https://github.com/rosenpass/rosenpass
-cd rosenpass
-```
-
-Use the `docker-buildscript.sh` script to build images from the source.
-
-```bash
-bash docker-buildscript.sh
-docker images
-
-| REPOSITORY                   | TAG              | IMAGE ID       | CREATED         | SIZE   |
-|------------------------------|------------------|----------------|-----------------|--------|
-| ghcr.io/rosenpass/rp         | commit-aeb0671   | dc2997662d2c   | 9 hours ago     | 93.2MB |
-| ghcr.io/rosenpass/rosenpass  | commit-aeb0671   | 65ccc5e5b9fb   | 9 hours ago     | 93.6MB |
-```
-
-Set environment variable `TAG_AS_RELEASE=true` to tag the built images with the current versions.
-
-Set environment variable `TAG_AS_LATEST=true` to tag the built images as latest.
-
-```bash
-export TAG_AS_RELEASE=true
-export TAG_AS_LATEST=true
-bash docker-buildscript.sh
-docker images
-
-| REPOSITORY                  | TAG            | IMAGE ID     | CREATED     | SIZE   |
-|-----------------------------|----------------|--------------|-------------|--------|
-| ghcr.io/rosenpass/rp        | 0.2.1          | 253338c948ab | 9 hours ago | 93.2MB |
-| ghcr.io/rosenpass/rp        | commit-05f0ac0 | 253338c948ab | 9 hours ago | 93.2MB |
-| ghcr.io/rosenpass/rp        | latest         | 253338c948ab | 9 hours ago | 93.2MB |
-| ghcr.io/rosenpass/rosenpass | 0.3.0-dev      | 6958e24fd240 | 9 hours ago | 93.6MB |
-| ghcr.io/rosenpass/rosenpass | commit-05f0ac0 | 6958e24fd240 | 9 hours ago | 93.6MB |
-| ghcr.io/rosenpass/rosenpass | latest         | 6958e24fd240 | 9 hours ago | 93.6MB |
-```
+The entrypoint of the `rosenpass` image is the `rosenpass` executable, whose documentation can be found [here](https://rosenpass.eu/docs/rosenpass-tool/manuals/rp_manual/).  
+Similarly, the entrypoint of the `rp` image is the `rp` executable, with its documentation available [here](https://rosenpass.eu/docs/rosenpass-tool/manuals/rp1/).
 
 ## Usage - Standalone Key Exchange
 
@@ -116,14 +73,15 @@ Now the containers will exchange shared keys and each put them into their respec
 Comparing the outfiles shows that these shared keys equal:
 
 ```bash
-cmp workdir/server-sharedkey workdir/client-sharedkey
+cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
 ```
 
 It is now possible to set add these keys as pre-shared keys within a wireguard interface.
+For example as the server,
 
 ```bash
-PREKEY=$(cat workdir/client-sharedkey)
-wg set <interface> peer <peer-public-key> preshared-key <(echo "$PREKEY")
+PREKEY=$(cat workdir-server/server-sharedkey)
+wg set <server-interface> peer <client-peer-public-key> preshared-key <(echo "$PREKEY")
 ```
 
 ## Usage - Combined with wireguard
@@ -158,8 +116,8 @@ docker run -it --rm -v ./workdir-client:/workdir ghcr.io/rosenpass/rp \
     pubkey workdir/client.rosenpass-secret workdir/client.rosenpass-public
 
 # share the public keys between client and server
-cp workdir-client/client.rosenpass-public workdir-server/client.rosenpass-public
-cp workdir-server/server.rosenpass-public workdir-client/server.rosenpass-public
+cp -r workdir-client/client.rosenpass-public workdir-server/client.rosenpass-public
+cp -r workdir-server/server.rosenpass-public workdir-client/server.rosenpass-public
 ```
 
 Start the server container.
@@ -223,14 +181,23 @@ While the ping is running, you may stop the server container, and verify that th
 docker stop -t 1 rpserver
 ```
 
-## Contributing
+## Building the Docker Images Locally
 
-The rosenpass project is maintained on [Github](https://github.com/rosenpass/rosenpass).
+Clone the Rosenpass repository:
 
-Contributions are generally welcome. Join our [Matrix Chat](https://matrix.to/#/#rosenpass:matrix.org) if you are looking for guidance on how to contribute or for people to collaborate with.
+```
+git clone https://github.com/rosenpass/rosenpass
+cd rosenpass
+```
 
-We also have a – as of now, very minimal – [contributors guide](https://github.com/rosenpass/rosenpass/blob/main/CONTRIBUTING.md).
+Build the rp image from the root of the repository as follows:
 
-## Acknowledgements
+```
+docker build -f .docker/Dockerfile -t ghcr.io/rosenpass/rp --target rp .
+```
 
-Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
+Build the rosenpass image from the root of the repostiry with the following command:
+
+```
+docker build -f .docker/Dockerfile -t ghcr.io/rosenpass/rosenpass --target rosenpass .
+```
