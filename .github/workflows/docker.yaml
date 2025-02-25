@@ -11,10 +11,32 @@ on:
       - "main"
 
 jobs:
+  # ----------------------------------------
+  # 1. Check if .docker/Dockerfile or .github/workflows/docker.yaml changed
+  # ----------------------------------------
+  check-dockerfile-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docker_files_changed: ${{ steps.filter.outputs.docker_files_changed }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            docker_files_changed:
+              - '.docker/Dockerfile'
+              - '.github/workflows/docker.yaml'
   # --------------------------------
-  # 1. BUILD & TEST
+  # 2. BUILD & TEST
   # --------------------------------
   build-and-test-rp:
+    # Run this job on all non-pull-request events,
+    # or if Docker-related files are changed in a pull request.
+    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -104,9 +126,11 @@ jobs:
 
           echo "Standalone Key Exchange test OK."
   # --------------------------------
-  # 2. PUSH (only if tests pass)
+  # 3. PUSH (only if tests pass)
   # --------------------------------
   docker-image-rp:
+    # Skip if this is not a PR. Then we want to push this image
+    if: ${{ github.event_name != 'pull_request' }}
     needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
@@ -132,7 +156,7 @@ jobs:
             org.opencontainers.image.title=Rosenpass
             org.opencontainers.image.description=The rp command-line integrates Rosenpass and WireGuard to help you create a VPN
             org.opencontainers.image.vendor=Rosenpass e.V.
-            org.opencontainers.image.licenses=MIT OR Apache-2.0"
+            org.opencontainers.image.licenses=MIT OR Apache-2.0
             org.opencontainers.image.url=https://rosenpass.eu
             org.opencontainers.image.documentation=https://rosenpass.eu/docs/
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
@@ -151,6 +175,9 @@ jobs:
           target: rp
           platforms: linux/${{ matrix.arch }}
   docker-image-rosenpass:
+    # Run this job on all non-pull-request events,
+    # or if Docker-related files are changed in a pull request.
+    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
     needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
@@ -176,7 +203,7 @@ jobs:
             org.opencontainers.image.title=Rosenpass
             org.opencontainers.image.description=Reference implementation of the protocol rosenpass protocol
             org.opencontainers.image.vendor=Rosenpass e.V.
-            org.opencontainers.image.licenses=MIT OR Apache-2.0"
+            org.opencontainers.image.licenses=MIT OR Apache-2.0
             org.opencontainers.image.url=https://rosenpass.eu
             org.opencontainers.image.documentation=https://rosenpass.eu/docs/
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
