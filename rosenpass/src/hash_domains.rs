@@ -13,7 +13,7 @@
 //! use rosenpass::{hash_domain, hash_domain_ns};
 //! use rosenpass::hash_domains::protocol;
 //!
-//! use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
+//! use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
 //!
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");
@@ -29,7 +29,7 @@
 //! hash_domain!(domain_separators, sep2, "2");
 //!
 //! // We use the SHAKE256 hash function for this example
-//! let hash_choice = EitherShakeOrBlake::Left(rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core);
+//! let hash_choice = KeyedHash::keyed_shake256();
 //!
 //! // Generating values under hasher1 with both domain separators
 //! let h1 = hasher1(hash_choice.clone())?.mix(b"some data")?.dup();
@@ -54,7 +54,7 @@
 
 use anyhow::Result;
 use rosenpass_ciphers::hash_domain::HashDomain;
-use rosenpass_ciphers::subtle::either_hash::KeyedHash;
+use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
 
 /// Declare a hash function
 ///

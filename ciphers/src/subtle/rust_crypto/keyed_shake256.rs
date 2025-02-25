@@ -1,6 +1,5 @@
-use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 use anyhow::ensure;
-use rosenpass_cipher_traits::keyed_hash::KeyedHash;
+use rosenpass_cipher_traits::keyed_hash::{InferKeyedHash, KeyedHash};
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 
