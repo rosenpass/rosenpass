@@ -8,8 +8,8 @@
 pub mod chacha20poly1305_ietf;
 #[cfg(feature = "experiment_libcrux")]
 pub mod chacha20poly1305_ietf_libcrux;
-pub mod xchacha20poly1305_ietf;
-mod hash_functions;
 pub mod either_hash;
+mod hash_functions;
+pub mod xchacha20poly1305_ietf;
 
-pub use hash_functions::{blake2b, incorrect_hmac_blake2b, keyed_shake256}; 
+pub use hash_functions::{blake2b, incorrect_hmac_blake2b, keyed_shake256};

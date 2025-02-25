@@ -1,13 +1,15 @@
+use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 use anyhow::ensure;
+use rosenpass_cipher_traits::KeyedHash;
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
-use rosenpass_cipher_traits::KeyedHash;
-use crate::subtle::hash_functions::infer_keyed_hash::InferKeyedHash;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SHAKE256Core<const KEY_LEN: usize, const HASH_LEN: usize>;
 
-impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN> for SHAKE256Core<KEY_LEN, HASH_LEN> {
+impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
+    for SHAKE256Core<KEY_LEN, HASH_LEN>
+{
     type Error = anyhow::Error;
 
     /// TODO: Rework test
@@ -36,7 +38,11 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN> f
     /// 108, 50, 224, 48, 19, 197, 253, 105, 136, 95, 34, 95, 203, 149, 192, 124, 223, 243, 87];
     /// # assert_eq!(hash_data, expected_hash);
     /// ```
-    fn keyed_hash(key: &[u8; KEY_LEN], data: &[u8], out: &mut [u8; HASH_LEN]) -> Result<(), Self::Error> {
+    fn keyed_hash(
+        key: &[u8; KEY_LEN],
+        data: &[u8],
+        out: &mut [u8; HASH_LEN],
+    ) -> Result<(), Self::Error> {
         // Since SHAKE256 is a XOF, we fix the output length manually to what is required for the
         // protocol.
         ensure!(out.len() == HASH_LEN);
@@ -58,7 +64,6 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN> f
         Ok(())
     }
 }
-
 
 impl<const KEY_LEN: usize, const HASH_LEN: usize> SHAKE256Core<KEY_LEN, HASH_LEN> {
     pub fn new() -> Self {
@@ -83,7 +88,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> SHAKE256Core<KEY_LEN, HASH_LEN
 /// # assert_eq!(hash_data, expected_hash);
 /// ```
 pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
-InferKeyedHash<SHAKE256Core<KEY_LEN, HASH_LEN>, KEY_LEN, HASH_LEN>;
+    InferKeyedHash<SHAKE256Core<KEY_LEN, HASH_LEN>, KEY_LEN, HASH_LEN>;
 
 /// TODO: Documentation and more interesting test
 /// ```rust
@@ -102,4 +107,3 @@ InferKeyedHash<SHAKE256Core<KEY_LEN, HASH_LEN>, KEY_LEN, HASH_LEN>;
 /// # assert_eq!(hash_data, expected_hash);
 /// ```
 pub type SHAKE256_32 = SHAKE256<32, 32>;
-

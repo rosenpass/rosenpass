@@ -9,11 +9,11 @@ use std::{
 };
 
 use anyhow::ensure;
+use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{ipv4_any_binding, ipv6_any_binding, AppServer, AppServerTest, MAX_B64_KEY_SIZE},
     protocol::{SPk, SSk, SymKey},
 };
-use rosenpass::config::ProtocolVersion;
 use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::Secret;
@@ -66,8 +66,14 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
                 let outfile = Some(osk);
                 let port = otr_port;
                 let hostname = is_client.then(|| format!("[::1]:{port}"));
-                srv.app_srv
-                    .add_peer(psk, pk, outfile, broker_peer, hostname, protocol_version.clone())?;
+                srv.app_srv.add_peer(
+                    psk,
+                    pk,
+                    outfile,
+                    broker_peer,
+                    hostname,
+                    protocol_version.clone(),
+                )?;
 
                 srv.app_srv.event_loop()
             })

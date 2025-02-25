@@ -103,7 +103,7 @@ macro_rules! hash_domain {
 /// used in various places in the rosenpass protocol.
 ///
 /// This is generally used to create further hash-domains for specific purposes. See
-/// 
+///
 /// TODO: Update documentation
 ///
 /// # Examples
@@ -114,10 +114,11 @@ macro_rules! hash_domain {
 pub fn protocol(hash_choice: EitherShakeOrBlake) -> Result<HashDomain> {
     // TODO: Update this string that is mixed in?
     match hash_choice {
-        EitherShakeOrBlake::Left(SHAKE256Core) => HashDomain::zero(hash_choice).mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
-        EitherShakeOrBlake::Right(Blake2bCore) => HashDomain::zero(hash_choice).mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 Blake2b".as_bytes()),
+        EitherShakeOrBlake::Left(SHAKE256Core) => HashDomain::zero(hash_choice)
+            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
+        EitherShakeOrBlake::Right(Blake2bCore) => HashDomain::zero(hash_choice)
+            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 Blake2b".as_bytes()),
     }
-    
 }
 
 hash_domain_ns!(

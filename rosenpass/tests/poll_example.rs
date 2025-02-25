@@ -9,7 +9,10 @@ use rosenpass_cipher_traits::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_util::result::OkExt;
 
-use rosenpass::protocol::{testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult, ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING};
+use rosenpass::protocol::{
+    testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult,
+    ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING,
+};
 
 // TODO: Most of the utility functions in here should probably be moved to
 // rosenpass::protocol::testutils;
@@ -94,7 +97,9 @@ fn test_successful_exchange_under_packet_loss_v03() -> anyhow::Result<()> {
     test_successful_exchange_under_packet_loss(ProtocolVersion::V03)
 }
 
-fn test_successful_exchange_under_packet_loss(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
+fn test_successful_exchange_under_packet_loss(
+    protocol_version: ProtocolVersion,
+) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 

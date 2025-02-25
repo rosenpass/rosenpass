@@ -1,5 +1,7 @@
 use anyhow::Result;
-use rosenpass::protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey};
+use rosenpass::protocol::{
+    CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey,
+};
 use std::ops::DerefMut;
 
 use rosenpass_cipher_traits::Kem;
