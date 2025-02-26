@@ -5,7 +5,7 @@ use std::{
     ops::DerefMut,
 };
 
-use rosenpass_cipher_traits::Kem;
+use rosenpass_cipher_traits::kem::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_util::result::OkExt;
 

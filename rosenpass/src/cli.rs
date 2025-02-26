@@ -5,7 +5,7 @@
 
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
-use rosenpass_cipher_traits::Kem;
+use rosenpass_cipher_traits::kem::Kem;
 use rosenpass_ciphers::kem::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
