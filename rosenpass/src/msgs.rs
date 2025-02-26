@@ -9,13 +9,12 @@
 //! To achieve this we utilize the zerocopy library.
 //!
 use std::mem::size_of;
-use std::u8;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
+use rosenpass_ciphers::{Aead, XAead, KEY_LEN};
+use rosenpass_ciphers::{EphemeralKem, StaticKem};
 
 /// Length of a session ID such as [InitHello::sidi]
 pub const SESSION_ID_LEN: usize = 4;
@@ -32,7 +31,7 @@ pub const MAX_MESSAGE_LEN: usize = 2500; // TODO fix this
 pub const BISCUIT_PT_LEN: usize = size_of::<Biscuit>();
 
 /// Length in bytes of an encrypted Biscuit (cipher text)
-pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN;
+pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + XAead::NONCE_LEN + XAead::TAG_LEN;
 
 /// Size of the field [Envelope::mac]
 pub const MAC_SIZE: usize = 16;
@@ -136,9 +135,9 @@ pub struct InitHello {
     /// Classic McEliece Ciphertext
     pub sctr: [u8; StaticKem::CT_LEN],
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pub pidic: [u8; aead::TAG_LEN + 32],
+    pub pidic: [u8; Aead::TAG_LEN + 32],
     /// Encrypted TAI64N Time Stamp (against replay attacks)
-    pub auth: [u8; aead::TAG_LEN],
+    pub auth: [u8; Aead::TAG_LEN],
 }
 
 /// This is the second message sent by the responder to the initiator
@@ -187,7 +186,7 @@ pub struct RespHello {
     /// Classic McEliece Ciphertext
     pub scti: [u8; StaticKem::CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    pub auth: [u8; aead::TAG_LEN],
+    pub auth: [u8; Aead::TAG_LEN],
     /// Responders handshake state in encrypted form
     pub biscuit: [u8; BISCUIT_CT_LEN],
 }
@@ -236,7 +235,7 @@ pub struct InitConf {
     /// Responders handshake state in encrypted form
     pub biscuit: [u8; BISCUIT_CT_LEN],
     /// Empty encrypted message (just an auth tag)
-    pub auth: [u8; aead::TAG_LEN],
+    pub auth: [u8; Aead::TAG_LEN],
 }
 
 /// This is the fourth message sent by the initiator to the responder
@@ -292,7 +291,7 @@ pub struct EmptyData {
     /// Nonce
     pub ctr: [u8; 8],
     /// Empty encrypted message (just an auth tag)
-    pub auth: [u8; aead::TAG_LEN],
+    pub auth: [u8; Aead::TAG_LEN],
 }
 
 /// Cookie encrypted and sent to the initiator by the responder in [RespHello]
@@ -346,7 +345,7 @@ pub struct CookieReplyInner {
     /// Session ID of the sender (initiator)
     pub sid: [u8; 4],
     /// Encrypted cookie with authenticated initiator `mac`
-    pub cookie_encrypted: [u8; xaead::NONCE_LEN + COOKIE_SIZE + xaead::TAG_LEN],
+    pub cookie_encrypted: [u8; XAead::NONCE_LEN + COOKIE_SIZE + XAead::TAG_LEN],
 }
 
 /// Specialized message for use in the cookie mechanism.
@@ -437,7 +436,8 @@ impl From<MsgType> for u8 {
 #[cfg(test)]
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
-    use rosenpass_ciphers::{xaead, KEY_LEN};
+    use rosenpass_cipher_traits::primitives::Aead as _;
+    use rosenpass_ciphers::{XAead, KEY_LEN};
 
     #[test]
     fn sodium_keysize() {
@@ -453,7 +453,7 @@ mod test_constants {
     fn biscuit_ct_len() {
         assert_eq!(
             BISCUIT_CT_LEN,
-            BISCUIT_PT_LEN + xaead::NONCE_LEN + xaead::TAG_LEN
+            BISCUIT_PT_LEN + XAead::NONCE_LEN + XAead::TAG_LEN
         );
     }
 }

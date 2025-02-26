@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
+use rosenpass_cipher_traits::primitives::KeyedHashInstance;
 
 pub const KEY_LEN: usize = 32;
 pub const HASH_LEN: usize = 32;

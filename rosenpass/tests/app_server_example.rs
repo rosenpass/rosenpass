@@ -12,8 +12,8 @@ use rosenpass::{
     app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
     protocol::{SPk, SSk, SymKey},
 };
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 
 #[test]

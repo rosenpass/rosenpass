@@ -10,8 +10,8 @@ use rosenpass_util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::{SPk, SSk};
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
 
 /// The length of wireguard keys as a length in base 64 encoding.

@@ -2,10 +2,10 @@
 
 /// Generate bindings to a liboqs-provided KEM
 macro_rules! oqs_kem {
-    ($name:ident) => { ::paste::paste!{
+    ($name:ident, $algo_trait:path) => { ::paste::paste!{
         #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
-            use rosenpass_cipher_traits::kem;
+            use rosenpass_cipher_traits::primitives::{Kem, KemError};
 
             #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
             #[doc = ""]
@@ -55,8 +55,8 @@ macro_rules! oqs_kem {
             /// to only check that the buffers are big enough, allowing them to be even
             /// bigger. However, from a correctness point of view it does not make sense to
             /// allow bigger buffers.
-            impl kem::Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for [< $name:camel >] {
-                fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), kem::Error> {
+            impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for [< $name:camel >] {
+                fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ keypair >],
@@ -68,7 +68,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                    fn encaps(&self, shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), kem::Error> {
+                    fn encaps(&self, shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ encaps >],
@@ -81,7 +81,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn decaps(&self, shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), kem::Error> {
+                fn decaps(&self, shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ decaps >],
@@ -101,6 +101,8 @@ macro_rules! oqs_kem {
                 Self
             }
         }
+
+        impl $algo_trait for [< $name:camel >] {}
 
         pub use [< $name:snake >] :: [< $name:camel >];
     }}

@@ -4,8 +4,8 @@ extern crate rosenpass;
 use libfuzzer_sys::fuzz_target;
 
 use rosenpass::protocol::CryptoServer;
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::policy::*;
 use rosenpass_secret_memory::{PublicBox, Secret};
 use std::sync::Once;

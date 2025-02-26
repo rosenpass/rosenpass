@@ -5,8 +5,8 @@
 
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{

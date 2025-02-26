@@ -1,5 +1,5 @@
 use anyhow::ensure;
-use rosenpass_cipher_traits::keyed_hash::{InferKeyedHash, KeyedHash};
+use rosenpass_cipher_traits::primitives::{InferKeyedHash, KeyedHash};
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 

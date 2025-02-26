@@ -1,2 +1,2 @@
-mod primitives;
-pub use primitives::*;
+pub mod algorithms;
+pub mod primitives;
