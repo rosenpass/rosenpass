@@ -10,6 +10,10 @@ on:
     branches:
       - "main"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   # ----------------------------------------
   # 1. Check if docker/Dockerfile or .github/workflows/docker.yaml changed
@@ -17,7 +21,7 @@ jobs:
   check-dockerfile-changes:
     runs-on: ubuntu-latest
     outputs:
-      docker_files_changed: ${{ steps.filter.outputs.dockerfile || steps.filter.outputs.dockerbuild_workflow }}
+      docker_files_changed: ${{ steps.filter.outputs.docker_files_changed }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,9 +31,8 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            dockerfile:
+            docker_files_changed:
               - 'docker/Dockerfile'
-            dockerbuild_workflow:
               - '.github/workflows/docker.yaml'
   # --------------------------------
   # 2. BUILD & TEST
