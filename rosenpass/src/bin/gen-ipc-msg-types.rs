@@ -2,6 +2,9 @@ use anyhow::{Context, Result};
 use heck::ToShoutySnakeCase;
 
 use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
+use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
+use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
+use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 
 /// Recursively calculate a concrete hash value for an API message type
 fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]> {
@@ -12,8 +15,8 @@ fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]
 }
 
 /// Print a hash literal for pasting into the Rosenpass source code
-fn print_literal(path: &[&str]) -> Result<()> {
-    let val = calculate_hash_value(HashDomain::zero(), path)?;
+fn print_literal(path: &[&str], shake_or_blake: EitherShakeOrBlake) -> Result<()> {
+    let val = calculate_hash_value(HashDomain::zero(shake_or_blake), path)?;
     let (last, prefix) = path.split_last().context("developer error!")?;
     let var_name = last.to_shouty_snake_case();
 
@@ -51,47 +54,53 @@ impl Tree {
         }
     }
 
-    fn gen_code_inner(&self, prefix: &[&str]) -> Result<()> {
+    fn gen_code_inner(&self, prefix: &[&str], shake_or_blake: EitherShakeOrBlake) -> Result<()> {
         let mut path = prefix.to_owned();
         path.push(self.name());
 
         match self {
             Self::Branch(_, ref children) => {
                 for c in children.iter() {
-                    c.gen_code_inner(&path)?
+                    c.gen_code_inner(&path, shake_or_blake.clone())?
                 }
             }
-            Self::Leaf(_) => print_literal(&path)?,
+            Self::Leaf(_) => print_literal(&path, shake_or_blake)?,
         };
 
         Ok(())
     }
 
-    fn gen_code(&self) -> Result<()> {
-        self.gen_code_inner(&[])
+    fn gen_code(&self, shake_or_blake: EitherShakeOrBlake) -> Result<()> {
+        self.gen_code_inner(&[], shake_or_blake)
     }
 }
 
 /// Helper for generating hash-based message IDs for the IPC API
 fn main() -> Result<()> {
-    let tree = Tree::Branch(
-        "Rosenpass IPC API".to_owned(),
-        vec![Tree::Branch(
-            "Rosenpass Protocol Server".to_owned(),
-            vec![
-                Tree::Leaf("Ping Request".to_owned()),
-                Tree::Leaf("Ping Response".to_owned()),
-                Tree::Leaf("Supply Keypair Request".to_owned()),
-                Tree::Leaf("Supply Keypair Response".to_owned()),
-                Tree::Leaf("Add Listen Socket Request".to_owned()),
-                Tree::Leaf("Add Listen Socket Response".to_owned()),
-                Tree::Leaf("Add Psk Broker Request".to_owned()),
-                Tree::Leaf("Add Psk Broker Response".to_owned()),
-            ],
-        )],
-    );
+    
+    fn print_IPC_API_info(shake_or_blake: EitherShakeOrBlake, name: String) -> Result<()> {
+        let tree = Tree::Branch(
+            format!("Rosenpass IPC API {}", name).to_owned(),
+            vec![Tree::Branch(
+                "Rosenpass Protocol Server".to_owned(),
+                vec![
+                    Tree::Leaf("Ping Request".to_owned()),
+                    Tree::Leaf("Ping Response".to_owned()),
+                    Tree::Leaf("Supply Keypair Request".to_owned()),
+                    Tree::Leaf("Supply Keypair Response".to_owned()),
+                    Tree::Leaf("Add Listen Socket Request".to_owned()),
+                    Tree::Leaf("Add Listen Socket Response".to_owned()),
+                    Tree::Leaf("Add Psk Broker Request".to_owned()),
+                    Tree::Leaf("Add Psk Broker Response".to_owned()),
+                ],
+            )],
+        );
 
-    println!("type RawMsgType = u128;");
-    println!();
-    tree.gen_code()
+        println!("type RawMsgType = u128;");
+        println!();
+        tree.gen_code(shake_or_blake)
+    }
+    
+    print_IPC_API_info(EitherShakeOrBlake::Left(SHAKE256Core), " (SHAKE256)".to_owned())?;
+    print_IPC_API_info(EitherShakeOrBlake::Right(Blake2bCore), " (Blake2b)".to_owned())
 }
