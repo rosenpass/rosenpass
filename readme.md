@@ -85,7 +85,7 @@ Rosenpass is also available as prebuilt Docker images:
 - [`ghcr.io/rosenpass/rosenpass`](https://github.com/rosenpass/rosenpass/pkgs/container/rosenpass)
 - [`ghcr.io/rosenpass/rp`](https://github.com/rosenpass/rosenpass/pkgs/container/rp)
 
-For details on how to use these images, refer to the [Docker usage guide](.docker/USAGE.md).
+For details on how to use these images, refer to the [Docker usage guide](docker/USAGE.md).
 
 # Mirrors
 

@@ -12,7 +12,7 @@ on:
 
 jobs:
   # ----------------------------------------
-  # 1. Check if .docker/Dockerfile or .github/workflows/docker.yaml changed
+  # 1. Check if docker/Dockerfile or .github/workflows/docker.yaml changed
   # ----------------------------------------
   check-dockerfile-changes:
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
         with:
           filters: |
             dockerfile:
-              - '.docker/Dockerfile'
+              - 'docker/Dockerfile'
             dockerbuild_workflow:
               - '.github/workflows/docker.yaml'
   # --------------------------------
@@ -53,7 +53,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: .docker/Dockerfile
+          file: docker/Dockerfile
           # no pushing here, so we can test locally
           push: false
           # load the built image into the local Docker daemon on the runner
@@ -172,7 +172,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: .docker/Dockerfile
+          file: docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -221,7 +221,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: .docker/Dockerfile
+          file: docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

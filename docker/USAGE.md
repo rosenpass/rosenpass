@@ -193,11 +193,11 @@ cd rosenpass
 Build the rp image from the root of the repository as follows:
 
 ```
-docker build -f .docker/Dockerfile -t ghcr.io/rosenpass/rp --target rp .
+docker build -f docker/Dockerfile -t ghcr.io/rosenpass/rp --target rp .
 ```
 
 Build the rosenpass image from the root of the repostiry with the following command:
 
 ```
-docker build -f .docker/Dockerfile -t ghcr.io/rosenpass/rosenpass --target rosenpass .
+docker build -f docker/Dockerfile -t ghcr.io/rosenpass/rosenpass --target rosenpass .
 ```
