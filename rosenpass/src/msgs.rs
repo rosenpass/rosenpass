@@ -13,7 +13,7 @@ use std::u8;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
-use rosenpass_cipher_traits::Kem;
+use rosenpass_cipher_traits::kem::Kem;
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 

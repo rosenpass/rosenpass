@@ -5,8 +5,7 @@ macro_rules! oqs_kem {
     ($name:ident) => { ::paste::paste!{
         #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
-            use rosenpass_cipher_traits::Kem;
-            use rosenpass_util::result::Guaranteed;
+            use rosenpass_cipher_traits::kem;
 
             #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
             #[doc = ""]
@@ -39,6 +38,11 @@ macro_rules! oqs_kem {
             #[doc = "```"]
             pub enum [< $name:camel >]  {}
 
+            pub const SK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_secret_key >] as usize;
+            pub const PK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_public_key >] as usize;
+            pub const CT_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_ciphertext >] as usize;
+            pub const SHK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_shared_secret >] as usize;
+
             /// # Panic & Safety
             ///
             /// This Trait impl calls unsafe [oqs_sys] functions, that write to byte
@@ -51,17 +55,8 @@ macro_rules! oqs_kem {
             /// to only check that the buffers are big enough, allowing them to be even
             /// bigger. However, from a correctness point of view it does not make sense to
             /// allow bigger buffers.
-            impl Kem for [< $name:camel >] {
-                type Error = ::std::convert::Infallible;
-
-                const SK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_secret_key >] as usize;
-                const PK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_public_key >] as usize;
-                const CT_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_ciphertext >] as usize;
-                const SHK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_shared_secret >] as usize;
-
-                fn keygen(sk: &mut [u8], pk: &mut [u8]) -> Guaranteed<()> {
-                    assert_eq!(sk.len(), Self::SK_LEN);
-                    assert_eq!(pk.len(), Self::PK_LEN);
+            impl kem::Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for [< $name:camel >] {
+                fn keygen(sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ keypair >],
@@ -73,10 +68,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn encaps(shk: &mut [u8], ct: &mut [u8], pk: &[u8]) -> Guaranteed<()> {
-                    assert_eq!(shk.len(), Self::SHK_LEN);
-                    assert_eq!(ct.len(), Self::CT_LEN);
-                    assert_eq!(pk.len(), Self::PK_LEN);
+                    fn encaps(shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ encaps >],
@@ -89,10 +81,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn decaps(shk: &mut [u8], sk: &[u8], ct: &[u8]) -> Guaranteed<()> {
-                    assert_eq!(shk.len(), Self::SHK_LEN);
-                    assert_eq!(sk.len(), Self::SK_LEN);
-                    assert_eq!(ct.len(), Self::CT_LEN);
+                fn decaps(shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ decaps >],
