@@ -1,0 +1,229 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  # ----------------------------------------
+  # 1. Check if docker/Dockerfile or .github/workflows/docker.yaml changed
+  # ----------------------------------------
+  check-dockerfile-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docker_files_changed: ${{ steps.filter.outputs.dockerfile || steps.filter.outputs.dockerbuild_workflow }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            dockerfile:
+              - 'docker/Dockerfile'
+            dockerbuild_workflow:
+              - '.github/workflows/docker.yaml'
+  # --------------------------------
+  # 2. BUILD & TEST
+  # --------------------------------
+  build-and-test-rp:
+    needs: check-dockerfile-changes
+    # Run this job on all non-pull-request events,
+    # or if Docker-related files are changed in a pull request.
+    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build (no push) and Load
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          # no pushing here, so we can test locally
+          push: false
+          # load the built image into the local Docker daemon on the runner
+          load: true
+          target: rosenpass
+          tags: rosenpass:test
+          platforms: linux/${{ matrix.arch }}
+      - name: Integration Test - Standalone Key Exchange
+        run: |
+          # Create separate workdirs
+          mkdir -p workdir-server workdir-client
+
+          # Create a Docker network
+          docker network create -d bridge rp
+
+          echo "=== GENERATE SERVER KEYS ==="
+          docker run --rm \
+            -v $PWD/workdir-server:/workdir \
+            rosenpass:test gen-keys \
+              --public-key=workdir/server-public \
+              --secret-key=workdir/server-secret
+
+          echo "=== GENERATE CLIENT KEYS ==="
+          docker run --rm \
+            -v $PWD/workdir-client:/workdir \
+            rosenpass:test gen-keys \
+              --public-key=workdir/client-public \
+              --secret-key=workdir/client-secret
+
+          echo "=== SHARE PUBLIC KEYS ==="
+          cp workdir-client/client-public workdir-server/client-public
+          cp workdir-server/server-public workdir-client/server-public
+
+          echo "=== START SERVER CONTAINER ==="
+          docker run -d --rm \
+            --name rpserver \
+            --network rp \
+            -v $PWD/workdir-server:/workdir \
+            rosenpass:test exchange \
+              private-key workdir/server-secret \
+              public-key  workdir/server-public \
+              listen 0.0.0.0:9999 \
+              peer public-key workdir/client-public \
+              outfile workdir/server-sharedkey
+
+          # Get the container IP of the server
+          SERVER_IP=$(docker inspect --format='{{.NetworkSettings.Networks.rp.IPAddress}}' rpserver)
+          echo "SERVER_IP=$SERVER_IP"
+
+          echo "=== START CLIENT CONTAINER ==="
+          docker run -d --rm \
+            --name rpclient \
+            --network rp \
+            -v $PWD/workdir-client:/workdir \
+            rosenpass:test exchange \
+              private-key workdir/client-secret \
+              public-key  workdir/client-public \
+              peer public-key workdir/server-public \
+              endpoint ${SERVER_IP}:9999 \
+              outfile workdir/client-sharedkey
+
+          echo "=== COMPARE SHARED KEYS ==="
+          echo "Waiting up to 30 seconds for the server to generate 'server-sharedkey'..."
+          for i in $(seq 1 30); do
+            if [ -f "workdir-server/server-sharedkey" ]; then
+              echo "server-sharedkey found!"
+              break
+            fi
+            sleep 1
+          done
+          sudo cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
+
+          echo "Standalone Key Exchange test OK."
+  # --------------------------------
+  # 3. PUSH (only if tests pass)
+  # --------------------------------
+  docker-image-rp:
+    needs:
+      - build-and-test-rp
+      - check-dockerfile-changes
+    # Skip if this is not a PR. Then we want to push this image.
+    if: ${{ github.event_name != 'pull_request' }}
+    # Use a matrix to build for both AMD64 and ARM64
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    # Switch the runner based on the architecture
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/rosenpass/rp
+          tags: |
+            type=edge,branch=main
+            type=sha,branch=main
+            type=semver,pattern={{version}}
+          labels: |
+            maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.title=Rosenpass
+            org.opencontainers.image.description=The rp command-line integrates Rosenpass and WireGuard to help you create a VPN
+            org.opencontainers.image.vendor=Rosenpass e.V.
+            org.opencontainers.image.licenses=MIT OR Apache-2.0
+            org.opencontainers.image.url=https://rosenpass.eu
+            org.opencontainers.image.documentation=https://rosenpass.eu/docs/
+            org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: rp
+          platforms: linux/${{ matrix.arch }}
+  docker-image-rosenpass:
+    needs:
+      - build-and-test-rp
+      - check-dockerfile-changes
+    # Run this job on all non-pull-request events,
+    # or if Docker-related files are changed in a pull request.
+    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
+    # Use a matrix to build for both AMD64 and ARM64
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    # Switch the runner based on the architecture
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/rosenpass/rosenpass
+          tags: |
+            type=edge,branch=main
+            type=sha,branch=main
+            type=semver,pattern={{version}}
+          labels: |
+            maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
+            org.opencontainers.image.title=Rosenpass
+            org.opencontainers.image.description=Reference implementation of the protocol rosenpass protocol
+            org.opencontainers.image.vendor=Rosenpass e.V.
+            org.opencontainers.image.licenses=MIT OR Apache-2.0
+            org.opencontainers.image.url=https://rosenpass.eu
+            org.opencontainers.image.documentation=https://rosenpass.eu/docs/
+            org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: rosenpass
+          platforms: linux/${{ matrix.arch }}
