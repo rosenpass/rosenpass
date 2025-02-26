@@ -295,12 +295,12 @@ impl RosenpassSimulator {
     fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
         // Set up the first server
         let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
+        StaticKem.keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
         let mut srv_a = CryptoServer::new(peer_a_sk, peer_a_pk.clone());
 
         // …and the second server.
         let (mut peer_b_sk, mut peer_b_pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(peer_b_sk.secret_mut(), peer_b_pk.deref_mut())?;
+        StaticKem.keygen(peer_b_sk.secret_mut(), peer_b_pk.deref_mut())?;
         let mut srv_b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 
         // Generate a PSK and introduce the Peers to each other.

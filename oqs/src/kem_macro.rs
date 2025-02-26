@@ -36,7 +36,7 @@ macro_rules! oqs_kem {
             #[doc = "// Both parties end up with the same shared key"]
             #[doc = "assert!(rosenpass_constant_time::compare(shk_enc.secret_mut(), shk_dec.secret_mut()) == 0);"]
             #[doc = "```"]
-            pub enum [< $name:camel >]  {}
+            pub struct [< $name:camel >];
 
             pub const SK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_secret_key >] as usize;
             pub const PK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_public_key >] as usize;
@@ -56,7 +56,7 @@ macro_rules! oqs_kem {
             /// bigger. However, from a correctness point of view it does not make sense to
             /// allow bigger buffers.
             impl kem::Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for [< $name:camel >] {
-                fn keygen(sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), kem::Error> {
+                fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ keypair >],
@@ -68,7 +68,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                    fn encaps(shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), kem::Error> {
+                    fn encaps(&self, shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ encaps >],
@@ -81,7 +81,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn decaps(shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), kem::Error> {
+                fn decaps(&self, shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), kem::Error> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ decaps >],
@@ -94,7 +94,12 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
             }
+        }
 
+        impl Default for [< $name:camel >] {
+            fn default() -> Self {
+                Self
+            }
         }
 
         pub use [< $name:snake >] :: [< $name:camel >];

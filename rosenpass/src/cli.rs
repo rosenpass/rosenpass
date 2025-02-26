@@ -609,7 +609,7 @@ impl CliArgs {
 pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
     let mut ssk = crate::protocol::SSk::random();
     let mut spk = crate::protocol::SPk::random();
-    StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
+    StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
 }

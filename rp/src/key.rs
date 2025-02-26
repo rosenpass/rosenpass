@@ -66,7 +66,7 @@ pub fn genkey(private_keys_dir: &Path) -> Result<()> {
     if !pqsk_path.exists() && !pqpk_path.exists() {
         let mut pqsk = SSk::random();
         let mut pqpk = SPk::random();
-        StaticKem::keygen(pqsk.secret_mut(), pqpk.deref_mut())?;
+        StaticKem.keygen(pqsk.secret_mut(), pqpk.deref_mut())?;
         pqpk.store(pqpk_path)?;
         pqsk.store_secret(pqsk_path)?;
     } else {

@@ -43,7 +43,7 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
 
 fn keygen() -> Result<(SSk, SPk)> {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-    StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+    StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
     Ok((sk, pk))
 }
 
