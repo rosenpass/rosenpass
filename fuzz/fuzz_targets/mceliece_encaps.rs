@@ -3,8 +3,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 
 fuzz_target!(|input: [u8; StaticKem::PK_LEN]| {
     let mut ciphertext = [0u8; StaticKem::CT_LEN];

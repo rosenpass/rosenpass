@@ -20,12 +20,11 @@ use rand::Fill as Randomize;
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
+use rosenpass_cipher_traits::primitives::{
+    Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
+};
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
-use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
 use rosenpass_to::ops::copy_slice;
@@ -172,7 +171,7 @@ pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
 /// Nonce for use with random-nonce AEAD
-pub type XAEADNonce = Public<{ xaead::NONCE_LEN }>;
+pub type XAEADNonce = Public<{ XAead::NONCE_LEN }>;
 
 /// Buffer capably of holding any Rosenpass protocol message
 pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
@@ -2242,7 +2241,7 @@ impl CryptoServer {
         msg_out.inner.msg_type = MsgType::CookieReply.into();
         msg_out.inner.sid = rx_sid;
 
-        xaead::encrypt(
+        XAead.encrypt(
             &mut msg_out.inner.cookie_encrypted[..],
             &cookie_key,
             &nonce.value,
@@ -3310,7 +3309,7 @@ impl HandshakeState {
             .ck
             .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
             .into_secret();
-        aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
+        Aead.encrypt(ct, k.secret(), &[0u8; Aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
@@ -3323,7 +3322,7 @@ impl HandshakeState {
             .ck
             .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
             .into_secret();
-        aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
+        Aead.decrypt(pt, k.secret(), &[0u8; Aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
 
@@ -3449,7 +3448,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
-        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
+        XAead.encrypt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -3476,7 +3475,7 @@ impl HandshakeState {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
             Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
-        xaead::decrypt(
+        XAead.decrypt_with_nonce_in_ctxt(
             biscuit.as_bytes_mut(),
             bk.get(srv).value.secret(),
             &ad,
@@ -3790,7 +3789,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
+        core.encrypt_and_mix(&mut [0u8; Aead::TAG_LEN], &[])?;
 
         // ICR3
         core.mix(&ic.sidi)?.mix(&ic.sidr)?;
@@ -3855,9 +3854,9 @@ impl CryptoServer {
         rc.ctr.copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
+        let n = cat!(Aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
+        Aead.encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -3902,11 +3901,11 @@ impl CryptoServer {
             let n = u64::from_le_bytes(rc.ctr);
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
-            aead::decrypt(
+            Aead.decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]),
+                &cat!(Aead::NONCE_LEN; &rc.ctr, &[0u8; 4]),
                 &[],
                 &rc.auth,
             )?;
@@ -3967,7 +3966,12 @@ impl CryptoServer {
                     .into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
+                XAead.decrypt_with_nonce_in_ctxt(
+                    cookie_value,
+                    &cookie_key,
+                    &mac,
+                    &cr.inner.cookie_encrypted,
+                )?;
 
                 // Immediately retransmit on recieving a cookie reply message
                 peer.hs().register_immediate_retransmission(self)?;

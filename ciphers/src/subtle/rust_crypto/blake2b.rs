@@ -2,54 +2,33 @@ use zeroize::Zeroizing;
 
 use blake2::digest::crypto_common::generic_array::GenericArray;
 use blake2::digest::crypto_common::typenum::U32;
-use blake2::digest::crypto_common::KeySizeUser;
-use blake2::digest::{FixedOutput, Mac, OutputSizeUser};
+use blake2::digest::{FixedOutput, Mac};
 use blake2::Blake2bMac;
 
-use rosenpass_to::{ops::copy_slice, with_destination, To};
-use rosenpass_util::typenum2const;
+use rosenpass_cipher_traits::primitives::KeyedHash;
+use rosenpass_to::{ops::copy_slice, To};
 
 /// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
 /// with output and key length of 32 bytes (see [Blake2bMac]).
 type Impl = Blake2bMac<U32>;
 
-type KeyLen = <Impl as KeySizeUser>::KeySize;
-type OutLen = <Impl as OutputSizeUser>::OutputSize;
-
 /// The key length for BLAKE2b supported by this API. Currently 32 Bytes.
-const KEY_LEN: usize = typenum2const! { KeyLen };
+const KEY_LEN: usize = 32;
 /// The output length for BLAKE2b supported by this API. Currently 32 Bytes.
-const OUT_LEN: usize = typenum2const! { OutLen };
-
-/// Minimal key length supported by this API.
-pub const KEY_MIN: usize = KEY_LEN;
-/// maximal key length supported by this API.
-pub const KEY_MAX: usize = KEY_LEN;
-/// minimal output length supported by this API.
-pub const OUT_MIN: usize = OUT_LEN;
-/// maximal output length supported by this API.
-pub const OUT_MAX: usize = OUT_LEN;
+const OUT_LEN: usize = 32;
 
 /// Hashes the given `data` with the [Blake2bMac] hash function under the given `key`.
 /// The both the length of the output the length of the key 32 bytes (or 256 bits).  
-///
-/// TODO: Adapt example
-/// # Examples
-///
-///```rust
-/// # use rosenpass_ciphers::subtle::blake2b::hash;
-/// use rosenpass_to::To;
-/// let zero_key: [u8; 32] = [0; 32];
-/// let data: [u8; 32] = [255; 32];
-/// // buffer for the hash output
-/// let mut hash_data: [u8; 32] = [0u8; 32];  
-///
-/// assert!(hash(&zero_key, &data).to(&mut hash_data).is_ok(), "Hashing has to return OK result");
-///```
-///
-#[inline]
-pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<()>> + 'a {
-    with_destination(|out: &mut [u8]| {
+pub struct Blake2b;
+
+impl KeyedHash<KEY_LEN, OUT_LEN> for Blake2b {
+    type Error = anyhow::Error;
+
+    fn keyed_hash(
+        key: &[u8; KEY_LEN],
+        data: &[u8],
+        out: &mut [u8; OUT_LEN],
+    ) -> Result<(), Self::Error> {
         let mut h = Impl::new_from_slice(key)?;
         h.update(data);
 
@@ -62,5 +41,7 @@ pub fn hash<'a>(key: &'a [u8], data: &'a [u8]) -> impl To<[u8], anyhow::Result<(
         h.finalize_into(tmp);
         copy_slice(tmp.as_ref()).to(out);
         Ok(())
-    })
+    }
 }
+
+impl rosenpass_cipher_traits::algorithms::KeyedHashBlake2b for Blake2b {}

@@ -4,8 +4,8 @@ use rosenpass::protocol::{
 };
 use std::ops::DerefMut;
 
-use rosenpass_cipher_traits::kem::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;

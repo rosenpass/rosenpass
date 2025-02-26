@@ -1,3 +1,4 @@
+use rosenpass_cipher_traits::primitives::{Aead, AeadError};
 use rosenpass_to::ops::copy_slice;
 use rosenpass_to::To;
 use rosenpass_util::typenum2const;
@@ -12,6 +13,66 @@ pub const KEY_LEN: usize = typenum2const! { <AeadImpl as KeySizeUser>::KeySize }
 pub const TAG_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::TagSize };
 /// The nonce length is 12 bytes or 96 bits.
 pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize };
+
+pub struct ChaCha20Poly1305;
+
+impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
+    fn encrypt(
+        &self,
+        ciphertext: &mut [u8],
+        key: &[u8; KEY_LEN],
+        nonce: &[u8; NONCE_LEN],
+        ad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<(), AeadError> {
+        if ciphertext.len() < plaintext.len() + TAG_LEN {
+            return Err(AeadError::InvalidLengths);
+        }
+
+        let nonce = GenericArray::from_slice(nonce);
+        let (ct, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
+        copy_slice(plaintext).to(ct);
+
+        // This only fails if the length is wrong, which really shouldn't happen and would
+        // constitute an internal error.
+        let encrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::InternalError)?;
+
+        let mac_value = encrypter
+            .encrypt_in_place_detached(nonce, ad, ct)
+            .map_err(|_| AeadError::InternalError)?;
+        copy_slice(&mac_value[..]).to(mac);
+
+        Ok(())
+    }
+
+    fn decrypt(
+        &self,
+        plaintext: &mut [u8],
+        key: &[u8; KEY_LEN],
+        nonce: &[u8; NONCE_LEN],
+        ad: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<(), AeadError> {
+        if ciphertext.len() < plaintext.len() + TAG_LEN {
+            return Err(AeadError::InvalidLengths);
+        }
+
+        let nonce = GenericArray::from_slice(nonce);
+        let (ct, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
+        let tag = GenericArray::from_slice(mac);
+        copy_slice(ct).to(plaintext);
+
+        // This only fails if the length is wrong, which really shouldn't happen and would
+        // constitute an internal error.
+        let decrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::InternalError)?;
+
+        decrypter
+            .decrypt_in_place_detached(nonce, ad, plaintext, tag)
+            .map_err(|_| AeadError::DecryptError)?;
+
+        Ok(())
+    }
+}
 
 /// Encrypts using ChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// `key` MUST be chosen (pseudo-)randomly and `nonce` MOST NOT be reused. The `key` slice MUST have
@@ -42,17 +103,14 @@ pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize 
 #[inline]
 pub fn encrypt(
     ciphertext: &mut [u8],
-    key: &[u8],
-    nonce: &[u8],
+    key: &[u8; KEY_LEN],
+    nonce: &[u8; NONCE_LEN],
     ad: &[u8],
     plaintext: &[u8],
 ) -> anyhow::Result<()> {
-    let nonce = GenericArray::from_slice(nonce);
-    let (ct, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
-    copy_slice(plaintext).to(ct);
-    let mac_value = AeadImpl::new_from_slice(key)?.encrypt_in_place_detached(nonce, ad, ct)?;
-    copy_slice(&mac_value[..]).to(mac);
-    Ok(())
+    ChaCha20Poly1305
+        .encrypt(ciphertext, key, nonce, ad, plaintext)
+        .map_err(anyhow::Error::from)
 }
 
 /// Decrypts a `ciphertext` and verifies the integrity of the `ciphertext` and the additional data
@@ -85,15 +143,12 @@ pub fn encrypt(
 #[inline]
 pub fn decrypt(
     plaintext: &mut [u8],
-    key: &[u8],
-    nonce: &[u8],
+    key: &[u8; KEY_LEN],
+    nonce: &[u8; NONCE_LEN],
     ad: &[u8],
     ciphertext: &[u8],
 ) -> anyhow::Result<()> {
-    let nonce = GenericArray::from_slice(nonce);
-    let (ct, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
-    let tag = GenericArray::from_slice(mac);
-    copy_slice(ct).to(plaintext);
-    AeadImpl::new_from_slice(key)?.decrypt_in_place_detached(nonce, ad, plaintext, tag)?;
-    Ok(())
+    ChaCha20Poly1305
+        .decrypt(plaintext, key, nonce, ad, ciphertext)
+        .map_err(anyhow::Error::from)
 }
