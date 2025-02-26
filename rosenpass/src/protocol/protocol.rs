@@ -3338,14 +3338,14 @@ impl HandshakeState {
         const KEM_PK_LEN: usize,
         const KEM_CT_LEN: usize,
         const KEM_SHK_LEN: usize,
-        T: Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
+        T: Default + Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
     >(
         &mut self,
         ct: &mut [u8; KEM_CT_LEN],
         pk: &[u8; KEM_PK_LEN],
     ) -> Result<&mut Self> {
         let mut shk = Secret::<KEM_SHK_LEN>::zero();
-        T::encaps(shk.secret_mut(), ct, pk)?;
+        T::default().encaps(shk.secret_mut(), ct, pk)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
@@ -3374,7 +3374,7 @@ impl HandshakeState {
         const KEM_PK_LEN: usize,
         const KEM_CT_LEN: usize,
         const KEM_SHK_LEN: usize,
-        T: Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
+        T: Default + Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
     >(
         &mut self,
         sk: &[u8; KEM_SK_LEN],
@@ -3382,7 +3382,7 @@ impl HandshakeState {
         ct: &[u8; KEM_CT_LEN],
     ) -> Result<&mut Self> {
         let mut shk = Secret::<KEM_SHK_LEN>::zero();
-        T::decaps(shk.secret_mut(), sk, ct)?;
+        T::default().decaps(shk.secret_mut(), sk, ct)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
@@ -3584,7 +3584,7 @@ impl CryptoServer {
         ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
-        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+        EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -4013,11 +4013,11 @@ pub mod testutils {
     impl ServerForTesting {
         pub fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
             let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sskm.secret_mut(), spkm.deref_mut())?;
+            StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
             let mut srv = CryptoServer::new(sskm, spkm);
 
             let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sskt.secret_mut(), spkt.deref_mut())?;
+            StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
             let peer = srv.add_peer(None, spkt.clone(), protocol_version)?;
 
             let peer_keys = (sskt, spkt);
@@ -4162,7 +4162,7 @@ mod test {
     fn keygen() -> Result<(SSk, SPk)> {
         // TODO: Copied from the benchmark; deduplicate
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+        StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
         Ok((sk, pk))
     }
 
@@ -4530,7 +4530,7 @@ mod test {
 
         fn keypair() -> Result<(SSk, SPk)> {
             let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+            StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
             Ok((sk, pk))
         }
 

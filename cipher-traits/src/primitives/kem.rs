@@ -133,23 +133,31 @@ use thiserror::Error;
 /// Key Encapsulation Mechanism
 ///
 /// The KEM interface defines three operations: Key generation, key encapsulation and key
-/// decapsulation.
+/// decapsulation. The parameters are made available as associated constants for convenience.
 pub trait Kem<const SK_LEN: usize, const PK_LEN: usize, const CT_LEN: usize, const SHK_LEN: usize> {
+    /// The length of the secret (decapsulation) key.
     const SK_LEN: usize = SK_LEN;
+
+    /// The length of the public (encapsulation) key.
     const PK_LEN: usize = PK_LEN;
+
+    /// The length of the ciphertext.
     const CT_LEN: usize = CT_LEN;
+
+    /// The legnth of the resulting shared key.
     const SHK_LEN: usize = SHK_LEN;
 
     /// Generate a keypair consisting of secret key (`sk`) and public key (`pk`)
     ///
     /// `keygen() -> sk, pk`
-    fn keygen(sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), Error>;
+    fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), Error>;
 
     /// From a public key (`pk`), generate a shared key (`shk`, for local use)
     /// and a cipher text (`ct`, to be sent to the owner of the `pk`).
     ///
     /// `encaps(pk) -> shk, ct`
     fn encaps(
+        &self,
         shk: &mut [u8; SHK_LEN],
         ct: &mut [u8; CT_LEN],
         pk: &[u8; PK_LEN],
@@ -159,7 +167,12 @@ pub trait Kem<const SK_LEN: usize, const PK_LEN: usize, const CT_LEN: usize, con
     /// (`shk`)
     ///
     /// `decaps(sk, ct) -> shk`
-    fn decaps(shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), Error>;
+    fn decaps(
+        &self,
+        shk: &mut [u8; SHK_LEN],
+        sk: &[u8; SK_LEN],
+        ct: &[u8; CT_LEN],
+    ) -> Result<(), Error>;
 }
 
 #[derive(Debug, Error)]

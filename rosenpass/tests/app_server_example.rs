@@ -114,7 +114,7 @@ struct TestServer {
 impl TestServer {
     fn new(termination_queue: mpsc::Receiver<()>) -> anyhow::Result<Self> {
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+        StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
 
         let keypair = Some((sk, pk));
         let addrs = vec![
