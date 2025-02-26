@@ -17,26 +17,28 @@ jobs:
   check-dockerfile-changes:
     runs-on: ubuntu-latest
     outputs:
-      docker_files_changed: ${{ steps.filter.outputs.docker_files_changed }}
+      docker_files_changed: ${{ steps.filter.outputs.dockerfile || steps.filter.outputs.dockerbuild_workflow }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Paths filter
         id: filter
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         with:
           filters: |
-            docker_files_changed:
+            dockerfile:
               - '.docker/Dockerfile'
+            dockerbuild_workflow:
               - '.github/workflows/docker.yaml'
   # --------------------------------
   # 2. BUILD & TEST
   # --------------------------------
   build-and-test-rp:
+    needs: check-dockerfile-changes
     # Run this job on all non-pull-request events,
     # or if Docker-related files are changed in a pull request.
-    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' }}
+    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -129,9 +131,11 @@ jobs:
   # 3. PUSH (only if tests pass)
   # --------------------------------
   docker-image-rp:
-    # Skip if this is not a PR. Then we want to push this image
+    needs:
+      - build-and-test-rp
+      - check-dockerfile-changes
+    # Skip if this is not a PR. Then we want to push this image.
     if: ${{ github.event_name != 'pull_request' }}
-    needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
@@ -175,10 +179,12 @@ jobs:
           target: rp
           platforms: linux/${{ matrix.arch }}
   docker-image-rosenpass:
+    needs:
+      - build-and-test-rp
+      - check-dockerfile-changes
     # Run this job on all non-pull-request events,
     # or if Docker-related files are changed in a pull request.
     if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
-    needs: build-and-test-rp
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
