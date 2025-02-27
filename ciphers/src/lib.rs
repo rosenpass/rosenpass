@@ -19,7 +19,7 @@ pub use crate::subtle::keyed_hash::KeyedHash;
 /// Authenticated encryption with associated data (AEAD)
 /// Chacha20poly1305 is used.
 #[cfg(feature = "experiment_libcrux")]
-pub use subtle::libcrux::chacha20poly1305_ietf::Chacha20poly1305 as Aead;
+pub use subtle::libcrux::chacha20poly1305_ietf::ChaCha20Poly1305 as Aead;
 
 /// Authenticated encryption with associated data (AEAD)
 /// Chacha20poly1305 is used.

@@ -1188,6 +1188,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libcrux-chacha20poly1305"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04b666b490e714ff52d157da772a9a7faa3f394d619e79e64cdf1425599279ee"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-poly1305",
+]
+
+[[package]]
 name = "libcrux-hacl"
 version = "0.0.2-pre.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1198,12 +1209,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "libcrux-hacl-rs"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb04660b91e0be4185c3a9dd8e2c317c478cc0616f9cba2a4d523e033f852fa1"
+dependencies = [
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-macros"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5848af0bd1aca5be28708945867adb2b841824a0a6f48779407a41287d5ca231"
+dependencies = [
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
 name = "libcrux-platform"
 version = "0.0.2-pre.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "647e39666194b11df17c19451d1154b9be79df98b9821532560c2ecad0cf3410"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "libcrux-poly1305"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82169ddf387e1912ebcde17979607e6a380dc758631757e7969652debe4dde9b"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
 ]
 
 [[package]]
@@ -1840,6 +1880,8 @@ dependencies = [
  "blake2",
  "chacha20poly1305",
  "libcrux",
+ "libcrux-chacha20poly1305",
+ "rand",
  "rosenpass-cipher-traits",
  "rosenpass-constant-time",
  "rosenpass-oqs",
