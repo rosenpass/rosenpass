@@ -1000,6 +1000,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 
 [[package]]
+name = "hax-lib"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd2dddf00d9120e8ff07ec0411cd48f6f419782b53c109d3984b6bf94345c822"
+dependencies = [
+ "hax-lib-macros",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "hax-lib-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "013ec0c6e58481b11658007e794ee09be35b97ef02c92102b9a5c01afd43a82f"
+dependencies = [
+ "hax-lib-macros-types",
+ "paste",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "hax-lib-macros-types"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01e897f0a73b06263b106327db34e77b8df37a9a94a3fba759ee7c9b69493396"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "heapless"
 version = "0.7.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1089,7 +1127,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "mio",
- "rand",
+ "rand 0.8.5",
  "serde",
  "tempfile",
  "uuid",
@@ -1184,7 +1222,7 @@ dependencies = [
  "libcrux-hacl",
  "libcrux-platform",
  "libjade-sys",
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -1218,6 +1256,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "libcrux-intrinsics"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5256e25c0b16c98b715f7cc6b3ed268723a1158f78a236b1625ffe4a941cab41"
+dependencies = [
+ "hax-lib",
+]
+
+[[package]]
 name = "libcrux-macros"
 version = "0.0.2-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1225,6 +1272,19 @@ checksum = "5848af0bd1aca5be28708945867adb2b841824a0a6f48779407a41287d5ca231"
 dependencies = [
  "quote",
  "syn 2.0.98",
+]
+
+[[package]]
+name = "libcrux-ml-kem"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89cbf9aad4ad38d53cfdd7ffe9041cc4cf516c8c5a6f9c1a7bb8136a82b7b6d6"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-sha3",
+ "rand 0.9.0",
 ]
 
 [[package]]
@@ -1244,6 +1304,17 @@ checksum = "82169ddf387e1912ebcde17979607e6a380dc758631757e7969652debe4dde9b"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-sha3"
+version = "0.0.2-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6afd802f5c7862be77f1f320df6c0fea0f09a78ca94e79df26625c60d2d96de7"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
 ]
 
 [[package]]
@@ -1509,6 +1580,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-bigint"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
+dependencies = [
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-integer"
+version = "0.1.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1668,7 +1758,7 @@ version = "0.2.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77957b295656769bb8ad2b6a6b09d897d94f05c41b069aede1fcdaa675eaea04"
 dependencies = [
- "zerocopy",
+ "zerocopy 0.7.35",
 ]
 
 [[package]]
@@ -1679,6 +1769,30 @@ checksum = "6924ced06e1f7dfe3fa48d57b9f74f55d8915f5036121bef647ef4b204895fac"
 dependencies = [
  "proc-macro2",
  "syn 2.0.98",
+]
+
+[[package]]
+name = "proc-macro-error"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
+dependencies = [
+ "proc-macro-error-attr",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "version_check",
+]
+
+[[package]]
+name = "proc-macro-error-attr"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "version_check",
 ]
 
 [[package]]
@@ -1730,8 +1844,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
- "rand_chacha",
- "rand_core",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3779b94aeb87e8bd4e834cee3650289ee9e0d5677f976ecdb6d219e5f4f6cd94"
+dependencies = [
+ "rand_chacha 0.9.0",
+ "rand_core 0.9.2",
+ "zerocopy 0.8.20",
 ]
 
 [[package]]
@@ -1741,7 +1866,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.9.2",
 ]
 
 [[package]]
@@ -1751,6 +1886,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.15",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a509b1a2ffbe92afab0e55c8fd99dea1c280e8171bd2d88682bb20bc41cbc2c"
+dependencies = [
+ "getrandom 0.3.1",
+ "zerocopy 0.8.20",
 ]
 
 [[package]]
@@ -1838,7 +1983,7 @@ dependencies = [
  "mio",
  "paste",
  "procspawn",
- "rand",
+ "rand 0.8.5",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
@@ -1857,7 +2002,7 @@ dependencies = [
  "thiserror 1.0.69",
  "toml",
  "uds",
- "zerocopy",
+ "zerocopy 0.7.35",
  "zeroize",
 ]
 
@@ -1881,7 +2026,8 @@ dependencies = [
  "chacha20poly1305",
  "libcrux",
  "libcrux-chacha20poly1305",
- "rand",
+ "libcrux-ml-kem",
+ "rand 0.8.5",
  "rosenpass-cipher-traits",
  "rosenpass-constant-time",
  "rosenpass-oqs",
@@ -1898,7 +2044,7 @@ name = "rosenpass-constant-time"
 version = "0.1.0"
 dependencies = [
  "memsec",
- "rand",
+ "rand 0.8.5",
  "rosenpass-to",
 ]
 
@@ -1939,7 +2085,7 @@ dependencies = [
  "log",
  "memsec",
  "procspawn",
- "rand",
+ "rand 0.8.5",
  "rosenpass-to",
  "rosenpass-util",
  "tempfile",
@@ -1966,7 +2112,7 @@ dependencies = [
  "thiserror 1.0.69",
  "typenum",
  "uds",
- "zerocopy",
+ "zerocopy 0.7.35",
  "zeroize",
 ]
 
@@ -1983,7 +2129,7 @@ dependencies = [
  "mio",
  "postcard",
  "procspawn",
- "rand",
+ "rand 0.8.5",
  "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-util",
@@ -1991,7 +2137,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "wireguard-uapi",
- "zerocopy",
+ "zerocopy 0.7.35",
 ]
 
 [[package]]
@@ -2982,7 +3128,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
  "curve25519-dalek",
- "rand_core",
+ "rand_core 0.6.4",
  "serde",
  "zeroize",
 ]
@@ -2994,7 +3140,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
 dependencies = [
  "byteorder",
- "zerocopy-derive",
+ "zerocopy-derive 0.7.35",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde3bb8c68a8f3f1ed4ac9221aad6b10cece3e60a8e2ea54a6a2dec806d0084c"
+dependencies = [
+ "zerocopy-derive 0.8.20",
 ]
 
 [[package]]
@@ -3002,6 +3157,17 @@ name = "zerocopy-derive"
 version = "0.7.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eea57037071898bf96a6da35fd626f4f27e9cee3ead2a6c703cf09d472b2e700"
 dependencies = [
  "proc-macro2",
  "quote",
