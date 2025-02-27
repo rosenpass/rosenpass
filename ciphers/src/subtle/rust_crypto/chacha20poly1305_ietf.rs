@@ -25,7 +25,9 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
         ad: &[u8],
         plaintext: &[u8],
     ) -> Result<(), AeadError> {
-        if ciphertext.len() < plaintext.len() + TAG_LEN {
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < TAG_LEN || ciphertext.len() - TAG_LEN < plaintext.len() {
             return Err(AeadError::InvalidLengths);
         }
 
@@ -53,7 +55,9 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
         ad: &[u8],
         ciphertext: &[u8],
     ) -> Result<(), AeadError> {
-        if ciphertext.len() < plaintext.len() + TAG_LEN {
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < TAG_LEN || ciphertext.len() - TAG_LEN < plaintext.len() {
             return Err(AeadError::InvalidLengths);
         }
 

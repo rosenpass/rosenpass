@@ -1,3 +1,4 @@
+use rosenpass_to::{ops::copy_slice, To as _};
 use thiserror::Error;
 
 pub trait Aead<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN: usize> {
@@ -33,6 +34,28 @@ pub trait AeadWithNonceInCiphertext<
     const TAG_LEN: usize,
 >: Aead<KEY_LEN, NONCE_LEN, TAG_LEN>
 {
+    fn encrypt_with_nonce_in_ctxt(
+        &self,
+        ciphertext: &mut [u8],
+        key: &[u8; KEY_LEN],
+        nonce: &[u8; NONCE_LEN],
+        ad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<(), Error> {
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < NONCE_LEN + TAG_LEN
+            || ciphertext.len() - TAG_LEN - NONCE_LEN < plaintext.len()
+        {
+            return Err(Error::InvalidLengths);
+        }
+
+        let (n, rest) = ciphertext.split_at_mut(NONCE_LEN);
+        copy_slice(nonce).to(n);
+
+        self.encrypt(rest, key, nonce, ad, plaintext)
+    }
+
     fn decrypt_with_nonce_in_ctxt(
         &self,
         plaintext: &mut [u8],
@@ -40,7 +63,11 @@ pub trait AeadWithNonceInCiphertext<
         ad: &[u8],
         ciphertext: &[u8],
     ) -> Result<(), Error> {
-        if ciphertext.len() < plaintext.len() + TAG_LEN + NONCE_LEN {
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < NONCE_LEN + TAG_LEN
+            || ciphertext.len() - TAG_LEN - NONCE_LEN < plaintext.len()
+        {
             return Err(Error::InvalidLengths);
         }
 

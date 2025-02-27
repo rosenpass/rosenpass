@@ -25,11 +25,16 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
         ad: &[u8],
         plaintext: &[u8],
     ) -> Result<(), AeadError> {
-        let nonce = GenericArray::from_slice(nonce);
-        let (n, ct_mac) = ciphertext.split_at_mut(NONCE_LEN);
-        let (ct, mac) = ct_mac.split_at_mut(ct_mac.len() - TAG_LEN);
-        copy_slice(nonce).to(n);
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < TAG_LEN || ciphertext.len() - TAG_LEN < plaintext.len() {
+            return Err(AeadError::InvalidLengths);
+        }
+
+        let (ct, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
         copy_slice(plaintext).to(ct);
+
+        let nonce = GenericArray::from_slice(nonce);
 
         // This only fails if the length is wrong, which really shouldn't happen and would
         // constitute an internal error.
@@ -50,6 +55,12 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
         ad: &[u8],
         ciphertext: &[u8],
     ) -> Result<(), AeadError> {
+        // The comparison looks complicated, but we need to do it this way to prevent
+        // over/underflows.
+        if ciphertext.len() < TAG_LEN || ciphertext.len() - TAG_LEN < plaintext.len() {
+            return Err(AeadError::InvalidLengths);
+        }
+
         let (ct, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
         let nonce = GenericArray::from_slice(nonce);
         let tag = GenericArray::from_slice(mac);

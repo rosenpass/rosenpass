@@ -2241,7 +2241,7 @@ impl CryptoServer {
         msg_out.inner.msg_type = MsgType::CookieReply.into();
         msg_out.inner.sid = rx_sid;
 
-        XAead.encrypt(
+        XAead.encrypt_with_nonce_in_ctxt(
             &mut msg_out.inner.cookie_encrypted[..],
             &cookie_key,
             &nonce.value,
@@ -3348,6 +3348,7 @@ impl HandshakeState {
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
+    /// Calls [`Self::encaps_and_mix`] with the generic parameters that match [`StaticKem`].
     pub fn encaps_and_mix_static(
         &mut self,
         ct: &mut [u8; StaticKem::CT_LEN],
@@ -3356,6 +3357,7 @@ impl HandshakeState {
         self.encaps_and_mix::<{StaticKem::SK_LEN},{ StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(ct, pk)
     }
 
+    /// Calls [`Self::encaps_and_mix`] with the generic parameters that match [`EphemeralKem`].
     pub fn encaps_and_mix_ephemeral(
         &mut self,
         ct: &mut [u8; EphemeralKem::CT_LEN],
@@ -3385,6 +3387,7 @@ impl HandshakeState {
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
+    /// Calls [`Self::decaps_and_mix`] with the generic parameters that match [`StaticKem`].
     pub fn decaps_and_mix_static(
         &mut self,
         sk: &[u8; StaticKem::SK_LEN],
@@ -3394,6 +3397,7 @@ impl HandshakeState {
         self.decaps_and_mix::<{StaticKem::SK_LEN},{ StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(sk, pk, ct)
     }
 
+    /// Calls [`Self::decaps_and_mix`] with the generic parameters that match [`EphemeralKem`].
     pub fn decaps_and_mix_ephemeral(
         &mut self,
         sk: &[u8; EphemeralKem::SK_LEN],
@@ -3448,7 +3452,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
-        XAead.encrypt(biscuit_ct, k, &*n, &ad, pt)?;
+        XAead.encrypt_with_nonce_in_ctxt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
