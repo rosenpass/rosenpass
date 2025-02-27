@@ -13,6 +13,7 @@ readme = "readme.md"
 experiment_libcrux = [
     "dep:libcrux",
     "dep:libcrux-chacha20poly1305",
+    "dep:libcrux-ml-kem",
 ]
 
 [dependencies]
@@ -28,7 +29,10 @@ zeroize = { workspace = true }
 chacha20poly1305 = { workspace = true }
 blake2 = { workspace = true }
 libcrux = { workspace = true, optional = true }
-sha3 = {workspace = true}
 libcrux-chacha20poly1305 = { workspace = true, optional = true }
+libcrux-ml-kem = { workspace = true, optional = true, features = ["kyber"] }
+sha3 = { workspace = true }
+rand = { workspace = true }
+
 [dev-dependencies]
 rand = { workspace = true }
