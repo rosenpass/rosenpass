@@ -18,12 +18,12 @@ pub use crate::subtle::keyed_hash::KeyedHash;
 
 /// Authenticated encryption with associated data (AEAD)
 /// Chacha20poly1305 is used.
-#[cfg(feature = "experiment_libcrux")]
+#[cfg(feature = "experiment_libcrux_chachapoly")]
 pub use subtle::libcrux::chacha20poly1305_ietf::ChaCha20Poly1305 as Aead;
 
 /// Authenticated encryption with associated data (AEAD)
 /// Chacha20poly1305 is used.
-#[cfg(not(feature = "experiment_libcrux"))]
+#[cfg(not(feature = "experiment_libcrux_chachapoly"))]
 pub use crate::subtle::rust_crypto::chacha20poly1305_ietf::ChaCha20Poly1305 as Aead;
 
 /// Authenticated encryption with associated data with a extended-length nonce (XAEAD)
@@ -38,6 +38,9 @@ pub use rosenpass_oqs::ClassicMceliece460896 as StaticKem;
 /// Use Kyber-512 as the Static KEM
 ///
 /// See [rosenpass_oqs::Kyber512] for more details.
+#[cfg(not(feature = "experiment_libcrux_kyber"))]
 pub use rosenpass_oqs::Kyber512 as EphemeralKem;
+#[cfg(feature = "experiment_libcrux_kyber")]
+pub use subtle::libcrux::kyber512::Kyber512 as EphemeralKem;
 
 pub mod hash_domain;
