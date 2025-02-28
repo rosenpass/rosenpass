@@ -1,4 +1,3 @@
-use anyhow::ensure;
 use rosenpass_cipher_traits::{
     algorithms::KeyedHashIncorrectHmacBlake2b,
     primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
@@ -7,7 +6,13 @@ use rosenpass_constant_time::xor;
 use rosenpass_to::{ops::copy_slice, To};
 use zeroize::Zeroizing;
 
-use crate::subtle::rust_crypto::blake2b;
+#[cfg(not(feature = "experiment_libcrux_blake2"))]
+use crate::subtle::rust_crypto::blake2b::Blake2b;
+#[cfg(not(feature = "experiment_libcrux_blake2"))]
+use anyhow::Error;
+
+#[cfg(feature = "experiment_libcrux_blake2")]
+use crate::subtle::libcrux::blake2b::{Blake2b, Error};
 
 /// The key length, 32 bytes or 256 bits.
 pub const KEY_LEN: usize = 32;
@@ -42,7 +47,7 @@ pub const HASH_LEN: usize = 32;
 pub struct IncorrectHmacBlake2bCore;
 
 impl KeyedHash<KEY_LEN, HASH_LEN> for IncorrectHmacBlake2bCore {
-    type Error = anyhow::Error;
+    type Error = Error;
 
     fn keyed_hash(
         key: &[u8; KEY_LEN],
@@ -52,21 +57,17 @@ impl KeyedHash<KEY_LEN, HASH_LEN> for IncorrectHmacBlake2bCore {
         const IPAD: [u8; KEY_LEN] = [0x36u8; KEY_LEN];
         const OPAD: [u8; KEY_LEN] = [0x5Cu8; KEY_LEN];
 
-        // Not bothering with padding; the implementation
-        // uses appropriately sized keys.
-        ensure!(key.len() == KEY_LEN);
-
         type Key = Zeroizing<[u8; KEY_LEN]>;
         let mut tmp_key = Key::default();
 
         copy_slice(key).to(tmp_key.as_mut());
         xor(&IPAD).to(tmp_key.as_mut());
         let mut outer_data = Key::default();
-        blake2b::Blake2b::keyed_hash_to(&tmp_key, data).to(&mut outer_data)?;
+        Blake2b::keyed_hash_to(&tmp_key, data).to(&mut outer_data)?;
 
         copy_slice(key).to(tmp_key.as_mut());
         xor(&OPAD).to(tmp_key.as_mut());
-        blake2b::Blake2b::keyed_hash_to(&tmp_key, outer_data.as_ref()).to(out)?;
+        Blake2b::keyed_hash_to(&tmp_key, outer_data.as_ref()).to(out)?;
 
         Ok(())
     }
