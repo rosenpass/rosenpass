@@ -87,12 +87,12 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass_ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// const PLAINTEXT_LEN: usize = 43;
 /// let plaintext = "post-quantum cryptography is very important".as_bytes();
 /// assert_eq!(PLAINTEXT_LEN, plaintext.len());
-/// let key: &[u8] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
-/// let nonce: &[u8] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
+/// let key: &[u8; KEY_LEN] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
+/// let nonce: &[u8; NONCE_LEN] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
 /// let additional_data: &[u8] = "the encrypted message is very important".as_bytes();
 /// let mut ciphertext_buffer = [0u8; NONCE_LEN + PLAINTEXT_LEN + TAG_LEN];
 ///
@@ -114,7 +114,7 @@ pub fn encrypt(
     plaintext: &[u8],
 ) -> anyhow::Result<()> {
     XChaCha20Poly1305
-        .encrypt(ciphertext, key, nonce, ad, plaintext)
+        .encrypt_with_nonce_in_ctxt(ciphertext, key, nonce, ad, plaintext)
         .map_err(anyhow::Error::from)
 }
 
@@ -130,7 +130,7 @@ pub fn encrypt(
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass_ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// let ciphertext: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /// # 0, 0, 0, 0, 8, 241, 229, 253, 200, 81, 248, 30, 183, 149, 134, 168, 149, 87, 109, 49, 159, 108,
 /// # 206, 89, 51, 232, 232, 197, 163, 253, 254, 208, 73, 76, 253, 13, 247, 162, 133, 184, 177, 44,
@@ -139,8 +139,8 @@ pub fn encrypt(
 /// const PLAINTEXT_LEN: usize = 43;
 /// assert_eq!(PLAINTEXT_LEN + TAG_LEN + NONCE_LEN, ciphertext.len());
 ///
-/// let key: &[u8] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
-/// let nonce: &[u8] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
+/// let key: &[u8; KEY_LEN] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
+/// let nonce: &[u8; NONCE_LEN] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
 /// let additional_data: &[u8] = "the encrypted message is very important".as_bytes();
 /// let mut plaintext_buffer = [0u8; PLAINTEXT_LEN];
 ///

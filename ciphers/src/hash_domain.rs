@@ -1,7 +1,7 @@
 //!
 //!```rust
 //! # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
-//! use rosenpass_ciphers::keyed_hash::KeyedHash;
+//! use rosenpass_ciphers::KeyedHash;
 //! use rosenpass_secret_memory::Secret;
 //! # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
 //!

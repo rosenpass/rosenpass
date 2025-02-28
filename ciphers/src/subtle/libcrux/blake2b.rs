@@ -40,3 +40,41 @@ impl KeyedHash<KEY_LEN, HASH_LEN> for Blake2b {
 }
 
 impl KeyedHashBlake2b for Blake2b {}
+
+#[cfg(test)]
+mod equivalence_tests {
+    use super::*;
+    use rand::RngCore;
+
+    #[test]
+    fn fuzz_equivalence_libcrux_old_new() {
+        let datas: [&[u8]; 3] = [
+            b"".as_slice(),
+            b"test".as_slice(),
+            b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
+        ];
+
+        let mut key = [0; KEY_LEN];
+        let mut rng = rand::thread_rng();
+
+        let mut hash_left = [0; 32];
+        let mut hash_right = [0; 32];
+
+        for data in datas {
+            for _ in 0..1000 {
+                rng.fill_bytes(&mut key);
+
+                crate::subtle::rust_crypto::blake2b::Blake2b::keyed_hash(
+                    &key,
+                    data,
+                    &mut hash_left,
+                )
+                .unwrap();
+                crate::subtle::libcrux::blake2b::Blake2b::keyed_hash(&key, data, &mut hash_right)
+                    .unwrap();
+
+                assert_eq!(hash_left, hash_right);
+            }
+        }
+    }
+}
