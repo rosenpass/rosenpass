@@ -6,5 +6,9 @@ pub use rust_crypto::{blake2b, keyed_shake256};
 pub mod custom;
 pub mod rust_crypto;
 
-#[cfg(feature = "experiment_libcrux")]
+#[cfg(any(
+    feature = "experiment_libcrux_blake2",
+    feature = "experiment_libcrux_chachapoly",
+    feature = "experiment_libcrux_kyber"
+))]
 pub mod libcrux;
