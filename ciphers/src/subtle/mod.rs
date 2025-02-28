@@ -1,3 +1,5 @@
+//! Contains the implementations of the crypto algorithms used throughout Rosenpass.
+
 pub mod keyed_hash;
 
 pub use custom::incorrect_hmac_blake2b;

@@ -1,19 +1,17 @@
-use rosenpass_cipher_traits::primitives::{Aead, AeadError, AeadWithNonceInCiphertext};
 use rosenpass_to::ops::copy_slice;
 use rosenpass_to::To;
-use rosenpass_util::typenum2const;
+
+use rosenpass_cipher_traits::algorithms::aead_xchacha20poly1305::{
+    AeadXChaCha20Poly1305, KEY_LEN, NONCE_LEN, TAG_LEN,
+};
+use rosenpass_cipher_traits::primitives::{Aead, AeadError, AeadWithNonceInCiphertext};
 
 use chacha20poly1305::aead::generic_array::GenericArray;
 use chacha20poly1305::XChaCha20Poly1305 as AeadImpl;
-use chacha20poly1305::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
+use chacha20poly1305::{AeadInPlace, KeyInit};
 
-/// The key length is 32 bytes or 256 bits.
-pub const KEY_LEN: usize = typenum2const! { <AeadImpl as KeySizeUser>::KeySize };
-/// The  MAC tag length is 16 bytes or 128 bits.
-pub const TAG_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::TagSize };
-/// The nonce length is 24 bytes or 192 bits.
-pub const NONCE_LEN: usize = typenum2const! { <AeadImpl as AeadCore>::NonceSize };
-
+/// Implements the [`Aead`] and [`AeadXChaCha20Poly1305`] traits backed by the RustCrypto
+/// implementation.
 pub struct XChaCha20Poly1305;
 
 impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
@@ -76,6 +74,8 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
         Ok(())
     }
 }
+
+impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 
 /// Encrypts using XChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// `key` and `nonce` MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of

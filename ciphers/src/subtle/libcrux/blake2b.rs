@@ -1,20 +1,28 @@
-use rosenpass_cipher_traits::algorithms::KeyedHashBlake2b;
-use rosenpass_cipher_traits::primitives::KeyedHash;
+//! Implementation of the [`KeyedHashBlake2b`] trait based on the [`libcrux_blake2`] crate.
 
 use libcrux_blake2::Blake2bBuilder;
 
+use rosenpass_cipher_traits::algorithms::KeyedHashBlake2b;
+use rosenpass_cipher_traits::primitives::KeyedHash;
+
+pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::HASH_LEN;
+pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::KEY_LEN;
+
+/// Describles which error occurred
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// An unexpected internal error occurred. Should never be returned and points to a bug in the
+    /// implementation.
     #[error("internal error")]
     InternalError,
+
+    /// Indicates that the provided data was too long.
     #[error("data is too long")]
     DataTooLong,
 }
 
+/// Hasher for the given `data` with the Blake2b hash function.
 pub struct Blake2b;
-
-pub const KEY_LEN: usize = 32;
-pub const HASH_LEN: usize = 32;
 
 impl KeyedHash<KEY_LEN, HASH_LEN> for Blake2b {
     type Error = Error;
