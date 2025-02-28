@@ -30,8 +30,10 @@ impl KeyedHashInstance<KEY_LEN, HASH_LEN> for KeyedHash {
         out: &mut [u8; HASH_LEN],
     ) -> Result<(), Self::Error> {
         match self {
-            Self::KeyedShake256(h) => h.keyed_hash(key, data, out),
-            Self::IncorrectHmacBlake2b(h) => h.keyed_hash(key, data, out),
-        }
+            Self::KeyedShake256(h) => h.keyed_hash(key, data, out)?,
+            Self::IncorrectHmacBlake2b(h) => h.keyed_hash(key, data, out)?,
+        };
+
+        Ok(())
     }
 }
