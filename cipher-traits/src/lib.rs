@@ -1,5 +1,2 @@
-mod primitives;
-pub use primitives::*;
-
-mod kem;
-pub use kem::Kem;
+pub mod algorithms;
+pub mod primitives;

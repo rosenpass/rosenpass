@@ -4,7 +4,6 @@
 //! files.
 
 use std::borrow::Borrow;
-use std::convert::Infallible;
 use std::fmt::Debug;
 use std::mem::size_of;
 use std::ops::Deref;
@@ -21,12 +20,11 @@ use rand::Fill as Randomize;
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
-use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
-use rosenpass_cipher_traits::Kem;
+use rosenpass_cipher_traits::primitives::{
+    Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
+};
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
-use rosenpass_ciphers::{aead, xaead, KEY_LEN};
+use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
 use rosenpass_to::ops::copy_slice;
@@ -173,7 +171,7 @@ pub type SessionId = Public<SESSION_ID_LEN>;
 pub type BiscuitId = Public<BISCUIT_ID_LEN>;
 
 /// Nonce for use with random-nonce AEAD
-pub type XAEADNonce = Public<{ xaead::NONCE_LEN }>;
+pub type XAEADNonce = Public<{ XAead::NONCE_LEN }>;
 
 /// Buffer capably of holding any Rosenpass protocol message
 pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
@@ -2243,7 +2241,7 @@ impl CryptoServer {
         msg_out.inner.msg_type = MsgType::CookieReply.into();
         msg_out.inner.sid = rx_sid;
 
-        xaead::encrypt(
+        XAead.encrypt_with_nonce_in_ctxt(
             &mut msg_out.inner.cookie_encrypted[..],
             &cookie_key,
             &nonce.value,
@@ -3311,7 +3309,7 @@ impl HandshakeState {
             .ck
             .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
             .into_secret();
-        aead::encrypt(ct, k.secret(), &[0u8; aead::NONCE_LEN], &[], pt)?;
+        Aead.encrypt(ct, k.secret(), &[0u8; Aead::NONCE_LEN], &[], pt)?;
         self.mix(ct)
     }
 
@@ -3324,7 +3322,7 @@ impl HandshakeState {
             .ck
             .mix(&hash_domains::hs_enc(self.ck.shake_or_blake().clone())?)?
             .into_secret();
-        aead::decrypt(pt, k.secret(), &[0u8; aead::NONCE_LEN], &[], ct)?;
+        Aead.decrypt(pt, k.secret(), &[0u8; Aead::NONCE_LEN], &[], ct)?;
         self.mix(ct)
     }
 
@@ -3334,29 +3332,79 @@ impl HandshakeState {
     ///
     /// This is used to include asymmetric cryptography in the rosenpass protocol
     // I loathe "error: constant expression depends on a generic parameter"
-    pub fn encaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
+    pub fn encaps_and_mix<
+        const KEM_SK_LEN: usize,
+        const KEM_PK_LEN: usize,
+        const KEM_CT_LEN: usize,
+        const KEM_SHK_LEN: usize,
+        T: Default + Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
+    >(
         &mut self,
-        ct: &mut [u8],
-        pk: &[u8],
+        ct: &mut [u8; KEM_CT_LEN],
+        pk: &[u8; KEM_PK_LEN],
     ) -> Result<&mut Self> {
-        let mut shk = Secret::<SHK_LEN>::zero();
-        T::encaps(shk.secret_mut(), ct, pk)?;
+        let mut shk = Secret::<KEM_SHK_LEN>::zero();
+        T::default().encaps(shk.secret_mut(), ct, pk)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
+    }
+
+    /// Calls [`Self::encaps_and_mix`] with the generic parameters that match [`StaticKem`].
+    pub fn encaps_and_mix_static(
+        &mut self,
+        ct: &mut [u8; StaticKem::CT_LEN],
+        pk: &[u8; StaticKem::PK_LEN],
+    ) -> Result<&mut Self> {
+        self.encaps_and_mix::<{StaticKem::SK_LEN},{ StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(ct, pk)
+    }
+
+    /// Calls [`Self::encaps_and_mix`] with the generic parameters that match [`EphemeralKem`].
+    pub fn encaps_and_mix_ephemeral(
+        &mut self,
+        ct: &mut [u8; EphemeralKem::CT_LEN],
+        pk: &[u8; EphemeralKem::PK_LEN],
+    ) -> Result<&mut Self> {
+        self.encaps_and_mix::<{EphemeralKem::SK_LEN},{ EphemeralKem::PK_LEN}, {EphemeralKem::CT_LEN}, {EphemeralKem::SHK_LEN}, EphemeralKem>(ct, pk)
     }
 
     /// Decapsulation (decryption) counterpart to [Self::encaps_and_mix].
     ///
     /// Makes sure that the same values are mixed into the chaining that where mixed in on the
     /// sender side.
-    pub fn decaps_and_mix<T: Kem<Error = Infallible>, const SHK_LEN: usize>(
+    pub fn decaps_and_mix<
+        const KEM_SK_LEN: usize,
+        const KEM_PK_LEN: usize,
+        const KEM_CT_LEN: usize,
+        const KEM_SHK_LEN: usize,
+        T: Default + Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
+    >(
         &mut self,
-        sk: &[u8],
-        pk: &[u8],
-        ct: &[u8],
+        sk: &[u8; KEM_SK_LEN],
+        pk: &[u8; KEM_PK_LEN],
+        ct: &[u8; KEM_CT_LEN],
     ) -> Result<&mut Self> {
-        let mut shk = Secret::<SHK_LEN>::zero();
-        T::decaps(shk.secret_mut(), sk, ct)?;
+        let mut shk = Secret::<KEM_SHK_LEN>::zero();
+        T::default().decaps(shk.secret_mut(), sk, ct)?;
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
+    }
+
+    /// Calls [`Self::decaps_and_mix`] with the generic parameters that match [`StaticKem`].
+    pub fn decaps_and_mix_static(
+        &mut self,
+        sk: &[u8; StaticKem::SK_LEN],
+        pk: &[u8; StaticKem::PK_LEN],
+        ct: &[u8; StaticKem::CT_LEN],
+    ) -> Result<&mut Self> {
+        self.decaps_and_mix::<{StaticKem::SK_LEN},{ StaticKem::PK_LEN}, {StaticKem::CT_LEN}, {StaticKem::SHK_LEN}, StaticKem>(sk, pk, ct)
+    }
+
+    /// Calls [`Self::decaps_and_mix`] with the generic parameters that match [`EphemeralKem`].
+    pub fn decaps_and_mix_ephemeral(
+        &mut self,
+        sk: &[u8; EphemeralKem::SK_LEN],
+        pk: &[u8; EphemeralKem::PK_LEN],
+        ct: &[u8; EphemeralKem::CT_LEN],
+    ) -> Result<&mut Self> {
+        self.decaps_and_mix::<{EphemeralKem::SK_LEN},{ EphemeralKem::PK_LEN}, {EphemeralKem::CT_LEN}, {EphemeralKem::SHK_LEN}, EphemeralKem>(sk, pk, ct)
     }
 
     /// Store the chaining key inside a cookie value called a "biscuit".
@@ -3404,7 +3452,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
-        xaead::encrypt(biscuit_ct, k, &*n, &ad, pt)?;
+        XAead.encrypt_with_nonce_in_ctxt(biscuit_ct, k, &*n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -3431,7 +3479,7 @@ impl HandshakeState {
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
             Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
-        xaead::decrypt(
+        XAead.decrypt_with_nonce_in_ctxt(
             biscuit.as_bytes_mut(),
             bk.get(srv).value.secret(),
             &ad,
@@ -3539,7 +3587,7 @@ impl CryptoServer {
         ih.sidi.copy_from_slice(&hs.core.sidi.value);
 
         // IHI3
-        EphemeralKem::keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+        EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
         ih.epki.copy_from_slice(&hs.epki.value);
 
         // IHI4
@@ -3547,10 +3595,7 @@ impl CryptoServer {
 
         // IHI5
         hs.core
-            .encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-                ih.sctr.as_mut_slice(),
-                peer.get(self).spkt.deref(),
-            )?;
+            .encaps_and_mix_static(&mut ih.sctr, peer.get(self).spkt.deref())?;
 
         // IHI6
         hs.core.encrypt_and_mix(
@@ -3593,11 +3638,7 @@ impl CryptoServer {
         core.mix(&ih.sidi)?.mix(&ih.epki)?;
 
         // IHR5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.deref(),
-            &ih.sctr,
-        )?;
+        core.decaps_and_mix_static(self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
 
         // IHR6
         let peer = {
@@ -3623,13 +3664,10 @@ impl CryptoServer {
         core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHR4
-        core.encaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(&mut rh.ecti, &ih.epki)?;
+        core.encaps_and_mix_ephemeral(&mut rh.ecti, &ih.epki)?;
 
         // RHR5
-        core.encaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            &mut rh.scti,
-            peer.get(self).spkt.deref(),
-        )?;
+        core.encaps_and_mix_static(&mut rh.scti, peer.get(self).spkt.deref())?;
 
         // RHR6
         core.store_biscuit(self, peer, &mut rh.biscuit)?;
@@ -3689,18 +3727,10 @@ impl CryptoServer {
         core.mix(&rh.sidr)?.mix(&rh.sidi)?;
 
         // RHI4
-        core.decaps_and_mix::<EphemeralKem, { EphemeralKem::SHK_LEN }>(
-            hs!().eski.secret(),
-            hs!().epki.deref(),
-            &rh.ecti,
-        )?;
+        core.decaps_and_mix_ephemeral(hs!().eski.secret(), hs!().epki.deref(), &rh.ecti)?;
 
         // RHI5
-        core.decaps_and_mix::<StaticKem, { StaticKem::SHK_LEN }>(
-            self.sskm.secret(),
-            self.spkm.deref(),
-            &rh.scti,
-        )?;
+        core.decaps_and_mix_static(self.sskm.secret(), self.spkm.deref(), &rh.scti)?;
 
         // RHI6
         core.mix(&rh.biscuit)?;
@@ -3763,7 +3793,7 @@ impl CryptoServer {
         )?;
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; aead::TAG_LEN], &[])?;
+        core.encrypt_and_mix(&mut [0u8; Aead::TAG_LEN], &[])?;
 
         // ICR3
         core.mix(&ic.sidi)?.mix(&ic.sidr)?;
@@ -3828,9 +3858,9 @@ impl CryptoServer {
         rc.ctr.copy_from_slice(&ses.txnm.to_le_bytes());
         ses.txnm += 1; // Increment nonce before encryption, just in case an error is raised
 
-        let n = cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
+        let n = cat!(Aead::NONCE_LEN; &rc.ctr, &[0u8; 4]);
         let k = ses.txkm.secret();
-        aead::encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
+        Aead.encrypt(&mut rc.auth, k, &n, &[], &[])?; // ct, k, n, ad, pt
 
         Ok(peer)
     }
@@ -3875,11 +3905,11 @@ impl CryptoServer {
             let n = u64::from_le_bytes(rc.ctr);
             ensure!(n >= s.txnt, "Stale nonce");
             s.txnt = n;
-            aead::decrypt(
+            Aead.decrypt(
                 // pt, k, n, ad, ct
                 &mut [0u8; 0],
                 s.txkt.secret(),
-                &cat!(aead::NONCE_LEN; &rc.ctr, &[0u8; 4]),
+                &cat!(Aead::NONCE_LEN; &rc.ctr, &[0u8; 4]),
                 &[],
                 &rc.auth,
             )?;
@@ -3940,7 +3970,12 @@ impl CryptoServer {
                     .into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
-                xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
+                XAead.decrypt_with_nonce_in_ctxt(
+                    cookie_value,
+                    &cookie_key,
+                    &mac,
+                    &cr.inner.cookie_encrypted,
+                )?;
 
                 // Immediately retransmit on recieving a cookie reply message
                 peer.hs().register_immediate_retransmission(self)?;
@@ -3986,11 +4021,11 @@ pub mod testutils {
     impl ServerForTesting {
         pub fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
             let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sskm.secret_mut(), spkm.deref_mut())?;
+            StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
             let mut srv = CryptoServer::new(sskm, spkm);
 
             let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sskt.secret_mut(), spkt.deref_mut())?;
+            StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
             let peer = srv.add_peer(None, spkt.clone(), protocol_version)?;
 
             let peer_keys = (sskt, spkt);
@@ -4135,7 +4170,7 @@ mod test {
     fn keygen() -> Result<(SSk, SPk)> {
         // TODO: Copied from the benchmark; deduplicate
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+        StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
         Ok((sk, pk))
     }
 
@@ -4503,7 +4538,7 @@ mod test {
 
         fn keypair() -> Result<(SSk, SPk)> {
             let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-            StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+            StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
             Ok((sk, pk))
         }
 

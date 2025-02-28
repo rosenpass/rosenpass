@@ -29,10 +29,11 @@
 
 use anyhow::Result;
 use rosenpass_secret_memory::Secret;
+use rosenpass_to::To as _;
 
-pub use crate::keyed_hash::{KeyedHash, KEY_LEN};
+pub use crate::{KeyedHash, KEY_LEN};
 
-use rosenpass_cipher_traits::keyed_hash::KeyedHashInstance;
+use rosenpass_cipher_traits::primitives::KeyedHashInstanceTo;
 
 // TODO Use a proper Dec interface
 /// A use-once hash domain for a specified key that can be used directly.
@@ -78,7 +79,7 @@ impl HashDomain {
     ///
     pub fn mix(self, v: &[u8]) -> Result<Self> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
-        self.1.keyed_hash(&self.0, v, &mut new_key)?;
+        self.1.keyed_hash_to(&self.0, v).to(&mut new_key)?;
         Ok(Self(new_key, self.1))
     }
 
@@ -101,7 +102,7 @@ impl HashDomainNamespace {
     /// as the `data` and uses the result as the key for the new [HashDomain].
     pub fn mix(&self, v: &[u8]) -> Result<HashDomain> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
-        self.1.keyed_hash(&self.0, v, &mut new_key)?;
+        self.1.keyed_hash_to(&self.0, v).to(&mut new_key)?;
         Ok(HashDomain(new_key, self.1.clone()))
     }
 
@@ -129,9 +130,13 @@ impl SecretHashDomain {
         hash_choice: KeyedHash,
     ) -> Result<SecretHashDomain> {
         let mut new_secret_key = Secret::zero();
-        hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
+        hash_choice
+            .keyed_hash_to(k.try_into()?, d)
+            .to(new_secret_key.secret_mut())?;
         let mut r = SecretHashDomain(new_secret_key, hash_choice);
-        KeyedHash::incorrect_hmac_blake2b().keyed_hash(k.try_into()?, d, r.0.secret_mut())?;
+        KeyedHash::incorrect_hmac_blake2b()
+            .keyed_hash_to(k.try_into()?, d)
+            .to(r.0.secret_mut())?;
         Ok(r)
     }
 
@@ -186,7 +191,7 @@ impl SecretHashDomain {
      *      let SecretHashDomain(secret, hash_choice) = &self;
      *
      *      let mut new_secret = Secret::zero();
-     *      hash_choice.keyed_hash(secret.secret(), dst, new_secret.secret_mut())?;
+     *      hash_choice.keyed_hash_to(secret.secret(), dst).to(new_secret.secret_mut())?;
      *      self.0 = new_secret;
      *
      *      Ok(())

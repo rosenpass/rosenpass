@@ -1,5 +1,8 @@
 use anyhow::ensure;
-use rosenpass_cipher_traits::keyed_hash::{InferKeyedHash, KeyedHash};
+use rosenpass_cipher_traits::{
+    algorithms::KeyedHashIncorrectHmacBlake2b,
+    primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
+};
 use rosenpass_constant_time::xor;
 use rosenpass_to::{ops::copy_slice, To};
 use zeroize::Zeroizing;
@@ -59,14 +62,16 @@ impl KeyedHash<KEY_LEN, HASH_LEN> for IncorrectHmacBlake2bCore {
         copy_slice(key).to(tmp_key.as_mut());
         xor(&IPAD).to(tmp_key.as_mut());
         let mut outer_data = Key::default();
-        blake2b::hash(tmp_key.as_ref(), data).to(outer_data.as_mut())?;
+        blake2b::Blake2b::keyed_hash_to(&tmp_key, data).to(&mut outer_data)?;
 
         copy_slice(key).to(tmp_key.as_mut());
         xor(&OPAD).to(tmp_key.as_mut());
-        blake2b::hash(tmp_key.as_ref(), outer_data.as_ref()).to(out)?;
+        blake2b::Blake2b::keyed_hash_to(&tmp_key, outer_data.as_ref()).to(out)?;
 
         Ok(())
     }
 }
 
 pub type IncorrectHmacBlake2b = InferKeyedHash<IncorrectHmacBlake2bCore, KEY_LEN, HASH_LEN>;
+
+impl KeyedHashIncorrectHmacBlake2b for IncorrectHmacBlake2bCore {}

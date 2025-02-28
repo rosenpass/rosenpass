@@ -4,6 +4,7 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
+use rosenpass_cipher_traits::primitives::KeyedHashTo;
 use rosenpass_ciphers::subtle::blake2b;
 use rosenpass_to::To;
 
@@ -16,5 +17,7 @@ pub struct Blake2b {
 fuzz_target!(|input: Blake2b| {
     let mut out = [0u8; 32];
 
-    blake2b::hash(&input.key, &input.data).to(&mut out).unwrap();
+    blake2b::Blake2b::keyed_hash_to(&input.key, &input.data)
+        .to(&mut out)
+        .unwrap();
 });

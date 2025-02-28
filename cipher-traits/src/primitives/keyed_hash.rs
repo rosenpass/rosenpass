@@ -109,3 +109,40 @@ where
     Static: KeyedHash<KEY_LEN, OUT_LEN>,
 {
 }
+
+use rosenpass_to::{with_destination, To};
+
+/// Extends the [`KeyedHash`] trait with a [`To`]-flavoured function.
+pub trait KeyedHashTo<const KEY_LEN: usize, const HASH_LEN: usize>:
+    KeyedHash<KEY_LEN, HASH_LEN>
+{
+    fn keyed_hash_to(
+        key: &[u8; KEY_LEN],
+        data: &[u8],
+    ) -> impl To<[u8; HASH_LEN], Result<(), Self::Error>> {
+        with_destination(|out| Self::keyed_hash(key, data, out))
+    }
+}
+
+impl<const KEY_LEN: usize, const HASH_LEN: usize, T: KeyedHash<KEY_LEN, HASH_LEN>>
+    KeyedHashTo<KEY_LEN, HASH_LEN> for T
+{
+}
+
+/// Extends the [`KeyedHashInstance`] trait with a [`To`]-flavoured function.
+pub trait KeyedHashInstanceTo<const KEY_LEN: usize, const HASH_LEN: usize>:
+    KeyedHashInstance<KEY_LEN, HASH_LEN>
+{
+    fn keyed_hash_to(
+        &self,
+        key: &[u8; KEY_LEN],
+        data: &[u8],
+    ) -> impl To<[u8; HASH_LEN], Result<(), Self::Error>> {
+        with_destination(|out| self.keyed_hash(key, data, out))
+    }
+}
+
+impl<const KEY_LEN: usize, const HASH_LEN: usize, T: KeyedHashInstance<KEY_LEN, HASH_LEN>>
+    KeyedHashInstanceTo<KEY_LEN, HASH_LEN> for T
+{
+}
