@@ -3,8 +3,11 @@ use rosenpass_cipher_traits::primitives::KeyedHash;
 
 use libcrux_blake2::Blake2bBuilder;
 
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("internal error")]
     InternalError,
+    #[error("data is too long")]
     DataTooLong,
 }
 
