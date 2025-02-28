@@ -23,8 +23,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// TODO: Example/Test
     /// #Examples
     /// ```rust
-    /// # use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
-    /// use rosenpass_cipher_traits::KeyedHash;
+    /// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core;
+    /// use rosenpass_cipher_traits::primitives::KeyedHash;
     /// const KEY_LEN: usize = 32;
     /// const HASH_LEN: usize = 32;
     /// let key: [u8; 32] = [0; KEY_LEN];
@@ -78,11 +78,11 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 
 /// TODO use inferred hash somehow here
 /// ```rust
-/// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256};
-/// use rosenpass_cipher_traits::KeyedHashInstance;
+/// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256};
+/// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
 /// const HASH_LEN: usize = 32;
-/// let key: [u8; 32] = [0; KEY_LEN];
+/// let key: [u8; KEY_LEN] = [0; KEY_LEN];
 /// let data: [u8; 32] = [255; 32]; // arbitrary data, could also be longer
 /// // buffer for the hash output
 /// let mut hash_data: [u8; 32] = [0u8; HASH_LEN];
@@ -98,7 +98,7 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 /// TODO: Documentation and more interesting test
 /// ```rust
 /// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256_32};
-/// use rosenpass_cipher_traits::KeyedHashInstance;
+/// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
 /// const HASH_LEN: usize = 32;
 /// let key: [u8; 32] = [0; KEY_LEN];

@@ -86,13 +86,13 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass_ciphers::subtle::rust_crypto::chacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 ///
 /// const PLAINTEXT_LEN: usize = 43;
 /// let plaintext = "post-quantum cryptography is very important".as_bytes();
 /// assert_eq!(PLAINTEXT_LEN, plaintext.len());
-/// let key: &[u8] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
-/// let nonce: &[u8] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
+/// let key: &[u8; KEY_LEN] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
+/// let nonce: &[u8; NONCE_LEN] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
 /// let additional_data: &[u8] = "the encrypted message is very important".as_bytes();
 /// let mut ciphertext_buffer = [0u8;PLAINTEXT_LEN + TAG_LEN];
 ///
@@ -125,7 +125,7 @@ pub fn encrypt(
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::chacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass_ciphers::subtle::rust_crypto::chacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// let ciphertext: &[u8] = &[239, 104, 148, 202, 120, 32, 77, 27, 246, 206, 226, 17,
 /// 83, 78, 122, 116, 187, 123, 70, 199, 58, 130, 21, 1, 107, 230, 58, 77, 18, 152, 31, 159, 80,
 /// 151, 72, 27, 236, 137, 60, 55, 180, 31, 71, 97, 199, 12, 60, 155, 70, 221, 225, 110, 132, 191,
@@ -133,8 +133,8 @@ pub fn encrypt(
 /// const PLAINTEXT_LEN: usize = 43;
 /// assert_eq!(PLAINTEXT_LEN + TAG_LEN, ciphertext.len());
 ///
-/// let key: &[u8] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
-/// let nonce: &[u8] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
+/// let key: &[u8; KEY_LEN] = &[0u8; KEY_LEN]; // THIS IS NOT A SECURE KEY
+/// let nonce: &[u8; NONCE_LEN] = &[0u8; NONCE_LEN]; // THIS IS NOT A SECURE NONCE
 /// let additional_data: &[u8] = "the encrypted message is very important".as_bytes();
 /// let mut plaintext_buffer = [0u8; PLAINTEXT_LEN];
 ///
