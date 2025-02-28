@@ -134,6 +134,54 @@ use thiserror::Error;
 ///
 /// The KEM interface defines three operations: Key generation, key encapsulation and key
 /// decapsulation. The parameters are made available as associated constants for convenience.
+///
+/// The methods of this trait take a `&self` argument as a receiver. This has two reasons:
+/// 1. It makes type inference a lot smoother
+/// 2. It allows to use the functionality through a trait object or having an enum that has
+///    variants for multiple options (like e.g. the `KeyedHash` enum in `rosenpass-ciphers`).
+///
+/// Since the caller needs an instance of the type to use the functionality, implementors are
+/// adviced to implement the [`Default`] trait where possible.
+///
+/// Example for encrypting a message with a specific [`Kem`] instance:
+/// ```
+/// use rosenpass_cipher_traits::primitives::Kem;
+///
+/// const SK_LEN: usize = 1632;
+/// const PK_LEN: usize = 800;
+/// const CT_LEN: usize = 768;
+/// const SHK_LEN: usize = 32;
+///
+/// fn encaps_given_a_kem<KemImpl>(
+///   kem: &KemImpl,
+///   pk: &[u8l PK_LEN],
+///   ct: &mut [u8; CT_LEN]
+/// ) where KemImpl: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> -> [u8; SHK_LEN]{
+///   let mut shk = [0u8; SHK_LEN];
+///   kem.encaps(&mut shk, ct, pk).unwrap();
+///   shk
+/// }
+/// ```
+///
+/// If only the type (but no instance) is available, then we can still use the trait, as long as
+/// the type also is [`Default`]:
+/// ```
+/// use rosenpass_cipher_traits::primitives::Kem;
+///
+/// const SK_LEN: usize = 1632;
+/// const PK_LEN: usize = 800;
+/// const CT_LEN: usize = 768;
+/// const SHK_LEN: usize = 32;
+///
+/// fn encaps_without_kem<KemImpl>(
+///   pk: &[u8l PK_LEN],
+///   ct: &mut [u8; CT_LEN]
+/// ) where KemImpl: Default + Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> -> [u8; SHK_LEN]{
+///   let mut shk = [0u8; SHK_LEN];
+///   KemImpl::default().encaps(&mut shk, ct, pk).unwrap();
+///   shk
+/// }
+/// ```
 pub trait Kem<const SK_LEN: usize, const PK_LEN: usize, const CT_LEN: usize, const SHK_LEN: usize> {
     /// The length of the secret (decapsulation) key.
     const SK_LEN: usize = SK_LEN;

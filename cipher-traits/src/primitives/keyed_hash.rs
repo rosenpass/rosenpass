@@ -1,6 +1,11 @@
+use std::marker::PhantomData;
+
+/// Models a keyed hash function using an associated function (i.e. without `&self` receiver).
 pub trait KeyedHash<const KEY_LEN: usize, const HASH_LEN: usize> {
+    /// The error type used to signal what went wrong.
     type Error;
 
+    /// Performs a keyed hash using `key` and `data` and writes the output to `out`
     fn keyed_hash(
         key: &[u8; KEY_LEN],
         data: &[u8],
@@ -8,9 +13,15 @@ pub trait KeyedHash<const KEY_LEN: usize, const HASH_LEN: usize> {
     ) -> Result<(), Self::Error>;
 }
 
+/// Models a keyed hash function using using a method (i.e. with a `&self` receiver).
+///
+/// This makes type inference easier, but also requires having a [`KeyedHashInstance`] value,
+/// instead of just the [`KeyedHash`] type.
 pub trait KeyedHashInstance<const KEY_LEN: usize, const HASH_LEN: usize> {
+    /// The error type used to signal what went wrong.
     type Error;
 
+    /// Performs a keyed hash using `key` and `data` and writes the output to `out`
     fn keyed_hash(
         &self,
         key: &[u8; KEY_LEN],
@@ -18,8 +29,6 @@ pub trait KeyedHashInstance<const KEY_LEN: usize, const HASH_LEN: usize> {
         out: &mut [u8; HASH_LEN],
     ) -> Result<(), Self::Error>;
 }
-
-use std::marker::PhantomData;
 
 /// This is a helper to allow for type parameter inference when calling functions
 /// that need a [KeyedHash].

@@ -3,6 +3,7 @@ use rosenpass_cipher_traits::primitives::{InferKeyedHash, KeyedHash};
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 
+/// An implementation of the [`KeyedHash`] trait backed by the RustCrypto implementation of SHAKE256.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SHAKE256Core<const KEY_LEN: usize, const HASH_LEN: usize>;
 
