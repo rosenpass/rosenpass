@@ -1,3 +1,6 @@
+//! Traits for cryptographic primitives used in Rosenpass, specifically KEM, AEAD and keyed
+//! hashing.
+
 pub(crate) mod aead;
 pub(crate) mod kem;
 pub(crate) mod keyed_hash;

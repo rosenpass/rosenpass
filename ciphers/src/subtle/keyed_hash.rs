@@ -1,16 +1,31 @@
+//! This module provides types that enabling choosing the keyed hash building block to be used at
+//! runtime (using enums) instead of at compile time (using generics).
+
 use anyhow::Result;
 use rosenpass_cipher_traits::primitives::KeyedHashInstance;
 
-pub const KEY_LEN: usize = 32;
-pub const HASH_LEN: usize = 32;
+use crate::subtle::{
+    custom::incorrect_hmac_blake2b::IncorrectHmacBlake2b, rust_crypto::keyed_shake256::SHAKE256_32,
+};
 
+/// Length of symmetric key throughout Rosenpass.
+pub const KEY_LEN: usize = 32;
+
+/// The hash is used as a symmetric key and should have the same length.
+pub const HASH_LEN: usize = KEY_LEN;
+
+/// Provides a way to pick which keyed hash to use at runtime.
+/// Implements [`KeyedHashInstance`] to allow hashing using the respective algorithm.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum KeyedHash {
-    KeyedShake256(super::rust_crypto::keyed_shake256::SHAKE256<KEY_LEN, HASH_LEN>),
-    IncorrectHmacBlake2b(super::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2b),
+    /// A hasher backed by [`SHAKE256_32`].
+    KeyedShake256(SHAKE256_32),
+    /// A hasher backed by [`IncorrectHmacBlake2b`].
+    IncorrectHmacBlake2b(IncorrectHmacBlake2b),
 }
 
 impl KeyedHash {
+    /// Creates an [`KeyedHash`] backed by SHAKE256.
     pub fn keyed_shake256() -> Self {
         Self::KeyedShake256(Default::default())
     }
