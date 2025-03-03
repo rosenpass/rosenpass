@@ -40,10 +40,10 @@ pub mod keyed_hash_shake256 {
     /// The key length used in [`KeyedHashShake256`].
     pub const KEY_LEN: usize = 32;
     /// The hash length used in [`KeyedHashShake256`].
-    pub const OUT_LEN: usize = 32;
+    pub const HASH_LEN: usize = 32;
 
     /// A [`KeyedHash`] that is SHAKE256.
-    pub trait KeyedHashShake256: KeyedHash<KEY_LEN, OUT_LEN> {}
+    pub trait KeyedHashShake256: KeyedHash<KEY_LEN, HASH_LEN> {}
 }
 
 /// Constants and trait for the ChaCha20Poly1305 AEAD

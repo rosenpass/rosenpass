@@ -8,8 +8,7 @@ use blake2::Blake2bMac;
 use rosenpass_cipher_traits::primitives::KeyedHash;
 use rosenpass_to::{ops::copy_slice, To};
 
-pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::HASH_LEN;
-pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::KEY_LEN;
+pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::{HASH_LEN, KEY_LEN};
 
 /// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
 /// with output and key length of 32 bytes (see [Blake2bMac]).
