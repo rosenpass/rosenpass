@@ -17,7 +17,7 @@
 //! In the example, we are using Kyber512, but any KEM that correctly implements the [Kem]
 //! trait could be used as well.
 //!```rust
-//! use rosenpass_cipher_traits::Kem;
+//! use rosenpass_cipher_traits::primitives::Kem;
 //! use rosenpass_oqs::Kyber512;
 //! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //!
@@ -25,14 +25,14 @@
 //! secret_policy_use_only_malloc_secrets();
 //! let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
-//! MyKem::keygen(alice_sk.secret_mut(), &mut alice_pk)?;
+//! MyKem::default().keygen(alice_sk.secret_mut(), &mut alice_pk)?;
 //!
 //! let mut bob_shk: Secret<{ MyKem::SHK_LEN }> = Secret::zero();
 //! let mut bob_ct: [u8; MyKem::CT_LEN] = [0; MyKem::CT_LEN];
-//! MyKem::encaps(bob_shk.secret_mut(), &mut bob_ct, &mut alice_pk)?;
+//! MyKem::default().encaps(bob_shk.secret_mut(), &mut bob_ct, &mut alice_pk)?;
 //!
 //! let mut alice_shk: Secret<{ MyKem::SHK_LEN }> = Secret::zero();
-//! MyKem::decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
+//! MyKem::default().decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
 //!
 //! # assert_eq!(alice_shk.secret(), bob_shk.secret());
 //! # Ok::<(), anyhow::Error>(())
@@ -43,13 +43,10 @@
 //! be implemented using a **HORRIBLY INSECURE** DummyKem that only uses static values for keys
 //! and ciphertexts as an example.  
 //!```rust
-//!# use rosenpass_cipher_traits::Kem;
+//!# use rosenpass_cipher_traits::primitives::{Kem, KemError as Error};
 //!
 //! struct DummyKem {}
-//! impl Kem for DummyKem {
-//!
-//!     // For this DummyKem, using String for errors is sufficient.
-//!     type Error = String;
+//! impl Kem<1,1,1,1> for DummyKem {
 //!
 //!     // For this DummyKem, we will use a single `u8` for everything
 //!     const SK_LEN: usize = 1;
@@ -57,54 +54,36 @@
 //!     const CT_LEN: usize = 1;
 //!     const SHK_LEN: usize = 1;
 //!
-//!     fn keygen(sk: &mut [u8], pk: &mut [u8]) -> Result<(), Self::Error> {
-//!         if sk.len() != Self::SK_LEN {
-//!             return Err("sk does not have the correct length!".to_string());
-//!         }
-//!         if pk.len() != Self::PK_LEN {
-//!             return Err("pk does not have the correct length!".to_string());
-//!         }
+//!     fn keygen(&self, sk: &mut [u8;1], pk: &mut [u8;1]) -> Result<(), Error> {
 //!         sk[0] = 42;
 //!         pk[0] = 21;
 //!         Ok(())
 //!     }
 //!
-//!     fn encaps(shk: &mut [u8], ct: &mut [u8], pk: &[u8]) -> Result<(), Self::Error> {
-//!         if pk.len() != Self::PK_LEN {
-//!             return Err("pk does not have the correct length!".to_string());
-//!         }
-//!         if ct.len() != Self::CT_LEN {
-//!             return Err("ct does not have the correct length!".to_string());
-//!         }
-//!         if shk.len() != Self::SHK_LEN {
-//!             return Err("shk does not have the correct length!".to_string());
-//!         }
+//!     fn encaps(&self, shk: &mut [u8;1], ct: &mut [u8;1], pk: &[u8;1]) -> Result<(), Error> {
 //!         if pk[0] != 21 {
-//!             return Err("Invalid public key!".to_string());
+//!             return Err(Error::InvalidArgument);
 //!         }
 //!         ct[0] = 7;
 //!         shk[0] = 17;
 //!         Ok(())
 //!     }
 //!
-//!     fn decaps(shk: &mut [u8], sk: &[u8], ct: &[u8]) -> Result<(), Self::Error> {
-//!         if sk.len() != Self::SK_LEN {
-//!             return Err("sk does not have the correct length!".to_string());
-//!         }
-//!         if ct.len() != Self::CT_LEN {
-//!             return Err("ct does not have the correct length!".to_string());
-//!         }
-//!         if shk.len() != Self::SHK_LEN {
-//!             return Err("shk does not have the correct length!".to_string());
-//!         }
+//!     fn decaps(&self, shk: &mut [u8;1 ], sk: &[u8;1], ct: &[u8;1]) -> Result<(), Error> {
 //!         if sk[0] != 42 {
-//!             return Err("Invalid public key!".to_string());
+//!             return Err(Error::InvalidArgument);
 //!         }
 //!         if ct[0] != 7 {
-//!             return Err("Invalid ciphertext!".to_string());
+//!             return Err(Error::InvalidArgument);
 //!         }
 //!         shk[0] = 17;
 //!         Ok(())
+//!     }
+//! }
+//!
+//! impl Default for DummyKem {
+//!     fn default() -> Self {
+//!         Self{}
 //!     }
 //! }
 //! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
@@ -113,18 +92,18 @@
 //! # secret_policy_use_only_malloc_secrets();
 //! # let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! # let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
-//! # MyKem::keygen(alice_sk.secret_mut(), &mut alice_pk)?;
+//! # MyKem::default().keygen(alice_sk.secret_mut(), &mut alice_pk)?;
 //!
 //! # let mut bob_shk: Secret<{ MyKem::SHK_LEN }> = Secret::zero();
 //! # let mut bob_ct: [u8; MyKem::CT_LEN] = [0; MyKem::CT_LEN];
-//! # MyKem::encaps(bob_shk.secret_mut(), &mut bob_ct, &mut alice_pk)?;
+//! # MyKem::default().encaps(bob_shk.secret_mut(), &mut bob_ct, &mut alice_pk)?;
 //! #
 //! # let mut alice_shk: Secret<{ MyKem::SHK_LEN }> = Secret::zero();
-//! # MyKem::decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
+//! # MyKem::default().decaps(alice_shk.secret_mut(), alice_sk.secret_mut(), &mut bob_ct)?;
 //! #
 //! # assert_eq!(alice_shk.secret(), bob_shk.secret());
 //! #
-//! # Ok::<(), String>(())
+//! # Ok::<(), Error>(())
 //!```
 //!
 
@@ -154,9 +133,9 @@ use thiserror::Error;
 ///
 /// fn encaps_given_a_kem<KemImpl>(
 ///   kem: &KemImpl,
-///   pk: &[u8l PK_LEN],
+///   pk: &[u8; PK_LEN],
 ///   ct: &mut [u8; CT_LEN]
-/// ) where KemImpl: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> -> [u8; SHK_LEN]{
+/// )  -> [u8; SHK_LEN] where KemImpl: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN>{
 ///   let mut shk = [0u8; SHK_LEN];
 ///   kem.encaps(&mut shk, ct, pk).unwrap();
 ///   shk
@@ -174,9 +153,10 @@ use thiserror::Error;
 /// const SHK_LEN: usize = 32;
 ///
 /// fn encaps_without_kem<KemImpl>(
-///   pk: &[u8l PK_LEN],
+///   pk: &[u8; PK_LEN],
 ///   ct: &mut [u8; CT_LEN]
-/// ) where KemImpl: Default + Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> -> [u8; SHK_LEN]{
+/// ) -> [u8; SHK_LEN]
+/// where KemImpl: Default + Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> {
 ///   let mut shk = [0u8; SHK_LEN];
 ///   KemImpl::default().encaps(&mut shk, ct, pk).unwrap();
 ///   shk
