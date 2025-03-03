@@ -398,16 +398,16 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// ```
 /// use std::ops::DerefMut;
 /// use rosenpass::protocol::{SSk, SPk, SymKey, Peer, ProtocolVersion};
-/// use rosenpass_ciphers::kem::StaticKem;
-/// use rosenpass_cipher_traits::Kem;
+/// use rosenpass_ciphers::StaticKem;
+/// use rosenpass_cipher_traits::primitives::Kem;
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
-/// StaticKem::keygen(sskt.secret_mut(), spkt.deref_mut())?;
+/// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
 ///
 /// let (mut sskt2, mut spkt2) = (SSk::zero(), SPk::zero());
-/// StaticKem::keygen(sskt2.secret_mut(), spkt2.deref_mut())?;
+/// StaticKem.keygen(sskt2.secret_mut(), spkt2.deref_mut())?;
 ///
 /// let psk = SymKey::random();
 ///
@@ -834,7 +834,7 @@ pub trait Mortal {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass_ciphers::kem::StaticKem;
+/// use rosenpass_ciphers::StaticKem;
 /// use rosenpass::protocol::{SSk, SPk, testutils::ServerForTesting, ProtocolVersion};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -1376,13 +1376,13 @@ impl CryptoServer {
     /// ```
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::{SSk, SPk, CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::kem::StaticKem;
-    /// use rosenpass_cipher_traits::Kem;
+    /// use rosenpass_ciphers::StaticKem;
+    /// use rosenpass_cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
-    /// StaticKem::keygen(sskm.secret_mut(), spkm.deref_mut())?;
+    /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
     ///
     /// let srv = CryptoServer::new(sskm, spkm.clone());
     /// assert_eq!(srv.spkm, spkm);
@@ -1441,17 +1441,17 @@ impl CryptoServer {
     /// ```
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::{SSk, SPk, SymKey, CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::kem::StaticKem;
-    /// use rosenpass_cipher_traits::Kem;
+    /// use rosenpass_ciphers::StaticKem;
+    /// use rosenpass_cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
-    /// StaticKem::keygen(sskm.secret_mut(), spkm.deref_mut())?;
+    /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
     /// let mut srv = CryptoServer::new(sskm, spkm);
     ///
     /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
-    /// StaticKem::keygen(sskt.secret_mut(), spkt.deref_mut())?;
+    /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
     ///
     /// let psk = SymKey::random();
     ///
@@ -1698,7 +1698,7 @@ impl Session {
     ///
     /// ```
     /// use rosenpass::protocol::{Session, HandshakeRole};
-    /// use rosenpass_ciphers::keyed_hash::KeyedHash;
+    /// use rosenpass_ciphers::KeyedHash;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
