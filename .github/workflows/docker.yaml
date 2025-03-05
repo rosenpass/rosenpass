@@ -1,5 +1,7 @@
 name: Build Docker Images
 
+# Run this job on all non-pull-request events,
+# or if Docker-related files are changed in a pull request.
 on:
   push:
     branches:
@@ -7,6 +9,9 @@ on:
     tags:
       - "v*"
   pull_request:
+    paths:
+      - "docker/Dockerfile"
+      - ".github/workflows/docker.yaml"
     branches:
       - "main"
 
@@ -15,33 +20,10 @@ permissions:
   packages: write
 
 jobs:
-  # ----------------------------------------
-  # 1. Check if docker/Dockerfile or .github/workflows/docker.yaml changed
-  # ----------------------------------------
-  check-dockerfile-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      docker_files_changed: ${{ steps.filter.outputs.docker_files_changed }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Paths filter
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            docker_files_changed:
-              - 'docker/Dockerfile'
-              - '.github/workflows/docker.yaml'
   # --------------------------------
-  # 2. BUILD & TEST
+  # 1. BUILD & TEST
   # --------------------------------
   build-and-test-rp:
-    needs: check-dockerfile-changes
-    # Run this job on all non-pull-request events,
-    # or if Docker-related files are changed in a pull request.
-    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -131,12 +113,11 @@ jobs:
 
           echo "Standalone Key Exchange test OK."
   # --------------------------------
-  # 3. PUSH (only if tests pass)
+  # 2. PUSH (only if tests pass)
   # --------------------------------
   docker-image-rp:
     needs:
       - build-and-test-rp
-      - check-dockerfile-changes
     # Skip if this is not a PR. Then we want to push this image.
     if: ${{ github.event_name != 'pull_request' }}
     # Use a matrix to build for both AMD64 and ARM64
@@ -184,10 +165,8 @@ jobs:
   docker-image-rosenpass:
     needs:
       - build-and-test-rp
-      - check-dockerfile-changes
-    # Run this job on all non-pull-request events,
-    # or if Docker-related files are changed in a pull request.
-    if: ${{ needs.check-dockerfile-changes.outputs.docker_files_changed == 'true' || github.event_name != 'pull_request' }}
+    # Skip if this is not a PR. Then we want to push this image.
+    if: ${{ github.event_name != 'pull_request' }}
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
