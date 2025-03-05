@@ -120,15 +120,12 @@ jobs:
       - build-and-test-rp
     # Skip if this is not a PR. Then we want to push this image.
     if: ${{ github.event_name != 'pull_request' }}
-    # Use a matrix to build for both AMD64 and ARM64
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-    # Switch the runner based on the architecture
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: "ubuntu-latest"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -161,21 +158,18 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rp
-          platforms: linux/${{ matrix.arch }}
+          platforms: linux/amd64,linux/arm64
   docker-image-rosenpass:
     needs:
       - build-and-test-rp
     # Skip if this is not a PR. Then we want to push this image.
     if: ${{ github.event_name != 'pull_request' }}
-    # Use a matrix to build for both AMD64 and ARM64
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-    # Switch the runner based on the architecture
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: "ubuntu-latest"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -208,4 +202,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           target: rosenpass
-          platforms: linux/${{ matrix.arch }}
+          platforms: linux/amd64,linux/arm64
