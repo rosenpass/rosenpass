@@ -42,6 +42,7 @@ use std::slice;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::config::ProtocolVersion;
 use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
@@ -1042,11 +1043,12 @@ impl AppServer {
         outfile: Option<PathBuf>,
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
+        protocol_version: ProtocolVersion,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),
-            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk),
-            ConstructionSite::Product(srv) => srv.add_peer(psk, pk)?,
+            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk, protocol_version),
+            ConstructionSite::Product(srv) => srv.add_peer(psk, pk, protocol_version.into())?,
         };
         assert!(pn == self.peers.len());
 
