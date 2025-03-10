@@ -13,6 +13,8 @@
 //! use rosenpass::{hash_domain, hash_domain_ns};
 //! use rosenpass::hash_domains::protocol;
 //!
+//! use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
+//!
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");
 //!
@@ -26,15 +28,18 @@
 //! hash_domain!(domain_separators, sep1, "1");
 //! hash_domain!(domain_separators, sep2, "2");
 //!
+//! // We use the SHAKE256 hash function for this example
+//! let hash_choice = EitherShakeOrBlake::Left(rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core);
+//!
 //! // Generating values under hasher1 with both domain separators
-//! let h1 = hasher1()?.mix(b"some data")?.dup();
-//! let h1v1 = h1.mix(&sep1()?)?.mix(b"More data")?.into_value();
-//! let h1v2 = h1.mix(&sep2()?)?.mix(b"More data")?.into_value();
+//! let h1 = hasher1(hash_choice.clone())?.mix(b"some data")?.dup();
+//! let h1v1 = h1.mix(&sep1(hash_choice.clone())?)?.mix(b"More data")?.into_value();
+//! let h1v2 = h1.mix(&sep2(hash_choice.clone())?)?.mix(b"More data")?.into_value();
 //!
 //! // Generating values under hasher2 with both domain separators
-//! let h2 = hasher2()?.mix(b"some data")?.dup();
-//! let h2v1 = h2.mix(&sep1()?)?.mix(b"More data")?.into_value();
-//! let h2v2 = h2.mix(&sep2()?)?.mix(b"More data")?.into_value();
+//! let h2 = hasher2(hash_choice.clone())?.mix(b"some data")?.dup();
+//! let h2v1 = h2.mix(&sep1(hash_choice.clone())?)?.mix(b"More data")?.into_value();
+//! let h2v2 = h2.mix(&sep2(hash_choice.clone())?)?.mix(b"More data")?.into_value();
 //!
 //! // All of the domain separators are now different, random strings
 //! let values = [h1v1, h1v2, h2v1, h2v2];
@@ -49,6 +54,9 @@
 
 use anyhow::Result;
 use rosenpass_ciphers::hash_domain::HashDomain;
+use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
+use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
+use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 
 /// Declare a hash function
 ///
@@ -62,8 +70,8 @@ use rosenpass_ciphers::hash_domain::HashDomain;
 macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name() -> ::anyhow::Result<::rosenpass_ciphers::hash_domain::HashDomain> {
-            let t = $base()?;
+        pub fn $name(hash_choice: EitherShakeOrBlake) -> ::anyhow::Result<::rosenpass_ciphers::hash_domain::HashDomain> {
+            let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
         }
@@ -81,8 +89,8 @@ macro_rules! hash_domain_ns {
 macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name() -> ::anyhow::Result<[u8; ::rosenpass_ciphers::KEY_LEN]> {
-            let t = $base()?;
+        pub fn $name(hash_choice: EitherShakeOrBlake) -> ::anyhow::Result<[u8; ::rosenpass_ciphers::KEY_LEN]> {
+            let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
         }
@@ -95,14 +103,21 @@ macro_rules! hash_domain {
 /// used in various places in the rosenpass protocol.
 ///
 /// This is generally used to create further hash-domains for specific purposes. See
+/// 
+/// TODO: Update documentation
 ///
 /// # Examples
 ///
 /// See the source file for details about how this is used concretely.
 ///
 /// See the [module](self) documentation on how to use the hash domains in general
-pub fn protocol() -> Result<HashDomain> {
-    HashDomain::zero().mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes())
+pub fn protocol(hash_choice: EitherShakeOrBlake) -> Result<HashDomain> {
+    // TODO: Update this string that is mixed in?
+    match hash_choice {
+        EitherShakeOrBlake::Left(SHAKE256Core) => HashDomain::zero(hash_choice).mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
+        EitherShakeOrBlake::Right(Blake2bCore) => HashDomain::zero(hash_choice).mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 Blake2b".as_bytes()),
+    }
+    
 }
 
 hash_domain_ns!(
