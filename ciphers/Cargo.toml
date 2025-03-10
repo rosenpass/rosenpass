@@ -11,6 +11,7 @@ readme = "readme.md"
 
 [features]
 experiment_libcrux = ["dep:libcrux"]
+experiment_sha3 = ["dep:sha3"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -24,3 +25,4 @@ zeroize = { workspace = true }
 chacha20poly1305 = { workspace = true }
 blake2 = { workspace = true }
 libcrux = { workspace = true, optional = true }
+sha3 = {workspace = true, optional = true}
