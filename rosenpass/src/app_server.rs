@@ -333,7 +333,7 @@ pub struct AppServer {
     ///
     /// Because the API supports initializing the server with a keypair
     /// and CryptoServer needs to be initialized with a keypair, the struct
-    /// struct is wrapped in a ConstructionSite
+    /// is wrapped in a ConstructionSite
     pub crypto_site: ConstructionSite<BuildCryptoServer, CryptoServer>,
     /// The UDP sockets used to send and receive protocol messages
     pub sockets: Vec<mio::net::UdpSocket>,
