@@ -1264,7 +1264,7 @@ impl AppServer {
     }
 
     /// Used as a helper by [Self::event_loop_without_error_handling] when
-    /// a new output key has been echanged
+    /// a new output key has been exchanged
     pub fn output_key(
         &mut self,
         peer: AppPeerPtr,
