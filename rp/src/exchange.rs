@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, process::Command};
 
 use anyhow::Result;
-
+use rosenpass::config::ProtocolVersion;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
 
@@ -24,6 +24,8 @@ pub struct ExchangePeer {
     pub persistent_keepalive: Option<u32>,
     /// The IPs that are allowed for this peer.
     pub allowed_ips: Option<String>,
+    /// The protocol version used by the peer.
+    pub protocol_version: ProtocolVersion
 }
 
 /// Options for the exchange operation of the `rp` binary.
@@ -356,6 +358,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             None,
             broker_peer,
             peer.endpoint.map(|x| x.to_string()),
+            peer.protocol_version,
         )?;
 
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
