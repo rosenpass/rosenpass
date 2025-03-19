@@ -20,10 +20,9 @@ use anyhow::{bail, ensure, Context, Result};
 use rand::Fill as Randomize;
 
 use memoffset::span_of;
-use rosenpass_cipher_traits::Kem;
+use rosenpass_cipher_traits::{Kem, KeyedHashInstance};
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::kem::{EphemeralKem, StaticKem};
-use rosenpass_ciphers::keyed_hash;
 use rosenpass_ciphers::{aead, xaead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
@@ -35,7 +34,7 @@ use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 use rosenpass_ciphers::subtle::either_hash::{EitherShakeOrBlake};
 use rosenpass_ciphers::subtle::incorrect_hmac_blake2b::Blake2bCore;
-use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
+use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256Core};
 use crate::{hash_domains, msgs::*, RosenpassError};
 
 // CONSTANTS & SETTINGS //////////////////////////
@@ -722,9 +721,13 @@ impl KnownResponseHasher {
     /// Panics in case of a problem with this underlying hash function
     pub fn hash<Msg: AsBytes + FromBytes>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
-        let hash = keyed_hash::hash(self.key.secret(), data)
-            .to_this(Public::<32>::zero)
-            .unwrap();
+        // TODO: FIX DOCU AND OUT-COMMENTED_CODE_BELOW
+        let mut hash = [0u8; 32];
+        // Only mport this here to avoid accidental use of the wrong hash function
+        EitherShakeOrBlake::Left(SHAKE256Core).keyed_hash(self.key.secret(), data, &mut hash).unwrap();
+        //let hash = keyed_hash::hash(self.key.secret(), data)
+        //    .to_this(Public::<32>::zero)
+        //    .unwrap();
         Public::from_slice(&hash[0..16]) // truncate to 16 bytes
     }
 }
@@ -1352,7 +1355,7 @@ impl KnownInitConfResponsePtr {
     /// Merely forwards [KnownResponseHasher::hash] with hasher [CryptoServer::known_response_hasher] from `srv`.
     pub fn index_key_hash_for_msg(
         srv: &CryptoServer,
-        req: &Envelope<InitConf>,
+        req: &Envelope<InitConf>
     ) -> KnownResponseHash {
         srv.known_response_hasher.hash(req)
     }
@@ -2116,7 +2119,7 @@ impl CryptoServer {
     /// Keeps track of messages processed, and qualifies messages using
     /// cookie based DoS mitigation.
     ///
-    /// If recieving a InitHello message, it dispatches message for further processing
+    /// If receiving a InitHello message, it dispatches message for further processing
     /// to `process_msg` handler if cookie is valid otherwise sends a cookie reply
     /// message for sender to process and verify for messages part of the handshake phase
     ///
@@ -2145,7 +2148,6 @@ impl CryptoServer {
         let mut rx_mac = [0u8; MAC_SIZE];
         let mut rx_sid = [0u8; 4];
         let msg_type: Result<MsgType, _> = rx_buf[0].try_into();
-        // TODO: Th
         match msg_type {
             Ok(MsgType::InitConf) => {
                 log::debug!(
@@ -2167,9 +2169,11 @@ impl CryptoServer {
             }
         }
 
+        log::debug!("Checking all cookie secrets for match");
         for cookie_secret in self.active_or_retired_cookie_secrets() {
             if let Some(cookie_secret) = cookie_secret {
                 let cookie_secret = cookie_secret.get(self).value.secret();
+                log::debug!("Checking cookie secret {:?}", cookie_secret);
                 let mut cookie_value = [0u8; 16];
                 cookie_value.copy_from_slice(
                     &hash_domains::cookie_value(EitherShakeOrBlake::Left(SHAKE256Core))?
@@ -2177,9 +2181,11 @@ impl CryptoServer {
                         .mix(host_identification.encode())?
                         .into_value()[..16],
                 );
+                log::debug!("Computed cookie_value: {:?}", cookie_value);
 
-                //Most recently filled value is active cookie value
+                // Most recently filled value is active cookie value
                 if active_cookie_value.is_none() {
+                    log::debug!("Active cookie_value was None, setting to {:?}", cookie_value);
                     active_cookie_value = Some(cookie_value);
                 }
 
@@ -2187,16 +2193,20 @@ impl CryptoServer {
 
                 let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
                     .ok_or(RosenpassError::BufferSizeMismatch)?;
+                log::debug!("Mixing with cookie from envelope: {:?}", &msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)]);
                 expected.copy_from_slice(
                     &hash_domains::cookie(EitherShakeOrBlake::Left(SHAKE256Core))?
                         .mix(&cookie_value)?
                         .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
                         .into_value()[..16],
                 );
+                log::debug!("Computed expected cookie: {:?}", expected);
 
                 rx_cookie.copy_from_slice(&msg_in.cookie);
                 rx_mac.copy_from_slice(&msg_in.mac);
                 rx_sid.copy_from_slice(&msg_in.payload.sidi);
+
+                log::debug!("Received cookie is: {:?}", rx_cookie);
 
                 //If valid cookie is found, process message
                 if constant_time::memcmp(&rx_cookie, &expected) {
@@ -2207,13 +2217,16 @@ impl CryptoServer {
                     );
                     let result = self.handle_msg(rx_buf, tx_buf)?;
                     return Ok(result);
+                } else {
+                    log::debug!("Cookie did not match, continuing");
                 }
             } else {
+                log::debug!("Cookie secret was None for some reason");
                 break;
             }
         }
 
-        //Otherwise send cookie reply
+        // Otherwise send cookie reply
         if active_cookie_value.is_none() {
             bail!("No active cookie value found");
         }
@@ -3185,6 +3198,7 @@ where
             .mix(peer.get(srv).spkt.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
+        log::debug!("Setting MAC for Envelope: {:?}", self.mac);
         self.seal_cookie(peer, srv)?;
         Ok(())
     }
@@ -3194,11 +3208,13 @@ where
     /// This is called inside [Self::seal] and does not need to be called again separately.
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_key) = &peer.cv().get(srv) {
-            let cookie = hash_domains::cookie(peer.get(srv).protocol_version.shake_or_blake())?
+            // TODO: FOUND IT!?
+            let cookie = hash_domains::cookie(EitherShakeOrBlake::Left(SHAKE256Core))?
                 .mix(cookie_key.value.secret())?
                 .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
             self.cookie
                 .copy_from_slice(cookie.into_value()[..16].as_ref());
+            log::debug!("Setting cookie for Envelope: {:?} computed with {:?}", self.cookie, EitherShakeOrBlake::Left(SHAKE256Core));
         }
         Ok(())
     }
@@ -3810,6 +3826,7 @@ impl CryptoServer {
                     .map(|v| PeerPtr(v.0))
             });
         if let Some(peer) = peer_ptr {
+            log::debug!("Found peer for cookie reply: {:?}", peer);
             // Get last transmitted handshake message
             if let Some(ih) = &peer.get(self).handshake {
                 let mut mac = [0u8; MAC_SIZE];
@@ -3838,14 +3855,17 @@ impl CryptoServer {
                         pidr = cr.inner.sid
                     ),
                 }?;
+                log::debug!("Found last transmitted handshake message with mac: {:?}", mac);
 
                 let spkt = peer.get(self).spkt.deref();
                 let cookie_key = hash_domains::cookie_key(EitherShakeOrBlake::Left(SHAKE256Core))?.mix(spkt)?.into_value();
+                log::debug!("Computed cookie key: {:?}", cookie_key);
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
                 xaead::decrypt(cookie_value, &cookie_key, &mac, &cr.inner.cookie_encrypted)?;
+                log::debug!("Computed cookie value: {:?}", cookie_value);
 
-                // Immediately retransmit on recieving a cookie reply message
+                // Immediately retransmit on receiving a cookie reply message
                 peer.hs().register_immediate_retransmission(self)?;
 
                 Ok(peer)
