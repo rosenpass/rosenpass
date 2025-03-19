@@ -134,9 +134,6 @@ impl SecretHashDomain {
             .keyed_hash_to(k.try_into()?, d)
             .to(new_secret_key.secret_mut())?;
         let mut r = SecretHashDomain(new_secret_key, hash_choice);
-        KeyedHash::incorrect_hmac_blake2b()
-            .keyed_hash_to(k.try_into()?, d)
-            .to(r.0.secret_mut())?;
         Ok(r)
     }
 

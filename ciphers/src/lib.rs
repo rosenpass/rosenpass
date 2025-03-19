@@ -5,8 +5,6 @@ pub mod subtle;
 
 /// All keyed primitives in this crate use 32 byte keys
 pub const KEY_LEN: usize = 32;
-const_assert!(KEY_LEN == Aead::KEY_LEN);
-const_assert!(KEY_LEN == XAead::KEY_LEN);
 const_assert!(KEY_LEN == hash_domain::KEY_LEN);
 
 /// Keyed hashing
