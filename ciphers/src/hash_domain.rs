@@ -1,10 +1,6 @@
 use anyhow::Result;
 use rosenpass_secret_memory::Secret;
-use rosenpass_to::To;
-
-use crate::keyed_hash as hash;
-
-pub use hash::KEY_LEN;
+const KEY_LEN: usize = 32;
 use rosenpass_cipher_traits::KeyedHashInstance;
 use crate::subtle::either_hash::EitherShakeOrBlake;
 
@@ -128,8 +124,7 @@ impl SecretHashDomain {
     pub fn invoke_primitive(k: &[u8], d: &[u8], hash_choice: EitherShakeOrBlake) -> Result<SecretHashDomain> {
         let mut new_secret_key = Secret::zero();
         hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
-        let mut r = SecretHashDomain(new_secret_key, hash_choice);
-        hash::hash(k, d).to(r.0.secret_mut())?;
+        let r = SecretHashDomain(new_secret_key, hash_choice);
         Ok(r)
     }
 
@@ -178,7 +173,7 @@ impl SecretHashDomain {
     ///
     /// It requires that both `v` and `d` consist of exactly [KEY_LEN] many bytes.
     pub fn into_secret_slice(mut self, v: &[u8], dst: &[u8]) -> Result<()> {
-        hash::hash(v, dst).to(self.0.secret_mut())
+        self.1.keyed_hash(v.try_into()?, dst, self.0.secret_mut())
     }
 }
 
