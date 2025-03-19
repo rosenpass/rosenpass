@@ -14,7 +14,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
 {
     type Error = anyhow::Error;
 
-    /// TODO: Rework test
+    /// TODO: Check comment
     /// Provides a keyed hash function based on SHAKE256. To work for the protocol, the output length
     /// and key length are fixed to 32 bytes (also see [KEY_LEN] and [HASH_LEN]).
     ///
@@ -23,7 +23,6 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// same collision resistance as SHAKE128, but 256 bits of preimage resistance. We therefore
     /// prefer a truncated SHAKE256 over SHAKE128.
     ///
-    /// TODO: Example/Test
     /// #Examples
     /// ```rust
     /// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core;
@@ -36,8 +35,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// let mut hash_data: [u8; 32] = [0u8; HASH_LEN];
     ///
     /// assert!(SHAKE256Core::<32, 32>::keyed_hash(&key, &data, &mut hash_data).is_ok(), "Hashing has to return OK result");
-    /// # let expected_hash: &[u8] = &[44, 102, 248, 251, 141, 145, 55, 194, 165, 228, 156, 42, 220,
-    /// 108, 50, 224, 48, 19, 197, 253, 105, 136, 95, 34, 95, 203, 149, 192, 124, 223, 243, 87];
+    /// # let expected_hash: &[u8] = &[174, 4, 47, 188, 1, 228, 179, 246, 67, 43, 255, 94, 155, 11,
+    /// 187, 161, 38, 110, 217, 23, 4, 62, 172, 30, 218, 187, 249, 80, 171, 21, 145, 238];
     /// # assert_eq!(hash_data, expected_hash);
     /// ```
     fn keyed_hash(
@@ -55,13 +54,9 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
         shake256.update(key);
         shake256.update(data);
 
-        // Following the NIST recommendations in Section A.2 of the FIPS 202 standard,
-        // (pages 24/25, i.e., 32/33 in the PDF) we append the length of the input to the end of
-        // the input. This prevents that if the same input is used with two different output lengths,
-        // the shorter output is a prefix of the longer output. See the Section A.2 of the FIPS 202
-        // standard for more details.
-        // TODO: Explain why we do not include the length here
-        // shake256.update(&((HASH_LEN as u8).to_le_bytes()));
+        // Since we use domain separation extensively, related outputs of the truncated XOF
+        // are not a concern. This follows the NIST recommendations in Section A.2 of the FIPS 202
+        // standard, (pages 24/25, i.e., 32/33 in the PDF).
         shake256.finalize_xof().read(out);
         Ok(())
     }
@@ -91,8 +86,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 /// let mut hash_data: [u8; 32] = [0u8; HASH_LEN];
 /// // TODO: Note that we are using inferred hash here
 /// assert!(SHAKE256::new().keyed_hash(&key, &data, &mut hash_data).is_ok(), "Hashing has to return OK result");
-/// # let expected_hash: &[u8] = &[44, 102, 248, 251, 141, 145, 55, 194, 165, 228, 156, 42, 220,
-/// 108, 50, 224, 48, 19, 197, 253, 105, 136, 95, 34, 95, 203, 149, 192, 124, 223, 243, 87];
+/// # let expected_hash: &[u8] = &[174, 4, 47, 188, 1, 228, 179, 246, 67, 43, 255, 94, 155, 11, 187,
+/// 161, 38, 110, 217, 23, 4, 62, 172, 30, 218, 187, 249, 80, 171, 21, 145, 238];
 /// # assert_eq!(hash_data, expected_hash);
 /// ```
 pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
@@ -110,8 +105,8 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 /// let mut hash_data: [u8; 32] = [0u8; HASH_LEN];
 ///
 /// assert!(SHAKE256_32::new().keyed_hash(&key, &data, &mut hash_data).is_ok(), "Hashing has to return OK result");
-/// # let expected_hash: &[u8] = &[44, 102, 248, 251, 141, 145, 55, 194, 165, 228, 156, 42, 220,
-/// 108, 50, 224, 48, 19, 197, 253, 105, 136, 95, 34, 95, 203, 149, 192, 124, 223, 243, 87];
+/// # let expected_hash: &[u8] = &[174, 4, 47, 188, 1, 228, 179, 246, 67, 43, 255, 94, 155, 11, 187,
+/// 161, 38, 110, 217, 23, 4, 62, 172, 30, 218, 187, 249, 80, 171, 21, 145, 238];
 /// # assert_eq!(hash_data, expected_hash);
 /// ```
 pub type SHAKE256_32 = SHAKE256<32, 32>;
