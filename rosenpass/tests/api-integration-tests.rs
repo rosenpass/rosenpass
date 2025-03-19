@@ -16,8 +16,8 @@ use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
 
-use rosenpass::protocol::SymKey;
 use rosenpass::config::ProtocolVersion;
+use rosenpass::protocol::SymKey;
 
 struct KillChild(std::process::Child);
 
@@ -45,7 +45,6 @@ fn api_integration_test_v02() -> anyhow::Result<()> {
 fn api_integration_test_v03() -> anyhow::Result<()> {
     api_integration_test(ProtocolVersion::V03)
 }
-
 
 fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();

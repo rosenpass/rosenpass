@@ -2,11 +2,10 @@
 
 /// Generate bindings to a liboqs-provided KEM
 macro_rules! oqs_kem {
-    ($name:ident) => { ::paste::paste!{
+    ($name:ident, $algo_trait:path) => { ::paste::paste!{
         #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
-            use rosenpass_cipher_traits::Kem;
-            use rosenpass_util::result::Guaranteed;
+            use rosenpass_cipher_traits::primitives::{Kem, KemError};
 
             #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
             #[doc = ""]
@@ -37,7 +36,12 @@ macro_rules! oqs_kem {
             #[doc = "// Both parties end up with the same shared key"]
             #[doc = "assert!(rosenpass_constant_time::compare(shk_enc.secret_mut(), shk_dec.secret_mut()) == 0);"]
             #[doc = "```"]
-            pub enum [< $name:camel >]  {}
+            pub struct [< $name:camel >];
+
+            pub const SK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_secret_key >] as usize;
+            pub const PK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_public_key >] as usize;
+            pub const CT_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_ciphertext >] as usize;
+            pub const SHK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_shared_secret >] as usize;
 
             /// # Panic & Safety
             ///
@@ -51,17 +55,8 @@ macro_rules! oqs_kem {
             /// to only check that the buffers are big enough, allowing them to be even
             /// bigger. However, from a correctness point of view it does not make sense to
             /// allow bigger buffers.
-            impl Kem for [< $name:camel >] {
-                type Error = ::std::convert::Infallible;
-
-                const SK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_secret_key >] as usize;
-                const PK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_public_key >] as usize;
-                const CT_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_ciphertext >] as usize;
-                const SHK_LEN: usize =  ::oqs_sys::kem::[<OQS_KEM _ $name:snake _ length_shared_secret >] as usize;
-
-                fn keygen(sk: &mut [u8], pk: &mut [u8]) -> Guaranteed<()> {
-                    assert_eq!(sk.len(), Self::SK_LEN);
-                    assert_eq!(pk.len(), Self::PK_LEN);
+            impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for [< $name:camel >] {
+                fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ keypair >],
@@ -73,10 +68,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn encaps(shk: &mut [u8], ct: &mut [u8], pk: &[u8]) -> Guaranteed<()> {
-                    assert_eq!(shk.len(), Self::SHK_LEN);
-                    assert_eq!(ct.len(), Self::CT_LEN);
-                    assert_eq!(pk.len(), Self::PK_LEN);
+                    fn encaps(&self, shk: &mut [u8; SHK_LEN], ct: &mut [u8; CT_LEN], pk: &[u8; PK_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ encaps >],
@@ -89,10 +81,7 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
 
-                fn decaps(shk: &mut [u8], sk: &[u8], ct: &[u8]) -> Guaranteed<()> {
-                    assert_eq!(shk.len(), Self::SHK_LEN);
-                    assert_eq!(sk.len(), Self::SK_LEN);
-                    assert_eq!(ct.len(), Self::CT_LEN);
+                fn decaps(&self, shk: &mut [u8; SHK_LEN], sk: &[u8; SK_LEN], ct: &[u8; CT_LEN]) -> Result<(), KemError> {
                     unsafe {
                         oqs_call!(
                             ::oqs_sys::kem::[< OQS_KEM _ $name:snake _ decaps >],
@@ -105,8 +94,15 @@ macro_rules! oqs_kem {
                     Ok(())
                 }
             }
-
         }
+
+        impl Default for [< $name:camel >] {
+            fn default() -> Self {
+                Self
+            }
+        }
+
+        impl $algo_trait for [< $name:camel >] {}
 
         pub use [< $name:snake >] :: [< $name:camel >];
     }}

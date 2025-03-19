@@ -5,8 +5,8 @@
 
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
@@ -609,7 +609,7 @@ impl CliArgs {
 pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
     let mut ssk = crate::protocol::SSk::random();
     let mut spk = crate::protocol::SPk::random();
-    StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
+    StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
 }

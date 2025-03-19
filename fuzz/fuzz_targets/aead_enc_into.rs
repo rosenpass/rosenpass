@@ -4,7 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass_ciphers::aead;
+use rosenpass_cipher_traits::primitives::Aead as _;
+use rosenpass_ciphers::Aead;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {
@@ -17,7 +18,7 @@ pub struct Input {
 fuzz_target!(|input: Input| {
     let mut ciphertext = vec![0u8; input.plaintext.len() + 16];
 
-    aead::encrypt(
+    Aead.encrypt(
         ciphertext.as_mut_slice(),
         &input.key,
         &input.nonce,

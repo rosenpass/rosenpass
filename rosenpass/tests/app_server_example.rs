@@ -1,22 +1,19 @@
 use std::{
     net::SocketAddr,
     ops::DerefMut,
-    path::PathBuf,
     str::FromStr,
     sync::mpsc,
     thread::{self, sleep},
     time::Duration,
 };
 
-use anyhow::ensure;
+use rosenpass::config::ProtocolVersion;
 use rosenpass::{
-    app_server::{ipv4_any_binding, ipv6_any_binding, AppServer, AppServerTest, MAX_B64_KEY_SIZE},
+    app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
     protocol::{SPk, SSk, SymKey},
 };
-use rosenpass::config::ProtocolVersion;
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::StaticKem;
-use rosenpass_secret_memory::Secret;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 
 #[test]
@@ -66,8 +63,14 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
                 let outfile = Some(osk);
                 let port = otr_port;
                 let hostname = is_client.then(|| format!("[::1]:{port}"));
-                srv.app_srv
-                    .add_peer(psk, pk, outfile, broker_peer, hostname, protocol_version.clone())?;
+                srv.app_srv.add_peer(
+                    psk,
+                    pk,
+                    outfile,
+                    broker_peer,
+                    hostname,
+                    protocol_version.clone(),
+                )?;
 
                 srv.app_srv.event_loop()
             })
@@ -111,7 +114,7 @@ struct TestServer {
 impl TestServer {
     fn new(termination_queue: mpsc::Receiver<()>) -> anyhow::Result<Self> {
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+        StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
 
         let keypair = Some((sk, pk));
         let addrs = vec![

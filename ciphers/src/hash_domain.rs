@@ -1,62 +1,63 @@
+//!
+//!```rust
+//! # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
+//! use rosenpass_ciphers::KeyedHash;
+//! use rosenpass_secret_memory::Secret;
+//! # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
+//!
+//! const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
+//! // create use once hash domain for the protocol identifier
+//! let mut hash_domain = HashDomain::zero(KeyedHash::keyed_shake256());
+//! hash_domain = hash_domain.mix(PROTOCOL_IDENTIFIER.as_bytes())?;
+//! // upgrade to reusable hash domain
+//! let hash_domain_namespace: HashDomainNamespace = hash_domain.dup();
+//! // derive new key
+//! let key_identifier = "my_key_identifier";
+//! let key = hash_domain_namespace.mix(key_identifier.as_bytes())?.into_value();
+//! // derive a new key based on a secret
+//! const MY_SECRET_LEN: usize = 21;
+//! let my_secret_bytes = "my super duper secret".as_bytes();
+//! let my_secret: Secret<21> = Secret::from_slice("my super duper secret".as_bytes());
+//! let secret_hash_domain: SecretHashDomain = hash_domain_namespace.mix_secret(my_secret)?;
+//! // derive a new key based on the secret key
+//! let new_key_identifier = "my_new_key_identifier".as_bytes();
+//! let new_key = secret_hash_domain.mix(new_key_identifier)?.into_secret();
+//!
+//! # Ok::<(), anyhow::Error>(())
+//!```
+//!
+
 use anyhow::Result;
 use rosenpass_secret_memory::Secret;
-const KEY_LEN: usize = 32;
-use rosenpass_cipher_traits::KeyedHashInstance;
-use crate::subtle::either_hash::EitherShakeOrBlake;
+use rosenpass_to::To as _;
 
-///
-///```rust
-/// # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
-/// use rosenpass_ciphers::subtle::either_hash::EitherShakeOrBlake;
-/// use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
-/// use rosenpass_secret_memory::Secret;
-/// # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
-///
-/// const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
-/// // create use once hash domain for the protocol identifier
-/// let mut hash_domain = HashDomain::zero(EitherShakeOrBlake::Left(SHAKE256Core));
-/// hash_domain = hash_domain.mix(PROTOCOL_IDENTIFIER.as_bytes())?;
-/// // upgrade to reusable hash domain
-/// let hash_domain_namespace: HashDomainNamespace = hash_domain.dup();
-/// // derive new key
-/// let key_identifier = "my_key_identifier";
-/// let key = hash_domain_namespace.mix(key_identifier.as_bytes())?.into_value();
-/// // derive a new key based on a secret
-/// const MY_SECRET_LEN: usize = 21;
-/// let my_secret_bytes = "my super duper secret".as_bytes();
-/// let my_secret: Secret<21> = Secret::from_slice("my super duper secret".as_bytes());
-/// let secret_hash_domain: SecretHashDomain = hash_domain_namespace.mix_secret(my_secret)?;
-/// // derive a new key based on the secret key
-/// let new_key_identifier = "my_new_key_identifier".as_bytes();
-/// let new_key = secret_hash_domain.mix(new_key_identifier)?.into_secret();
-///
-/// # Ok::<(), anyhow::Error>(())
-///```
-///
+pub use crate::{KeyedHash, KEY_LEN};
+
+use rosenpass_cipher_traits::primitives::{KeyedHashInstance, KeyedHashInstanceTo};
 
 // TODO Use a proper Dec interface
 /// A use-once hash domain for a specified key that can be used directly.
 /// The key must consist of [KEY_LEN] many bytes. If the key must remain secret,
 /// use [SecretHashDomain] instead.
 #[derive(Clone, Debug)]
-pub struct HashDomain([u8; KEY_LEN], EitherShakeOrBlake);
+pub struct HashDomain([u8; KEY_LEN], KeyedHash);
 /// A reusable hash domain for a namespace identified by the key.
 /// The key must consist of [KEY_LEN] many bytes. If the key must remain secret,
 /// use [SecretHashDomainNamespace] instead.
 #[derive(Clone, Debug)]
-pub struct HashDomainNamespace([u8; KEY_LEN], EitherShakeOrBlake);
+pub struct HashDomainNamespace([u8; KEY_LEN], KeyedHash);
 /// A use-once hash domain for a specified key that can be used directly
 /// by wrapping it in [Secret]. The key must consist of [KEY_LEN] many bytes.
 #[derive(Clone, Debug)]
-pub struct SecretHashDomain(Secret<KEY_LEN>, EitherShakeOrBlake);
+pub struct SecretHashDomain(Secret<KEY_LEN>, KeyedHash);
 /// A reusable secure hash domain for a namespace identified by the key and that keeps the key secure
 /// by wrapping it in [Secret]. The key must consist of [KEY_LEN] many bytes.
 #[derive(Clone, Debug)]
-pub struct SecretHashDomainNamespace(Secret<KEY_LEN>, EitherShakeOrBlake);
+pub struct SecretHashDomainNamespace(Secret<KEY_LEN>, KeyedHash);
 
 impl HashDomain {
     /// Creates a nw [HashDomain] initialized with a all-zeros key.
-    pub fn zero(choice: EitherShakeOrBlake) -> Self {
+    pub fn zero(choice: KeyedHash) -> Self {
         Self([0u8; KEY_LEN], choice)
     }
 
@@ -78,7 +79,7 @@ impl HashDomain {
     ///
     pub fn mix(self, v: &[u8]) -> Result<Self> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
-        self.1.keyed_hash(&self.0, v, &mut new_key)?;
+        self.1.keyed_hash_to(&self.0, v).to(&mut new_key)?;
         Ok(Self(new_key, self.1))
     }
 
@@ -101,7 +102,7 @@ impl HashDomainNamespace {
     /// as the `data` and uses the result as the key for the new [HashDomain].
     pub fn mix(&self, v: &[u8]) -> Result<HashDomain> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
-        self.1.keyed_hash(&self.0, v, &mut new_key)?;
+        self.1.keyed_hash_to(&self.0, v).to(&mut new_key)?;
         Ok(HashDomain(new_key, self.1.clone()))
     }
 
@@ -121,7 +122,7 @@ impl SecretHashDomain {
     /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
     /// TODO: docu
-    pub fn invoke_primitive(k: &[u8], d: &[u8], hash_choice: EitherShakeOrBlake) -> Result<SecretHashDomain> {
+    pub fn invoke_primitive(k: &[u8], d: &[u8], hash_choice: KeyedHash) -> Result<SecretHashDomain> {
         let mut new_secret_key = Secret::zero();
         hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
         let r = SecretHashDomain(new_secret_key, hash_choice);
@@ -129,7 +130,7 @@ impl SecretHashDomain {
     }
 
     /// Creates a new [SecretHashDomain] that is initialized with an all zeros key.
-    pub fn zero(hash_choice: EitherShakeOrBlake) -> Self {
+    pub fn zero(hash_choice: KeyedHash) -> Self {
         Self(Secret::zero(), hash_choice)
     }
 
@@ -141,7 +142,7 @@ impl SecretHashDomain {
     /// Creates a new [SecretHashDomain] from a [Secret] `k`.
     ///
     /// It requires that `k` consist of exactly [KEY_LEN] bytes.
-    pub fn danger_from_secret(k: Secret<KEY_LEN>, hash_choice: EitherShakeOrBlake) -> Self {
+    pub fn danger_from_secret(k: Secret<KEY_LEN>, hash_choice: KeyedHash) -> Self {
         Self(k, hash_choice)
     }
 
@@ -204,7 +205,7 @@ impl SecretHashDomainNamespace {
         self.0
     }
 
-    pub fn shake_or_blake(&self) -> &EitherShakeOrBlake {
+    pub fn keyed_hash(&self) -> &KeyedHash {
         &self.1
     }
 }

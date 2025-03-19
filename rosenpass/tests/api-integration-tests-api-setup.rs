@@ -14,6 +14,8 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
+use rosenpass::config::ProtocolVersion;
+use rosenpass::protocol::SymKey;
 use rosenpass_util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -26,8 +28,6 @@ use rosenpass_util::{
 use std::os::fd::{AsFd, AsRawFd};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
-use rosenpass::config::ProtocolVersion;
-use rosenpass::protocol::SymKey;
 
 struct KillChild(std::process::Child);
 

@@ -5,11 +5,14 @@ use std::{
     ops::DerefMut,
 };
 
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_util::result::OkExt;
 
-use rosenpass::protocol::{testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult, ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING};
+use rosenpass::protocol::{
+    testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult,
+    ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING,
+};
 
 // TODO: Most of the utility functions in here should probably be moved to
 // rosenpass::protocol::testutils;
@@ -94,7 +97,9 @@ fn test_successful_exchange_under_packet_loss_v03() -> anyhow::Result<()> {
     test_successful_exchange_under_packet_loss(ProtocolVersion::V03)
 }
 
-fn test_successful_exchange_under_packet_loss(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
+fn test_successful_exchange_under_packet_loss(
+    protocol_version: ProtocolVersion,
+) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
@@ -290,12 +295,12 @@ impl RosenpassSimulator {
     fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
         // Set up the first server
         let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
+        StaticKem.keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
         let mut srv_a = CryptoServer::new(peer_a_sk, peer_a_pk.clone());
 
         // …and the second server.
         let (mut peer_b_sk, mut peer_b_pk) = (SSk::zero(), SPk::zero());
-        StaticKem::keygen(peer_b_sk.secret_mut(), peer_b_pk.deref_mut())?;
+        StaticKem.keygen(peer_b_sk.secret_mut(), peer_b_pk.deref_mut())?;
         let mut srv_b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 
         // Generate a PSK and introduce the Peers to each other.

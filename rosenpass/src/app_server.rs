@@ -42,6 +42,7 @@ use std::slice;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::config::ProtocolVersion;
 use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
@@ -50,7 +51,6 @@ use crate::{
 };
 use rosenpass_util::attempt;
 use rosenpass_util::b64::B64Display;
-use crate::config::ProtocolVersion;
 
 /// The maximum size of a base64 encoded symmetric key (estimate)
 pub const MAX_B64_KEY_SIZE: usize = 32 * 5 / 3;
@@ -1043,7 +1043,7 @@ impl AppServer {
         outfile: Option<PathBuf>,
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
-        protocol_version: ProtocolVersion
+        protocol_version: ProtocolVersion,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),

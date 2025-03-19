@@ -1,4 +1,5 @@
-mod kem;
-mod keyed_hash;
-pub use kem::Kem;
-pub use keyed_hash::{KeyedHash, KeyedHashInstance};
+//! This trait contains traits, constants and wrappers that provid= the interface between Rosenpass
+//! as a consumer of cryptographic libraries and the implementations of cryptographic algorithms.
+
+pub mod algorithms;
+pub mod primitives;

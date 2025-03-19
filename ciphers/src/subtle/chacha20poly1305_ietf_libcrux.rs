@@ -1,4 +1,3 @@
-use std::fmt::format;
 use rosenpass_to::ops::copy_slice;
 use rosenpass_to::To;
 
@@ -102,18 +101,12 @@ pub fn decrypt(
     let (ciphertext, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
 
     use libcrux::aead as C;
-    let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.try_into()?));
-    let crux_iv = C::Iv(nonce.try_into()?);
-    let crux_tag = match C::Tag::from_slice(mac) {
-        Ok(tag) => tag,
-        Err(err) => return Err(anyhow::anyhow!(format!("{:?}", err))),
-    };
+    let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.try_into().unwrap()));
+    let crux_iv = C::Iv(nonce.try_into().unwrap());
+    let crux_tag = C::Tag::from_slice(mac).unwrap();
 
     copy_slice(ciphertext).to(plaintext);
-    let dec_res = libcrux::aead::decrypt(&crux_key, plaintext, crux_iv, ad, &crux_tag);
-    if dec_res.is_err() {
-        return Err(anyhow::anyhow!("Decryption failed {:?}", dec_res.err()));
-    }
+    libcrux::aead::decrypt(&crux_key, plaintext, crux_iv, ad, &crux_tag).unwrap();
 
     match crux_key {
         C::Key::Chacha20Poly1305(mut k) => k.0.zeroize(),
