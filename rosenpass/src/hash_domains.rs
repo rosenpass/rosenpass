@@ -101,7 +101,7 @@ macro_rules! hash_domain {
 /// used in various places in the rosenpass protocol.
 ///
 /// This is generally used to create further hash-domains for specific purposes. See
-/// 
+///
 /// TODO: Update documentation
 ///
 /// # Examples

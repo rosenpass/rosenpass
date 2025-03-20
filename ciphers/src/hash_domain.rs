@@ -122,7 +122,11 @@ impl SecretHashDomain {
     /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
     /// TODO: docu
-    pub fn invoke_primitive(k: &[u8], d: &[u8], hash_choice: KeyedHash) -> Result<SecretHashDomain> {
+    pub fn invoke_primitive(
+        k: &[u8],
+        d: &[u8],
+        hash_choice: KeyedHash,
+    ) -> Result<SecretHashDomain> {
         let mut new_secret_key = Secret::zero();
         hash_choice.keyed_hash(k.try_into()?, d, new_secret_key.secret_mut())?;
         let r = SecretHashDomain(new_secret_key, hash_choice);

@@ -6,10 +6,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, process::Command};
 
-use anyhow::Result;
-use rosenpass::config::ProtocolVersion;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
+use anyhow::Result;
+use rosenpass::config::ProtocolVersion;
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
@@ -25,7 +25,7 @@ pub struct ExchangePeer {
     /// The IPs that are allowed for this peer.
     pub allowed_ips: Option<String>,
     /// The protocol version used by the peer.
-    pub protocol_version: ProtocolVersion
+    pub protocol_version: ProtocolVersion,
 }
 
 /// Options for the exchange operation of the `rp` binary.

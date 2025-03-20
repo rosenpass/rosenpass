@@ -723,7 +723,9 @@ impl KnownResponseHasher {
         // This function is only used internally and results are not propagated
         // to outside the peer. Thus, it uses SHAKE256 exclusively.
         let mut hash = [0u8; 32];
-        KeyedHash::keyed_shake256().keyed_hash(self.key.secret(), data, &mut hash).unwrap();
+        KeyedHash::keyed_shake256()
+            .keyed_hash(self.key.secret(), data, &mut hash)
+            .unwrap();
         Public::from_slice(&hash[0..16]) // truncate to 16 bytes
     }
 }
@@ -1351,7 +1353,7 @@ impl KnownInitConfResponsePtr {
     /// Merely forwards [KnownResponseHasher::hash] with hasher [CryptoServer::known_response_hasher] from `srv`.
     pub fn index_key_hash_for_msg(
         srv: &CryptoServer,
-        req: &Envelope<InitConf>
+        req: &Envelope<InitConf>,
     ) -> KnownResponseHash {
         srv.known_response_hasher.hash(req)
     }

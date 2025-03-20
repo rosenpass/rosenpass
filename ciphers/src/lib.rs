@@ -1,5 +1,5 @@
-use static_assertions::const_assert;
 use rosenpass_cipher_traits::primitives::Aead as AeadTrait;
+use static_assertions::const_assert;
 
 pub mod subtle;
 
