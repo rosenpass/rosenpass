@@ -1,4 +1,4 @@
-use std::{process::Command};
+use std::process::Command;
 
 #[test]
 fn test_gen_ipc_msg_types() -> anyhow::Result<()> {

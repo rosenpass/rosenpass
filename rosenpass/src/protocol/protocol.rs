@@ -718,13 +718,11 @@ impl KnownResponseHasher {
     /// Panics in case of a problem with this underlying hash function
     pub fn hash<Msg: AsBytes + FromBytes>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
-        // TODO: the hash choice hasn't been propagated here so far
-        // TODO: FIX DOCU AND OUT-COMMENTED_CODE_BELOW
-        let hash_choice =
-            rosenpass_ciphers::subtle::keyed_hash::KeyedHash::incorrect_hmac_blake2b();
 
+        // This function is only used internally and results are not propagated
+        // to outside the peer. Thus, it uses SHAKE256 exclusively.
         let mut hash = [0; 32];
-        hash_choice
+        KeyedHash::keyed_shake256()
             .keyed_hash(self.key.secret(), data, &mut hash)
             .unwrap();
         Public::from_slice(&hash[0..16]) // truncate to 16 bytes

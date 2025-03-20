@@ -1,4 +1,3 @@
-use rosenpass_cipher_traits::primitives::Aead as _;
 use static_assertions::const_assert;
 
 pub mod subtle;

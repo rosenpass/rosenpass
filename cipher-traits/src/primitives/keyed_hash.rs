@@ -66,10 +66,12 @@ where
         Static::keyed_hash(key, data, out)
     }
 
+    /// Returns the key length of the keyed hash function.
     pub const fn key_len(self) -> usize {
         Self::KEY_LEN
     }
 
+    /// Returns the hash length of the keyed hash function.
     pub const fn hash_len(self) -> usize {
         Self::HASH_LEN
     }
