@@ -54,7 +54,6 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
-    // TODO: Adapt this to both protocol versions
     a.add_peer(Some(psk.clone()), pkb, protocol_version.clone())?;
     b.add_peer(Some(psk), pka, protocol_version)?;
     Ok((a, b))
