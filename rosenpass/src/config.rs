@@ -109,7 +109,7 @@ pub enum Verbosity {
     Verbose,
 }
 
-/// TODO: Documentation
+/// The protocol version to be used by a peer.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Default)]
 pub enum ProtocolVersion {
     #[default]
@@ -780,6 +780,31 @@ mod test {
         )?;
 
         Ok(())
+    }
+    
+    #[test]
+    fn test_protocol_version() {
+        let mut rosenpass = Rosenpass::empty();
+        let mut peer_v_02 = RosenpassPeer::default();
+        peer_v_02.protocol_version = ProtocolVersion::V02;
+        rosenpass.peers.push(peer_v_02);
+        let mut peer_v_03 = RosenpassPeer::default();
+        peer_v_03.protocol_version = ProtocolVersion::V03;
+        rosenpass.peers.push(peer_v_03);
+        
+        let expected_toml = 
+          r#"listen = []
+          verbosity = "Quiet"
+
+          [[peers]]
+          protocol_version = "V02"
+          public_key = ""
+
+          [[peers]]
+          protocol_version = "V03"
+          public_key = ""
+          "#;
+        assert_toml_round(rosenpass, expected_toml).unwrap()
     }
 
     #[test]
