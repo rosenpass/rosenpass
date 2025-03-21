@@ -1434,9 +1434,8 @@ impl CryptoServer {
         (0..l).map(move |i| PeerPtr((i + n) % l))
     }
 
-    /// Add a peer with an optional pre shared key (`psk`) and its public key (`pk`)
-    ///
-    /// TODO: Adapt documentation
+    /// Add a peer with an optional pre shared key (`psk`), its public key (`pk`) and the peer's
+    /// protocol version (`protocol_version`).
     ///
     /// ```
     /// use std::ops::DerefMut;
@@ -1454,7 +1453,7 @@ impl CryptoServer {
     /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
     ///
     /// let psk = SymKey::random();
-    ///
+    /// // We use the latest protocol version for the example.
     /// let peer = srv.add_peer(Some(psk), spkt.clone(), ProtocolVersion::V03)?;
     ///
     /// assert_eq!(peer.get(&srv).spkt, spkt);
