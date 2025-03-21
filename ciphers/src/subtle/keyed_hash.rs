@@ -1,6 +1,7 @@
 //! This module provides types that enabling choosing the keyed hash building block to be used at
 //! runtime (using enums) instead of at compile time (using generics).
 
+use std::fmt::Display;
 use anyhow::Result;
 use rosenpass_cipher_traits::primitives::KeyedHashInstance;
 
@@ -52,4 +53,14 @@ impl KeyedHashInstance<KEY_LEN, HASH_LEN> for KeyedHash {
 
         Ok(())
     }
+}
+
+impl Display for KeyedHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::KeyedShake256(_) => write!(f, "KeyedShake256_32"),
+            Self::IncorrectHmacBlake2b(_) => write!(f, "IncorrectHmacBlake2b"),
+        }
+    }
+    
 }
