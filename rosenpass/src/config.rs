@@ -781,7 +781,7 @@ mod test {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_protocol_version() {
         let mut rosenpass = Rosenpass::empty();
@@ -791,9 +791,8 @@ mod test {
         let mut peer_v_03 = RosenpassPeer::default();
         peer_v_03.protocol_version = ProtocolVersion::V03;
         rosenpass.peers.push(peer_v_03);
-        
-        let expected_toml = 
-          r#"listen = []
+
+        let expected_toml = r#"listen = []
           verbosity = "Quiet"
 
           [[peers]]
