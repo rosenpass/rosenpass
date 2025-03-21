@@ -15,11 +15,11 @@ fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]
 
 /// Print a hash literal for pasting into the Rosenpass source code
 fn print_literal(path: &[&str], shake_or_blake: KeyedHash) -> Result<()> {
-    let val = calculate_hash_value(HashDomain::zero(shake_or_blake), path)?;
+    let val = calculate_hash_value(HashDomain::zero(shake_or_blake.clone()), path)?;
     let (last, prefix) = path.split_last().context("developer error!")?;
     let var_name = last.to_shouty_snake_case();
 
-    print!("// hash domain hash of: ");
+    print!("// hash domain hash with hash {} of: ", shake_or_blake);
     for n in prefix.iter() {
         print!("{n} -> ");
     }
@@ -95,6 +95,7 @@ fn main() -> Result<()> {
 
     println!("type RawMsgType = u128;");
     println!();
-    tree.gen_code(EitherShakeOrBlake::Left(SHAKE256Core))?;
-    tree.gen_code(EitherShakeOrBlake::Right(Blake2bCore))
+    tree.gen_code(KeyedHash::keyed_shake256())?;
+    println!();
+    tree.gen_code(KeyedHash::incorrect_hmac_blake2b())
 }
