@@ -14,7 +14,6 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
 {
     type Error = anyhow::Error;
 
-    /// TODO: Check comment
     /// Provides a keyed hash function based on SHAKE256. To work for the protocol, the output length
     /// and key length are fixed to 32 bytes (also see [KEY_LEN] and [HASH_LEN]).
     ///
@@ -74,7 +73,12 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
     }
 }
 
-/// TODO use inferred hash somehow here
+/// This type provides the same functionality as [SHAKE256Core], but bound to an instance.
+/// In contrast to [SHAKE256Core], this allows for type interference and thus allows the user of the
+/// type to omit explicit type parameters when instantiating the type or using it.
+///
+/// The instantiation is based on the [InferKeyedHash] trait.
+///
 /// ```rust
 /// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256};
 /// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
@@ -84,7 +88,6 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 /// let data: [u8; 32] = [255; 32]; // arbitrary data, could also be longer
 /// // buffer for the hash output
 /// let mut hash_data: [u8; 32] = [0u8; HASH_LEN];
-/// // TODO: Note that we are using inferred hash here
 /// assert!(SHAKE256::new().keyed_hash(&key, &data, &mut hash_data).is_ok(), "Hashing has to return OK result");
 /// # let expected_hash: &[u8] = &[174, 4, 47, 188, 1, 228, 179, 246, 67, 43, 255, 94, 155, 11, 187,
 /// 161, 38, 110, 217, 23, 4, 62, 172, 30, 218, 187, 249, 80, 171, 21, 145, 238];
@@ -93,7 +96,9 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
     InferKeyedHash<SHAKE256Core<KEY_LEN, HASH_LEN>, KEY_LEN, HASH_LEN>;
 
-/// TODO: Documentation and more interesting test
+/// The SHAKE256_32 type is a specific instance of the [SHAKE256] type with the key length and hash
+/// length fixed to 32 bytes.
+///
 /// ```rust
 /// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256_32};
 /// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
