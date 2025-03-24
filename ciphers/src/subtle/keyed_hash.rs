@@ -1,9 +1,9 @@
 //! This module provides types that enabling choosing the keyed hash building block to be used at
 //! runtime (using enums) instead of at compile time (using generics).
 
-use std::fmt::Display;
 use anyhow::Result;
 use rosenpass_cipher_traits::primitives::KeyedHashInstance;
+use std::fmt::Display;
 
 use crate::subtle::{
     custom::incorrect_hmac_blake2b::IncorrectHmacBlake2b, rust_crypto::keyed_shake256::SHAKE256_32,
@@ -62,5 +62,4 @@ impl Display for KeyedHash {
             Self::IncorrectHmacBlake2b(_) => write!(f, "IncorrectHmacBlake2b"),
         }
     }
-    
 }

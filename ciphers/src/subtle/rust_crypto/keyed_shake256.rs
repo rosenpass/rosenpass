@@ -98,7 +98,7 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 
 /// The SHAKE256_32 type is a specific instance of the [SHAKE256] type with the key length and hash
 /// length fixed to 32 bytes.
-/// 
+///
 /// ```rust
 /// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256_32};
 /// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
