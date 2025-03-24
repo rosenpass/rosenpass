@@ -10,6 +10,7 @@ mod to;
 pub use crate::to::{
     beside::Beside, condense::CondenseBeside, dst_coercion::DstCoercion, to_function::to,
     to_trait::To, with_destination::with_destination,
+    to_trait::ToLifetime,
 };
 
 // Example use cases

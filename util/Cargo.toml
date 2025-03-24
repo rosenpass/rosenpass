@@ -23,7 +23,7 @@ thiserror = { workspace = true }
 mio = { workspace = true }
 tempfile = { workspace = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
-
+rosenpass-to = { path = "../to" }
 
 [features]
 experiment_file_descriptor_passing = ["uds"]

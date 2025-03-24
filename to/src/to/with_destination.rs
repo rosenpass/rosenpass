@@ -56,12 +56,12 @@ where
 /// See the tutorial in the [crate documentation](crate) for more examples and more explanations.
 /// # Example
 /// ```
-/// # use rosenpass_to::with_destination;
-/// use crate::rosenpass_to::To;
+/// use rosenpass_to::with_destination;
+/// use rosenpass_to::To;
 /// let my_origin_data: [u8; 16]= [2; 16];
 /// let times_two = with_destination( move |dst: &mut [u8; 16]| {
 ///     for (dst, org) in dst.iter_mut().zip(my_origin_data.iter()) {
-///         *dst = dst.clone() * org;
+///         *dst = org * dst.clone();
 ///     }
 /// });
 /// let mut dst: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];

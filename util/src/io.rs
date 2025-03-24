@@ -242,8 +242,9 @@
 //! ```
 
 use std::{borrow::Borrow, io};
-
+use std::io::Read;
 use anyhow::ensure;
+use rosenpass_to::{with_destination, To};
 
 /// Generic trait for accessing [std::io::Error::kind]
 ///
@@ -530,5 +531,54 @@ where
             "Read source longer than buffer"
         );
         Ok(())
+    }
+}
+
+/// Trait with methods to read until the end of the stream
+///
+/// [`ReadExactTilEnd::read_exact_til_end`]: trait.ReadExactTilEnd.html#method.read_exact_til_end
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::io::ReadExactTilEnd;
+/// use rosenpass_to::To;
+///
+/// let mut buf = [0u8; 4];
+///
+/// // Over or underlong buffer yields error
+/// assert!(b"12345".as_slice().read_exact_til_end().to(&mut buf).is_err());
+/// assert!(b"123".as_slice().read_exact_til_end().to(&mut buf).is_err());
+///
+/// // Buffer of precisely the right length leads to successful read
+/// assert!(b"1234".as_slice().read_exact_til_end().to(&mut buf).is_ok());
+/// ```
+pub trait ReadExactTilEnd: Read {
+    /// Read exactly the number of bytes in `buf` from this reader, failing if EOF is encountered 
+    /// before the buffer is filled or if there is more data in the reader after the buffer is filled.
+    ///
+    /// # Examples
+    /// ```
+    /// # use rosenpass_util::io::ReadExactTilEnd;
+    /// # use std::io::Cursor;
+    /// # use rosenpass_to::ToLifetime;
+    /// let mut buf = [0u8; 4];
+    /// assert!(b"12345".as_slice().read_exact_til_end().to(&mut buf).is_err());
+    /// assert!(b"123".as_slice().read_exact_til_end().to(&mut buf).is_err());
+    /// assert!(b"1234".as_slice().read_exact_til_end().to(&mut buf).is_ok());
+    /// ```
+    fn read_exact_til_end(&mut self) -> impl To<[u8], anyhow::Result<()>>;
+}
+
+impl<T: Read> ReadExactTilEnd for T {
+    fn read_exact_til_end(&mut self) -> impl To<[u8], anyhow::Result<()>> {
+        with_destination(move |buf: &mut [u8]| {
+            self.read_exact(buf)?;
+            anyhow::ensure!(
+                self.read(&mut [0u8; 8])? == 0,
+                "Found trailing data after reading whole buffer"
+            );
+            Ok(())
+        })
     }
 }

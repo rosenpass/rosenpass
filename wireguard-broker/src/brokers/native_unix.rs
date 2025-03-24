@@ -216,7 +216,10 @@ impl NativeUnixBrokerConfigBaseBuilder {
         peer_id: &str,
     ) -> Result<&mut Self, NativeUnixBrokerConfigBaseBuilderError> {
         let mut peer_id_b64 = Public::<WG_PEER_LEN>::zero();
-        b64_decode(peer_id.as_bytes(), &mut peer_id_b64.value).map_err(|_e| {
+        rosenpass_to::ToLifetime::to(
+            b64_decode(peer_id.as_bytes()),
+            &mut peer_id_b64.value
+        ).map_err(|_| {
             NativeUnixBrokerConfigBaseBuilderError::ValidationError(
                 "Failed to parse peer id b64".to_string(),
             )
