@@ -26,10 +26,10 @@ use std::borrow::BorrowMut;
 ///     fn to(self, out: &mut [u8]) -> Result<(), String> {
 ///         let bytes = self.inner.as_bytes();
 ///         if bytes.len() > out.len() {
-///             return Err("out is to short".to_string());
+///             return Err("out is too short".to_string());
 ///         }
 ///         for i in 0..bytes.len() {
-///             (*out)[i] = bytes[i];
+///             out[i] = bytes[i];
 ///         }
 ///         Ok(())
 ///     }
@@ -238,5 +238,103 @@ pub trait To<Dst: ?Sized, Ret>: Sized {
         Ret: CondenseBeside<Val>,
     {
         self.collect_beside::<Val>().condense()
+    }
+}
+
+/// A trait that allows writing self into a destination with a specific lifetime.
+pub trait ToLifetime<'a, Dst: ?Sized + 'a, Ret>: Sized {
+    /// Writes self to the destination `out` and returns a value of type `Ret`.
+    ///
+    /// This is the core method that must be implemented by all types implementing `ToLifetime`.
+    fn to(self, out: &'a mut Dst) -> Ret;
+
+    /// Generate a destination on the fly with a lambda.
+    ///
+    /// Calls the provided closure to create a value,
+    /// calls [crate::to()] to evaluate the function and finally
+    /// returns a [Beside] instance containing the generated destination value and the return
+    /// value.
+    fn to_this_beside<Val, Fun>(self, fun: Fun) -> Beside<Val, Ret>
+    where
+        Val: BorrowMut<Dst> + 'a,
+        Fun: FnOnce() -> Val,
+        Dst: 'a,
+    {
+        let mut val = fun();
+        // This cast ensures we're getting a reference with the right lifetime
+        let dst_ref: &'a mut Dst = unsafe { std::mem::transmute(val.borrow_mut()) };
+        let ret = self.to(dst_ref);
+        Beside(val, ret)
+    }
+
+    /// Generate a destination on the fly using default.
+    ///
+    /// Uses [Default] to create a value, calls [crate::to()] to evaluate the function and finally
+    /// returns a [Beside] instance containing the generated destination value and the return
+    /// value.
+    fn to_value_beside(self) -> Beside<Dst, Ret>
+    where
+        Dst: Sized + Default,
+    {
+        self.to_this_beside(|| Dst::default())
+    }
+
+    /// Generate a destination on the fly using default and a custom storage type.
+    ///
+    /// Uses [Default] to create a value of the given type,
+    /// calls [crate::to()] to evaluate the function and finally
+    /// returns a [Beside] instance containing the generated destination value and the return
+    /// value.
+    fn collect_beside<Val>(self) -> Beside<Val, Ret>
+    where
+        Val: Default + BorrowMut<Dst> + 'a,
+    {
+        self.to_this_beside(|| Val::default())
+    }
+
+    /// Generate a destination on the fly with a lambda, condensing the destination and the
+    /// return value into one.
+    ///
+    /// This is like using [Self::to_this_beside] followed by calling [Beside::condense].
+    fn to_this<Val, Fun>(self, fun: Fun) -> <Ret as CondenseBeside<Val>>::Condensed
+    where
+        Ret: CondenseBeside<Val>,
+        Val: BorrowMut<Dst> + 'a,
+        Fun: FnOnce() -> Val,
+    {
+        self.to_this_beside(fun).condense()
+    }
+
+    /// Generate a destination on the fly using default, condensing the destination and the
+    /// return value into one.
+    ///
+    /// This is like using [Self::to_value_beside] followed by calling [Beside::condense].
+    fn to_value(self) -> <Ret as CondenseBeside<Dst>>::Condensed
+    where
+        Dst: Sized + Default,
+        Ret: CondenseBeside<Dst>,
+    {
+        self.to_value_beside().condense()
+    }
+
+    /// Generate a destination on the fly using default, condensing the destination and the
+    /// return value into one.
+    ///
+    /// This is like using [Self::collect_beside] followed by calling [Beside::condense].
+    fn collect<Val>(self) -> <Ret as CondenseBeside<Val>>::Condensed
+    where
+        Val: Default + BorrowMut<Dst> + 'a,
+        Ret: CondenseBeside<Val>,
+    {
+        self.collect_beside::<Val>().condense()
+    }
+}
+
+impl<'a, T, Dst: ?Sized + 'a, Ret> ToLifetime<'a, Dst, Ret> for T
+where
+    T: To<Dst, Ret>,
+{
+    fn to(self, out: &'a mut Dst) -> Ret {
+        To::to(self, out)
     }
 }

@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Read;
 use std::os::unix::fs::OpenOptionsExt;
 use std::{fs::OpenOptions, path::Path};
+use rosenpass_to::{with_destination, To};
 
 /// Level of secrecy applied for a file
 pub enum Visibility {
@@ -64,123 +65,78 @@ pub fn fopen_r<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
         .open(path)
 }
 
-/// Extension trait for [std::io::Read] adding [read_slice_to_end]
-pub trait ReadSliceToEnd {
-    /// Error type returned by functions in this trait
-    type Error;
-
-    /// Read slice asserting that the length of the data to read is at most
-    /// as long as the buffer to read into
+/// Trait for reading data from a file into a slice
+pub trait ReadSliceToEnd: Read {
+    /// Read as much data from the file as will fit in `buf`.
     ///
-    /// Note that this *may* append data read to [buf] even if the function fails,
-    /// so the caller should make no assumptions about the contents of the buffer
-    /// after calling read_slice_to_end if the result is an error.
-    ///
+    /// Returns the number of bytes written.
+    /// If the file contains more data than fit in the buffer, an error is returned.
+    /// 
     /// # Examples
     ///
     /// ```
-    /// use rosenpass_util::file::ReadSliceToEnd;
-    ///
-    /// const DATA : &[u8] = b"Hello World";
-    ///
-    /// // It is OK if file and buffer are equally long
-    /// let mut buf = vec![b' '; 11];
-    /// let res = Clone::clone(&DATA).read_slice_to_end(&mut buf[..DATA.len()]);
-    /// assert!(res.is_ok());  // Read is overlong
-    /// assert_eq!(buf, DATA); // Finally, data was successfully read
-    ///
-    /// // It is OK if the buffer is longer than the file
-    /// let mut buf = vec![b' '; 16];
-    /// let res = Clone::clone(&DATA).read_slice_to_end(&mut buf);
-    /// assert!(matches!(res, Ok(11)));
-    /// assert_eq!(buf, b"Hello World     "); // Data was still read to the buffer!
-    ///
-    /// // It is not OK if the buffer is shorter than the file
-    /// let mut buf = vec![b' '; 5];
-    /// let res = Clone::clone(&DATA).read_slice_to_end(&mut buf);
-    /// assert!(res.is_err());
-    ///
-    /// // THE BUFFER MAY STILL BE FILLED THOUGH, BUT THIS IS NOT GUARANTEED
-    /// assert_eq!(buf, b"Hello"); // Data was still read to the buffer!
-    ///
-    /// Ok::<(), std::io::Error>(())
+    /// # use std::io::Cursor;
+    /// # use rosenpass_util::file::ReadSliceToEnd;
+    /// # let DATA = b"Hello World";
+    /// # let mut file = Cursor::new(DATA);
+    /// let mut buf = [0u8; 11];
+    /// let res = Clone::clone(&DATA).read_slice_to_end().to(&mut buf);
+    /// assert_eq!(res.unwrap(), 11);
+    /// assert_eq!(&buf, b"Hello World");
     /// ```
-    fn read_slice_to_end(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error>;
+    fn read_slice_to_end(&mut self) -> impl To<[u8], anyhow::Result<usize>>;
 }
 
-impl<R: Read> ReadSliceToEnd for R {
-    type Error = anyhow::Error;
-
-    fn read_slice_to_end(&mut self, buf: &mut [u8]) -> anyhow::Result<usize> {
-        let mut dummy = [0u8; 8];
-        let mut read = 0;
-        while read < buf.len() {
-            let bytes_read = self.read(&mut buf[read..])?;
-            if bytes_read == 0 {
-                break;
+impl<T: Read> ReadSliceToEnd for T {
+    fn read_slice_to_end(&mut self) -> impl To<[u8], anyhow::Result<usize>> {
+        with_destination(move |buf: &mut [u8]| {
+            let mut read = 0;
+            loop {
+                let bytes_read = self.read(&mut buf[read..])?;
+                if bytes_read == 0 {
+                    break;
+                }
+                read += bytes_read;
+                if read == buf.len() {
+                    break;
+                }
             }
-            read += bytes_read;
-        }
-        ensure!(self.read(&mut dummy)? == 0, "File too long!");
-        Ok(read)
+            let mut dummy = [0u8; 1];
+            ensure!(self.read(&mut dummy)? == 0, "File too long!");
+            Ok(read)
+        })
     }
 }
 
-/// Extension trait for [std::io::Read] adding [read_exact_to_end]
-pub trait ReadExactToEnd {
-    /// Error type returned by functions in this trait
-    type Error;
-
-    /// Read slice asserting that the length of the data to be read
-    /// and the buffer are exactly the same length.
+/// Trait for reading data from a file into a slice
+pub trait ReadExactToEnd: Read {
+    /// Read exactly as much data from the file as will fit in `buf`.
     ///
-    /// Note that this *may* append data read to [buf] even if the function fails,
-    /// so the caller should make no assumptions about the contents of the buffer
-    /// after calling read_exact_to_end if the result is an error.
-    ///
+    /// If the file contains more data or less data than fit in the buffer, an error is returned.
+    /// 
     /// # Examples
     ///
     /// ```
-    /// use rosenpass_util::file::ReadExactToEnd;
-    ///
-    /// const DATA : &[u8] = b"Hello World";
-    ///
-    /// // It is OK if file and buffer are equally long
-    /// let mut buf = vec![b' '; 11];
-    /// let res = Clone::clone(&DATA).read_exact_to_end(&mut buf[..DATA.len()]);
-    /// assert!(res.is_ok());  // Read is overlong
-    /// assert_eq!(buf, DATA); // Finally, data was successfully read
-    ///
-    /// // It is not OK if the buffer is longer than the file
-    /// let mut buf = vec![b' '; 16];
-    /// let res = Clone::clone(&DATA).read_exact_to_end(&mut buf);
-    /// assert!(res.is_err());
-    ///
-    /// // THE BUFFER MAY STILL BE FILLED THOUGH, BUT THIS IS NOT GUARANTEED
-    /// // The read implementation for &[u8] happens not to do this
-    /// assert_eq!(buf, b"                "); // Data was still read to the buffer!
-    ///
-    /// // It is not OK if the buffer is shorter than the file
-    /// let mut buf = vec![b' '; 5];
-    /// let res = Clone::clone(&DATA).read_exact_to_end(&mut buf);
-    /// assert!(res.is_err());
-    ///
-    /// // THE BUFFER MAY STILL BE FILLED THOUGH, BUT THIS IS NOT GUARANTEED
-    /// assert_eq!(buf, b"Hello"); // Data was still read to the buffer!
-    ///
-    /// Ok::<(), std::io::Error>(())
+    /// # use std::io::Cursor;
+    /// # use rosenpass_util::file::ReadExactToEnd;
+    /// # let DATA = b"Hello World";
+    /// # let mut file = Cursor::new(DATA);
+    /// let mut buf = [0u8; 11];
+    /// let res = Clone::clone(&DATA).read_exact_to_end().to(&mut buf);
+    /// assert!(res.is_ok());
+    /// assert_eq!(&buf, b"Hello World");
     /// ```
-    fn read_exact_to_end(&mut self, buf: &mut [u8]) -> Result<(), Self::Error>;
+    fn read_exact_to_end(&mut self) -> impl To<[u8], anyhow::Result<()>>;
 }
 
-impl<R: Read> ReadExactToEnd for R {
-    type Error = anyhow::Error;
-
-    fn read_exact_to_end(&mut self, buf: &mut [u8]) -> anyhow::Result<()> {
-        let mut dummy = [0u8; 8];
-        self.read_exact(buf)?;
-        ensure!(self.read(&mut dummy)? == 0, "File too long!");
-        Ok(())
+impl<T: Read> ReadExactToEnd for T {
+    fn read_exact_to_end(&mut self) -> impl To<[u8], anyhow::Result<()>> {
+        with_destination(move |buf: &mut [u8]| {
+            self.read_exact(buf)?;
+            let mut dummy = [0u8; 1];
+            ensure!(self.read(&mut dummy)? == 0, "File too long!");
+            Ok(())
+        })
     }
 }
 
@@ -418,7 +374,7 @@ mod tests {
         file.write_all(b"test").unwrap();
         let mut buf = [0u8; 4];
         let mut file = fopen_r(path).unwrap();
-        file.read_slice_to_end(&mut buf).unwrap();
+        file.read_slice_to_end().to(&mut buf).unwrap();
         assert_eq!(buf, [116, 101, 115, 116]);
     }
 
@@ -430,7 +386,7 @@ mod tests {
         file.write_all(b"test").unwrap();
         let mut buf = [0u8; 4];
         let mut file = fopen_r(path).unwrap();
-        file.read_exact_to_end(&mut buf).unwrap();
+        file.read_exact_to_end().to(&mut buf).unwrap();
         assert_eq!(buf, [116, 101, 115, 116]);
     }
 
@@ -442,7 +398,7 @@ mod tests {
         file.write_all(b"test").unwrap();
         let mut buf = [0u8; 3];
         let mut file = fopen_r(path).unwrap();
-        let result = file.read_exact_to_end(&mut buf);
+        let result = file.read_exact_to_end().to(&mut buf);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "File too long!");
     }
@@ -455,7 +411,7 @@ mod tests {
         file.write_all(b"test").unwrap();
         let mut buf = [0u8; 3];
         let mut file = fopen_r(path).unwrap();
-        let result = file.read_slice_to_end(&mut buf);
+        let result = file.read_slice_to_end().to(&mut buf);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "File too long!");
     }

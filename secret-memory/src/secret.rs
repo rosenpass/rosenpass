@@ -20,6 +20,7 @@ use crate::file::StoreSecret;
 
 use rosenpass_util::file::{fopen_w, Visibility};
 use std::io::Write;
+use rosenpass_to::ToLifetime;
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
 // be reused…
@@ -296,10 +297,10 @@ impl<const N: usize> LoadValue for Secret<N> {
     // No extra documentation here because the Trait already provides a good documentation.
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let mut v = Self::random();
-        let p = path.as_ref();
-        fopen_r(p)?
-            .read_exact_to_end(v.secret_mut())
-            .with_context(|| format!("Could not load file {p:?}"))?;
+        fopen_r(path)?
+            .read_exact_to_end()
+            .to(v.secret_mut())
+            .with_context(|| "Failed to read file")?;
         Ok(v)
     }
 }
@@ -313,11 +314,13 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
         let mut v = Self::random();
         let p = path.as_ref();
 
-        let len = fopen_r(p)?
-            .read_slice_to_end(f.secret_mut())
-            .with_context(|| format!("Could not load file {p:?}"))?;
+        let len = fopen_r(p).with_context(|| format!("Could not load file {p:?}"))?
+            .read_slice_to_end()
+            .to(f.secret_mut())
+            .with_context(|| format!("Could not read file {p:?}"))?;
 
-        b64_decode(&f.secret()[0..len], v.secret_mut())
+        b64_decode(&f.secret()[0..len])
+            .to(v.secret_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -330,16 +333,15 @@ impl<const N: usize> StoreValueB64 for Secret<N> {
     // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let p = path.as_ref();
-
         let mut f: Secret<F> = Secret::random();
-        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+        let encoded = b64_encode(self.secret())
+            .to(f.secret_mut())
             .with_context(|| format!("Could not encode base64 file {p:?}"))?;
-
         fopen_w(p, Visibility::Secret)?
-            .write_all(encoded_str.as_bytes())
+            .write_all(encoded.as_bytes())
             .with_context(|| format!("Could not write file {p:?}"))?;
-        f.zeroize();
 
+        f.zeroize();
         Ok(())
     }
 }
@@ -350,7 +352,8 @@ impl<const N: usize> StoreValueB64Writer for Secret<N> {
     // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64_writer<const F: usize, W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
         let mut f: Secret<F> = Secret::random();
-        let encoded_str = b64_encode(self.secret(), f.secret_mut())
+        let encoded_str = b64_encode(self.secret())
+            .to(f.secret_mut())
             .with_context(|| "Could not encode secret to base64")?;
 
         writer
@@ -448,7 +451,9 @@ mod test {
 
             // Store the original secret to an example file in the temporary directory
             let example_file = temp_dir.path().join("example_file");
-            std::fs::write(&example_file, original_bytes).unwrap();
+            let mut encoded_secret = [0u8; N * 2];
+            let encoded_secret = b64_encode(&original_bytes).to(&mut encoded_secret).unwrap();
+            std::fs::write(&example_file, encoded_secret).unwrap();
 
             // Load the secret from the example file
             let loaded_secret = Secret::load(&example_file).unwrap();
@@ -483,8 +488,7 @@ mod test {
             let temp_dir = tempdir().unwrap();
             let example_file = temp_dir.path().join("example_file");
             let mut encoded_secret = [0u8; N * 2];
-            let encoded_secret = b64_encode(&original_bytes, &mut encoded_secret).unwrap();
-
+            let encoded_secret = b64_encode(&original_bytes).to(&mut encoded_secret).unwrap();
             std::fs::write(&example_file, encoded_secret).unwrap();
 
             // Load the secret from the example file

@@ -4,9 +4,9 @@
 //! drops, discarding results, and swapping values.
 
 use std::borrow::{Borrow, BorrowMut};
-use std::cmp::min;
 use std::mem::{forget, swap};
 use std::ops::{Deref, DerefMut};
+use rosenpass_to::{with_destination, To};
 
 // TODO: Zeroize result?
 /// Concatenate multiple byte slices into a fixed-size byte array.
@@ -45,42 +45,42 @@ macro_rules! cat {
 }
 
 // TODO: consistent inout ordering
-/// Copy bytes from `src` to `dst`, requiring equal lengths.
-///
-/// # Panics
-///
-/// Panics if lengths differ.
+/// Copy all bytes from `src` to `dst`
 ///
 /// # Examples
 ///
-/// ```rust
-/// use rosenpass_util::mem::cpy;
-/// let src = [1, 2, 3];
-/// let mut dst = [0; 3];
-/// cpy(&src, &mut dst);
-/// assert_eq!(dst, [1, 2, 3]);
 /// ```
-pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
-    dst.borrow_mut().copy_from_slice(src.borrow());
+/// use rosenpass_util::mem::cpy;
+/// let src = [1, 2, 3, 4];
+/// let mut dst = [0; 4];
+/// cpy(&src).to(&mut dst);
+/// assert_eq!(dst, [1, 2, 3, 4]);
+/// ```
+pub fn cpy<'a, F: Borrow<[u8]> + ?Sized>(src: &'a F) -> impl To<[u8], ()> + 'a {
+    with_destination(move |dst: &mut [u8]| {
+        let src_slice = src.borrow();
+        assert_eq!(src_slice.len(), dst.len());
+        dst.copy_from_slice(src_slice);
+    })
 }
 
-/// Copy from `src` to `dst`. If `src` and `dst` are not of equal length,
-/// copy as many bytes as possible.
+/// Copy as many bytes as possible from `src` to `dst`
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
 /// use rosenpass_util::mem::cpy_min;
 /// let src = [1, 2, 3, 4];
-/// let mut dst = [0; 2];
-/// cpy_min(&src, &mut dst);
-/// assert_eq!(dst, [1, 2]);
+/// let mut dst = [0; 3];
+/// cpy_min(&src).to(&mut dst);
+/// assert_eq!(dst, [1, 2, 3]);
 /// ```
-pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: &mut T) {
-    let src = src.borrow();
-    let dst = dst.borrow_mut();
-    let len = min(src.len(), dst.len());
-    dst[..len].copy_from_slice(&src[..len]);
+pub fn cpy_min<'a, F: Borrow<[u8]> + ?Sized>(src: &'a F) -> impl To<[u8], ()> + 'a {
+    with_destination(move |dst: &mut [u8]| {
+        let src_slice = src.borrow();
+        let count = std::cmp::min(src_slice.len(), dst.len());
+        dst[..count].copy_from_slice(&src_slice[..count]);
+    })
 }
 
 /// Wrapper type to inhibit calling [std::mem::Drop] when the underlying
