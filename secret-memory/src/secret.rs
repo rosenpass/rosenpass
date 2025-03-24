@@ -442,18 +442,14 @@ mod test {
     fn test_secret_load_store() {
         test_spawn_process_provided_policies!({
             const N: usize = 100;
-
             // Generate original random bytes
             let original_bytes: [u8; N] = [rand::random(); N];
-
             // Create a temporary directory
             let temp_dir = tempdir().unwrap();
 
             // Store the original secret to an example file in the temporary directory
             let example_file = temp_dir.path().join("example_file");
-            let mut encoded_secret = [0u8; N * 2];
-            let encoded_secret = b64_encode(&original_bytes).to(&mut encoded_secret).unwrap();
-            std::fs::write(&example_file, encoded_secret).unwrap();
+            std::fs::write(&example_file, &original_bytes).unwrap();
 
             // Load the secret from the example file
             let loaded_secret = Secret::load(&example_file).unwrap();

@@ -77,10 +77,11 @@ pub trait ReadSliceToEnd: Read {
     /// ```
     /// # use std::io::Cursor;
     /// # use rosenpass_util::file::ReadSliceToEnd;
-    /// # let DATA = b"Hello World";
-    /// # let mut file = Cursor::new(DATA);
+    /// # use rosenpass_to::To;
+    /// let data = b"Hello World";
+    /// let mut reader = Cursor::new(data);
     /// let mut buf = [0u8; 11];
-    /// let res = Clone::clone(&DATA).read_slice_to_end().to(&mut buf);
+    /// let res = reader.read_slice_to_end().to(&mut buf);
     /// assert_eq!(res.unwrap(), 11);
     /// assert_eq!(&buf, b"Hello World");
     /// ```
@@ -119,11 +120,12 @@ pub trait ReadExactToEnd: Read {
     /// ```
     /// # use std::io::Cursor;
     /// # use rosenpass_util::file::ReadExactToEnd;
-    /// # let DATA = b"Hello World";
-    /// # let mut file = Cursor::new(DATA);
+    /// # use rosenpass_to::To;
+    /// let data = b"Hello World";
+    /// let mut reader = Cursor::new(data);
     /// let mut buf = [0u8; 11];
-    /// let res = Clone::clone(&DATA).read_exact_to_end().to(&mut buf);
-    /// assert!(res.is_ok());
+    /// let res = reader.read_exact_to_end().to(&mut buf);
+    /// assert_eq!(res.unwrap(), ());
     /// assert_eq!(&buf, b"Hello World");
     /// ```
     fn read_exact_to_end(&mut self) -> impl To<[u8], anyhow::Result<()>>;
@@ -154,6 +156,7 @@ pub trait LoadValue {
     /// use std::io::Write;
     /// use tempfile::tempdir;
     /// use rosenpass_util::file::{fopen_r, fopen_w, LoadValue, ReadExactToEnd, StoreValue, Visibility};
+    /// use rosenpass_to::{To as ToTrait, ToLifetime};
     ///
     /// #[derive(Debug, PartialEq, Eq)]
     /// struct MyInt(pub u32);
@@ -175,7 +178,8 @@ pub trait LoadValue {
     ///         Self: Sized,
     ///     {
     ///         let mut b = [0u8; 4];
-    ///         fopen_r(path)?.read_exact_to_end(&mut b)?;
+    ///         let mut file = fopen_r(path)?;
+    ///         ToTrait::to(file.read_exact_to_end(), &mut b)?;
     ///         Ok(MyInt(u32::from_le_bytes(b)))
     ///     }
     /// }
@@ -213,6 +217,8 @@ pub trait LoadValueB64 {
     ///     fopen_r, fopen_w, LoadValueB64, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
     ///     Visibility,
     /// };
+    /// use rosenpass_to::{to, ToLifetime};
+    /// use crate::rosenpass_util::file::ReadExactToEnd;
     ///
     /// #[derive(Debug, PartialEq, Eq)]
     /// struct MyInt(pub u32);
@@ -228,7 +234,7 @@ pub trait LoadValueB64 {
     ///         // that this API is currently, entirely shit in terms of
     ///         // how it deals with buffer lengths.
     ///         let mut buf = [0u8; F];
-    ///         let b64 = b64_encode(&self.0.to_le_bytes(), &mut buf)?;
+    ///         let b64 = b64_encode(&self.0.to_le_bytes()).to(&mut buf)?;
     ///         writer.write_all(b64.as_bytes())?;
     ///         Ok(())
     ///     }
@@ -255,11 +261,13 @@ pub trait LoadValueB64 {
     ///     {
     ///         // The buffer length is kind of an upper bound
     ///         let mut b64_buf = [0u8; F];
-    ///         let b64_len = fopen_r(path)?.read_slice_to_end(&mut b64_buf)?;
+    ///         let mut file = fopen_r(path)?;
+    ///         // Changed from read_exact_to_end to read_slice_to_end to get valid byte count
+    ///         let b64_len = file.read_slice_to_end().to(&mut b64_buf)?;
     ///         let b64_dat = &b64_buf[..b64_len];
-    ///
+
     ///         let mut buf = [0u8; 4];
-    ///         b64_decode(b64_dat, &mut buf)?;
+    ///         b64_decode(b64_dat).to(&mut buf)?;
     ///         Ok(MyInt(u32::from_le_bytes(buf)))
     ///     }
     /// }

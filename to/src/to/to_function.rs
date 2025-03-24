@@ -10,10 +10,10 @@ use crate::{DstCoercion, To};
 ///
 /// # Example
 /// ```rust
-/// // Using the to function to have data flowing from the right to the left,
-/// // performing something akin to a variable assignment.
 /// use rosenpass_to::ops::copy_slice_least;
 /// use rosenpass_to::to;
+/// // Added import for the trait implementation of `to`
+/// use rosenpass_to::To;
 /// 
 /// let mut dst = b"           ".to_vec();
 /// to(&mut dst[..], copy_slice_least(b"Hello World"));

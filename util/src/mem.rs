@@ -49,8 +49,10 @@ macro_rules! cat {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use rosenpass_util::mem::cpy;
+/// use rosenpass_to::To;
+///
 /// let src = [1, 2, 3, 4];
 /// let mut dst = [0; 4];
 /// cpy(&src).to(&mut dst);
@@ -68,8 +70,10 @@ pub fn cpy<'a, F: Borrow<[u8]> + ?Sized>(src: &'a F) -> impl To<[u8], ()> + 'a {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use rosenpass_util::mem::cpy_min;
+/// use rosenpass_to::To;
+///
 /// let src = [1, 2, 3, 4];
 /// let mut dst = [0; 3];
 /// cpy_min(&src).to(&mut dst);

@@ -66,7 +66,13 @@ pub fn b64_decode(input: &[u8]) -> impl To<[u8], anyhow::Result<()>> + '_ {
             return Ok(()); // Handle empty input gracefully
         }
         let mut reader = B64Reader::<Base64>::new(input).map_err(|e| anyhow::anyhow!(e))?;
-        reader.decode(output).map_err(|e| anyhow::anyhow!(e))?;
+        match reader.decode(output){
+            Ok(_) => (),
+            Err(base64ct::Error::InvalidLength) => (),
+            Err(e) => {
+                return Err(anyhow::anyhow!(e));
+        }
+        }
         if !reader.is_finished() {
             return Err(anyhow::anyhow!("buffer size too small"));
         }
@@ -76,8 +82,9 @@ pub fn b64_decode(input: &[u8]) -> impl To<[u8], anyhow::Result<()>> + '_ {
 
 /// Encode a value as base64.
 ///
-/// ```
+/// ```rust
 /// use rosenpass_util::b64::{b64_encode, b64_decode};
+/// use rosenpass_to::{To, ToLifetime};
 ///
 /// let bytes = b"Hello World";
 ///
@@ -85,7 +92,7 @@ pub fn b64_decode(input: &[u8]) -> impl To<[u8], anyhow::Result<()>> + '_ {
 /// let encoded = b64_encode(bytes).to(&mut encoder_buffer)?;
 ///
 /// let mut bytes_decoded = [0u8; 11];
-/// b64_decode(encoded.as_bytes()).to(&mut bytes_decoded)?;
+/// To::to(b64_decode(encoded.as_bytes()), &mut bytes_decoded)?;
 /// assert_eq!(bytes, &bytes_decoded);
 ///
 /// Ok::<(), anyhow::Error>(())
