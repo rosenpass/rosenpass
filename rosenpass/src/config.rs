@@ -791,9 +791,18 @@ mod test {
         let mut peer_v_03 = RosenpassPeer::default();
         peer_v_03.protocol_version = ProtocolVersion::V03;
         rosenpass.peers.push(peer_v_03);
+        
+        rosenpass.api.listen_fd = vec![];
+        rosenpass.api.listen_path = vec![];
+        rosenpass.api.stream_fd = vec![];
 
         let expected_toml = r#"listen = []
           verbosity = "Quiet"
+          
+          [api]
+          listen_fd = []
+          listen_path = []
+          stream_fd = []
 
           [[peers]]
           protocol_version = "V02"
