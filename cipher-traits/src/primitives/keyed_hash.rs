@@ -13,7 +13,7 @@ pub trait KeyedHash<const KEY_LEN: usize, const HASH_LEN: usize> {
     ) -> Result<(), Self::Error>;
 }
 
-/// Models a keyed hash function using using a method (i.e. with a `&self` receiver).
+/// Models a keyed hash function using a method (i.e. with a `&self` receiver).
 ///
 /// This makes type inference easier, but also requires having a [`KeyedHashInstance`] value,
 /// instead of just the [`KeyedHash`] type.

@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use heck::ToShoutySnakeCase;
 
 use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
-use rosenpass_ciphers::subtle::keyed_shake256::SHAKE256Core;
 use rosenpass_ciphers::{hash_domain::HashDomain, KEY_LEN};
 
 /// Recursively calculate a concrete hash value for an API message type
@@ -32,7 +31,7 @@ fn print_literal(path: &[&str], shake_or_blake: KeyedHash) -> Result<()> {
         .map(|chunk| chunk.iter().collect::<String>())
         .collect::<Vec<_>>();
     println!("const {var_name} : RawMsgType = RawMsgType::from_le_bytes(hex!(\"{} {} {} {}    {} {} {} {}\"));",
-             c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+        c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
 
     Ok(())
 }

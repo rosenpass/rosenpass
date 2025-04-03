@@ -117,8 +117,6 @@ impl HashDomainNamespace {
 }
 
 impl SecretHashDomain {
-    // XXX: Why is the old hash still used unconditionally?
-    //
     /// Create a new [SecretHashDomain] with the given key `k` and data `d` by calling
     /// [hash::hash] with `k` as the `key` and `d` s the `data`, and using the result
     /// as the content for the new [SecretHashDomain].
@@ -133,7 +131,7 @@ impl SecretHashDomain {
         hash_choice
             .keyed_hash_to(k.try_into()?, d)
             .to(new_secret_key.secret_mut())?;
-        let mut r = SecretHashDomain(new_secret_key, hash_choice);
+        let r = SecretHashDomain(new_secret_key, hash_choice);
         Ok(r)
     }
 
@@ -177,23 +175,6 @@ impl SecretHashDomain {
         self.0
     }
 
-    /* XXX: This code was calling the specific hmac-blake2b code as well as the new KeyedHash enum
-     * (f.k.a. EitherHash). I was confused by the way the code used the local variables, because it
-     * didn't match the code. I made the code match the documentation, but I'm not sure that is
-     * correct. Either way, it doesn't look like this is used anywhere. Maybe just remove it?
-     *
-     *  /// Evaluate [hash::hash] with this [SecretHashDomain]'s data as the `key` and
-     *  /// `dst` as the `data` and stores the result as the new data for this [SecretHashDomain].
-     *  pub fn into_secret_slice(mut self, v: &[u8; KEY_LEN], dst: &[u8; KEY_LEN]) -> Result<()> {
-     *      let SecretHashDomain(secret, hash_choice) = &self;
-     *
-     *      let mut new_secret = Secret::zero();
-     *      hash_choice.keyed_hash_to(secret.secret(), dst).to(new_secret.secret_mut())?;
-     *      self.0 = new_secret;
-     *
-     *      Ok(())
-     *  }
-     */
 }
 
 impl SecretHashDomainNamespace {
@@ -223,7 +204,7 @@ impl SecretHashDomainNamespace {
         self.0
     }
 
-    pub fn shake_or_blake(&self) -> &KeyedHash {
+    pub fn keyed_hash(&self) -> &KeyedHash {
         &self.1
     }
 }

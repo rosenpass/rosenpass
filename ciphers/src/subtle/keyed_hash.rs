@@ -31,6 +31,7 @@ impl KeyedHash {
         Self::KeyedShake256(Default::default())
     }
 
+    /// Creates an [`KeyedHash`] backed by Blake2B.
     pub fn incorrect_hmac_blake2b() -> Self {
         Self::IncorrectHmacBlake2b(Default::default())
     }
