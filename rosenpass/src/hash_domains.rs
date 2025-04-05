@@ -100,9 +100,8 @@ macro_rules! hash_domain {
 /// This serves as a global [domain separator](https://en.wikipedia.org/wiki/Domain_separation)
 /// used in various places in the rosenpass protocol.
 ///
-/// This is generally used to create further hash-domains for specific purposes. See
-///
-/// TODO: Update documentation
+/// This is generally used to create further hash-domains for specific purposes. Depending on
+/// the used hash function, the protocol string is different.
 ///
 /// # Examples
 ///
@@ -110,7 +109,7 @@ macro_rules! hash_domain {
 ///
 /// See the [module](self) documentation on how to use the hash domains in general
 pub fn protocol(hash_choice: KeyedHash) -> Result<HashDomain> {
-    // TODO: Update this string that is mixed in?
+    // Depending on the hash function, we use different protocol strings
     match hash_choice {
         KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice)
             .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
