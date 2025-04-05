@@ -115,7 +115,7 @@ pub fn protocol(hash_choice: KeyedHash) -> Result<HashDomain> {
         KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice)
             .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
         KeyedHash::IncorrectHmacBlake2b(_) => HashDomain::zero(hash_choice)
-            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 Blake2b".as_bytes()),
+            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes()),
     }
 }
 
