@@ -174,7 +174,6 @@ impl SecretHashDomain {
     pub fn into_secret(self) -> Secret<KEY_LEN> {
         self.0
     }
-
 }
 
 impl SecretHashDomainNamespace {
