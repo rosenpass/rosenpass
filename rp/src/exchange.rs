@@ -25,6 +25,7 @@ pub struct ExchangePeer {
     /// The IPs that are allowed for this peer.
     pub allowed_ips: Option<String>,
     /// The protocol version used by the peer.
+    #[serde(default)]
     pub protocol_version: ProtocolVersion,
 }
 
