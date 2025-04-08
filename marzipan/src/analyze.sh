@@ -10,7 +10,7 @@ run_proverif() {
   #local log; log="$1"; shift
   #exc proverif -test "${@}" "${file}" 2>&1
 
-  exc rosenpass-marzipan run_proverif "${file}" "${@}"
+  exc rosenpass-marzipan run-proverif "${file}" "${@}"
 }
 
 clean_warnings() {
@@ -145,6 +145,7 @@ analyze() {
 
 err_usage() {
     echo >&1 "USAGE: ${0} analyze PATH"
+    echo >&1 "The script will cd into PATH and continue there."
     exit 1
 }
 

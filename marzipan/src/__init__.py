@@ -18,9 +18,14 @@ def exc(argv, **kwargs):
 @click.command()
 @click.argument("file")
 @click.argument("log")
-@click.argument("extra_args")
-def run_proverif(file, log, extra_args):
-    return exc(["proverif", "-test", *extra_args, file], stderr=pkgs.sys.stderr)
+@click.argument("extra_args", required=False)
+def run_proverif(file, log, extra_args=[]):
+    if extra_args is None:
+        extra_args = []
+    params = ["proverif", "-test", *extra_args, file]
+    print(params)
+    eprint(params)
+    return exc(params, stderr=pkgs.sys.stderr)
 
 
 def clean_warnings():

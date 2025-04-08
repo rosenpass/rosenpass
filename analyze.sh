@@ -33,7 +33,7 @@ clean_warnings() {
       }
       { bod(); }
       END { $0=null; bod(); }
-    '
+    ' 
 }
 
 color_red='\033[0;31m'
@@ -71,7 +71,7 @@ pretty_output() {
   readarray -t -O "${#descs[@]}" descs < <(
     < "$file" grep -Po '@(query|reachable)\s+"[^\"]*"' \
       | sed 's/@\w\+\s\+//; s/"//g')
-
+  
   local outp ctr res ta tz; ctr=0; res=0; ta="$(date +%s)"
   while read -r outp; do
     tz="$(date +%s)"
@@ -99,7 +99,7 @@ metaverif() {
 
   local awk_prep; awk_prep="${tmpdir}/${name}.o.pv"
   {
-    exc awk -f marzipan/marzipan.awk "${cpp_prep}"
+    exc awk -f marzipan/marzipan.awk "${cpp_prep}" 
     echo -e "\nprocess main"
   } > "${awk_prep}"
 
@@ -125,14 +125,14 @@ metaverif() {
 
 main() {
   set -e -o pipefail
-  cd -- "$( dirname -- "${BASH_SOURCE[0]}" )"
+  cd "$(dirname "$0")"
   tmpdir="target/proverif"
   mkdir -p "${tmpdir}"
 
   entries=()
   readarray -t -O "${#entries[@]}" entries < <(
     find analysis -iname '*.entry.mpv' | sort)
-
+  
   local entry
   local procs; procs=()
   for entry in "${entries[@]}"; do
@@ -144,5 +144,4 @@ main() {
   done
 }
 
-# Do not execute main if sourced
-(return 0 2>/dev/null) || main "$@"
+main "$@"
