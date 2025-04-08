@@ -6,9 +6,11 @@ exc() {
 }
 
 run_proverif() {
-  local file; file="$1"; shift
-  local log; log="$1"; shift
-  exc proverif -test "${@}" "${file}" 2>&1
+  #local file; file="$1"; shift
+  #local log; log="$1"; shift
+  #exc proverif -test "${@}" "${file}" 2>&1
+
+  exc rosenpass-marzipan run_proverif "${file}" "${@}"
 }
 
 clean_warnings() {
@@ -123,10 +125,7 @@ metaverif() {
   }
 }
 
-main() {
-  set -e -o pipefail
-  cd -- "$( dirname -- "${BASH_SOURCE[0]}" )"
-  tmpdir="target/proverif"
+analyze() {
   mkdir -p "${tmpdir}"
 
   entries=()
@@ -142,6 +141,27 @@ main() {
   for entry in "${procs[@]}"; do
     exc wait -f "${entry}"
   done
+}
+
+err_usage() {
+    echo >&1 "USAGE: ${0} analyze PATH"
+    exit 1
+}
+
+main() {
+  set -e -o pipefail
+
+  local cmd="$1"; shift || err_usage
+  local dir="$1"; shift || err_usage
+
+  cd -- "${dir}"
+  tmpdir="target/proverif"
+
+  case "${cmd}" in
+    analyze) analyze ;;
+    clean_warnings) clean_warnings ;;
+    *) err_usage
+  esac
 }
 
 # Do not execute main if sourced

@@ -33,6 +33,13 @@ def setup_exports() -> Tuple[List[str], Callable[[T], T]]:
 export(setup_exports)
 
 @export
+def rename(name: str) -> Callable[[T], T]:
+    def rename_impl(v: T) -> T:
+        v.__name__ = name
+        return v
+    return rename_impl
+
+@export
 def attempt(fn):
     # TODO: Documentation tests
     """
