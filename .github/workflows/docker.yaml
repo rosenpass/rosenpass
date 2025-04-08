@@ -135,7 +135,7 @@ jobs:
 
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.actor }}/rp
+          images: ghcr.io/${{ github.repository_owner }}/rp
           labels: |
             maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
             org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
@@ -148,7 +148,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
 
       - name: Log in to registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -161,7 +161,7 @@ jobs:
           file: docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ghcr.io/${{ github.actor }}/rp
+          tags: ghcr.io/${{ github.repository_owner }}/rp
           target: rp
           platforms: linux/${{ matrix.arch }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
@@ -199,7 +199,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.actor }}/rosenpass
+          images: ghcr.io/${{ github.repository_owner }}/rosenpass
           labels: |
             maintainer=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
             org.opencontainers.image.authors=Karolin Varner <karo@cupdev.net>, wucke13 <wucke13@gmail.com>
@@ -212,7 +212,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/rosenpass/rosenpass
 
       - name: Log in to registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -225,7 +225,7 @@ jobs:
           file: docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ghcr.io/${{ github.actor }}/rosenpass
+          tags: ghcr.io/${{ github.repository_owner }}/rosenpass
           target: rosenpass
           platforms: linux/${{ matrix.arch }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
@@ -262,7 +262,7 @@ jobs:
           merge-multiple: true
 
       - name: Log in to registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -271,7 +271,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.actor }}/${{ matrix.target }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.target }}
           tags: |
             type=edge,branch=main
             type=sha,branch=main
@@ -281,8 +281,8 @@ jobs:
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.actor }}/${{ matrix.target }}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{ github.repository_owner }}/${{ matrix.target }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ github.actor }}/${{ matrix.target }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ matrix.target }}:${{ steps.meta.outputs.version }}
