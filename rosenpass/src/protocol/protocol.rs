@@ -2138,6 +2138,18 @@ impl CryptoServer {
     ///
     /// - test::cookie_reply_mechanism_responder_under_load
     /// - test::cookie_reply_mechanism_initiator_bails_on_message_under_load
+    #[cfg(not(feature = "experiment_cookie_dos_mitigation"))]
+    #[inline]
+    pub fn handle_msg_under_load<H: HostIdentification>(
+        &mut self,
+        rx_buf: &[u8],
+        tx_buf: &mut [u8],
+        host_identification: &H,
+    ) -> Result<HandleMsgResult> {
+        self.handle_msg(rx_buf, tx_buf)
+    }
+
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     pub fn handle_msg_under_load<H: HostIdentification>(
         &mut self,
         rx_buf: &[u8],
@@ -4313,16 +4325,19 @@ mod test {
 
     #[test]
     #[serial]
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_responder_under_load_v02() {
         cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
     }
 
     #[test]
     #[serial]
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_responder_under_load_v03() {
         cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
     }
 
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -4420,16 +4435,19 @@ mod test {
 
     #[test]
     #[serial]
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v02() {
         cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
     }
 
     #[test]
     #[serial]
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v03() {
         cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
     }
 
+    #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_initiator_bails_on_message_under_load(
         protocol_version: ProtocolVersion,
     ) {
