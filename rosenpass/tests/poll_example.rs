@@ -510,8 +510,11 @@ impl ServerPtr {
         // Let the crypto server handle the message now
         let mut tx_buf = MsgBuf::zero();
         let handle_msg_result = if self.get(sim).under_load {
-            self.srv_mut(sim)
-                .handle_msg_under_load(rx_msg.borrow(), tx_buf.borrow_mut(), &self)
+            self.srv_mut(sim).handle_msg_under_load(
+                rx_msg.borrow(),
+                tx_buf.borrow_mut(),
+                &self.other(),
+            )
         } else {
             self.srv_mut(sim)
                 .handle_msg(rx_msg.borrow(), tx_buf.borrow_mut())
