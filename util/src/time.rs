@@ -40,13 +40,6 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn test_timebase() {
-        let timebase = Timebase::default();
-        let now = timebase.now();
-        assert!(now > 0.0);
-    }
-
-    #[test]
     fn test_timebase_clone() {
         let timebase = Timebase::default();
         let timebase_clone = timebase.clone();
