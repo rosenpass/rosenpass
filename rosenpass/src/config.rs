@@ -109,6 +109,14 @@ pub enum Verbosity {
     Verbose,
 }
 
+/// The protocol version to be used by a peer.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Default)]
+pub enum ProtocolVersion {
+    #[default]
+    V02,
+    V03,
+}
+
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RosenpassPeer {
@@ -138,6 +146,10 @@ pub struct RosenpassPeer {
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
+
+    #[serde(default)]
+    /// The protocol version to use for the exchange
+    pub protocol_version: ProtocolVersion,
 }
 
 /// Information for supplying exchanged keys directly to WireGuard
@@ -768,6 +780,53 @@ mod test {
         )?;
 
         Ok(())
+    }
+
+    #[test]
+    fn test_protocol_version() {
+        let mut rosenpass = Rosenpass::empty();
+        let mut peer_v_02 = RosenpassPeer::default();
+        peer_v_02.protocol_version = ProtocolVersion::V02;
+        rosenpass.peers.push(peer_v_02);
+        let mut peer_v_03 = RosenpassPeer::default();
+        peer_v_03.protocol_version = ProtocolVersion::V03;
+        rosenpass.peers.push(peer_v_03);
+        #[cfg(feature = "experiment_api")]
+        {
+            rosenpass.api.listen_fd = vec![];
+            rosenpass.api.listen_path = vec![];
+            rosenpass.api.stream_fd = vec![];
+        }
+        #[cfg(feature = "experiment_api")]
+        let expected_toml = r#"listen = []
+          verbosity = "Quiet"
+          
+          [api]
+          listen_fd = []
+          listen_path = []
+          stream_fd = []
+
+          [[peers]]
+          protocol_version = "V02"
+          public_key = ""
+
+          [[peers]]
+          protocol_version = "V03"
+          public_key = ""
+          "#;
+        #[cfg(not(feature = "experiment_api"))]
+        let expected_toml = r#"listen = []
+          verbosity = "Quiet"
+
+          [[peers]]
+          protocol_version = "V02"
+          public_key = ""
+
+          [[peers]]
+          protocol_version = "V03"
+          public_key = ""
+          "#;
+        assert_toml_round(rosenpass, expected_toml).unwrap()
     }
 
     #[test]

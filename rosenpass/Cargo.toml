@@ -28,7 +28,11 @@ required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
 name = "gen-ipc-msg-types"
-required-features = ["experiment_api", "internal_testing", "internal_bin_gen_ipc_msg_types"]
+required-features = [
+    "experiment_api",
+    "internal_testing",
+    "internal_bin_gen_ipc_msg_types",
+]
 
 [[bench]]
 name = "handshake"
@@ -81,9 +85,15 @@ tempfile = { workspace = true }
 rustix = { workspace = true }
 
 [features]
-default = []
+#default = ["experiment_libcrux_all"]
+experiment_cookie_dos_mitigation = []
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
-experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
+experiment_libcrux_all = ["rosenpass-ciphers/experiment_libcrux_all"]
+experiment_libcrux_blake2 = ["rosenpass-ciphers/experiment_libcrux_blake2"]
+experiment_libcrux_chachapoly = [
+    "rosenpass-ciphers/experiment_libcrux_chachapoly",
+]
+experiment_libcrux_kyber = ["rosenpass-ciphers/experiment_libcrux_kyber"]
 experiment_api = [
     "hex-literal",
     "uds",

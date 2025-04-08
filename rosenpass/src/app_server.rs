@@ -42,6 +42,7 @@ use std::slice;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::config::ProtocolVersion;
 use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
@@ -332,7 +333,7 @@ pub struct AppServer {
     ///
     /// Because the API supports initializing the server with a keypair
     /// and CryptoServer needs to be initialized with a keypair, the struct
-    /// struct is wrapped in a ConstructionSite
+    /// is wrapped in a ConstructionSite
     pub crypto_site: ConstructionSite<BuildCryptoServer, CryptoServer>,
     /// The UDP sockets used to send and receive protocol messages
     pub sockets: Vec<mio::net::UdpSocket>,
@@ -1042,11 +1043,12 @@ impl AppServer {
         outfile: Option<PathBuf>,
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
+        protocol_version: ProtocolVersion,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),
-            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk),
-            ConstructionSite::Product(srv) => srv.add_peer(psk, pk)?,
+            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk, protocol_version),
+            ConstructionSite::Product(srv) => srv.add_peer(psk, pk, protocol_version.into())?,
         };
         assert!(pn == self.peers.len());
 
@@ -1262,7 +1264,7 @@ impl AppServer {
     }
 
     /// Used as a helper by [Self::event_loop_without_error_handling] when
-    /// a new output key has been echanged
+    /// a new output key has been exchanged
     pub fn output_key(
         &mut self,
         peer: AppPeerPtr,
