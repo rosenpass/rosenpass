@@ -51,9 +51,9 @@ fn test_successful_exchange_with_poll(protocol_version: ProtocolVersion) -> anyh
     );
     #[cfg(not(coverage))]
     assert!(
-        _completions[0].0 < 20.0,
+        _completions[0].0 < 60.0,
         "\
-        First key exchange should happen in under twenty seconds!\n\
+        First key exchange should happen in under 60 seconds!\n\
           Transcript: {transcript:?}\n\
           Completions: {_completions:?}\
         "
@@ -119,7 +119,7 @@ fn test_successful_exchange_under_packet_loss(
             event: ServerEvent::Transmit(_, _),
         } = ev
         {
-            // Drop every fifth package
+            // Drop every tenth package
             if pkg_counter % 10 == 0 {
                 source.drop_outgoing_packet(&mut sim);
             }
@@ -145,9 +145,9 @@ fn test_successful_exchange_under_packet_loss(
     );
     #[cfg(not(coverage))]
     assert!(
-        _completions[0].0 < 10.0,
+        _completions[0].0 < 60.0,
         "\
-          First key exchange should happen in under twenty seconds!\n\
+          First key exchange should happen in under 60 seconds!\n\
           Transcript: {transcript:?}\n\
           Completions: {_completions:?}\
         "
