@@ -129,7 +129,7 @@ fn run_server_client_exchange(
     });
 
     // give them some time to do the key exchange under load
-    std::thread::sleep(Duration::from_secs(10));
+    std::thread::sleep(Duration::from_secs(30));
 
     // time's up, kill the childs
     server_terminate.send(()).unwrap();
