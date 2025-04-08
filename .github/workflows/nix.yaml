@@ -77,12 +77,12 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
         run: nix flake check . --print-build-logs
-  x86_64-darwin---default:
-    name: Build x86_64-darwin.default
+  aarch64-darwin---default:
+    name: Build aarch64-darwin.default
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     needs:
-      - x86_64-darwin---rosenpass
+      - aarch64-darwin---rosenpass
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
@@ -93,15 +93,15 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
-        run: nix build .#packages.x86_64-darwin.default --print-build-logs
-  x86_64-darwin---release-package:
-    name: Build x86_64-darwin.release-package
+        run: nix build .#packages.aarch64-darwin.default --print-build-logs
+  aarch64-darwin---release-package:
+    name: Build aarch64-darwin.release-package
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     needs:
-      - x86_64-darwin---rosenpass
-      - x86_64-darwin---rp
-      - x86_64-darwin---rosenpass-oci-image
+      - aarch64-darwin---rosenpass
+      - aarch64-darwin---rp
+      - aarch64-darwin---rosenpass-oci-image
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
@@ -112,11 +112,11 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
-        run: nix build .#packages.x86_64-darwin.release-package --print-build-logs
-  x86_64-darwin---rosenpass:
-    name: Build x86_64-darwin.rosenpass
+        run: nix build .#packages.aarch64-darwin.release-package --print-build-logs
+  aarch64-darwin---rosenpass:
+    name: Build aarch64-darwin.rosenpass
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     needs: []
     steps:
       - uses: actions/checkout@v4
@@ -128,11 +128,11 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
-        run: nix build .#packages.x86_64-darwin.rosenpass --print-build-logs
-  x86_64-darwin---rp:
-    name: Build x86_64-darwin.rp
+        run: nix build .#packages.aarch64-darwin.rosenpass --print-build-logs
+  aarch64-darwin---rp:
+    name: Build aarch64-darwin.rp
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     needs: []
     steps:
       - uses: actions/checkout@v4
@@ -144,13 +144,13 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
-        run: nix build .#packages.x86_64-darwin.rp --print-build-logs
-  x86_64-darwin---rosenpass-oci-image:
-    name: Build x86_64-darwin.rosenpass-oci-image
+        run: nix build .#packages.aarch64-darwin.rp --print-build-logs
+  aarch64-darwin---rosenpass-oci-image:
+    name: Build aarch64-darwin.rosenpass-oci-image
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     needs:
-      - x86_64-darwin---rosenpass
+      - aarch64-darwin---rosenpass
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
@@ -161,11 +161,11 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
-        run: nix build .#packages.x86_64-darwin.rosenpass-oci-image --print-build-logs
-  x86_64-darwin---check:
-    name: Run Nix checks on x86_64-darwin
+        run: nix build .#packages.aarch64-darwin.rosenpass-oci-image --print-build-logs
+  aarch64-darwin---check:
+    name: Run Nix checks on aarch64-darwin
     runs-on:
-      - macos-13
+      - warp-macos-13-arm64-6x
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
