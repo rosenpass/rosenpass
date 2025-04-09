@@ -129,6 +129,7 @@
             nativeBuildInputs = with pkgs; [
               cargo-audit
               cargo-release
+              cargo-msrv
               rustfmt
               nodePackages.prettier
               nushell # for the .ci/gen-workflow-files.nu script
