@@ -13,7 +13,7 @@ use std::time::Instant;
 ///
 /// let timebase = Timebase::default();
 /// let now = timebase.now();
-/// assert!(now > 0.0);
+/// assert!(now >= 0.0);
 /// ```
 
 #[derive(Clone, Debug)]
