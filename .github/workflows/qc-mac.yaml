@@ -1,4 +1,4 @@
-name: QC
+name: QC Mac
 on:
   push:
     branches: [main]
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  cargo-test:
+  cargo-test-mac:
     runs-on: warp-macos-13-arm64-6x
     steps:
       - uses: actions/checkout@v4
