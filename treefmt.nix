@@ -17,9 +17,7 @@
       "*.yaml"
       "*.yml"
     ];
-    excludes = [
-      "supply-chain/*"
-    ];
+    excludes = [ "supply-chain/*" ];
     settings = {
       plugins = [
         "${pkgs.nodePackages.prettier-plugin-toml}/lib/node_modules/prettier-plugin-toml/lib/index.js"

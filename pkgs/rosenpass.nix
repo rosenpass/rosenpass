@@ -1,4 +1,13 @@
-{ lib, stdenv, rustPlatform, cmake, mandoc, removeReferencesTo, bash, package ? "rosenpass" }:
+{
+  lib,
+  stdenv,
+  rustPlatform,
+  cmake,
+  mandoc,
+  removeReferencesTo,
+  bash,
+  package ? "rosenpass",
+}:
 
 let
   # whether we want to build a statically linked binary
@@ -17,24 +26,30 @@ let
       "toml"
     ];
     # Files to explicitly include
-    files = [
-      "to/README.md"
-    ];
+    files = [ "to/README.md" ];
 
     src = ../.;
-    filter = (path: type: scoped rec {
-      inherit (lib) any id removePrefix hasSuffix;
-      anyof = (any id);
+    filter = (
+      path: type:
+      scoped rec {
+        inherit (lib)
+          any
+          id
+          removePrefix
+          hasSuffix
+          ;
+        anyof = (any id);
 
-      basename = baseNameOf (toString path);
-      relative = removePrefix (toString src + "/") (toString path);
+        basename = baseNameOf (toString path);
+        relative = removePrefix (toString src + "/") (toString path);
 
-      result = anyof [
-        (type == "directory")
-        (any (ext: hasSuffix ".${ext}" basename) extensions)
-        (any (file: file == relative) files)
-      ];
-    });
+        result = anyof [
+          (type == "directory")
+          (any (ext: hasSuffix ".${ext}" basename) extensions)
+          (any (file: file == relative) files)
+        ];
+      }
+    );
 
     result = lib.sources.cleanSourceWith { inherit src filter; };
   };
@@ -47,8 +62,14 @@ rustPlatform.buildRustPackage {
   version = cargoToml.package.version;
   inherit src;
 
-  cargoBuildOptions = [ "--package" package ];
-  cargoTestOptions = [ "--package" package ];
+  cargoBuildOptions = [
+    "--package"
+    package
+  ];
+  cargoTestOptions = [
+    "--package"
+    package
+  ];
 
   doCheck = true;
 
@@ -81,7 +102,10 @@ rustPlatform.buildRustPackage {
 
   meta = {
     inherit (cargoToml.package) description homepage;
-    license = with lib.licenses; [ mit asl20 ];
+    license = with lib.licenses; [
+      mit
+      asl20
+    ];
     maintainers = [ lib.maintainers.wucke13 ];
     platforms = lib.platforms.all;
   };
