@@ -10,9 +10,12 @@
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-vm-test, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, nix-vm-test, treefmt-nix, ... }@inputs:
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
 
 
@@ -86,6 +89,8 @@
               nix-vm-test.overlays.default
             ];
           };
+
+          treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
         in
         {
           packages.package-deb = pkgs.callPackage ./pkgs/package-deb.nix {
@@ -152,26 +157,15 @@
           checks = {
             systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
             systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
-
-            cargo-fmt = pkgs.runCommand "check-cargo-fmt"
-              { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
-              cargo fmt --manifest-path=${./.}/Cargo.toml --check --all && touch $out
-            '';
-            nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
-              { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''
-              nixpkgs-fmt --check ${./.} && touch $out
-            '';
-            prettier-check = pkgs.runCommand "check-with-prettier"
-              { nativeBuildInputs = [ pkgs.nodePackages.prettier ]; } ''
-              cd ${./.} && prettier --check . && touch $out
-            '';
+            formatting = treefmtEval.config.build.check self;
           } // pkgs.lib.optionalAttrs (system == "x86_64-linux") (import ./tests/legacy-distro-packaging.nix {
             inherit pkgs;
             rosenpass-deb = self.packages.${system}.package-deb;
             rosenpass-rpm = self.packages.${system}.package-rpm;
           });
 
-          formatter = pkgs.nixpkgs-fmt;
+          # for `nix fmt`
+          formatter = treefmtEval.config.build.wrapper;
         }))
     ];
 }
