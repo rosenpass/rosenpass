@@ -24,11 +24,7 @@ feature-depth = 1
 [advisories]
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
-ignore = [
-    "RUSTSEC-2024-0370",
-    "RUSTSEC-2024-0436",
-    "RUSTSEC-2023-0089",
-]
+ignore = ["RUSTSEC-2024-0370", "RUSTSEC-2024-0436", "RUSTSEC-2023-0089"]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
 # Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.
@@ -43,11 +39,11 @@ ignore = [
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 allow = [
-    "MIT",
-    "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-3-Clause",
-    "ISC",
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "ISC",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -57,10 +53,10 @@ confidence-threshold = 0.8
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
 # aren't accepted for every possible crate as with the normal allow list
 exceptions = [
-    # Each entry is the crate and version constraint, and its specific allow
-    # list
-    { allow = ["Unicode-DFS-2016", "Unicode-3.0"], crate = "unicode-ident" },
-    { allow = ["NCSA"], crate = "libfuzzer-sys" },
+  # Each entry is the crate and version constraint, and its specific allow
+  # list
+  { allow = ["Unicode-DFS-2016", "Unicode-3.0"], crate = "unicode-ident" },
+  { allow = ["NCSA"], crate = "libfuzzer-sys" },
 
 ]
 
@@ -94,15 +90,11 @@ workspace-default-features = "allow"
 # on a crate-by-crate basis if desired.
 external-default-features = "allow"
 # List of crates that are allowed. Use with care!
-allow = [
-]
+allow = []
 # List of crates to deny
-deny = [
-]
+deny = []
 
-skip-tree = [
-
-]
+skip-tree = []
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

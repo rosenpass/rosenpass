@@ -12,16 +12,16 @@ rust-version = "1.77"
 
 [features]
 experiment_libcrux_all = [
-    "experiment_libcrux_blake2",
-    "experiment_libcrux_chachapoly",
-    "experiment_libcrux_chachapoly_test",
-    "experiment_libcrux_kyber",
+  "experiment_libcrux_blake2",
+  "experiment_libcrux_chachapoly",
+  "experiment_libcrux_chachapoly_test",
+  "experiment_libcrux_kyber",
 ]
 experiment_libcrux_blake2 = ["dep:libcrux-blake2", "dep:thiserror"]
 experiment_libcrux_chachapoly = ["dep:libcrux-chacha20poly1305"]
 experiment_libcrux_chachapoly_test = [
-    "experiment_libcrux_chachapoly",
-    "dep:libcrux",
+  "experiment_libcrux_chachapoly",
+  "dep:libcrux",
 ]
 experiment_libcrux_kyber = ["dep:libcrux-ml-kem", "dep:rand"]
 
