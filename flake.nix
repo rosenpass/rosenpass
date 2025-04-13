@@ -3,10 +3,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
 
-    # for rust nightly with llvm-tools-preview
-    fenix.url = "github:nix-community/fenix";
-    fenix.inputs.nixpkgs.follows = "nixpkgs";
-
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
@@ -150,18 +146,21 @@
                 nodePackages.prettier
                 nushell # for the .ci/gen-workflow-files.nu script
                 proverif-patched
-                inputs.fenix.packages.${system}.complete.toolchain
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
+                pkgs.rust-bin.stable.latest.complete
               ];
             };
             devShells.coverage = pkgs.mkShell {
               inputsFrom = [ pkgs.rosenpass ];
               nativeBuildInputs = [
-                inputs.fenix.packages.${system}.complete.toolchain
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
+                pkgs.rustc.llvmPackages.llvm
               ];
+              env = {
+                inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
+              };
             };
 
             checks =
