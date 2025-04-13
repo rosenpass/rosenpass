@@ -5,7 +5,7 @@ permissions:
   checks: write
   contents: write
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: manual-mac-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   qc:
