@@ -7,6 +7,10 @@
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
 
+    # for rust nightly with llvm-tools-preview
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -17,6 +21,7 @@
       nixpkgs,
       flake-utils,
       nix-vm-test,
+      rust-overlay,
       treefmt-nix,
       ...
     }@inputs:
@@ -91,10 +96,14 @@
             pkgs = import nixpkgs {
               inherit system;
 
-              # apply our own overlay, overriding/inserting our packages as defined in ./pkgs
               overlays = [
+                # apply our own overlay, overriding/inserting our packages as defined in ./pkgs
                 self.overlays.default
+
                 nix-vm-test.overlays.default
+
+                # apply rust-overlay to get specific versions of the rust toolchain for a MSRV check
+                (import rust-overlay)
               ];
             };
 
@@ -168,6 +177,17 @@
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
                 systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
                 formatting = treefmtEval.config.build.check self;
+                rosenpass-msrv-check =
+                  let
+                    rosenpassCargoToml = pkgs.lib.trivial.importTOML ./rosenpass/Cargo.toml;
+
+                    rustToolchain = pkgs.rust-bin.stable.${rosenpassCargoToml.package.rust-version}.default;
+                    rustPlatform = pkgs.makeRustPlatform {
+                      cargo = rustToolchain;
+                      rustc = rustToolchain;
+                    };
+                  in
+                  pkgs.rosenpass.override { inherit rustPlatform; };
               }
               // pkgs.lib.optionalAttrs (system == "x86_64-linux") (
                 import ./tests/legacy-distro-packaging.nix {
