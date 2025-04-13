@@ -7,5 +7,10 @@ permissions:
 jobs:
   qc:
     uses: ./.github/workflows/qc-mac.yaml
+    permissions:
+      checks: write
+      contents: read
   nix:
     uses: ./.github/workflows/nix-mac.yaml
+    permissions:
+      contents: write
