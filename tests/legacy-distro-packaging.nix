@@ -1,4 +1,8 @@
-{ pkgs, rosenpass-deb, rosenpass-rpm }:
+{
+  pkgs,
+  rosenpass-deb,
+  rosenpass-rpm,
+}:
 
 let
   wg-deb = pkgs.fetchurl {
@@ -23,31 +27,38 @@ let
     cp ${./prepare-test.sh} $out/prepare-test.sh
   '';
 
-  test = { tester, installPrefix, suffix, source }: (tester {
-    sharedDirs.share = {
-      inherit source;
-      target = "/mnt/share";
-    };
-    testScript = ''
-      vm.wait_for_unit("multi-user.target")
-      vm.succeed("${installPrefix} /mnt/share/wireguard.${suffix}")
-      vm.succeed("${installPrefix} /mnt/share/rosenpass.${suffix}")
-      vm.succeed("bash /mnt/share/prepare-test.sh")
+  test =
+    {
+      tester,
+      installPrefix,
+      suffix,
+      source,
+    }:
+    (tester {
+      sharedDirs.share = {
+        inherit source;
+        target = "/mnt/share";
+      };
+      testScript = ''
+        vm.wait_for_unit("multi-user.target")
+        vm.succeed("${installPrefix} /mnt/share/wireguard.${suffix}")
+        vm.succeed("${installPrefix} /mnt/share/rosenpass.${suffix}")
+        vm.succeed("bash /mnt/share/prepare-test.sh")
 
-      vm.succeed(f"systemctl start rp@server")
-      vm.succeed(f"systemctl start rp@client")
+        vm.succeed(f"systemctl start rp@server")
+        vm.succeed(f"systemctl start rp@client")
 
-      vm.wait_for_unit("rp@server.service")
-      vm.wait_for_unit("rp@client.service")
+        vm.wait_for_unit("rp@server.service")
+        vm.wait_for_unit("rp@client.service")
 
-      vm.wait_until_succeeds("wg show all preshared-keys | grep --invert-match none", timeout=5);
+        vm.wait_until_succeeds("wg show all preshared-keys | grep --invert-match none", timeout=5);
 
-      psk_server = vm.succeed("wg show rp-server preshared-keys").strip().split()[-1]
-      psk_client = vm.succeed("wg show rp-client preshared-keys").strip().split()[-1]
+        psk_server = vm.succeed("wg show rp-server preshared-keys").strip().split()[-1]
+        psk_client = vm.succeed("wg show rp-client preshared-keys").strip().split()[-1]
 
-      assert psk_server == psk_client, "preshared-key exchange must be successful"
-    '';
-  }).sandboxed;
+        assert psk_server == psk_client, "preshared-key exchange must be successful"
+      '';
+    }).sandboxed;
 in
 {
   package-deb-debian-13 = test {

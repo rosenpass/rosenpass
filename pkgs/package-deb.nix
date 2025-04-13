@@ -1,4 +1,8 @@
-{ runCommand, dpkg, rosenpass }:
+{
+  runCommand,
+  dpkg,
+  rosenpass,
+}:
 
 let
   inherit (rosenpass) version;
