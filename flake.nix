@@ -149,8 +149,9 @@
               inputsFrom = [ pkgs.rosenpass ];
               nativeBuildInputs = with pkgs; [
                 cargo-audit
-                cargo-release
                 cargo-msrv
+                cargo-release
+                cargo-vet
                 rustfmt
                 nodePackages.prettier
                 nushell # for the .ci/gen-workflow-files.nu script
