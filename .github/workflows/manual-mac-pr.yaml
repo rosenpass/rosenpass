@@ -1,6 +1,9 @@
 name: PR Validation on Mac
 on:
   workflow_dispatch:
+permissions:
+  checks: write
+  contents: write
 jobs:
   qc:
     uses: ./.github/workflows/qc-mac.yaml
