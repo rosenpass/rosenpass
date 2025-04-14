@@ -1,4 +1,8 @@
-{ dockerTools, buildEnv, rosenpass }:
+{
+  dockerTools,
+  buildEnv,
+  rosenpass,
+}:
 
 dockerTools.buildImage {
   name = rosenpass.name + "-oci";

@@ -1,6 +1,5 @@
 final: prev: {
 
-
   #
   ### Actual rosenpass software ###
   #
@@ -27,7 +26,10 @@ final: prev: {
       "marzipan(/marzipan.awk)?"
       "analysis(/.*)?"
     ];
-    nativeBuildInputs = [ final.proverif final.graphviz ];
+    nativeBuildInputs = [
+      final.proverif
+      final.graphviz
+    ];
     CRYPTOVERIF_LIB = final.proverif-patched + "/lib/cryptoverif.pvl";
     installPhase = ''
       mkdir -p $out
