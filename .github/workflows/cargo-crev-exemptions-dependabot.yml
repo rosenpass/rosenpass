@@ -11,6 +11,8 @@ jobs:
   dependabot-cargo-crev-exceptions:
     if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,3 +58,5 @@ jobs:
           git add supply-chain/*
           git commit -m "Regenerate cargo vet exemptions"
           git push origin ${{ github.head_ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
