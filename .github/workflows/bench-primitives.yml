@@ -1,0 +1,106 @@
+name: rosenpass-ciphers - primitives - benchmark
+
+on:
+  pull_request:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prim-benchmark:
+    strategy:
+      fail-fast: true
+      matrix:
+        system: ["x86_64-linux", "i686-linux"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install nix
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment
+
+      - name: 🛠️ Config Linux x64
+        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
+        if: ${{ matrix.system == 'x86_64-linux' }}
+
+      - name: 🛠️ Config Linux x86
+        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
+        if: ${{ matrix.system == 'i686-linux' }}
+
+      - name: 🛠️ Prepare Benchmark Path
+        env:
+          EVENT_NAME:  ${{ github.event_name }}
+          BRANCH_NAME: ${{ github.ref_name   }}
+          PR_NUMBER:   ${{ github.event.pull_request.number }}
+        run: |
+          case "$EVENT_NAME" in
+          "push")
+            echo "BENCH_PATH=branch/$BRANCH_NAME" >> $GITHUB_ENV
+            ;;
+          "pull_request")
+            echo "BENCH_PATH=pull/$PR_NUMBER" >> $GITHUB_ENV
+            ;;
+          *)
+            echo "don't know benchmark path for event of type $EVENT_NAME, aborting"
+            exit 1
+          esac
+
+      # Benchmarks ...
+
+      - name: 🏃🏻‍♀️ Benchmarks (using Nix as shell)
+        working-directory: ciphers
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -F bench --bench primitives --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee ../bench-primitives.txt
+
+      - name: Extract benchmarks
+        uses: cryspen/benchmark-data-extract-transform@v2
+        with:
+          name: rosenpass-ciphers primitives benchmarks
+          tool: "cargo"
+          os: ${{ matrix.system }}
+          output-file-path: bench-primitives.txt
+          data-out-path: bench-primitives.json
+
+      - name: Upload benchmarks
+        uses: cryspen/benchmark-upload-and-plot-action@v3
+        with:
+          name: Crypto Primitives Benchmarks
+          group-by: "os,primitive,algorithm"
+          schema: "os,primitive,algorithm,implementation,operation,length"
+          input-data-path: bench-primitives.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: pushes to current repository
+          gh-repository: github.com/${{ github.repository }}
+          # use the default (gh-pages) for the demo
+          #gh-pages-branch: benchmarks
+          auto-push: true
+          fail-on-alert: true
+
+  ciphers-primitives-bench-status:
+    if: ${{ always() }}
+    needs: [prim-benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1
