@@ -46,6 +46,8 @@ jobs:
   cargo-vet:
     name: Vet Dependencies
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -67,5 +69,21 @@ jobs:
         run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-vet binary
         run: cargo install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
+      - name: Regenerate vet exemptions for dependabot PRs
+        if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
+        run: cargo vet regenerate exemptions
+      - name: Check for changes in case of dependabot PR
+        if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
+        run: git diff --exit-code || echo "Changes detected, committing..."
+      - name: Commit and push changes for dependabot PRs
+        if: success() && github.actor == 'dependabot[bot]'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions@github.com"
+          git add supply-chain/*
+          git commit -m "Regenerate cargo vet exemptions"
+          git push origin ${{ github.head_ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Invoke cargo-vet
         run: cargo vet --locked
