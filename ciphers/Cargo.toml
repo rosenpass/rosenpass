@@ -24,6 +24,19 @@ experiment_libcrux_chachapoly_test = [
   "dep:libcrux",
 ]
 experiment_libcrux_kyber = ["dep:libcrux-ml-kem", "dep:rand"]
+bench = [
+    "dep:thiserror",
+    "dep:rand",
+    "dep:libcrux",
+    "dep:libcrux-blake2",
+    "dep:libcrux-ml-kem",
+    "dep:libcrux-chacha20poly1305",
+]
+
+[[bench]]
+name = "primitives"
+harness = false
+required-features = ["bench"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -50,3 +63,4 @@ libcrux = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+criterion = { workspace = true }
