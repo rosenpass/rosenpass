@@ -41,6 +41,7 @@ harness = false
 
 [dependencies]
 rosenpass-util = { workspace = true }
+rosenpass-bench-util = { workspace = true, optional = true }
 rosenpass-constant-time = { workspace = true }
 rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
@@ -72,6 +73,7 @@ command-fds = { workspace = true, optional = true }
 rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 signal-hook = { workspace = true, optional = true }
+libcrux-test-utils = { workspace = true, optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -106,6 +108,7 @@ experiment_api = [
 internal_signal_handling_for_coverage_reports = ["signal-hook"]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
+trace_bench = ["dep:rosenpass-bench-util", "dep:libcrux-test-utils"]
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

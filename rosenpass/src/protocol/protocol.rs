@@ -3547,9 +3547,16 @@ impl CryptoServer {
     }
 }
 
+#[cfg(feature = "trace_bench")]
+use rosenpass_bench_util::Trace as _;
+
 impl CryptoServer {
     /// Core cryptographic protocol implementation: Kicks of the handshake
     /// on the initiator side, producing the InitHello message.
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_initiation", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
