@@ -1,3 +1,37 @@
+# Changes on This Branch
+
+This branch adds facilities for benchmarking both the Rosenpass protocol
+code and the implementations of the primitives behind it. The primitives
+are benchmarked using criterion. For the protocol code, we use a custom
+library for instrumenting the code such that events are written to a
+trace, which is then inspected after a run.
+
+## Protocol Benchmark
+
+The trace that is being written to lives in a new module
+`trace_bench` in the util crate. A basic benchmark that
+performs some minor statistical analysis of the trace can be run using
+
+```
+cargo bench -p rosenpass --bench trace_handshake -F trace_bench
+```
+
+## Primitive Benchmark
+
+Benchmarks for the functions of the traits `Kem`, `Aead` and `KeyedHash`
+have been added and are run for all implementations in the `primitives`
+benchmark of `rosenpass-ciphers`. Run the benchmarks using
+
+```
+cargo bench -p rosenpass-ciphers --bench primitives -F bench
+```
+
+Note that the `bench` feature enables the inclusion of the libcrux-backed
+trait implementations in the module tree, but does not enable them
+as default.
+
+---
+
 # Rosenpass README
 
 ![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
@@ -14,7 +48,7 @@ This repository contains
 
 ## Getting started
 
-First, [install rosenpass](#Getting-Rosenpass). Then, check out the help functions of `rp` & `rosenpass`:
+First, [install rosenpass](#getting-rosenpass). Then, check out the help functions of `rp` & `rosenpass`:
 
 ```sh
 rp help
@@ -64,11 +98,7 @@ The analysis is implemented according to modern software engineering principles:
 The code uses a variety of optimizations to speed up analysis such as using secret functions to model trusted/malicious setup. We split the model into two separate entry points which can be analyzed in parallel. Each is much faster than both models combined.
 A wrapper script provides instant feedback about which queries execute as expected in color: A red cross if a query fails and a green check if it succeeds.
 
-[^liboqs]: https://openquantumsafe.org/liboqs/
-[^wg]: https://www.wireguard.com/
-[^pqwg]: https://eprint.iacr.org/2020/379
-[^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeats the purpose of a key exchange protocol
-[^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.htmlA
+[^liboqs]: <https://openquantumsafe.org/liboqs/>
 
 # Getting Rosenpass
 

@@ -1,0 +1,96 @@
+name: rosenpass - protocol - benchmark
+
+on:
+  pull_request:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proto-benchmark:
+    strategy:
+      fail-fast: true
+      matrix:
+        system: ["x86_64-linux", "i686-linux"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install nix
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment
+
+      - name: 🛠️ Config Linux x64
+        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
+        if: ${{ matrix.system == 'x86_64-linux' }}
+
+      - name: 🛠️ Config Linux x86
+        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
+        if: ${{ matrix.system == 'i686-linux' }}
+
+      - name: 🛠️ Prepare Benchmark Path
+        env:
+          EVENT_NAME:  ${{ github.event_name }}
+          BRANCH_NAME: ${{ github.ref_name   }}
+          PR_NUMBER:   ${{ github.event.pull_request.number }}
+        run: |
+          case "$EVENT_NAME" in
+          "push")
+            echo "BENCH_PATH=branch/$BRANCH_NAME" >> $GITHUB_ENV
+            ;;
+          "pull_request")
+            echo "BENCH_PATH=pull/$PR_NUMBER" >> $GITHUB_ENV
+            ;;
+          *)
+            echo "don't know benchmark path for event of type $EVENT_NAME, aborting"
+            exit 1
+          esac
+
+      # Benchmarks ...
+
+      - name: 🏃🏻‍♀️ Benchmarks
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
+
+      - name: Upload benchmarks
+        uses: cryspen/benchmark-upload-and-plot-action@v3
+        with:
+          name: Protocol Benchmarks
+          group-by: "os,arch,protocol version,run time"
+          schema: "os,arch,protocol version,run time,name"
+          input-data-path: bench-protocol.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: pushes to current repository
+          gh-repository: github.com/${{ github.repository }}
+          # use the default (gh-pages) for the demo
+          #gh-pages-branch: benchmarks
+          auto-push: true
+          fail-on-alert: true
+
+  ciphers-protocol-bench-status:
+    if: ${{ always() }}
+    needs: [proto-benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

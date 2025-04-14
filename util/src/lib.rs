@@ -36,3 +36,6 @@ pub mod typenum;
 pub mod zerocopy;
 /// Memory wiping utilities.
 pub mod zeroize;
+/// Trace benchmarking utilities
+#[cfg(feature = "trace_bench")]
+pub mod trace_bench;

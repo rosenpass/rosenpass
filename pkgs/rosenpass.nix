@@ -79,6 +79,7 @@ rustPlatform.buildRustPackage {
       "memsec-0.6.3" = "sha256-4ri+IEqLd77cLcul3lZrmpDKj4cwuYJ8oPRAiQNGeLw=";
       "uds-0.4.2" = "sha256-qlxr/iJt2AV4WryePIvqm/8/MK/iqtzegztNliR93W8=";
       "libcrux-blake2-0.0.3-pre" = "sha256-0CLjuzwJqGooiODOHf5D8Hc8ClcG/XcGvVGyOVnLmJY=";
+      "libcrux-macros-0.0.3" = "sha256-Tb5uRirwhRhoFEK8uu1LvXl89h++40pxzZ+7kXe8RAI=";
     };
   };
 

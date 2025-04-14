@@ -89,6 +89,7 @@
         [
           "x86_64-linux"
           "aarch64-linux"
+          "i686-linux"
         ]
         (
           system:
@@ -171,6 +172,15 @@
               env = {
                 inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
               };
+            };
+            devShells.benchmark = pkgs.mkShell {
+              inputsFrom = [ pkgs.rosenpass ];
+              nativeBuildInputs = let
+                      rustToolchain = (inputs.fenix.packages.${system}.toolchainOf {
+                          channel = "1.77.0";
+                          sha256 = "sha256-+syqAd2kX8KVa8/U2gz3blIQTTsYYt3U63xBWaGOSc8=";
+                      });
+                  in [ rustToolchain.toolchain ];
             };
 
             checks =
