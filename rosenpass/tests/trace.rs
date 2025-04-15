@@ -1,6 +1,7 @@
 #![cfg(feature = "trace_bench")]
 
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     ops::DerefMut,
     str::FromStr,
@@ -9,6 +10,7 @@ use std::{
     time::Duration,
 };
 
+use libcrux_test_utils::tracing::{EventType, TraceEvent};
 use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
@@ -20,11 +22,75 @@ use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt,
 
 #[test]
 fn print_trace() {
-    key_exchange_with_app_server(ProtocolVersion::V02);
+    key_exchange_with_app_server(ProtocolVersion::V02).unwrap();
+    key_exchange_with_app_server(ProtocolVersion::V02).unwrap();
+    key_exchange_with_app_server(ProtocolVersion::V02).unwrap();
+    key_exchange_with_app_server(ProtocolVersion::V02).unwrap();
+    key_exchange_with_app_server(ProtocolVersion::V02).unwrap();
 
     use rosenpass_bench_util::Trace;
 
-    println!("{:?}", rosenpass_bench_util::TRACE.clone().report());
+    #[derive(Debug, Clone)]
+    enum StatEntry {
+        Start(std::time::Instant),
+        Duration(std::time::Duration),
+    }
+
+    let mut spans = HashMap::<&'static str, Vec<StatEntry>>::new();
+
+    for entry in rosenpass_bench_util::TRACE.clone().report() {
+        let spans_for_label = spans.entry(entry.label).or_default();
+
+        match &entry.ty {
+            EventType::SpanOpen => spans_for_label.push(StatEntry::Start(entry.at)),
+            EventType::SpanClose => {
+                let (last_start, StatEntry::Start(start)) = spans_for_label
+                    .iter()
+                    .enumerate()
+                    .find(|(_, span)| matches!(span, StatEntry::Start(_)))
+                    .unwrap()
+                else {
+                    unreachable!("")
+                };
+
+                spans_for_label[last_start] = StatEntry::Duration(entry.at - *start);
+            }
+            EventType::OnTheFly => {}
+        }
+    }
+
+    let spans: HashMap<_, _> = spans
+        .into_iter()
+        .map(|(k, vs)| {
+            let vs: Vec<_> = vs
+                .into_iter()
+                .map(|v| match v {
+                    StatEntry::Duration(d) => d,
+                    StatEntry::Start(_) => unreachable!(),
+                })
+                .collect();
+
+            let sum = vs.iter().sum::<Duration>();
+            let mean = sum / (vs.len() as u32);
+            let mean_us = mean.as_micros();
+
+            let variance = vs
+                .iter()
+                .map(Duration::as_micros)
+                .map(|d| (d.abs_diff(mean_us)).pow(2))
+                .sum::<u128>()
+                / vs.len() as u128;
+
+            let sd = Duration::from_micros(variance.isqrt().try_into().unwrap());
+
+            let sd_rel = (10000 * sd.as_micros()) / mean.as_micros();
+            let sd_rel = format!("{}.{:02}%", sd_rel / 100, sd_rel % 100);
+
+            (k, (mean, sd, sd_rel))
+        })
+        .collect();
+
+    println!("{:#?}", spans);
 }
 
 fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Result<()> {

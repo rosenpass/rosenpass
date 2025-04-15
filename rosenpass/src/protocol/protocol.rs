@@ -3604,6 +3604,10 @@ impl CryptoServer {
 
     /// Core cryptographic protocol implementation: Parses an [InitHello] message and produces a
     /// [RespHello] message on the responder side.
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_init_hello", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_init_hello(
         &mut self,
         ih: &InitHello,
@@ -3663,6 +3667,10 @@ impl CryptoServer {
 
     /// Core cryptographic protocol implementation: Parses an [RespHello] message and produces an
     /// [InitConf] message on the initiator side.
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_resp_hello", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         // RHI2
         let peer = self
@@ -3763,6 +3771,10 @@ impl CryptoServer {
     ///
     /// This concludes the handshake on the cryptographic level; the [EmptyData] message is just
     /// an acknowledgement message telling the initiator to stop performing retransmissions.
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_init_conf", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_init_conf(
         &mut self,
         ic: &InitConf,
@@ -3856,6 +3868,10 @@ impl CryptoServer {
     /// message then terminates the handshake.
     ///
     /// The EmptyData message is just there to tell the initiator to abort retransmissions.
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_resp_conf", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_resp_conf(
         &mut self,
         msg_in: &Ref<&[u8], Envelope<EmptyData>>,
@@ -3913,6 +3929,10 @@ impl CryptoServer {
     /// DOS mitigation features.
     ///
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("handle_cookie_reply", rosenpass_bench_util::TRACE)
+    )]
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))
