@@ -50,7 +50,7 @@ fn print_trace() {
                     .find(|(_, span)| matches!(span, StatEntry::Start(_)))
                     .unwrap()
                 else {
-                    unreachable!("")
+                    unreachable!("found a close for something that doesn't have an open: {entry:?}")
                 };
 
                 spans_for_label[last_start] = StatEntry::Duration(entry.at - *start);
@@ -64,9 +64,12 @@ fn print_trace() {
         .map(|(k, vs)| {
             let vs: Vec<_> = vs
                 .into_iter()
-                .map(|v| match v {
-                    StatEntry::Duration(d) => d,
-                    StatEntry::Start(_) => unreachable!(),
+                .filter_map(|v| match v {
+                    StatEntry::Duration(d) => Some(d),
+                    StatEntry::Start(t) => {
+                        println!("start: {k}, {t:?}");
+                        None
+                    }
                 })
                 .collect();
 
@@ -86,7 +89,9 @@ fn print_trace() {
             let sd_rel = (10000 * sd.as_micros()) / mean.as_micros();
             let sd_rel = format!("{}.{:02}%", sd_rel / 100, sd_rel % 100);
 
-            (k, (mean, sd, sd_rel))
+            let count = vs.len();
+
+            (k, (mean, sd, sd_rel, count))
         })
         .collect();
 

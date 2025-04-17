@@ -9,6 +9,10 @@ pub use rosenpass_cipher_traits::algorithms::aead_chacha20poly1305::{KEY_LEN, NO
 pub struct ChaCha20Poly1305;
 
 impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("libcrux_aead_encrypt", rosenpass_bench_util::TRACE)
+    )]
     fn encrypt(
         &self,
         ciphertext: &mut [u8],
@@ -29,6 +33,10 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for ChaCha20Poly1305 {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("libcrux_aead_decrypt", rosenpass_bench_util::TRACE)
+    )]
     fn decrypt(
         &self,
         plaintext: &mut [u8],

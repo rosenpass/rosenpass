@@ -12,6 +12,10 @@ pub use rosenpass_cipher_traits::algorithms::kem_kyber512::{CT_LEN, PK_LEN, SHK_
 pub struct Kyber512;
 
 impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for Kyber512 {
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("libcrux_mlkem512_keygen", rosenpass_bench_util::TRACE)
+    )]
     fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), KemError> {
         let mut randomness = [0u8; libcrux_ml_kem::KEY_GENERATION_SEED_SIZE];
         rand::thread_rng().fill_bytes(&mut randomness);
@@ -27,6 +31,10 @@ impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for Kyber512 {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("libcrux_mlkem512_encaps", rosenpass_bench_util::TRACE)
+    )]
     fn encaps(
         &self,
         shk: &mut [u8; SHK_LEN],
@@ -45,6 +53,10 @@ impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for Kyber512 {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("libcrux_mlkem512_decaps", rosenpass_bench_util::TRACE)
+    )]
     fn decaps(
         &self,
         shk: &mut [u8; SHK_LEN],
