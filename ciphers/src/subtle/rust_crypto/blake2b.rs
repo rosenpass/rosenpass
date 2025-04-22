@@ -21,6 +21,10 @@ pub struct Blake2b;
 impl KeyedHash<KEY_LEN, HASH_LEN> for Blake2b {
     type Error = anyhow::Error;
 
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("rustcrypto_blake2b", rosenpass_bench_util::TRACE)
+    )]
     fn keyed_hash(
         key: &[u8; KEY_LEN],
         data: &[u8],

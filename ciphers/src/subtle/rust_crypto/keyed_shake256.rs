@@ -13,7 +13,6 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     for SHAKE256Core<KEY_LEN, HASH_LEN>
 {
     type Error = anyhow::Error;
-
     /// Provides a keyed hash function based on SHAKE256. To work for the protocol, the output length
     /// and key length are fixed to 32 bytes (also see [KEY_LEN] and [HASH_LEN]).
     ///
@@ -38,6 +37,10 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// 187, 161, 38, 110, 217, 23, 4, 62, 172, 30, 218, 187, 249, 80, 171, 21, 145, 238];
     /// # assert_eq!(hash_data, expected_hash);
     /// ```
+    #[cfg_attr(
+        feature = "trace_bench",
+        rosenpass_bench_util::trace_span("rustcrypto_shake256", rosenpass_bench_util::TRACE)
+    )]
     fn keyed_hash(
         key: &[u8; KEY_LEN],
         data: &[u8],

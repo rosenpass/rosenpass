@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use libcrux_test_utils::tracing::{EventType, TraceEvent};
+use libcrux_test_utils::tracing::EventType;
 use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
@@ -59,6 +59,14 @@ fn print_trace() {
         }
     }
 
+    #[derive(Debug)]
+    struct AggregateStat<T> {
+        mean_duration: T,
+        sd_duration: T,
+        sd_by_mean: String,
+        sample_size: usize,
+    }
+
     let spans: HashMap<_, _> = spans
         .into_iter()
         .map(|(k, vs)| {
@@ -91,7 +99,14 @@ fn print_trace() {
 
             let count = vs.len();
 
-            (k, (mean, sd, sd_rel, count))
+            let agg = AggregateStat {
+                mean_duration: mean,
+                sd_duration: sd,
+                sd_by_mean: sd_rel,
+                sample_size: count,
+            };
+
+            (k, agg)
         })
         .collect();
 
