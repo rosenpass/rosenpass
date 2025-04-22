@@ -24,7 +24,6 @@ experiment_libcrux_chachapoly_test = [
     "dep:libcrux",
 ]
 experiment_libcrux_kyber = ["dep:libcrux-ml-kem", "dep:rand"]
-trace_bench = ["dep:rosenpass-bench-util", "dep:libcrux-test-utils"]
 bench = [
     "dep:thiserror",
     "dep:rand",
@@ -42,7 +41,6 @@ required-features = ["bench"]
 [dependencies]
 anyhow = { workspace = true }
 rosenpass-to = { workspace = true }
-rosenpass-bench-util = { workspace = true, optional = true }
 rosenpass-constant-time = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
 rosenpass-oqs = { workspace = true }
@@ -59,7 +57,6 @@ thiserror = { workspace = true, optional = true }
 libcrux-chacha20poly1305 = { workspace = true, optional = true }
 libcrux-blake2 = { workspace = true, optional = true }
 libcrux-ml-kem = { workspace = true, optional = true, features = ["kyber"] }
-libcrux-test-utils = { workspace = true, optional = true }
 
 # this one is only used in testing, so it requires the `experiment_libcrux_chachapoly_test` feature.
 libcrux = { workspace = true, optional = true }
