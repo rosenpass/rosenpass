@@ -78,6 +78,8 @@ jobs:
       - name: Commit and push changes for dependabot PRs
         if: success() && github.actor == 'dependabot[bot]'
         run: |
+          git fetch origin ${{ github.head_ref }}
+          git switch ${{ github.head_ref }}
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions@github.com"
           git add supply-chain/*
