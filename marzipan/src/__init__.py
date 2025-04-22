@@ -5,8 +5,10 @@ import click
 (__all__, export) = setup_exports()
 export(setup_exports)
 
+
 def eprint(*args, **kwargs):
     print(*args, **{"file": pkgs.sys.stderr, **kwargs})
+
 
 def exc(argv, **kwargs):
     eprint("$", *argv)
@@ -14,6 +16,7 @@ def exc(argv, **kwargs):
     if command.stdout is not None:
         return command.stdout.decode("utf-8")
     return ""
+
 
 @click.command()
 @click.argument("file")
@@ -28,10 +31,6 @@ def run_proverif(file, log, extra_args=[]):
     return exc(params, stderr=pkgs.sys.stderr)
 
 
-def clean_warnings():
-    pass
-
-
 @click.command()
 @click.argument("prefix")
 @click.argument("mark")
@@ -42,6 +41,7 @@ def pretty_output_line(prefix, mark, color, text):
     colored_mark_text = f"[{color}]{mark} {text}[/{color}]"
     print(colored_prefix, colored_mark_text)
 
+
 @click.command()
 @click.argument("path")
 def analyze(path):
@@ -50,10 +50,28 @@ def analyze(path):
         path
     ])
 
+
 @click.command()
 def clean():
     click.echo("foo")
     pass
+
+
+@click.command()
+def clean_warnings():
+    null = "0455290a-50d5-4f28-8008-3d69605c2835"
+    p = null
+    for line in pkgs.sys.stdin:
+        line = line.rstrip()
+        if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
+            if p != null:
+                print(p)
+            p = line
+        else:
+            p = null
+    # print last line after EOF
+    if p != null:
+        print(p)
 
 
 @export
@@ -63,7 +81,9 @@ def main():
     #pkgs.IPython.embed()
     pass
 
+
 main.add_command(analyze)
 main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(pretty_output_line)
+main.add_command(clean_warnings)

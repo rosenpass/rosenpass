@@ -6,14 +6,16 @@ exc() {
 }
 
 run_proverif() {
-  #local file; file="$1"; shift
-  #local log; log="$1"; shift
+  local file; file="$1"; shift
+  local log; log="$1"; shift
   #exc proverif -test "${@}" "${file}" 2>&1
 
-  exc rosenpass-marzipan run-proverif "${file}" "${@}"
+  exc rosenpass-marzipan run-proverif "${file}" "${log}" "${@}"
 }
 
 clean_warnings() {
+    exc rosenpass-marzipan clean-warnings
+: <<'END_COMMENT'
    awk '
       BEGIN {
         null = "0455290a-50d5-4f28-8008-3d69605c2835"
@@ -36,6 +38,7 @@ clean_warnings() {
       { bod(); }
       END { $0=null; bod(); }
     '
+END_COMMENT
 }
 
 color_red='\033[0;31m'
@@ -97,6 +100,9 @@ metaverif() {
   local name; name="$(echo "${file}" | grep -Po '[^/]*(?=\.mpv)')"
 
   local cpp_prep; cpp_prep="${tmpdir}/${name}.i.pv"
+
+  echo "internal metaverif"
+
   exc cpp -P -I"${PWD}/$(dirname "${file}")" "${file}" -o "${cpp_prep}"
 
   local awk_prep; awk_prep="${tmpdir}/${name}.o.pv"
@@ -135,6 +141,7 @@ analyze() {
   local entry
   local procs; procs=()
   for entry in "${entries[@]}"; do
+    echo "call metaverif"
     exc metaverif "${entry}" "$@" >&2 & procs+=("$!")
   done
 
@@ -157,6 +164,8 @@ main() {
 
   cd -- "${dir}"
   tmpdir="target/proverif"
+
+  echo "call main"
 
   case "${cmd}" in
     analyze) analyze ;;
