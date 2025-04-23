@@ -17,7 +17,7 @@ mod kem {
     fn bench_classicmceliece460896_oqs(c: &mut Criterion) {
         template(
             c,
-            "classicMceliece460896",
+            "classicmceliece460896",
             "oqs",
             rosenpass_oqs::ClassicMceliece460896,
         );
@@ -52,20 +52,37 @@ mod kem {
     ) {
         let benchid = |more| super::benchid("kem", alg_name, impl_name, more);
 
-        c.bench_function(&benchid(""), |bench| {
+        c.bench_function(&benchid("keygen"), |bench| {
+            let mut sk = [0; SK_LEN];
+            let mut pk = [0; PK_LEN];
+
+            bench.iter(|| {
+                scheme.keygen(&mut sk, &mut pk).unwrap();
+            });
+        });
+
+        c.bench_function(&benchid("encaps"), |bench| {
+            let mut sk = [0; SK_LEN];
+            let mut pk = [0; PK_LEN];
+            let mut ct = [0; CT_LEN];
+            let mut shk = [0; SHK_LEN];
+
+            scheme.keygen(&mut sk, &mut pk).unwrap();
+
+            bench.iter(|| {
+                scheme.encaps(&mut shk, &mut ct, &pk).unwrap();
+            });
+        });
+
+        c.bench_function(&benchid("decaps"), |bench| {
             let mut sk = [0; SK_LEN];
             let mut pk = [0; PK_LEN];
             let mut ct = [0; CT_LEN];
             let mut shk = [0; SHK_LEN];
             let mut shk2 = [0; SHK_LEN];
 
-            bench.iter(|| {
-                scheme.keygen(&mut sk, &mut pk).unwrap();
-            });
-
-            bench.iter(|| {
-                scheme.encaps(&mut shk, &mut ct, &pk).unwrap();
-            });
+            scheme.keygen(&mut sk, &mut pk).unwrap();
+            scheme.encaps(&mut shk, &mut ct, &pk).unwrap();
 
             bench.iter(|| {
                 scheme.decaps(&mut shk2, &sk, &ct).unwrap();
@@ -129,16 +146,25 @@ mod aead {
         let nonce = [23; NONCE_LEN];
         let ad = [];
 
-        c.bench_function(&aead_benchid("32byte"), |bench| {
+        c.bench_function(&aead_benchid("encrypt_32byte"), |bench| {
+            const DATA_LEN: usize = 32;
+
+            let ptxt = [34u8; DATA_LEN];
+            let mut ctxt = [0; DATA_LEN + TAG_LEN];
+
+            bench.iter(|| {
+                scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
+            });
+        });
+
+        c.bench_function(&aead_benchid("decrypt_32byte"), |bench| {
             const DATA_LEN: usize = 32;
 
             let ptxt = [34u8; DATA_LEN];
             let mut ctxt = [0; DATA_LEN + TAG_LEN];
             let mut ptxt_out = [0u8; DATA_LEN];
 
-            bench.iter(|| {
-                scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
-            });
+            scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
 
             bench.iter(|| {
                 scheme
@@ -147,16 +173,24 @@ mod aead {
             })
         });
 
-        c.bench_function(&aead_benchid("1024byte"), |bench| {
+        c.bench_function(&aead_benchid("encrypt_1024byte"), |bench| {
+            const DATA_LEN: usize = 1024;
+
+            let ptxt = [34u8; DATA_LEN];
+            let mut ctxt = [0; DATA_LEN + TAG_LEN];
+
+            bench.iter(|| {
+                scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
+            });
+        });
+        c.bench_function(&aead_benchid("decrypt_1024byte"), |bench| {
             const DATA_LEN: usize = 1024;
 
             let ptxt = [34u8; DATA_LEN];
             let mut ctxt = [0; DATA_LEN + TAG_LEN];
             let mut ptxt_out = [0u8; DATA_LEN];
 
-            bench.iter(|| {
-                scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
-            });
+            scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
 
             bench.iter(|| {
                 scheme
@@ -224,28 +258,28 @@ mod keyed_hash {
 
         let keyedhash_benchid = |more| benchid("keyedhash", alg_name, impl_name, more);
 
-        c.bench_function(&keyedhash_benchid("32byte"), |bench| {
+        c.bench_function(&keyedhash_benchid("hash_32byte"), |bench| {
             let bytes = [34u8; 32];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("64byte"), |bench| {
+        .bench_function(&keyedhash_benchid("hash_64byte"), |bench| {
             let bytes = [34u8; 64];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("128byte"), |bench| {
+        .bench_function(&keyedhash_benchid("hash_128byte"), |bench| {
             let bytes = [34u8; 128];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("1024byte"), |bench| {
+        .bench_function(&keyedhash_benchid("hash_1024byte"), |bench| {
             let bytes = [34u8; 1024];
 
             bench.iter(|| {
