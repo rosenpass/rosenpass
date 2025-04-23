@@ -1269,7 +1269,7 @@ version = "0.0.3-pre"
 source = "git+https://github.com/cryspen/libcrux.git?rev=10ce653e9476#10ce653e94761352b657b6cecdcc0c85675813df"
 dependencies = [
  "libcrux-hacl-rs",
- "libcrux-macros",
+ "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1279,7 +1279,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78d522fb626847390ea4b776c7eca179ecec363c6c4730b61b0c0feb797b8d92"
 dependencies = [
  "libcrux-hacl-rs",
- "libcrux-macros",
+ "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libcrux-poly1305",
 ]
 
@@ -1299,7 +1299,7 @@ version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8bba0885296a72555a5d77056c39cc9b04edd9ab1afa3025ef3dbd96220705c"
 dependencies = [
- "libcrux-macros",
+ "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1316,6 +1316,15 @@ name = "libcrux-macros"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3021bc24fb679408d4d7175e21cf808f49816c599733ebf4a97e5bd39c3ce7c0"
+dependencies = [
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "libcrux-macros"
+version = "0.0.2"
+source = "git+https://github.com/cryspen/libcrux.git?rev=ea9f0445a58e#ea9f0445a58e0c31d2e3477adf212e3ead2ed8fa"
 dependencies = [
  "quote",
  "syn 2.0.98",
@@ -1350,7 +1359,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80143d78ae14ab51ceb2c8a9514fb60af6645d42a9c951bc511792c19c974fca"
 dependencies = [
  "libcrux-hacl-rs",
- "libcrux-macros",
+ "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1362,6 +1371,14 @@ dependencies = [
  "hax-lib 0.1.0",
  "libcrux-intrinsics",
  "libcrux-platform",
+]
+
+[[package]]
+name = "libcrux-test-utils"
+version = "0.0.2"
+source = "git+https://github.com/cryspen/libcrux.git?rev=ea9f0445a58e#ea9f0445a58e0c31d2e3477adf212e3ead2ed8fa"
+dependencies = [
+ "libcrux-macros 0.0.2 (git+https://github.com/cryspen/libcrux.git?rev=ea9f0445a58e)",
 ]
 
 [[package]]
@@ -2024,12 +2041,14 @@ dependencies = [
  "hex",
  "hex-literal",
  "home",
+ "libcrux-test-utils",
  "log",
  "memoffset 0.9.1",
  "mio",
  "paste",
  "procspawn",
  "rand 0.8.5",
+ "rosenpass-bench-util",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
@@ -2053,6 +2072,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosenpass-bench-util"
+version = "0.1.0"
+dependencies = [
+ "libcrux-test-utils",
+]
+
+[[package]]
 name = "rosenpass-cipher-traits"
 version = "0.1.0"
 dependencies = [
@@ -2070,6 +2096,7 @@ dependencies = [
  "anyhow",
  "blake2",
  "chacha20poly1305",
+ "criterion",
  "libcrux",
  "libcrux-blake2",
  "libcrux-chacha20poly1305",
