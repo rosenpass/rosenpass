@@ -69,6 +69,7 @@ fn print_trace() {
 
     let spans: HashMap<_, _> = spans
         .into_iter()
+        .filter(|(_, vs)| !vs.is_empty())
         .map(|(k, vs)| {
             let vs: Vec<_> = vs
                 .into_iter()
@@ -83,18 +84,18 @@ fn print_trace() {
 
             let sum = vs.iter().sum::<Duration>();
             let mean = sum / (vs.len() as u32);
-            let mean_us = mean.as_micros();
+            let mean_ns = mean.as_nanos();
 
             let variance = vs
                 .iter()
-                .map(Duration::as_micros)
-                .map(|d| (d.abs_diff(mean_us)).pow(2))
+                .map(Duration::as_nanos)
+                .map(|d| (d.abs_diff(mean_ns)).pow(2))
                 .sum::<u128>()
                 / vs.len() as u128;
 
-            let sd = Duration::from_micros(variance.isqrt().try_into().unwrap());
+            let sd = Duration::from_nanos(variance.isqrt().try_into().unwrap());
 
-            let sd_rel = (10000 * sd.as_micros()) / mean.as_micros();
+            let sd_rel = (10000 * sd.as_nanos()) / mean.as_nanos();
             let sd_rel = format!("{}.{:02}%", sd_rel / 100, sd_rel % 100);
 
             let count = vs.len();

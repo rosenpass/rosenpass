@@ -16,7 +16,6 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context, Result};
-use rand::Fill as Randomize;
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
@@ -3550,6 +3549,15 @@ impl CryptoServer {
 #[cfg(feature = "trace_bench")]
 use rosenpass_bench_util::Trace as _;
 
+macro_rules! emit_span {
+    ($label:expr, $body:tt) => {{
+        #[cfg(feature = "trace_bench")]
+        let _span_raii_handle = rosenpass_bench_util::TRACE.emit_span($label);
+
+        $body
+    }};
+}
+
 impl CryptoServer {
     /// Core cryptographic protocol implementation: Kicks of the handshake
     /// on the initiator side, producing the InitHello message.
@@ -3564,37 +3572,53 @@ impl CryptoServer {
         );
 
         // IHI1
-        hs.core.init(peer.get(self).spkt.deref())?;
+        emit_span!("ihi1", {
+            hs.core.init(peer.get(self).spkt.deref())?;
+        });
 
         // IHI2
-        hs.core.sidi.randomize();
-        ih.sidi.copy_from_slice(&hs.core.sidi.value);
+        emit_span!("ihi2", {
+            hs.core.sidi.randomize();
+            ih.sidi.copy_from_slice(&hs.core.sidi.value);
+        });
 
         // IHI3
-        EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
-        ih.epki.copy_from_slice(&hs.epki.value);
+        emit_span!("ihi3", {
+            EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+            ih.epki.copy_from_slice(&hs.epki.value);
+        });
 
         // IHI4
-        hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
+        emit_span!("ihi4", {
+            hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
+        });
 
         // IHI5
-        hs.core
-            .encaps_and_mix(&StaticKem, &mut ih.sctr, peer.get(self).spkt.deref())?;
+        emit_span!("ihi5", {
+            hs.core
+                .encaps_and_mix(&StaticKem, &mut ih.sctr, peer.get(self).spkt.deref())?;
+        });
 
         // IHI6
-        hs.core.encrypt_and_mix(
-            ih.pidic.as_mut_slice(),
-            self.pidm(peer.get(self).protocol_version.keyed_hash())?
-                .as_ref(),
-        )?;
+        emit_span!("ihi6", {
+            hs.core.encrypt_and_mix(
+                ih.pidic.as_mut_slice(),
+                self.pidm(peer.get(self).protocol_version.keyed_hash())?
+                    .as_ref(),
+            )?;
+        });
 
         // IHI7
-        hs.core
-            .mix(self.spkm.deref())?
-            .mix(peer.get(self).psk.secret())?;
+        emit_span!("ihi7", {
+            hs.core
+                .mix(self.spkm.deref())?
+                .mix(peer.get(self).psk.secret())?;
+        });
 
         // IHI8
-        hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
+        emit_span!("ihi8", {
+            hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
+        });
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
@@ -3619,48 +3643,70 @@ impl CryptoServer {
         core.sidi = SessionId::from_slice(&ih.sidi);
 
         // IHR1
-        core.init(self.spkm.deref())?;
+        emit_span!("ihr1", {
+            core.init(self.spkm.deref())?;
+        });
 
         // IHR4
-        core.mix(&ih.sidi)?.mix(&ih.epki)?;
+        emit_span!("ihr4", {
+            core.mix(&ih.sidi)?.mix(&ih.epki)?;
+        });
 
         // IHR5
-        core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
+        emit_span!("ihr5", {
+            core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
+        });
 
         // IHR6
-        let peer = {
+        let peer = emit_span!("ihr6", {
             let mut peerid = PeerId::zero();
             core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
-        };
+        });
 
         // IHR7
-        core.mix(peer.get(self).spkt.deref())?
-            .mix(peer.get(self).psk.secret())?;
+        emit_span!("ihr7", {
+            core.mix(peer.get(self).spkt.deref())?
+                .mix(peer.get(self).psk.secret())?;
+        });
 
         // IHR8
-        core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
+        emit_span!("ihr8", {
+            core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
+        });
 
         // RHR1
-        core.sidr.randomize();
-        rh.sidi.copy_from_slice(core.sidi.as_ref());
-        rh.sidr.copy_from_slice(core.sidr.as_ref());
+        emit_span!("rhr1", {
+            core.sidr.randomize();
+            rh.sidi.copy_from_slice(core.sidi.as_ref());
+            rh.sidr.copy_from_slice(core.sidr.as_ref());
+        });
 
         // RHR3
-        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+        emit_span!("rhr3", {
+            core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+        });
 
         // RHR4
-        core.encaps_and_mix(&EphemeralKem, &mut rh.ecti, &ih.epki)?;
+        emit_span!("rhr4", {
+            core.encaps_and_mix(&EphemeralKem, &mut rh.ecti, &ih.epki)?;
+        });
 
         // RHR5
-        core.encaps_and_mix(&StaticKem, &mut rh.scti, peer.get(self).spkt.deref())?;
+        emit_span!("rhr5", {
+            core.encaps_and_mix(&StaticKem, &mut rh.scti, peer.get(self).spkt.deref())?;
+        });
 
         // RHR6
-        core.store_biscuit(self, peer, &mut rh.biscuit)?;
+        emit_span!("rhr6", {
+            core.store_biscuit(self, peer, &mut rh.biscuit)?;
+        });
 
         // RHR7
-        core.encrypt_and_mix(&mut rh.auth, &[])?;
+        emit_span!("rhr7", {
+            core.encrypt_and_mix(&mut rh.auth, &[])?;
+        });
 
         Ok(peer)
     }
@@ -3715,24 +3761,34 @@ impl CryptoServer {
         //       to save us from the repetitive secret unwrapping
 
         // RHI3
-        core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+        emit_span!("rhi3", {
+            core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+        });
 
         // RHI4
-        core.decaps_and_mix(
-            &EphemeralKem,
-            hs!().eski.secret(),
-            hs!().epki.deref(),
-            &rh.ecti,
-        )?;
+        emit_span!("rhi4", {
+            core.decaps_and_mix(
+                &EphemeralKem,
+                hs!().eski.secret(),
+                hs!().epki.deref(),
+                &rh.ecti,
+            )?;
+        });
 
         // RHI5
-        core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &rh.scti)?;
+        emit_span!("rhi5", {
+            core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &rh.scti)?;
+        });
 
         // RHI6
-        core.mix(&rh.biscuit)?;
+        emit_span!("rhi6", {
+            core.mix(&rh.biscuit)?;
+        });
 
         // RHI7
-        core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
+        emit_span!("rhi7", {
+            core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
+        });
 
         // TODO: We should just authenticate the entire network package up to the auth
         // tag as a pattern instead of mixing in fields separately
@@ -3741,27 +3797,33 @@ impl CryptoServer {
         ic.sidr.copy_from_slice(&rh.sidr);
 
         // ICI3
-        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
-        ic.biscuit.copy_from_slice(&rh.biscuit);
+        emit_span!("ici3", {
+            core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+            ic.biscuit.copy_from_slice(&rh.biscuit);
+        });
 
         // ICI4
-        core.encrypt_and_mix(&mut ic.auth, &[])?;
+        emit_span!("ici4", {
+            core.encrypt_and_mix(&mut ic.auth, &[])?;
+        });
 
         // Split() – We move the secrets into the session; we do not
         // delete the InitiatorHandshake, just clear it's secrets because
         // we still need it for InitConf message retransmission to function.
 
         // ICI7
-        peer.session().insert(
-            self,
-            core.enter_live(
+        emit_span!("ici7", {
+            peer.session().insert(
                 self,
-                HandshakeRole::Initiator,
-                peer.get(self).protocol_version.keyed_hash(),
-            )?,
-        )?;
-        hs_mut!().core.erase();
-        hs_mut!().next = HandshakeStateMachine::RespConf;
+                core.enter_live(
+                    self,
+                    HandshakeRole::Initiator,
+                    peer.get(self).protocol_version.keyed_hash(),
+                )?,
+            )?;
+            hs_mut!().core.erase();
+            hs_mut!().next = HandshakeStateMachine::RespConf;
+        });
 
         Ok(peer)
     }
@@ -3783,22 +3845,30 @@ impl CryptoServer {
     ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
-        let (peer, biscuit_no, mut core) = HandshakeState::load_biscuit(
-            self,
-            &ic.biscuit,
-            SessionId::from_slice(&ic.sidi),
-            SessionId::from_slice(&ic.sidr),
-            keyed_hash,
-        )?;
+        let (peer, biscuit_no, mut core) = emit_span!("icr1", {
+            HandshakeState::load_biscuit(
+                self,
+                &ic.biscuit,
+                SessionId::from_slice(&ic.sidi),
+                SessionId::from_slice(&ic.sidr),
+                keyed_hash,
+            )?
+        });
 
         // ICR2
-        core.encrypt_and_mix(&mut [0u8; Aead::TAG_LEN], &[])?;
+        emit_span!("icr2", {
+            core.encrypt_and_mix(&mut [0u8; Aead::TAG_LEN], &[])?;
+        });
 
         // ICR3
-        core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+        emit_span!("icr3", {
+            core.mix(&ic.sidi)?.mix(&ic.sidr)?;
+        });
 
         // ICR4
-        core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
+        emit_span!("icr4", {
+            core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
+        });
 
         // ICR5
         // Defense against replay attacks; implementations may accept
@@ -3810,20 +3880,24 @@ impl CryptoServer {
         );
 
         // ICR6
-        peer.get_mut(self).biscuit_used = biscuit_no;
+        emit_span!("icr6", {
+            peer.get_mut(self).biscuit_used = biscuit_no;
+        });
 
         // ICR7
-        peer.session().insert(
-            self,
-            core.enter_live(
+        emit_span!("icr7", {
+            peer.session().insert(
                 self,
-                HandshakeRole::Responder,
-                peer.get(self).protocol_version.keyed_hash(),
-            )?,
-        )?;
-        // TODO: This should be part of the protocol specification.
-        // Abort any ongoing handshake from initiator role
-        peer.hs().take(self);
+                core.enter_live(
+                    self,
+                    HandshakeRole::Responder,
+                    peer.get(self).protocol_version.keyed_hash(),
+                )?,
+            )?;
+            // TODO: This should be part of the protocol specification.
+            // Abort any ongoing handshake from initiator role
+            peer.hs().take(self);
+        });
 
         // TODO: Implementing RP should be possible without touching the live session stuff
         // TODO: I fear that this may lead to race conditions; the acknowledgement may be
