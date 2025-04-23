@@ -93,7 +93,8 @@ fn print_trace() {
                 .sum::<u128>()
                 / vs.len() as u128;
 
-            let sd = Duration::from_nanos(variance.isqrt().try_into().unwrap());
+            let var_sqrt = (variance as f64).sqrt() as u64;
+            let sd = Duration::from_nanos(var_sqrt);
 
             let sd_rel = (10000 * sd.as_nanos()) / mean.as_nanos();
             let sd_rel = format!("{}.{:02}%", sd_rel / 100, sd_rel % 100);
