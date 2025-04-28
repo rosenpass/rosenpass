@@ -9,11 +9,11 @@ trace, which is then inspected after a run.
 ## Protocol Benchmark
 
 The trace that is being written to lives in a new crate
-`rosenpass-bench-util` (in directory `bench-util`). An example test that
+`rosenpass-bench-util` (in directory `bench-util`). A basic benchmark that
 performs some minor statistical analysis of the trace can be run using
 
 ```
-cargo test -p rosenpass -F trace_bench print_trace -- --nocapture
+cargo bench -p rosenpass --bench trace_handshake -F trace_bench
 ```
 
 ## Primitive Benchmark
