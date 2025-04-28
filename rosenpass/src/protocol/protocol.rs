@@ -3546,14 +3546,12 @@ impl CryptoServer {
     }
 }
 
-#[cfg(feature = "trace_bench")]
-use rosenpass_bench_util::Trace as _;
-
 macro_rules! emit_span {
     ($label:expr, $body:tt) => {{
         #[cfg(feature = "trace_bench")]
         let _span_raii_handle = rosenpass_bench_util::TRACE.emit_span($label);
 
+        #[allow(unused_braces)]
         $body
     }};
 }
@@ -4131,7 +4129,7 @@ pub mod testutils {
 
 #[cfg(test)]
 mod test {
-    use std::{borrow::BorrowMut, net::SocketAddrV4, ops::DerefMut, thread::sleep, time::Duration};
+    use std::{borrow::BorrowMut, net::SocketAddrV4, ops::DerefMut};
 
     use super::*;
     use serial_test::serial;
