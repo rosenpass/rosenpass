@@ -66,53 +66,74 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 
 fn main() {
     secret_policy_try_use_memfd_secrets();
+
+    // run protocol for V02
     let (mut a, mut b) = make_server_pair(ProtocolVersion::V02).unwrap();
     hs(black_box(&mut a), black_box(&mut b)).unwrap();
 
+    // used as a marker to put the events of the two function calls into separate categories.
     rosenpass_bench_util::TRACE.emit_on_the_fly("start-hs-v03");
-    secret_policy_try_use_memfd_secrets();
+
+    // run protocol for V03
     let (mut a, mut b) = make_server_pair(ProtocolVersion::V03).unwrap();
     hs(black_box(&mut a), black_box(&mut b)).unwrap();
 
     let trace: Vec<_> = rosenpass_bench_util::TRACE.clone().report();
 
-    let cutoff = trace
-        .iter()
-        .position(|entry| entry.label == "start-hs-v03")
-        .unwrap();
+    // Split trace in between function calls
+    let (trace_v02, trace_v03) = {
+        let cutoff = trace
+            .iter()
+            .position(|entry| entry.label == "start-hs-v03")
+            .unwrap();
+        trace.split_at(cutoff)
+    };
 
-    let (trace_v02, trace_v03) = trace.split_at(cutoff);
+    // run statistial analysis and write json
+    write_json_arrays(
+        &mut std::io::stdout(),
+        vec![
+            ("proto_run_V02", statistical_analysis(trace_v02.to_vec())),
+            ("proto_run_V03", statistical_analysis(trace_v03.to_vec())),
+        ],
+    )
+    .expect("error writing json data");
+}
 
-    let result_v02: HashMap<_, _> = bin_events(trace_v02.to_vec())
+fn statistical_analysis(trace: Vec<RpEventType>) -> Vec<(&'static str, AggregateStat<Duration>)> {
+    bin_events(trace)
         .into_iter()
         .map(|(label, spans)| (label, extract_span_durations(label, spans.as_slice())))
         .filter(|(_, spans)| !spans.is_empty())
         .map(|(label, durations)| (label, AggregateStat::analyze_durations(&durations)))
-        .collect();
+        .collect()
+}
 
-    let result_v03: HashMap<_, _> = bin_events(trace_v03.to_vec())
-        .into_iter()
-        .map(|(label, spans)| (label, extract_span_durations(label, spans.as_slice())))
-        .filter(|(_, spans)| !spans.is_empty())
-        .map(|(label, durations)| (label, AggregateStat::analyze_durations(&durations)))
-        .collect();
+fn write_json_arrays<
+    W: std::io::Write,
+    II: IntoIterator<Item = (&'static str, AggregateStat<Duration>)>,
+>(
+    w: &mut W,
+    item_groups: impl IntoIterator<Item = (&'static str, II)>,
+) -> std::io::Result<()> {
+    let mut iter = item_groups.into_iter().flat_map(|(cat, items)| {
+        items
+            .into_iter()
+            .map(move |(label, agg_stat)| (cat, label, agg_stat))
+    });
 
-    let mut json_data = String::with_capacity(2048);
+    write!(w, "[")?;
 
-    write_json_array::<AggregateStat<Duration>, _>(&mut json_data, result_v02, |w, label, item| {
-        item.write_json_ns(label, "proto_run_V02", w)
-    })
-    .expect("error writing json");
+    if let Some((first_cat, first_label, first_agg_stat)) = iter.next() {
+        first_agg_stat.write_json_ns(first_label, first_cat, w)?;
 
-    println!("{json_data}");
-    json_data.truncate(0);
+        for (cat, label, agg_stat) in iter {
+            write!(w, ",")?;
+            agg_stat.write_json_ns(label, cat, w)?;
+        }
+    }
 
-    write_json_array::<AggregateStat<Duration>, _>(&mut json_data, result_v03, |w, label, item| {
-        item.write_json_ns(label, "proto_run_V03", w)
-    })
-    .expect("error writing json");
-
-    println!("{json_data}");
+    write!(w, "]")
 }
 
 #[derive(Debug, Clone)]
@@ -210,35 +231,15 @@ impl AggregateStat<Duration> {
         &self,
         label: &str,
         category: &str,
-        w: &mut impl std::fmt::Write,
-    ) -> std::fmt::Result {
-        write!(
+        w: &mut impl std::io::Write,
+    ) -> std::io::Result<()> {
+        writeln!(
             w,
-            r#"{{ "name": "{name}", "unit": "ns/iter", "value": "{value}", "range": "+- {range}", "category": "{category}" }}"#,
+            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "category":"{category}", "sampleSize": "{sample_size}"}}"#,
             name = label,
             value = self.mean_duration.as_nanos(),
             range = self.sd_duration.as_nanos(),
+            sample_size = self.sample_size,
         )
     }
-}
-
-fn write_json_array<T, W: std::fmt::Write>(
-    w: &mut W,
-    items: impl IntoIterator<Item = (&'static str, T)>,
-    write_item: impl Fn(&mut W, &str, &T),
-) -> std::fmt::Result {
-    let mut iter = items.into_iter();
-    if let Some((first_label, first)) = iter.next() {
-        write!(w, "[")?;
-        write_item(w, first_label, &first)?;
-    } else {
-        return write!(w, "[]");
-    }
-
-    for (label, item) in iter {
-        write!(w, ",")?;
-        write_item(w, label, &item)?;
-    }
-
-    write!(w, "]")
 }
