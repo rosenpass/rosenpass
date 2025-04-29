@@ -30,7 +30,7 @@ Note that the `bench` feature enables the inclusion of the libcrux-backed
 trait implementations in the module tree, but does not enable them
 as default.
 
-----
+---
 
 # Rosenpass README
 
