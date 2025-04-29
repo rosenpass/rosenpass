@@ -1,0 +1,97 @@
+name: rosenpass-ciphers - primitives - benchmark
+
+on:
+  merge_group:
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    if: ${{ github.event_name != 'pull_request' }}
+    strategy:
+      fail-fast: true
+      matrix:
+        bits: [32, 64]
+        os:
+          - ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ciphers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update dependencies
+        run: cargo update
+
+      - run: echo "RUST_TARGET_FLAG=" > $GITHUB_ENV
+        if: ${{ matrix.bits == 64 }}
+
+      - name: 🛠️ Setup Ubuntu x86
+        if: ${{ matrix.bits == 32 &&  matrix.os == 'ubuntu-latest' }}
+        run: |
+          rustup target add i686-unknown-linux-gnu
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+
+      - name: 🛠️ Setup Ubuntu x64
+        if: ${{ matrix.bits == 64 &&  matrix.os == 'ubuntu-latest' }}
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+
+
+      # Set up 32 bit systems
+
+      - name: 🛠️ Config Linux x86
+        run: |
+          echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu" > $GITHUB_ENV
+        if: ${{ matrix.bits == 32 && matrix.os == 'ubuntu-latest' }}
+
+      # Benchmarks ...
+
+      - name: 🏃🏻‍♀️ Benchmarks
+        run: cargo bench --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee bench.txt
+
+      - name: Extract benchmarks
+        uses: cryspen/benchmark-data-extract-transform@v1
+        with:
+          name: rosenpass-ciphers primitives benchmarks
+          tool: 'cargo'
+          os: ${{ matrix.os }}_${{ matrix.bits }}
+          output-file-path: ciphers/bench.txt
+          data-out-path: ciphers/bench-processed.json
+
+      - name: Upload benchmarks
+        uses: cryspen/benchmark-upload-and-plot-action@v2
+        with:
+          name: rosenpass-ciphers primitives benchmarks
+          group-by: 'os'
+          input-data-path: ciphers/bench-processed.json
+          benchmark-data-dir-path: dev/bench/ciphers-primitives
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: pushes to current repository
+          gh-repository: github.com/${{ github.repository }}
+          auto-push: true
+
+  ciphers-primitives-bench-status:
+    if: ${{ always() }}
+    needs: [benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

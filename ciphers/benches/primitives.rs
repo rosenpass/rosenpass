@@ -1,7 +1,7 @@
 criterion::criterion_main!(keyed_hash::benches, aead::benches, kem::benches);
 
 fn benchid(class_name: &str, alg_name: &str, impl_name: &str, more: &str) -> String {
-    format!("{class_name}/{alg_name}/{impl_name}/{more}")
+    format!("{impl_name} {class_name}//{more}//{alg_name}")
 }
 
 mod kem {
