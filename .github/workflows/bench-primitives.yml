@@ -30,9 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update dependencies
-        run: cargo update
-
       - run: echo "RUST_TARGET_FLAG=" > $GITHUB_ENV
         if: ${{ matrix.bits == 64 }}
 
