@@ -1,7 +1,6 @@
 name: rosenpass-ciphers - primitives - benchmark
 
 on:
-  merge_group:
   pull_request:
     branches: ["main", "dev"]
   workflow_dispatch:
@@ -15,7 +14,6 @@ concurrency:
 
 jobs:
   benchmark:
-    if: ${{ github.event_name != 'pull_request' }}
     strategy:
       fail-fast: true
       matrix:
