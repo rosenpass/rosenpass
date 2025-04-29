@@ -136,6 +136,38 @@ fn write_json_arrays<
     write!(w, "]")
 }
 
+enum SpanGroup {
+    Long,
+    Medium,
+    BelowMillisec,
+    BelowMicrosec,
+}
+
+impl std::fmt::Display for SpanGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let txt = match self {
+            SpanGroup::Long => "long",
+            SpanGroup::Medium => "medium",
+            SpanGroup::BelowMillisec => "below_ms",
+            SpanGroup::BelowMicrosec => "below_us",
+        };
+
+        write!(f, "{txt}")
+    }
+}
+
+fn span_group(label: &str) -> SpanGroup {
+    match label {
+        "handle_init_hello" | "handle_resp_hello" | "rhi5" | "ihr5" => SpanGroup::Long,
+        "rhr1" | "ihi2" | "icr6" => SpanGroup::BelowMicrosec,
+        "rhi6" | "ici7" | "icr7" | "rhr3" | "icr3" | "ihr8" | "ici4" | "rhi3" | "rhi4" | "rhr4"
+        | "rhr7" | "ici3" | "ihi3" | "ihi8" | "icr2" | "icr4" | "ihr4" | "ihr6" | "ihi4"
+        | "rhi7" => SpanGroup::BelowMillisec,
+
+        _ => SpanGroup::Medium,
+    }
+}
+
 #[derive(Debug, Clone)]
 enum StatEntry {
     Start(std::time::Instant),
@@ -235,11 +267,14 @@ impl AggregateStat<Duration> {
     ) -> std::io::Result<()> {
         writeln!(
             w,
-            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "category":"{category}", "sampleSize": "{sample_size}"}}"#,
+            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "category":"{category}", "sampleSize":"{sample_size}", "os":"{os}", "arch":"{arch}", "group":"{group}"}}"#,
             name = label,
             value = self.mean_duration.as_nanos(),
             range = self.sd_duration.as_nanos(),
             sample_size = self.sample_size,
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            group = span_group(label),
         )
     }
 }

@@ -1,9 +1,10 @@
-name: rosenpass-ciphers - primitives - benchmark
+name: rosenpass - protocol - benchmark
 
 on:
   pull_request:
     branches: ["main", "dev"]
   workflow_dispatch:
+  push:
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  prim-benchmark:
+  proto-benchmark:
     strategy:
       fail-fast: true
       matrix:
@@ -25,7 +26,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ciphers
 
     steps:
       - uses: actions/checkout@v4
@@ -56,33 +56,24 @@ jobs:
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks
-        run: cargo bench -F bench --bench primitives --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee bench.txt
-
-      - name: Extract benchmarks
-        uses: cryspen/benchmark-data-extract-transform@v2
-        with:
-          name: rosenpass-ciphers primitives benchmarks
-          tool: 'cargo'
-          os: ${{ matrix.os }}_${{ matrix.bits }}
-          output-file-path: ciphers/bench.txt
-          data-out-path: ciphers/bench-processed.json
+        run: cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v2
         with:
-          name: rosenpass-ciphers primitives benchmarks
-          group-by: 'os,primitive,algorithm'
-          schema: 'os,primitive,algorithm,implementation,operation,length'
-          input-data-path: ciphers/bench-processed.json
-          benchmark-data-dir-path: dev/bench/ciphers-primitives
+          name: rosenpass protocol benchmarks
+          group-by: 'os,arch,category,group'
+          schema: 'os,arch,category,group,name'
+          input-data-path: bench.json
+          benchmark-data-dir-path: dev/bench/protocol
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # NOTE: pushes to current repository
           gh-repository: github.com/${{ github.repository }}
           auto-push: true
 
-  ciphers-primitives-bench-status:
+  ciphers-protocol-bench-status:
     if: ${{ always() }}
-    needs: [prim-benchmark]
+    needs: [proto-benchmark]
     runs-on: ubuntu-latest
     steps:
       - name: Successful

@@ -1,7 +1,36 @@
 criterion::criterion_main!(keyed_hash::benches, aead::benches, kem::benches);
 
-fn benchid(class_name: &str, alg_name: &str, impl_name: &str, more: &str) -> String {
-    format!("{impl_name} {class_name}//{more}//{alg_name}")
+fn benchid(base: KvPairs, last: KvPairs) -> String {
+    format!("{base},{last}")
+}
+
+#[derive(Clone, Copy, Debug)]
+struct KvPair<'a>(&'a str, &'a str);
+
+impl std::fmt::Display for KvPair<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{k}={v}", k = self.0, v = self.1)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct KvPairs<'a>(&'a [KvPair<'a>]);
+
+impl std::fmt::Display for KvPairs<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0.len() {
+            0 => Ok(()),
+            1 => write!(f, "{}", &self.0[0]),
+            _ => {
+                let mut delim = "";
+                for pair in self.0 {
+                    write!(f, "{delim}{pair}")?;
+                    delim = ",";
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 mod kem {
@@ -50,9 +79,18 @@ mod kem {
         impl_name: &str,
         scheme: T,
     ) {
-        let benchid = |more| super::benchid("kem", alg_name, impl_name, more);
+        use super::{benchid, KvPair, KvPairs};
 
-        c.bench_function(&benchid("keygen"), |bench| {
+        let base = [
+            KvPair("primitive", "kem"),
+            KvPair("algorithm", alg_name),
+            KvPair("implementation", impl_name),
+            KvPair("length", "-1"),
+        ];
+
+        let kem_benchid = |op| benchid(KvPairs(&base), KvPairs(&[KvPair("operation", op)]));
+
+        c.bench_function(&kem_benchid("keygen"), |bench| {
             let mut sk = [0; SK_LEN];
             let mut pk = [0; PK_LEN];
 
@@ -61,7 +99,7 @@ mod kem {
             });
         });
 
-        c.bench_function(&benchid("encaps"), |bench| {
+        c.bench_function(&kem_benchid("encaps"), |bench| {
             let mut sk = [0; SK_LEN];
             let mut pk = [0; PK_LEN];
             let mut ct = [0; CT_LEN];
@@ -74,7 +112,7 @@ mod kem {
             });
         });
 
-        c.bench_function(&benchid("decaps"), |bench| {
+        c.bench_function(&kem_benchid("decaps"), |bench| {
             let mut sk = [0; SK_LEN];
             let mut pk = [0; PK_LEN];
             let mut ct = [0; CT_LEN];
@@ -138,15 +176,25 @@ mod aead {
         impl_name: &str,
         scheme: T,
     ) {
-        use super::benchid;
+        use crate::{benchid, KvPair, KvPairs};
 
-        let aead_benchid = |more| benchid("aead", alg_name, impl_name, more);
+        let base = [
+            KvPair("primitive", "aead"),
+            KvPair("algorithm", alg_name),
+            KvPair("implementation", impl_name),
+        ];
+        let aead_benchid = |op, len| {
+            benchid(
+                KvPairs(&base),
+                KvPairs(&[KvPair("operation", op), KvPair("length", len)]),
+            )
+        };
 
         let key = [12; KEY_LEN];
         let nonce = [23; NONCE_LEN];
         let ad = [];
 
-        c.bench_function(&aead_benchid("encrypt_32byte"), |bench| {
+        c.bench_function(&aead_benchid("encrypt", "32byte"), |bench| {
             const DATA_LEN: usize = 32;
 
             let ptxt = [34u8; DATA_LEN];
@@ -157,7 +205,7 @@ mod aead {
             });
         });
 
-        c.bench_function(&aead_benchid("decrypt_32byte"), |bench| {
+        c.bench_function(&aead_benchid("decrypt", "32byte"), |bench| {
             const DATA_LEN: usize = 32;
 
             let ptxt = [34u8; DATA_LEN];
@@ -173,7 +221,7 @@ mod aead {
             })
         });
 
-        c.bench_function(&aead_benchid("encrypt_1024byte"), |bench| {
+        c.bench_function(&aead_benchid("encrypt", "1024byte"), |bench| {
             const DATA_LEN: usize = 1024;
 
             let ptxt = [34u8; DATA_LEN];
@@ -183,7 +231,7 @@ mod aead {
                 scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
             });
         });
-        c.bench_function(&aead_benchid("decrypt_1024byte"), |bench| {
+        c.bench_function(&aead_benchid("decrypt", "1024byte"), |bench| {
             const DATA_LEN: usize = 1024;
 
             let ptxt = [34u8; DATA_LEN];
@@ -251,35 +299,41 @@ mod keyed_hash {
     ) where
         H::Error: std::fmt::Debug,
     {
-        use super::benchid;
+        use crate::{benchid, KvPair, KvPairs};
 
         let key = [12u8; KEY_LEN];
         let mut out = [0u8; HASH_LEN];
 
-        let keyedhash_benchid = |more| benchid("keyedhash", alg_name, impl_name, more);
+        let base = [
+            KvPair("primitive", "keyedhash"),
+            KvPair("algorithm", alg_name),
+            KvPair("implementation", impl_name),
+            KvPair("operation", "hash"),
+        ];
+        let keyedhash_benchid = |len| benchid(KvPairs(&base), KvPairs(&[KvPair("length", len)]));
 
-        c.bench_function(&keyedhash_benchid("hash_32byte"), |bench| {
+        c.bench_function(&keyedhash_benchid("32byte"), |bench| {
             let bytes = [34u8; 32];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("hash_64byte"), |bench| {
+        .bench_function(&keyedhash_benchid("64byte"), |bench| {
             let bytes = [34u8; 64];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("hash_128byte"), |bench| {
+        .bench_function(&keyedhash_benchid("128byte"), |bench| {
             let bytes = [34u8; 128];
 
             bench.iter(|| {
                 H::keyed_hash(&key, &bytes, &mut out).unwrap();
             })
         })
-        .bench_function(&keyedhash_benchid("hash_1024byte"), |bench| {
+        .bench_function(&keyedhash_benchid("1024byte"), |bench| {
             let bytes = [34u8; 1024];
 
             bench.iter(|| {
