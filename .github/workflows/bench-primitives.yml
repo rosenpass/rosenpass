@@ -45,7 +45,6 @@ jobs:
         run: |
           rustup target add aarch64-unknown-linux-gnu
 
-
       # Set up 32 bit systems
 
       - name: 🛠️ Config Linux x86
@@ -62,7 +61,7 @@ jobs:
         uses: cryspen/benchmark-data-extract-transform@v2
         with:
           name: rosenpass-ciphers primitives benchmarks
-          tool: 'cargo'
+          tool: "cargo"
           os: ${{ matrix.os }}_${{ matrix.bits }}
           output-file-path: ciphers/bench.txt
           data-out-path: ciphers/bench-processed.json
@@ -71,8 +70,8 @@ jobs:
         uses: cryspen/benchmark-upload-and-plot-action@v2
         with:
           name: rosenpass-ciphers primitives benchmarks
-          group-by: 'os,primitive,algorithm'
-          schema: 'os,primitive,algorithm,implementation,operation,length'
+          group-by: "os,primitive,algorithm"
+          schema: "os,primitive,algorithm,implementation,operation,length"
           input-data-path: ciphers/bench-processed.json
           benchmark-data-dir-path: dev/bench/ciphers-primitives
           github-token: ${{ secrets.GITHUB_TOKEN }}
