@@ -14,3 +14,15 @@
 ## Next Steps
 
 * `pretty_output` Bash function
+  * pretty_output_line
+  * awk RESULT flush in marzipan()
+* move the whole metaverif function to Python
+* move the whole analyze function to Python
+  * find the files
+  * start subprocesses in parallel
+  * wait for them to finish
+* think about next steps
+  * integrate this upstream, into the CI?
+  * “make it beautiful” steps? more resiliency to working directory?
+  * rewrite our awk usages into Python/…?
+  * rewrite our CPP usages into Python/…?
