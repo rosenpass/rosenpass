@@ -9,8 +9,8 @@
   ```
 * ~~provide log parameter to `rosenpass-marzipan`-call~~ (no, it was intentionally not used)
 * ~~cpp pre-processing stuff~~
+* ~~awk pre-processing stuff~~
 
 ## Next Steps
 
-* awk pre-processing stuff
 * `pretty_output` Bash function

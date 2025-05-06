@@ -14,30 +14,6 @@ run_proverif() {
 
 clean_warnings() {
     exc rosenpass-marzipan clean-warnings
-: <<'END_COMMENT'
-   awk '
-      BEGIN {
-        null = "0455290a-50d5-4f28-8008-3d69605c2835"
-        p = null;
-      }
-
-      function pt(arg) {
-        if (arg != null) {
-          print(arg);
-        }
-      }
-      function bod() {
-        if ($0 !~ /^Warning: identifier \w+ rebound.$/) {
-          pt(p);
-          p=$0;
-        } else {
-          p=null;
-        }
-      }
-      { bod(); }
-      END { $0=null; bod(); }
-    '
-END_COMMENT
 }
 
 color_red='\033[0;31m'
