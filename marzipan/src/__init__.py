@@ -29,6 +29,17 @@ def run_proverif(file, extra_args=[]):
     eprint(params)
     return exc(params, stderr=pkgs.sys.stderr)
 
+@click.command()
+@click.argument("file")
+@click.argument("cpp_prep")
+def cpp(file, cpp_prep):
+    file_path = pkgs.pathlib.Path(file)
+
+    dirname = file_path.parent
+    cwd = pkgs.pathlib.Path.cwd()
+
+    params = ["cpp", "-P", f"-I{cwd}/{dirname}", file, "-o", cpp_prep]
+    return exc(params, stderr=pkgs.sys.stderr)
 
 @click.command()
 @click.argument("prefix")
@@ -84,5 +95,6 @@ def main():
 main.add_command(analyze)
 main.add_command(clean)
 main.add_command(run_proverif)
+main.add_command(cpp)
 main.add_command(pretty_output_line)
 main.add_command(clean_warnings)
