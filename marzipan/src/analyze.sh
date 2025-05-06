@@ -102,7 +102,6 @@ metaverif() {
 
   echo "internal metaverif"
 
-  #exc cpp -P -I"${PWD}/$(dirname "${file}")" "${file}" -o "${cpp_prep}"
   exc rosenpass-marzipan cpp ${file} ${cpp_prep}
 
 

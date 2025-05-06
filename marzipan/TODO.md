@@ -8,9 +8,9 @@
   rosenpass$ rosenpass-marzipan run-proverif target/proverif/03_identity_hiding_responder.entry.o.pv target/proverif/03_identity_hiding_responder.entry.log
   ```
 * ~~provide log parameter to `rosenpass-marzipan`-call~~ (no, it was intentionally not used)
+* ~~cpp pre-processing stuff~~
 
 ## Next Steps
 
-* cpp pre-processing stuff
 * awk pre-processing stuff
 * `pretty_output` Bash function
