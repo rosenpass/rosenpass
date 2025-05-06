@@ -46,7 +46,6 @@ harness = false
 
 [dependencies]
 rosenpass-util = { workspace = true }
-rosenpass-bench-util = { workspace = true, optional = true }
 rosenpass-constant-time = { workspace = true }
 rosenpass-ciphers = { workspace = true }
 rosenpass-cipher-traits = { workspace = true }
@@ -113,7 +112,7 @@ experiment_api = [
 internal_signal_handling_for_coverage_reports = ["signal-hook"]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
-trace_bench = ["dep:rosenpass-bench-util", "dep:libcrux-test-utils"]
+trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

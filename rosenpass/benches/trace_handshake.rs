@@ -13,10 +13,12 @@ use libcrux_test_utils::tracing::{EventType, Trace as _};
 use rosenpass::protocol::{
     CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey,
 };
-use rosenpass_bench_util::{AggregateStat, RpEventType, TRACE}; // Assuming AggregateStat is from here
+use rosenpass_util::trace_bench::{ RpEventType, TRACE};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+
+const ITERATIONS: usize = 100;
 
 fn handle(
     tx: &mut CryptoServer,
@@ -76,14 +78,18 @@ fn main() {
 
     // Run protocol for V02
     let (mut a_v02, mut b_v02) = make_server_pair(ProtocolVersion::V02).unwrap();
-    hs(black_box(&mut a_v02), black_box(&mut b_v02)).unwrap();
+    for _ in 0..ITERATIONS
+        hs(black_box(&mut a_v02), black_box(&mut b_v02)).unwrap();
+    }
 
     // Emit a marker event to separate V02 and V03 trace sections
     TRACE.emit_on_the_fly("start-hs-v03");
 
     // Run protocol for V03
     let (mut a_v03, mut b_v03) = make_server_pair(ProtocolVersion::V03).unwrap();
-    hs(black_box(&mut a_v03), black_box(&mut b_v03)).unwrap();
+    for _ in 0..ITERATIONS {
+        hs(black_box(&mut a_v03), black_box(&mut b_v03)).unwrap();
+    }
 
     // Collect the trace events generated during the handshakes
     let trace: Vec<_> = TRACE.clone().report();

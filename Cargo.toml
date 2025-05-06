@@ -13,7 +13,6 @@ members = [
     "secret-memory",
     "rp",
     "wireguard-broker",
-    "bench-util",
 ]
 
 default-members = ["rosenpass", "rp", "wireguard-broker"]
@@ -25,7 +24,6 @@ tag-prefix = ""
 [workspace.dependencies]
 rosenpass = { path = "rosenpass" }
 rosenpass-util = { path = "util" }
-rosenpass-bench-util = { path = "bench-util" }
 rosenpass-constant-time = { path = "constant-time" }
 rosenpass-cipher-traits = { path = "cipher-traits" }
 rosenpass-ciphers = { path = "ciphers" }

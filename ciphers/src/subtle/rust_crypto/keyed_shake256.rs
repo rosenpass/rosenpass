@@ -13,6 +13,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     for SHAKE256Core<KEY_LEN, HASH_LEN>
 {
     type Error = anyhow::Error;
+
     /// Provides a keyed hash function based on SHAKE256. To work for the protocol, the output length
     /// and key length are fixed to 32 bytes (also see [KEY_LEN] and [HASH_LEN]).
     ///

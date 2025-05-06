@@ -3546,10 +3546,14 @@ impl CryptoServer {
     }
 }
 
-macro_rules! emit_span {
+/// Marks a section of the protocol using the same identifiers as are used in the whitepaper.
+/// When building with the trace benchmarking feature enabled, this also emits span events into the
+/// trace, which allows reconstructing the run times of the individual sections for performace
+/// measurement.
+macro_rules! protocol_section {
     ($label:expr, $body:tt) => {{
         #[cfg(feature = "trace_bench")]
-        let _span_raii_handle = rosenpass_bench_util::TRACE.emit_span($label);
+        let _span_raii_handle = rosenpass_util::trace_bench::TRACE.emit_span($label);
 
         #[allow(unused_braces)]
         $body
@@ -3561,7 +3565,7 @@ impl CryptoServer {
     /// on the initiator side, producing the InitHello message.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_initiation", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_initiation", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(
@@ -3570,35 +3574,35 @@ impl CryptoServer {
         );
 
         // IHI1
-        emit_span!("ihi1", {
+        protocol_section!("IHI1", {
             hs.core.init(peer.get(self).spkt.deref())?;
         });
 
         // IHI2
-        emit_span!("ihi2", {
+        protocol_section!("IHI2", {
             hs.core.sidi.randomize();
             ih.sidi.copy_from_slice(&hs.core.sidi.value);
         });
 
         // IHI3
-        emit_span!("ihi3", {
+        protocol_section!("IHI3", {
             EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
             ih.epki.copy_from_slice(&hs.epki.value);
         });
 
         // IHI4
-        emit_span!("ihi4", {
+        protocol_section!("IHI4", {
             hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
         });
 
         // IHI5
-        emit_span!("ihi5", {
+        protocol_section!("IHI5", {
             hs.core
                 .encaps_and_mix(&StaticKem, &mut ih.sctr, peer.get(self).spkt.deref())?;
         });
 
         // IHI6
-        emit_span!("ihi6", {
+        protocol_section!("IHI6", {
             hs.core.encrypt_and_mix(
                 ih.pidic.as_mut_slice(),
                 self.pidm(peer.get(self).protocol_version.keyed_hash())?
@@ -3607,14 +3611,14 @@ impl CryptoServer {
         });
 
         // IHI7
-        emit_span!("ihi7", {
+        protocol_section!("IHI7", {
             hs.core
                 .mix(self.spkm.deref())?
                 .mix(peer.get(self).psk.secret())?;
         });
 
         // IHI8
-        emit_span!("ihi8", {
+        protocol_section!("IHI8", {
             hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
         });
 
@@ -3628,7 +3632,7 @@ impl CryptoServer {
     /// [RespHello] message on the responder side.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_init_hello", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_init_hello", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_init_hello(
         &mut self,
@@ -3641,22 +3645,22 @@ impl CryptoServer {
         core.sidi = SessionId::from_slice(&ih.sidi);
 
         // IHR1
-        emit_span!("ihr1", {
+        protocol_section!("IHR1", {
             core.init(self.spkm.deref())?;
         });
 
         // IHR4
-        emit_span!("ihr4", {
+        protocol_section!("IHR4", {
             core.mix(&ih.sidi)?.mix(&ih.epki)?;
         });
 
         // IHR5
-        emit_span!("ihr5", {
+        protocol_section!("IHR5", {
             core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
         });
 
         // IHR6
-        let peer = emit_span!("ihr6", {
+        let peer = protocol_section!("IHR6", {
             let mut peerid = PeerId::zero();
             core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
             self.find_peer(peerid)
@@ -3664,45 +3668,45 @@ impl CryptoServer {
         });
 
         // IHR7
-        emit_span!("ihr7", {
+        protocol_section!("IHR7", {
             core.mix(peer.get(self).spkt.deref())?
                 .mix(peer.get(self).psk.secret())?;
         });
 
         // IHR8
-        emit_span!("ihr8", {
+        protocol_section!("IHR8", {
             core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
         });
 
         // RHR1
-        emit_span!("rhr1", {
+        protocol_section!("RHR1", {
             core.sidr.randomize();
             rh.sidi.copy_from_slice(core.sidi.as_ref());
             rh.sidr.copy_from_slice(core.sidr.as_ref());
         });
 
         // RHR3
-        emit_span!("rhr3", {
+        protocol_section!("RHR3", {
             core.mix(&rh.sidr)?.mix(&rh.sidi)?;
         });
 
         // RHR4
-        emit_span!("rhr4", {
+        protocol_section!("RHR4", {
             core.encaps_and_mix(&EphemeralKem, &mut rh.ecti, &ih.epki)?;
         });
 
         // RHR5
-        emit_span!("rhr5", {
+        protocol_section!("RHR5", {
             core.encaps_and_mix(&StaticKem, &mut rh.scti, peer.get(self).spkt.deref())?;
         });
 
         // RHR6
-        emit_span!("rhr6", {
+        protocol_section!("RHR6", {
             core.store_biscuit(self, peer, &mut rh.biscuit)?;
         });
 
         // RHR7
-        emit_span!("rhr7", {
+        protocol_section!("RHR7", {
             core.encrypt_and_mix(&mut rh.auth, &[])?;
         });
 
@@ -3713,7 +3717,7 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_resp_hello", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_resp_hello", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         // RHI2
@@ -3759,12 +3763,12 @@ impl CryptoServer {
         //       to save us from the repetitive secret unwrapping
 
         // RHI3
-        emit_span!("rhi3", {
+        protocol_section!("RHI3", {
             core.mix(&rh.sidr)?.mix(&rh.sidi)?;
         });
 
         // RHI4
-        emit_span!("rhi4", {
+        protocol_section!("RHI4", {
             core.decaps_and_mix(
                 &EphemeralKem,
                 hs!().eski.secret(),
@@ -3774,17 +3778,17 @@ impl CryptoServer {
         });
 
         // RHI5
-        emit_span!("rhi5", {
+        protocol_section!("RHI5", {
             core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &rh.scti)?;
         });
 
         // RHI6
-        emit_span!("rhi6", {
+        protocol_section!("RHI6", {
             core.mix(&rh.biscuit)?;
         });
 
         // RHI7
-        emit_span!("rhi7", {
+        protocol_section!("RHI7", {
             core.decrypt_and_mix(&mut [0u8; 0], &rh.auth)?;
         });
 
@@ -3795,13 +3799,13 @@ impl CryptoServer {
         ic.sidr.copy_from_slice(&rh.sidr);
 
         // ICI3
-        emit_span!("ici3", {
+        protocol_section!("ICI3", {
             core.mix(&ic.sidi)?.mix(&ic.sidr)?;
             ic.biscuit.copy_from_slice(&rh.biscuit);
         });
 
         // ICI4
-        emit_span!("ici4", {
+        protocol_section!("ICI4", {
             core.encrypt_and_mix(&mut ic.auth, &[])?;
         });
 
@@ -3810,7 +3814,7 @@ impl CryptoServer {
         // we still need it for InitConf message retransmission to function.
 
         // ICI7
-        emit_span!("ici7", {
+        protocol_section!("ICI7", {
             peer.session().insert(
                 self,
                 core.enter_live(
@@ -3833,7 +3837,7 @@ impl CryptoServer {
     /// an acknowledgement message telling the initiator to stop performing retransmissions.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_init_conf", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_init_conf", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_init_conf(
         &mut self,
@@ -3843,7 +3847,7 @@ impl CryptoServer {
     ) -> Result<PeerPtr> {
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
-        let (peer, biscuit_no, mut core) = emit_span!("icr1", {
+        let (peer, biscuit_no, mut core) = protocol_section!("ICR1", {
             HandshakeState::load_biscuit(
                 self,
                 &ic.biscuit,
@@ -3854,17 +3858,17 @@ impl CryptoServer {
         });
 
         // ICR2
-        emit_span!("icr2", {
+        protocol_section!("ICR2", {
             core.encrypt_and_mix(&mut [0u8; Aead::TAG_LEN], &[])?;
         });
 
         // ICR3
-        emit_span!("icr3", {
+        protocol_section!("ICR3", {
             core.mix(&ic.sidi)?.mix(&ic.sidr)?;
         });
 
         // ICR4
-        emit_span!("icr4", {
+        protocol_section!("ICR4", {
             core.decrypt_and_mix(&mut [0u8; 0], &ic.auth)?;
         });
 
@@ -3878,12 +3882,12 @@ impl CryptoServer {
         );
 
         // ICR6
-        emit_span!("icr6", {
+        protocol_section!("ICR6", {
             peer.get_mut(self).biscuit_used = biscuit_no;
         });
 
         // ICR7
-        emit_span!("icr7", {
+        protocol_section!("ICR7", {
             peer.session().insert(
                 self,
                 core.enter_live(
@@ -3942,7 +3946,7 @@ impl CryptoServer {
     /// The EmptyData message is just there to tell the initiator to abort retransmissions.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_resp_conf", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_resp_conf", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_resp_conf(
         &mut self,
@@ -4003,7 +4007,7 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_bench_util::trace_span("handle_cookie_reply", rosenpass_bench_util::TRACE)
+        rosenpass_util::trace_bench::trace_span("handle_cookie_reply", rosenpass_util::trace_bench::TRACE)
     )]
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         let peer_ptr: Option<PeerPtr> = self

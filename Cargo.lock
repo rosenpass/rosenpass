@@ -2048,7 +2048,6 @@ dependencies = [
  "paste",
  "procspawn",
  "rand 0.8.5",
- "rosenpass-bench-util",
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-constant-time",
@@ -2069,14 +2068,6 @@ dependencies = [
  "uds",
  "zerocopy 0.7.35",
  "zeroize",
-]
-
-[[package]]
-name = "rosenpass-bench-util"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "libcrux-test-utils",
 ]
 
 [[package]]
@@ -2181,6 +2172,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64ct",
+ "lazy_static",
+ "libcrux-test-utils",
  "mio",
  "rustix",
  "static_assertions",

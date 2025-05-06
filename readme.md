@@ -8,8 +8,8 @@ trace, which is then inspected after a run.
 
 ## Protocol Benchmark
 
-The trace that is being written to lives in a new crate
-`rosenpass-bench-util` (in directory `bench-util`). A basic benchmark that
+The trace that is being written to lives in a new module
+`trace_bench` in the util crate. A basic benchmark that
 performs some minor statistical analysis of the trace can be run using
 
 ```
