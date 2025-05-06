@@ -7,10 +7,9 @@ exc() {
 
 run_proverif() {
   local file; file="$1"; shift
-  local log; log="$1"; shift
-  #exc proverif -test "${@}" "${file}" 2>&1
+  local log; log="$1"; shift # intentionally unused
 
-  exc rosenpass-marzipan run-proverif "${file}" "${log}" "${@}"
+  exc rosenpass-marzipan run-proverif "${file}" "${@}"
 }
 
 clean_warnings() {
