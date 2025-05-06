@@ -99,17 +99,10 @@ metaverif() {
   local name; name="$(echo "${file}" | grep -Po '[^/]*(?=\.mpv)')"
 
   local cpp_prep; cpp_prep="${tmpdir}/${name}.i.pv"
-
-  echo "internal metaverif"
+  local awk_prep; awk_prep="${tmpdir}/${name}.o.pv"
 
   exc rosenpass-marzipan cpp ${file} ${cpp_prep}
-
-
-  local awk_prep; awk_prep="${tmpdir}/${name}.o.pv"
-  {
-    exc awk -f marzipan/marzipan.awk "${cpp_prep}"
-    echo -e "\nprocess main"
-  } > "${awk_prep}"
+  exc rosenpass-marzipan awk-prep ${cpp_prep} ${awk_prep}
 
   local log; log="${tmpdir}/${name}.log"
   {

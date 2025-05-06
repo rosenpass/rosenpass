@@ -41,6 +41,17 @@ def cpp(file, cpp_prep):
     params = ["cpp", "-P", f"-I{cwd}/{dirname}", file, "-o", cpp_prep]
     return exc(params, stderr=pkgs.sys.stderr)
 
+
+@click.command()
+@click.argument("cpp_prep")
+@click.argument("awk_prep")
+def awk_prep(cpp_prep, awk_prep):
+    params = ["awk", "-f", "marzipan/marzipan.awk", cpp_prep]
+    with open(awk_prep, 'w') as file:
+        exc(params, stderr=pkgs.sys.stderr, stdout=file)
+        file.write("\nprocess main")
+
+
 @click.command()
 @click.argument("prefix")
 @click.argument("mark")
@@ -96,5 +107,6 @@ main.add_command(analyze)
 main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
+main.add_command(awk_prep)
 main.add_command(pretty_output_line)
 main.add_command(clean_warnings)
