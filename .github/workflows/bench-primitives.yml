@@ -54,7 +54,7 @@ jobs:
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks (using Nix as shell)
-        shell: nix develop .#devShells.{{ matrix.system }}.benchmark --command bash -e {0}
+        shell: nix develop .#devShells.${{ matrix.system }}.benchmark --command bash -e {0}
         run: cargo bench -p ciphers -F bench --bench primitives --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee bench-primitives.txt
 
       - name: Extract benchmarks
