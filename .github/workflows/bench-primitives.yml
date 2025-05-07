@@ -1,0 +1,90 @@
+name: rosenpass-ciphers - primitives - benchmark
+
+on:
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prim-benchmark:
+    strategy:
+      fail-fast: true
+      matrix:
+        system: ["x86_64-linux", "i686-linux"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install nix
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment
+
+      - name: 🛠️ Config Linux x64
+        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
+        if: ${{ matrix.system == 'x86_64-linux' }}
+
+      - name: 🛠️ Config Linux x86
+        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
+        if: ${{ matrix.system == 'i686-linux' }}
+
+      - name: 🛠️ Config Linux aarch64
+        run: echo "RUST_TARGET_FLAG=--target=aarch64-unknown-linux-gnu" > $GITHUB_ENV
+        if: ${{ matrix.system == 'aarch64-linux' }}
+
+      # Benchmarks ...
+
+      - name: 🏃🏻‍♀️ Benchmarks (using Nix as shell)
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -p ciphers -F bench --bench primitives --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee bench-primitives.txt
+
+      - name: Extract benchmarks
+        uses: cryspen/benchmark-data-extract-transform@v2
+        with:
+          name: rosenpass-ciphers primitives benchmarks
+          tool: "cargo"
+          os: ${{ matrix.system }}
+          output-file-path: bench-primitives.txt
+          data-out-path: bench-primitives.json
+
+      - name: Upload benchmarks
+        uses: cryspen/benchmark-upload-and-plot-action@v2
+        with:
+          name: rosenpass-ciphers primitives benchmarks
+          group-by: "os,primitive,algorithm"
+          schema: "os,primitive,algorithm,implementation,operation,length"
+          input-data-path: bench-primitives.json
+          benchmark-data-dir-path: dev/bench/ciphers-primitives
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: pushes to current repository
+          gh-repository: github.com/${{ github.repository }}
+          auto-push: true
+
+  ciphers-primitives-bench-status:
+    if: ${{ always() }}
+    needs: [prim-benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

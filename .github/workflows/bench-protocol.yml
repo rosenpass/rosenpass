@@ -1,0 +1,81 @@
+name: rosenpass - protocol - benchmark
+
+on:
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proto-benchmark:
+    strategy:
+      fail-fast: true
+      matrix:
+        system: ["x86_64-linux", "i686-linux"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install nix
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment
+
+      - name: 🛠️ Config Linux x64
+        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
+        if: ${{ matrix.system == 'x86_64-linux' }}
+
+      - name: 🛠️ Config Linux x86
+        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
+        if: ${{ matrix.system == 'i686-linux' }}
+
+      - name: 🛠️ Config Linux aarch64
+        run: echo "RUST_TARGET_FLAG=--target=aarch64-unknown-linux-gnu" > $GITHUB_ENV
+        if: ${{ matrix.system == 'aarch64-linux' }}
+
+      # Benchmarks ...
+
+      - name: 🏃🏻‍♀️ Benchmarks
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
+
+      - name: Upload benchmarks
+        uses: cryspen/benchmark-upload-and-plot-action@v2
+        with:
+          name: rosenpass protocol benchmarks
+          group-by: "os,arch,category,group"
+          schema: "os,arch,category,group,name"
+          input-data-path: bench-protocol.json
+          benchmark-data-dir-path: dev/bench/protocol
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: pushes to current repository
+          gh-repository: github.com/${{ github.repository }}
+          auto-push: true
+
+  ciphers-protocol-bench-status:
+    if: ${{ always() }}
+    needs: [proto-benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1
