@@ -17,11 +17,9 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        bits: [32, 64]
-        os:
-          - ubuntu-latest
+        system: ["x86_64-linux", "i686-linux", "aarch64-linux"]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -29,32 +27,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: echo "RUST_TARGET_FLAG=" > $GITHUB_ENV
-        if: ${{ matrix.bits == 64 }}
+      # Install nix
 
-      - name: 🛠️ Setup Ubuntu x86
-        if: ${{ matrix.bits == 32 &&  matrix.os == 'ubuntu-latest' }}
-        run: |
-          rustup target add i686-unknown-linux-gnu
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib g++-multilib
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🛠️ Setup Ubuntu x64
-        if: ${{ matrix.bits == 64 &&  matrix.os == 'ubuntu-latest' }}
-        run: |
-          rustup target add aarch64-unknown-linux-gnu
+      # Set up RUST_TARGET_FLAG environment
 
-      # Set up 32 bit systems
+      - name: 🛠️ Config Linux x64
+        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
+        if: ${{ matrix.system == 'x86_64-linux' }}
 
       - name: 🛠️ Config Linux x86
-        run: |
-          echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu" > $GITHUB_ENV
-        if: ${{ matrix.bits == 32 && matrix.os == 'ubuntu-latest' }}
+        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
+        if: ${{ matrix.system == 'i686-linux' }}
+
+      - name: 🛠️ Config Linux aarch64
+        run: echo "RUST_TARGET_FLAG=--target=aarch64-unknown-linux-gnu" > $GITHUB_ENV
+        if: ${{ matrix.system == 'aarch64-linux' }}
+
+      - run: echo "RUST_TARGET_FLAG=" > $GITHUB_ENV
+        if: ${{ matrix.bits == 64 }}
 
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks
-        run: cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench.json
+        shell: nix develop .#devShells.{{ matrix.system }}.benchmark
+        run: cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v2
@@ -62,7 +65,7 @@ jobs:
           name: rosenpass protocol benchmarks
           group-by: "os,arch,category,group"
           schema: "os,arch,category,group,name"
-          input-data-path: bench.json
+          input-data-path: bench-protocol.json
           benchmark-data-dir-path: dev/bench/protocol
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # NOTE: pushes to current repository
