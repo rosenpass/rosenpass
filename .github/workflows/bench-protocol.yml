@@ -36,7 +36,7 @@ jobs:
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-      # Set up RUST_TARGET_FLAG environment
+      # Set up environment
 
       - name: 🛠️ Config Linux x64
         run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
@@ -50,14 +50,10 @@ jobs:
         run: echo "RUST_TARGET_FLAG=--target=aarch64-unknown-linux-gnu" > $GITHUB_ENV
         if: ${{ matrix.system == 'aarch64-linux' }}
 
-      - run: echo "RUST_TARGET_FLAG=" > $GITHUB_ENV
-        if: ${{ matrix.bits == 64 }}
-
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks
-        shell: nix develop .#devShells.${{ matrix.system }}.benchmark --command bash -e {0}
-        run: cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v2
