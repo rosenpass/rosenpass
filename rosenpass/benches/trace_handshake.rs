@@ -78,7 +78,7 @@ fn main() {
 
     // Run protocol for V02
     let (mut a_v02, mut b_v02) = make_server_pair(ProtocolVersion::V02).unwrap();
-    for _ in 0..ITERATIONS
+    for _ in 0..ITERATIONS {
         hs(black_box(&mut a_v02), black_box(&mut b_v02)).unwrap();
     }
 
