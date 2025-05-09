@@ -32,9 +32,9 @@ let systems_map = {
   # aarch64-darwin
   # aarch64-linux
   
-  i686-linux: ubuntu-latest,
+  i686-linux: ubicloud-standard-2-ubuntu-2204,
   x86_64-darwin: macos-13,
-  x86_64-linux: ubuntu-latest
+  x86_64-linux: ubicloud-standard-2-ubuntu-2204
 }
 
 let targets = (get-attr-names ".#packages"
@@ -61,14 +61,13 @@ mut release_workflow = {
 
 let runner_setup = [
   {
-    uses: "actions/checkout@v3"
+    uses: "actions/checkout@v4"
   }
   {
-    uses: "cachix/install-nix-action@v22",
-    with: { nix_path: "nixpkgs=channel:nixos-unstable" }
+    uses: "cachix/install-nix-action@v30",
   }
   {
-    uses: "cachix/cachix-action@v12",
+    uses: "cachix/cachix-action@v15",
     with: {
       name: rosenpass,
       authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
@@ -154,7 +153,7 @@ for system in ($targets | columns) {
       }
       {
         name: Release,
-        uses: "softprops/action-gh-release@v1",
+        uses: "softprops/action-gh-release@v2",
         with: {
           draft: "${{ contains(github.ref_name, 'rc') }}",
           prerelease: "${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}",
@@ -182,7 +181,7 @@ $cachix_workflow.jobs = ($cachix_workflow.jobs | insert $"($system)---whitepaper
     }
     {
       name: "Deploy PDF artifacts",
-      uses: "peaceiris/actions-gh-pages@v3",
+      uses: "peaceiris/actions-gh-pages@v4",
       with: {
         github_token: "${{ secrets.GITHUB_TOKEN }}",
         publish_dir: result/,

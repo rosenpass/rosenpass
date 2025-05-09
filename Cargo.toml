@@ -2,17 +2,17 @@
 resolver = "2"
 
 members = [
-    "rosenpass",
-    "cipher-traits",
-    "ciphers",
-    "util",
-    "constant-time",
-    "oqs",
-    "to",
-    "fuzz",
-    "secret-memory",
-    "rp",
-    "wireguard-broker",
+  "rosenpass",
+  "cipher-traits",
+  "ciphers",
+  "util",
+  "constant-time",
+  "oqs",
+  "to",
+  "fuzz",
+  "secret-memory",
+  "rp",
+  "wireguard-broker",
 ]
 
 default-members = ["rosenpass", "rp", "wireguard-broker"]
@@ -42,7 +42,7 @@ toml = "0.7.8"
 static_assertions = "1.1.0"
 allocator-api2 = "0.2.14"
 memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = [
-    "alloc_ext",
+  "alloc_ext",
 ] }
 rand = "0.8.5"
 typenum = "1.17.0"
@@ -55,14 +55,14 @@ arbitrary = { version = "1.4.1", features = ["derive"] }
 anyhow = { version = "1.0.95", features = ["backtrace", "std"] }
 mio = { version = "1.0.3", features = ["net", "os-poll"] }
 oqs-sys = { version = "0.9.1", default-features = false, features = [
-    'classic_mceliece',
-    'kyber',
+  'classic_mceliece',
+  'kyber',
 ] }
 blake2 = "0.10.6"
 sha3 = "0.10.8"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
-    "std",
-    "heapless",
+  "std",
+  "heapless",
 ] }
 zerocopy = { version = "0.7.35", features = ["derive"] }
 home = "=0.5.9" # 5.11 requires rustc 1.81
@@ -72,7 +72,7 @@ postcard = { version = "1.1.1", features = ["alloc"] }
 libcrux = { version = "0.0.2-pre.2" }
 libcrux-chacha20poly1305 = { version = "0.0.2-beta.3" }
 libcrux-ml-kem = { version = "0.0.2-beta.3" }
-libcrux-blake2 = { git = "https://github.com/cryspen/libcrux.git", rev = "10ce653e9476"}
+libcrux-blake2 = { git = "https://github.com/cryspen/libcrux.git", rev = "10ce653e9476" }
 hex-literal = { version = "0.4.1" }
 hex = { version = "0.4.3" }
 heck = { version = "0.5.0" }
@@ -89,7 +89,6 @@ test_bin = "0.4.0"
 criterion = "0.5.1"
 allocator-api2-tests = "0.2.15"
 procspawn = { version = "1.0.1", features = ["test-support"] }
-
 
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
