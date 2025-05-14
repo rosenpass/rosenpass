@@ -3,6 +3,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Regenerate cargo-vet exemptions for dependabot-PRs]
+    types:
+      - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,6 +18,8 @@ permissions:
 
 jobs:
   prettier:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +28,8 @@ jobs:
           args: --check .
 
   shellcheck:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Shellcheck
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
@@ -30,6 +38,8 @@ jobs:
         uses: ludeeus/action-shellcheck@master
 
   rustfmt:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Rust Format
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
@@ -38,6 +48,8 @@ jobs:
         run: bash format_rust_code.sh --mode check
 
   cargo-bench:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +68,8 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo bench --workspace --exclude rosenpass-fuzzing
 
   mandoc:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: mandoc
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
@@ -66,6 +80,8 @@ jobs:
         run: doc/check.sh doc/rp.1
 
   cargo-audit:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +90,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo-clippy:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -93,6 +111,8 @@ jobs:
           args: --all-features
 
   cargo-doc:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -112,6 +132,8 @@ jobs:
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
 
   cargo-test:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -135,6 +157,8 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 
   cargo-test-nix-devshell-x86_64-linux:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
     steps:
@@ -158,6 +182,8 @@ jobs:
       - run: nix develop --command cargo test --workspace --all-features
 
   cargo-fuzz:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     env:
     steps:
@@ -192,6 +218,8 @@ jobs:
           cargo fuzz run fuzz_vec_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
 
   codecov:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4

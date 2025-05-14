@@ -1,0 +1,54 @@
+name: Regenerate cargo-vet exemptions for dependabot-PRs
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regen-cargo-vet-exemptions:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    name: Regenerate exemptions for cargo-vet for dependabot-PRs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+          key: cargo-vet-cache
+      - name: Install stable toolchain # Since we are running/compiling cargo-vet, we should rely on the stable toolchain.
+        run: |
+          rustup toolchain install stable
+          rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.tool_cache }}/cargo-vet
+          key: cargo-vet-bin
+      - name: Add the tool cache directory to the search path
+        run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
+      - name: Ensure that the tool cache is populated with the cargo-vet binary
+        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
+      - name: Regenerate vet exemptions for dependabot PRs
+        run: cargo vet regenerate exemptions
+      - name: Check for changes in case of dependabot PR
+        run: git diff --exit-code || echo "Changes detected, committing..."
+      - name: Commit and push changes for dependabot PRs
+        if: ${{ success() }}
+        run: |
+          git fetch origin ${{ github.head_ref }}
+          git switch ${{ github.head_ref }}
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions@github.com"
+          git add supply-chain/*
+          git commit -m "Regenerate cargo vet exemptions"
+          git push origin ${{ github.head_ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

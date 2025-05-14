@@ -6,6 +6,10 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows: [Regenerate cargo-vet exemptions for dependabot-PRs]
+    types:
+      - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +17,8 @@ concurrency:
 
 jobs:
   i686-linux---default:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build i686-linux.default
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -30,6 +36,8 @@ jobs:
       - name: Build
         run: nix build .#packages.i686-linux.default --print-build-logs
   i686-linux---rosenpass:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build i686-linux.rosenpass
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -46,6 +54,8 @@ jobs:
       - name: Build
         run: nix build .#packages.i686-linux.rosenpass --print-build-logs
   i686-linux---rosenpass-oci-image:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build i686-linux.rosenpass-oci-image
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -63,6 +73,8 @@ jobs:
       - name: Build
         run: nix build .#packages.i686-linux.rosenpass-oci-image --print-build-logs
   i686-linux---check:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Run Nix checks on i686-linux
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -78,6 +90,8 @@ jobs:
       - name: Check
         run: nix flake check . --print-build-logs
   x86_64-linux---default:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.default
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -95,6 +109,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.default --print-build-logs
   x86_64-linux---proof-proverif:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.proof-proverif
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -112,6 +128,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.proof-proverif --print-build-logs
   x86_64-linux---proverif-patched:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.proverif-patched
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -128,6 +146,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.proverif-patched --print-build-logs
   x86_64-linux---release-package:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.release-package
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -171,6 +191,8 @@ jobs:
   #     - name: Build
   #       run: nix build .#packages.aarch64-linux.release-package --print-build-logs
   x86_64-linux---rosenpass:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.rosenpass
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -187,6 +209,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass --print-build-logs
   aarch64-linux---rosenpass:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build aarch64-linux.rosenpass
     runs-on:
       - ubicloud-standard-2-arm-ubuntu-2204
@@ -208,6 +232,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-linux.rosenpass --print-build-logs
   aarch64-linux---rp:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build aarch64-linux.rp
     runs-on:
       - ubicloud-standard-2-arm-ubuntu-2204
@@ -229,6 +255,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-linux.rp --print-build-logs
   x86_64-linux---rosenpass-oci-image:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.rosenpass-oci-image
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -246,6 +274,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-oci-image --print-build-logs
   aarch64-linux---rosenpass-oci-image:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build aarch64-linux.rosenpass-oci-image
     runs-on:
       - ubicloud-standard-2-arm-ubuntu-2204
@@ -268,6 +298,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-linux.rosenpass-oci-image --print-build-logs
   x86_64-linux---rosenpass-static:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.rosenpass-static
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -284,6 +316,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-static --print-build-logs
   x86_64-linux---rp-static:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.rp-static
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -300,6 +334,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.rp-static --print-build-logs
   x86_64-linux---rosenpass-static-oci-image:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.rosenpass-static-oci-image
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -317,6 +353,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-static-oci-image --print-build-logs
   x86_64-linux---whitepaper:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Build x86_64-linux.whitepaper
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -333,6 +371,8 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
   x86_64-linux---check:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     name: Run Nix checks on x86_64-linux
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
@@ -350,7 +390,8 @@ jobs:
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubicloud-standard-2-ubuntu-2204
-    if: ${{ github.ref == 'refs/heads/main' }}
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ (github.ref == 'refs/heads/main') && (github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run') }}
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
