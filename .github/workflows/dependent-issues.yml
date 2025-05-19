@@ -17,6 +17,10 @@ on:
       # this action is required to pass before merging. Otherwise, it
       # can be removed.
       - synchronize
+  workflow_run:
+    workflows: [Regenerate cargo-vet exemptions for dependabot-PRs]
+    types:
+      - completed
 
   # Schedule a daily check. Useful if you reference cross-repository
   # issues or pull requests. Otherwise, it can be removed.
@@ -25,6 +29,8 @@ on:
 
 jobs:
   check:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     permissions:
       issues: write
       pull-requests: write

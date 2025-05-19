@@ -13,6 +13,8 @@ concurrency:
 
 jobs:
   aarch64-darwin---default:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Build aarch64-darwin.default
     runs-on:
       - warp-macos-13-arm64-6x
@@ -30,6 +32,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-darwin.default --print-build-logs
   aarch64-darwin---release-package:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Build aarch64-darwin.release-package
     runs-on:
       - warp-macos-13-arm64-6x
@@ -49,6 +53,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-darwin.release-package --print-build-logs
   aarch64-darwin---rosenpass:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Build aarch64-darwin.rosenpass
     runs-on:
       - warp-macos-13-arm64-6x
@@ -65,6 +71,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-darwin.rosenpass --print-build-logs
   aarch64-darwin---rp:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Build aarch64-darwin.rp
     runs-on:
       - warp-macos-13-arm64-6x
@@ -81,6 +89,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-darwin.rp --print-build-logs
   aarch64-darwin---rosenpass-oci-image:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Build aarch64-darwin.rosenpass-oci-image
     runs-on:
       - warp-macos-13-arm64-6x
@@ -98,6 +108,8 @@ jobs:
       - name: Build
         run: nix build .#packages.aarch64-darwin.rosenpass-oci-image --print-build-logs
   aarch64-darwin---check:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     name: Run Nix checks on aarch64-darwin
     runs-on:
       - warp-macos-13-arm64-6x

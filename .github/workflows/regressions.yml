@@ -3,6 +3,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Regenerate cargo-vet exemptions for dependabot-PRs]
+    types:
+      - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,6 +18,8 @@ permissions:
 
 jobs:
   multi-peer:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +31,8 @@ jobs:
           [ $(ls -1 output/ate/out | wc -l) -eq 100 ]
 
   boot-race:
+    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
+    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
