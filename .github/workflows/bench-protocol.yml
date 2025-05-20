@@ -66,7 +66,7 @@ jobs:
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks
-        run: nix develop ".#devShells.${{ matrix.system }}.benchmark" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
+        run: nix develop --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v3
