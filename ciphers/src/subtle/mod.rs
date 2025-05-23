@@ -11,6 +11,7 @@ pub mod rust_crypto;
 #[cfg(any(
     feature = "experiment_libcrux_blake2",
     feature = "experiment_libcrux_chachapoly",
-    feature = "experiment_libcrux_kyber"
+    feature = "experiment_libcrux_kyber",
+    feature = "bench"
 ))]
 pub mod libcrux;
