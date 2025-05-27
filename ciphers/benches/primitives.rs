@@ -342,5 +342,3 @@ mod keyed_hash {
         });
     }
 }
-
-mod templates {}
