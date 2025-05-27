@@ -37,14 +37,6 @@ jobs:
 
       # Set up environment
 
-      - name: 🛠️ Config Linux x64
-        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
-        if: ${{ matrix.system == 'x86_64-linux' }}
-
-      - name: 🛠️ Config Linux x86
-        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
-        if: ${{ matrix.system == 'i686-linux' }}
-
       - name: 🛠️ Prepare Benchmark Path
         env:
           EVENT_NAME:  ${{ github.event_name }}
@@ -66,22 +58,21 @@ jobs:
       # Benchmarks ...
 
       - name: 🏃🏻‍♀️ Benchmarks
-        run: nix develop ".#devShells.${{ matrix.system }}.default" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose $RUST_TARGET_FLAG >bench-protocol.json
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmarks" --command cargo bench -p rosenpass --bench trace_handshake -F trace_bench --verbose >bench-protocol.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v3
         with:
           name: Protocol Benchmarks
-          group-by: "os,arch,protocol version,run time"
-          schema: "os,arch,protocol version,run time,name"
+          group-by: "operating system,architecture,protocol version,run time"
+          schema: "operating system,architecture,protocol version,run time,name"
           input-data-path: bench-protocol.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # NOTE: pushes to current repository
           gh-repository: github.com/${{ github.repository }}
-          # use the default (gh-pages) for the demo
-          #gh-pages-branch: benchmarks
           auto-push: true
           fail-on-alert: true
+          base-path: benchmarks/
 
   ciphers-protocol-bench-status:
     if: ${{ always() }}

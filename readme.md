@@ -1,37 +1,3 @@
-# Changes on This Branch
-
-This branch adds facilities for benchmarking both the Rosenpass protocol
-code and the implementations of the primitives behind it. The primitives
-are benchmarked using criterion. For the protocol code, we use a custom
-library for instrumenting the code such that events are written to a
-trace, which is then inspected after a run.
-
-## Protocol Benchmark
-
-The trace that is being written to lives in a new module
-`trace_bench` in the util crate. A basic benchmark that
-performs some minor statistical analysis of the trace can be run using
-
-```
-cargo bench -p rosenpass --bench trace_handshake -F trace_bench
-```
-
-## Primitive Benchmark
-
-Benchmarks for the functions of the traits `Kem`, `Aead` and `KeyedHash`
-have been added and are run for all implementations in the `primitives`
-benchmark of `rosenpass-ciphers`. Run the benchmarks using
-
-```
-cargo bench -p rosenpass-ciphers --bench primitives -F bench
-```
-
-Note that the `bench` feature enables the inclusion of the libcrux-backed
-trait implementations in the module tree, but does not enable them
-as default.
-
----
-
 # Rosenpass README
 
 ![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
@@ -116,6 +82,45 @@ Rosenpass is also available as prebuilt Docker images:
 - [`ghcr.io/rosenpass/rp`](https://github.com/rosenpass/rosenpass/pkgs/container/rp)
 
 For details on how to use these images, refer to the [Docker usage guide](docker/USAGE.md).
+
+## Benchmarks
+
+This repository contains facilities for benchmarking both the Rosenpass
+protocol code and the implementations of the cryptographic primitives used
+by it. The primitives are benchmarked using criterion. For the protocol code
+benchmarks we use a library for instrumenting the code such that events are
+written to a trace, which is then inspected after a run.
+
+Benchmarks are automatically run on CI. The measurements are visualized in the
+[Benchmark Dashboard].
+
+[Benchmark Dashboard]: https://rosenpass.github.io/benchmarks
+ 
+### Primitive Benchmarks
+
+There are benchmarks for the functions of the traits `Kem`, `Aead` and
+`KeyedHash`. They are run for all implementations in the `primitives`
+benchmark of `rosenpass-ciphers`. Run the benchmarks using
+
+```
+cargo bench -p rosenpass-ciphers --bench primitives -F bench
+```
+
+Note that the `bench` feature enables the inclusion of the libcrux-backed
+trait implementations in the module tree, but does not enable them
+as default.
+
+### Protocol Benchmarks
+
+The trace that is being written to lives in a new module
+`trace_bench` in the util crate. A basic benchmark that
+performs some minor statistical analysis of the trace can be run using
+
+```
+cargo bench -p rosenpass --bench trace_handshake -F trace_bench
+```
+
+---
 
 # Mirrors
 
