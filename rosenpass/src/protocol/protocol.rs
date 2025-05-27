@@ -3565,7 +3565,10 @@ impl CryptoServer {
     /// on the initiator side, producing the InitHello message.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_initiation", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_initiation",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         let mut hs = InitiatorHandshake::zero_with_timestamp(
@@ -3632,7 +3635,10 @@ impl CryptoServer {
     /// [RespHello] message on the responder side.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_init_hello", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_init_hello",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_init_hello(
         &mut self,
@@ -3717,7 +3723,10 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_resp_hello", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_resp_hello",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         // RHI2
@@ -3837,7 +3846,10 @@ impl CryptoServer {
     /// an acknowledgement message telling the initiator to stop performing retransmissions.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_init_conf", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_init_conf",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_init_conf(
         &mut self,
@@ -3946,7 +3958,10 @@ impl CryptoServer {
     /// The EmptyData message is just there to tell the initiator to abort retransmissions.
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_resp_conf", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_resp_conf",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_resp_conf(
         &mut self,
@@ -4007,7 +4022,10 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     #[cfg_attr(
         feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span("handle_cookie_reply", rosenpass_util::trace_bench::TRACE)
+        rosenpass_util::trace_bench::trace_span(
+            "handle_cookie_reply",
+            rosenpass_util::trace_bench::TRACE
+        )
     )]
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         let peer_ptr: Option<PeerPtr> = self
