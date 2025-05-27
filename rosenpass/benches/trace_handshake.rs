@@ -183,8 +183,8 @@ impl std::fmt::Display for RunTimeGroup {
         let txt = match self {
             RunTimeGroup::Long => "long",
             RunTimeGroup::Medium => "medium",
-            RunTimeGroup::BelowMillisec => "below_ms",
-            RunTimeGroup::BelowMicrosec => "below_us",
+            RunTimeGroup::BelowMillisec => "below 1ms",
+            RunTimeGroup::BelowMicrosec => "below 1us",
         };
         write!(f, "{txt}")
     }
@@ -357,7 +357,7 @@ impl AggregateStat<Duration> {
         // Format the JSON string using measured values and environment constants
         writeln!(
             w,
-            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "protocol version":"{protocol_version}", "sample size":"{sample_size}", "os":"{os}", "arch":"{arch}", "run time":"{run_time}"}}"#,
+            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "protocol version":"{protocol_version}", "sample size":"{sample_size}", "operating system":"{os}", "architecture":"{arch}", "run time":"{run_time}"}}"#,
             name = label,                          // Benchmark name
             value = self.mean_duration.as_nanos(), // Mean duration in nanoseconds
             range = self.sd_duration.as_nanos(),   // Standard deviation in nanoseconds

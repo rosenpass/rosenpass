@@ -37,14 +37,6 @@ jobs:
 
       # Set up environment
 
-      - name: 🛠️ Config Linux x64
-        run: echo "RUST_TARGET_FLAG=--target=x86_64-unknown-linux-gnu"  > $GITHUB_ENV
-        if: ${{ matrix.system == 'x86_64-linux' }}
-
-      - name: 🛠️ Config Linux x86
-        run: echo "RUST_TARGET_FLAG=--target=i686-unknown-linux-gnu"    > $GITHUB_ENV
-        if: ${{ matrix.system == 'i686-linux' }}
-
       - name: 🛠️ Prepare Benchmark Path
         env:
           EVENT_NAME:  ${{ github.event_name }}
@@ -67,7 +59,7 @@ jobs:
 
       - name: 🏃🏻‍♀️ Benchmarks (using Nix as shell)
         working-directory: ciphers
-        run: nix develop ".#devShells.${{ matrix.system }}.default" --command cargo bench -F bench --bench primitives --verbose $RUST_TARGET_FLAG -- --output-format bencher | tee ../bench-primitives.txt
+        run: nix develop ".#devShells.${{ matrix.system }}.benchmarks" --command cargo bench -F bench --bench primitives --verbose -- --output-format bencher | tee ../bench-primitives.txt
 
       - name: Extract benchmarks
         uses: cryspen/benchmark-data-extract-transform@v2
@@ -76,22 +68,24 @@ jobs:
           tool: "cargo"
           os: ${{ matrix.system }}
           output-file-path: bench-primitives.txt
-          data-out-path: bench-primitives.json
+          data-out-path: bench-primitives-os.json
+
+      - name: Fix up 'os' label in benchmark data
+        run: jq 'map(with_entries(.key |= if . == "os" then "operating system" else . end))' <bench-primitives-os.json >bench-primitives.json
 
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v3
         with:
           name: Crypto Primitives Benchmarks
-          group-by: "os,primitive,algorithm"
-          schema: "os,primitive,algorithm,implementation,operation,length"
+          group-by: "operating system,primitive,algorithm"
+          schema: "operating system,primitive,algorithm,implementation,operation,length"
           input-data-path: bench-primitives.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # NOTE: pushes to current repository
           gh-repository: github.com/${{ github.repository }}
-          # use the default (gh-pages) for the demo
-          #gh-pages-branch: benchmarks
           auto-push: true
           fail-on-alert: true
+          base-path: benchmarks/
 
   ciphers-primitives-bench-status:
     if: ${{ always() }}

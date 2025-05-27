@@ -173,6 +173,14 @@
                 inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
               };
             };
+            devShells.benchmarks = pkgs.mkShell {
+              inputsFrom = [ pkgs.rosenpass ];
+              nativeBuildInputs = with pkgs; [
+                cargo-release
+                clippy
+                rustfmt
+              ];
+            };
 
             checks =
               {
