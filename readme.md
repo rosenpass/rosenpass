@@ -95,7 +95,7 @@ Benchmarks are automatically run on CI. The measurements are visualized in the
 [Benchmark Dashboard].
 
 [Benchmark Dashboard]: https://rosenpass.github.io/benchmarks
- 
+
 ### Primitive Benchmarks
 
 There are benchmarks for the functions of the traits `Kem`, `Aead` and
