@@ -14,8 +14,6 @@ permissions:
 
 jobs:
   cargo-test-mac:
-    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions or explicitly called
-    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' || github.event_name == 'workflow_call'}}
     runs-on: warp-macos-13-arm64-6x
     steps:
       - uses: actions/checkout@v4
