@@ -14,15 +14,6 @@ on:
       - ".github/workflows/docker.yaml"
     branches:
       - "main"
-  workflow_run:
-    workflows: [Regenerate cargo-vet exemptions for dependabot-PRs]
-    types:
-      - completed
-    paths:
-      - "docker/Dockerfile"
-      - ".github/workflows/docker.yaml"
-    branches:
-      - "main"
 
 permissions:
   contents: read
@@ -33,8 +24,6 @@ jobs:
   # 1. BUILD & TEST
   # --------------------------------
   build-and-test-rp:
-    # Only run this for dependabot PRs if it's triggered by the workflow to regenerate cargo-vet exemptions
-    if: ${{ github.actor != 'dependabot[bot]' || github.event_name == 'workflow_run' }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -129,8 +118,8 @@ jobs:
   docker-image-rp:
     needs:
       - build-and-test-rp
-    # Only run this job if it s triggered by by a push to the main branch or a version tag.
-    if: ${{ github.event_name != 'pull_request' && github.event_name != 'workflow_run' }}
+    # Skip if this is not a PR. Then we want to push this image.
+    if: ${{ github.event_name != 'pull_request' }}
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
@@ -194,8 +183,8 @@ jobs:
   docker-image-rosenpass:
     needs:
       - build-and-test-rp
-    # Only run this job if it s triggered by by a push to the main branch or a version tag.
-    if: ${{ github.event_name != 'pull_request' && github.event_name != 'workflow_run' }}
+    # Skip if this is not a PR. Then we want to push this image.
+    if: ${{ github.event_name != 'pull_request' }}
     # Use a matrix to build for both AMD64 and ARM64
     strategy:
       matrix:
@@ -260,7 +249,7 @@ jobs:
     needs:
       - docker-image-rosenpass
       - docker-image-rp
-    if: ${{ github.event_name != 'pull_request' && github.event_name != 'workflow_run' }}
+    if: ${{ github.event_name != 'pull_request' }}
     strategy:
       matrix:
         target: [rp, rosenpass]
