@@ -22,7 +22,7 @@ use rosenpass_cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
+use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_to::{ops::copy_slice, To};
@@ -35,9 +35,6 @@ use rosenpass_util::{
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 
-use super::basic_types::{
-    BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
-};
 use super::constants::{
     BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
     PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
@@ -46,6 +43,14 @@ use super::constants::{
 };
 use super::timing::{has_happened, Timing, BCE, UNENDING};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
+use super::{
+    basic_types::{
+        BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
+    },
+    cookies::BiscuitKey,
+};
+
+use super::cookies::{CookieSecret, CookieStore};
 
 #[cfg(feature = "trace_bench")]
 use rosenpass_util::trace_bench::Trace as _;
@@ -133,77 +138,6 @@ pub struct CryptoServer {
     /// See [CryptoServer::handle_msg_under_load], and [CryptoServer::active_or_retired_cookie_secrets].
     pub cookie_secrets: [CookieSecret; 2],
 }
-
-/// Container for storing cookie secrets like [BiscuitKey] or [CookieSecret].
-///
-/// This is really just a secret key and a time stamp of creation. Concrete
-/// usages (such as for the biscuit key) impose a time limit about how long
-/// a key can be used and the time of creation is used to impose that time limit.
-///
-/// # Examples
-///
-/// ```
-/// use rosenpass_util::time::Timebase;
-/// use rosenpass::protocol::{timing::BCE, basic_types::SymKey, CookieStore};
-///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-///
-/// let fixed_secret = SymKey::random();
-/// let timebase = Timebase::default();
-///
-/// let mut store = CookieStore::<32>::new();
-/// assert_ne!(store.value.secret(), SymKey::zero().secret());
-/// assert_eq!(store.created_at, BCE);
-///
-/// let time_before_call = timebase.now();
-/// store.update(&timebase, fixed_secret.secret());
-/// assert_eq!(store.value.secret(), fixed_secret.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
-///
-/// // Same as new()
-/// store.erase();
-/// assert_ne!(store.value.secret(), SymKey::zero().secret());
-/// assert_eq!(store.created_at, BCE);
-///
-/// let secret_before_call = store.value.clone();
-/// let time_before_call = timebase.now();
-/// store.randomize(&timebase);
-/// assert_ne!(store.value.secret(), secret_before_call.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
-/// ```
-#[derive(Debug)]
-pub struct CookieStore<const N: usize> {
-    /// Time of creation of the secret key
-    pub created_at: Timing,
-    /// The secret key
-    pub value: Secret<N>,
-}
-
-/// Stores cookie secret, which is used to create a rotating the cookie value
-///
-/// Concrete value is in [CryptoServer::cookie_secrets].
-///
-/// The pointer type is [ServerCookieSecretPtr].
-pub type CookieSecret = CookieStore<COOKIE_SECRET_LEN>;
-
-/// Storage for our biscuit keys.
-///
-/// The biscuit keys encrypt what we call "biscuits".
-/// These biscuits contain the responder state for a particular handshake. By moving
-/// state into these biscuits, we make sure the responder is stateless.
-///
-/// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
-/// the responder doesn't store state. Instead the state is stored in a
-/// Biscuit, that is encrypted using the [BiscuitKey] which is only known to
-/// the Responder. Thus secrecy of the Responder state is not violated, still
-/// the responder can avoid storing this state.
-///
-/// Concrete value is in [CryptoServer::biscuit_keys].
-///
-/// The pointer type is [BiscuitKeyPtr].
-pub type BiscuitKey = CookieStore<KEY_LEN>;
 
 /// We maintain various indices in [CryptoServer::index], mapping some key to a particular
 /// [PeerNo], i.e. to an index in [CryptoServer::peers]. These are the possible index key.
@@ -480,6 +414,8 @@ pub struct InitiatorHandshake {
     /// mechanism.
     ///
     /// TODO: cookie_value should be an Option<_>
+    /// TODO: This should not use CookieStore, which exists to store randomly generated cookie
+    /// secrets
     ///
     /// This value seems to default-initialized with a random value according to
     /// [Self::zero_with_timestamp], which does not really make sense since this
