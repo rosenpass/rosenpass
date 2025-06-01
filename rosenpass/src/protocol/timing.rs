@@ -1,6 +1,6 @@
 //! Time-keeping related utilities for the Rosenpass protocol
 
-use super::EVENT_GRACE;
+use super::constants::EVENT_GRACE;
 
 /// A type for time, e.g. for backoff before re-tries
 pub type Timing = f64;
@@ -35,7 +35,7 @@ pub const UNENDING: Timing = 3600.0 * 8.0;
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{timing::has_happened, EVENT_GRACE};
+/// use rosenpass::protocol::{timing::has_happened, constants::EVENT_GRACE};
 /// assert!(has_happened(EVENT_GRACE * -1.0, 0.0));
 /// assert!(has_happened(0.0, 0.0));
 /// assert!(has_happened(EVENT_GRACE * 0.999, 0.0));
