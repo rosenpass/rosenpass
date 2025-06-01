@@ -20,9 +20,9 @@ pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
 /// Time after which either party rejects the current key.
 ///
 /// At this point a new key should have been negotiated.
+///
 /// Rejection happens 50-60 seconds after key renegotiation
 /// to allow for a graceful handover.
-///
 /// From the wireguard paper: rekey every two minutes,
 /// discard the key if no rekey is achieved within three
 pub const REJECT_AFTER_TIME: Timing = 180.0;

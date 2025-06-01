@@ -41,6 +41,7 @@ use super::constants::{
     REKEY_AFTER_TIME_RESPONDER, RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END,
     RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
 };
+use super::index::{PeerIndex, PeerIndexKey};
 use super::timing::{has_happened, Timing, BCE, UNENDING};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 use super::{
@@ -105,12 +106,12 @@ pub struct CryptoServer {
 
     /// List of peers and their session and handshake states
     pub peers: Vec<Peer>,
-    /// Index into the list of peers. See [IndexKey] for details.
-    pub index: HashMap<IndexKey, PeerNo>,
+    /// Index into the list of peers. See [PeerIndexKey] for details.
+    pub index: PeerIndex,
     /// Hash key for known responder confirmation responses.
     ///
     /// These hashes are then used for lookups in [Self::index] using
-    /// the [IndexKey::KnownInitConfResponse] enum case.
+    /// the [PeerIndexKey::KnownInitConfResponse] enum case.
     ///
     /// This is used to allow for retransmission of responder confirmation (i.e.
     /// [Envelope]<[EmptyData]>) messages in response to [Envelope]<[InitConf]>
@@ -137,35 +138,6 @@ pub struct CryptoServer {
     ///
     /// See [CryptoServer::handle_msg_under_load], and [CryptoServer::active_or_retired_cookie_secrets].
     pub cookie_secrets: [CookieSecret; 2],
-}
-
-/// We maintain various indices in [CryptoServer::index], mapping some key to a particular
-/// [PeerNo], i.e. to an index in [CryptoServer::peers]. These are the possible index key.
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum IndexKey {
-    /// Lookup of a particular peer given the [PeerId], i.e. a value derived from the peers public
-    /// key as created by [CryptoServer::pidm] or [Peer::pidt].
-    ///
-    /// The peer id is used by the initiator to tell the responder about its identity in
-    /// [crate::msgs::InitHello].
-    ///
-    /// See also the pointer types [PeerPtr].
-    Peer(PeerId),
-    /// Lookup of a particular session id.
-    ///
-    /// This is used to look up both established sessions (see
-    /// [CryptoServer::lookup_session]) and ongoing handshakes (see [CryptoServer::lookup_handshake]).
-    ///
-    /// Lookup of a peer to get an established session or a handshake is sufficient, because a peer
-    /// contains a limited number of sessions and handshakes ([Peer::session] and [Peer::handshake] respectively).
-    ///
-    /// See also the pointer types [IniHsPtr] and [SessionPtr].
-    Sid(SessionId),
-    /// Lookup of a cached response ([Envelope]<[EmptyData]>) to an [InitConf] (i.e.
-    /// [Envelope]<[InitConf]>) message.
-    ///
-    /// See [KnownInitConfResponsePtr] on how this value is maintained.
-    KnownInitConfResponse(KnownResponseHash),
 }
 
 /// Specifies the protocol version used by a peer.
@@ -199,7 +171,7 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// Peers generally live in [CryptoServer::peers]. [PeerNo] captures an array
 /// into this field and [PeerPtr] is a wrapper around a [PeerNo] imbued with
 /// peer specific functionality. [CryptoServer::index] contains a list of lookup-keys
-/// for retrieving peers using various keys (see [IndexKey]).
+/// for retrieving peers using various keys (see [PeerIndexKey]).
 ///
 /// # Examples
 ///
@@ -257,7 +229,7 @@ pub struct Peer {
     pub biscuit_used: BiscuitId,
     /// The last established session
     ///
-    /// This is indexed though [IndexKey::Sid].
+    /// This is indexed though [PeerIndexKey::Sid].
     pub session: Option<Session>,
     /// Ongoing handshake, in initiator mode.
     ///
@@ -265,7 +237,7 @@ pub struct Peer {
     /// because the state is stored inside a [Biscuit] to make sure the responder
     /// is stateless.
     ///
-    /// This is indexed though [IndexKey::Sid].
+    /// This is indexed though [PeerIndexKey::Sid].
     pub handshake: Option<InitiatorHandshake>,
     /// Used to make sure that the same [PollResult::SendInitiation] event is never issued twice.
     ///
@@ -277,7 +249,7 @@ pub struct Peer {
     /// [Envelope]<[EmptyData]>.
     ///
     /// Upon reception of an InitConf message, [CryptoServer::handle_msg] first checks
-    /// if a cached response exists through [IndexKey::KnownInitConfResponse]. If one exists,
+    /// if a cached response exists through [PeerIndexKey::KnownInitConfResponse]. If one exists,
     /// then this field must be set to [Option::Some] and the cached response is returned.
     ///
     /// This allows us to perform retransmission for the purpose of dealing with packet loss
@@ -472,14 +444,14 @@ fn known_response_format() {
 pub type KnownInitConfResponse = KnownResponse<EmptyData>;
 
 /// The type used to represent the hash of a known response
-/// in the context of [KnownResponse]/[IndexKey::KnownInitConfResponse]
+/// in the context of [KnownResponse]/[PeerIndexKey::KnownInitConfResponse]
 pub type KnownResponseHash = Public<16>;
 
 /// Object that produces [KnownResponseHash].
 ///
 /// Merely a key plus some utility functions.
 ///
-/// See [IndexKey::KnownInitConfResponse] and [KnownResponse::request_mac]
+/// See [PeerIndexKey::KnownInitConfResponse] and [KnownResponse::request_mac]
 ///
 /// # Examples
 ///
@@ -1051,7 +1023,7 @@ impl KnownInitConfResponsePtr {
     pub fn remove(&self, srv: &mut CryptoServer) -> Option<KnownInitConfResponse> {
         let peer = self.peer();
         let val = peer.get_mut(srv).known_init_conf_response.take()?;
-        let lookup_key = IndexKey::KnownInitConfResponse(val.request_mac);
+        let lookup_key = PeerIndexKey::KnownInitConfResponse(val.request_mac);
         srv.index.remove(&lookup_key).unwrap();
         Some(val)
     }
@@ -1070,7 +1042,7 @@ impl KnownInitConfResponsePtr {
     pub fn insert(&self, srv: &mut CryptoServer, known_response: KnownInitConfResponse) {
         self.remove(srv).discard_result();
 
-        let index_key = IndexKey::KnownInitConfResponse(known_response.request_mac);
+        let index_key = PeerIndexKey::KnownInitConfResponse(known_response.request_mac);
         self.peer().get_mut(srv).known_init_conf_response = Some(known_response);
 
         // There is a question here whether we should just discard the result…or panic if the
@@ -1171,9 +1143,9 @@ impl KnownInitConfResponsePtr {
 
     /// Calculate an appropriate index key for `req`
     ///
-    /// Merely forwards [Self::index_key_for_msg] and wraps the result in [IndexKey::KnownInitConfResponse]
-    pub fn index_key_for_msg(srv: &CryptoServer, req: &Envelope<InitConf>) -> IndexKey {
-        Self::index_key_hash_for_msg(srv, req).apply(IndexKey::KnownInitConfResponse)
+    /// Merely forwards [Self::index_key_for_msg] and wraps the result in [PeerIndexKey::KnownInitConfResponse]
+    pub fn index_key_for_msg(srv: &CryptoServer, req: &Envelope<InitConf>) -> PeerIndexKey {
+        Self::index_key_hash_for_msg(srv, req).apply(PeerIndexKey::KnownInitConfResponse)
     }
 }
 
@@ -1291,7 +1263,7 @@ impl CryptoServer {
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
-        match self.index.entry(IndexKey::Peer(peerid)) {
+        match self.index.entry(PeerIndexKey::Peer(peerid)) {
             Occupied(_) => bail!(
                 "Cannot insert peer with id {:?}; peer with this id already registered.",
                 peerid
@@ -1315,7 +1287,7 @@ impl CryptoServer {
     /// To rgister a session, you should generally use [SessionPtr::insert] or [IniHsPtr::insert]
     /// instead of this, more lower level function.
     pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> Result<()> {
-        match self.index.entry(IndexKey::Sid(id)) {
+        match self.index.entry(PeerIndexKey::Sid(id)) {
             Occupied(p) if PeerPtr(*p.get()) == peer => {} // Already registered
             Occupied(_) => bail!("Cannot insert session with id {:?}; id is in use.", id),
             Vacant(e) => {
@@ -1334,7 +1306,7 @@ impl CryptoServer {
     /// To unregister a session, you should generally use [SessionPtr::take] or [IniHsPtr::take]
     /// instead of this, more lower level function.
     pub fn unregister_session(&mut self, id: SessionId) {
-        self.index.remove(&IndexKey::Sid(id));
+        self.index.remove(&PeerIndexKey::Sid(id));
     }
 
     /// Unregister a session previously registered using [Self::register_session],
@@ -1363,7 +1335,9 @@ impl CryptoServer {
     /// This function is used in cryptographic message processing
     /// [CryptoServer::handle_init_hello], and [HandshakeState::load_biscuit]
     pub fn find_peer(&self, id: PeerId) -> Option<PeerPtr> {
-        self.index.get(&IndexKey::Peer(id)).map(|no| PeerPtr(*no))
+        self.index
+            .get(&PeerIndexKey::Peer(id))
+            .map(|no| PeerPtr(*no))
     }
 
     /// Look up a handshake given its session id [HandshakeState::sidi]
@@ -1371,7 +1345,7 @@ impl CryptoServer {
     /// This is called `lookup_session` in [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn lookup_handshake(&self, id: SessionId) -> Option<IniHsPtr> {
         self.index
-            .get(&IndexKey::Sid(id)) // lookup the session in the index
+            .get(&PeerIndexKey::Sid(id)) // lookup the session in the index
             .map(|no| IniHsPtr(*no)) // convert to peer pointer
             .filter(|hsptr| {
                 hsptr
@@ -1387,7 +1361,7 @@ impl CryptoServer {
     /// This is called `lookup_session` in [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn lookup_session(&self, id: SessionId) -> Option<SessionPtr> {
         self.index
-            .get(&IndexKey::Sid(id))
+            .get(&PeerIndexKey::Sid(id))
             .map(|no| SessionPtr(*no))
             .filter(|sptr| {
                 sptr.get(self)
