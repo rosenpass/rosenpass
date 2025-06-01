@@ -79,6 +79,7 @@ pub use build_crypto_server::*;
 
 pub mod basic_types;
 pub mod constants;
+pub mod testutils;
 pub mod timing;
 
 #[allow(clippy::module_inception)]
