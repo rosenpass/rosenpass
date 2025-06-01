@@ -1,6 +1,6 @@
 //! Time-keeping related utilities for the Rosenpass protocol
 
-use super::EVENT_GRACE;
+use super::constants::EVENT_GRACE;
 
 /// A type for time, e.g. for backoff before re-tries
 pub type Timing = f64;
