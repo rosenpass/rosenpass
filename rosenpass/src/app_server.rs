@@ -47,7 +47,7 @@ use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
     config::Verbosity,
-    protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
+    protocol::{timing::Timing, CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey},
 };
 use rosenpass_util::attempt;
 use rosenpass_util::b64::B64Display;
@@ -1337,7 +1337,7 @@ impl AppServer {
                     break A::SendRetransmission(AppPeerPtr(no))
                 }
                 Some(C::Sleep(timeout)) => timeout, // No event from crypto-server, do IO
-                None => crate::protocol::UNENDING,  // Crypto server is uninitialized, do IO
+                None => crate::protocol::timing::UNENDING, // Crypto server is uninitialized, do IO
             };
 
             // Perform IO (look for a message)

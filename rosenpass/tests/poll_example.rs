@@ -10,8 +10,10 @@ use rosenpass_ciphers::StaticKem;
 use rosenpass_util::result::OkExt;
 
 use rosenpass::protocol::{
-    testutils::time_travel_forward, CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult,
-    ProtocolVersion, SPk, SSk, SymKey, Timing, UNENDING,
+    testutils::time_travel_forward,
+    timing::{Timing, UNENDING},
+    CryptoServer, HostIdentification, MsgBuf, PeerPtr, PollResult, ProtocolVersion, SPk, SSk,
+    SymKey,
 };
 
 // TODO: Most of the utility functions in here should probably be moved to
