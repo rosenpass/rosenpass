@@ -2549,7 +2549,7 @@ pub enum PollResult {
     /// The caller should immediately erase any cryptographic keys exchanged with
     /// the peer previously and then immediately call poll again.
     ///
-    /// This is raised after [super::constants::REKEY_TIMEOUT] if no successful rekey could be achieved.
+    /// This is raised after [REJECT_AFTER_TIME] if no successful rekey could be achieved.
     DeleteKey(PeerPtr),
     /// The caller should invoke [CryptoServer::handle_initiation] and transmit the
     /// initiation to the other party before invoking poll again.
