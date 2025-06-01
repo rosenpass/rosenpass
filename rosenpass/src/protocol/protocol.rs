@@ -45,6 +45,7 @@ use super::constants::{
     RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
 };
 use super::timing::{has_happened, Timing, BCE, UNENDING};
+use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
 #[cfg(feature = "trace_bench")]
 use rosenpass_util::trace_bench::Trace as _;
@@ -3948,18 +3949,4 @@ impl CryptoServer {
             bail!("No such peer {pidr:?}.", pidr = cr.inner.sid);
         }
     }
-}
-
-/// Used to parse a network message using [zerocopy]
-pub fn truncating_cast_into<T: FromBytes>(
-    buf: &mut [u8],
-) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
-}
-
-/// Used to parse a network message using [zerocopy], mutably
-pub fn truncating_cast_into_nomut<T: FromBytes>(
-    buf: &[u8],
-) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
 }

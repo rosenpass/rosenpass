@@ -81,6 +81,7 @@ pub mod basic_types;
 pub mod constants;
 pub mod testutils;
 pub mod timing;
+pub mod zerocopy;
 
 #[allow(clippy::module_inception)]
 mod protocol;
