@@ -1,4 +1,5 @@
-use super::{CryptoServer, PeerPtr, SPk, SSk, SymKey};
+use super::basic_types::{SPk, SSk, SymKey};
+use super::{CryptoServer, PeerPtr};
 use crate::config::ProtocolVersion;
 use rosenpass_util::{
     build::Build,
@@ -66,7 +67,7 @@ impl Keypair {
 
     /// Creates a new "empty" key pair. All bytes are initialized to zero.
     ///
-    /// See [SSk:zero()][crate::protocol::SSk::zero] and [SPk:zero()][crate::protocol::SPk::zero], respectively.
+    /// See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
     ///
     /// # Example
     ///
@@ -90,7 +91,7 @@ impl Keypair {
 
     /// Creates a new (securely-)random key pair. The mechanism is described in [rosenpass_secret_memory::Secret].
     ///
-    /// See [SSk:random()][crate::protocol::SSk::random] and [SPk:random()][crate::protocol::SPk::random], respectively.
+    /// See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
     pub fn random() -> Self {
         Self::new(SSk::random(), SPk::random())
     }
@@ -127,7 +128,7 @@ pub struct MissingKeypair;
 ///
 /// There are multiple ways of creating a crypto server:
 ///
-/// 1. Provide the key pair at initialization time (using [CryptoServer::new][crate::protocol::CryptoServer::new])
+/// 1. Provide the key pair at initialization time (using [CryptoServer::new][CryptoServer::new])
 /// 2. Provide the key pair at a later time (using [BuildCryptoServer::empty])
 ///
 /// With BuildCryptoServer, you can gradually configure parameters as they become available.
@@ -205,13 +206,13 @@ impl Build<CryptoServer> for BuildCryptoServer {
 }
 
 #[derive(Debug)]
-/// Cryptographic key(s) identifying the connected [peer][crate::protocol::Peer] ("client")
+/// Cryptographic key(s) identifying the connected [peer][super::Peer] ("client")
 /// for a given session that is being managed by the crypto server.
 ///
-/// Each peer must be identified by a [public key (SPk)][crate::protocol::SPk].
-/// Optionally, a [symmetric key (SymKey)][crate::protocol::SymKey]
+/// Each peer must be identified by a [public key (SPk)][SPk].
+/// Optionally, a [symmetric key (SymKey)][SymKey]
 /// can be provided when setting up the connection.
-/// For more information on the intended usage and security considerations, see [Peer::psk][crate::protocol::Peer::psk] and [Peer::spkt][crate::protocol::Peer::spkt].
+/// For more information on the intended usage and security considerations, see [Peer::psk][super::Peer::psk] and [Peer::spkt][super::Peer::spkt].
 pub struct PeerParams {
     /// Pre-shared (symmetric) encryption keys that should be used with this peer.
     pub psk: Option<SymKey>,

@@ -158,10 +158,10 @@ where
             );
 
             // Actually read the secrets
-            let mut sk = crate::protocol::SSk::zero();
+            let mut sk = crate::protocol::basic_types::SSk::zero();
             sk_io.read_exact_til_end(sk.secret_mut()).einvalid_req()?;
 
-            let mut pk = crate::protocol::SPk::zero();
+            let mut pk = crate::protocol::basic_types::SPk::zero();
             pk_io.read_exact_til_end(pk.borrow_mut()).einvalid_req()?;
 
             // Retrieve the construction site

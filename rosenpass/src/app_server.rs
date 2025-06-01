@@ -47,7 +47,8 @@ use crate::protocol::BuildCryptoServer;
 use crate::protocol::HostIdentification;
 use crate::{
     config::Verbosity,
-    protocol::{timing::Timing, CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey},
+    protocol::basic_types::{MsgBuf, SPk, SSk, SymKey},
+    protocol::{timing::Timing, CryptoServer, PeerPtr},
 };
 use rosenpass_util::attempt;
 use rosenpass_util::b64::B64Display;

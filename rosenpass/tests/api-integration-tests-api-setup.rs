@@ -15,7 +15,7 @@ use rosenpass::api::{
     supply_keypair_response_status,
 };
 use rosenpass::config::ProtocolVersion;
-use rosenpass::protocol::SymKey;
+use rosenpass::protocol::basic_types::SymKey;
 use rosenpass_util::{
     b64::B64Display,
     file::LoadValueB64,
