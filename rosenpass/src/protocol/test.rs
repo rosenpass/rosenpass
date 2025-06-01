@@ -9,14 +9,13 @@ use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::Public;
 use rosenpass_util::mem::DiscardResultExt;
 
-use crate::{
-    msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, MAX_MESSAGE_LEN},
-    protocol::{basic_types::MsgBuf, constants::REKEY_AFTER_TIME_RESPONDER},
-};
+use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, MAX_MESSAGE_LEN};
 
 use super::{
-    basic_types::{SPk, SSk, SymKey},
-    *,
+    basic_types::{MsgBuf, SPk, SSk, SymKey},
+    constants::REKEY_AFTER_TIME_RESPONDER,
+    truncating_cast_into, truncating_cast_into_nomut, CryptoServer, HandleMsgResult,
+    HostIdentification, KnownInitConfResponsePtr, PeerPtr, PollResult, ProtocolVersion,
 };
 
 struct VecHostIdentifier(Vec<u8>);
@@ -323,6 +322,8 @@ fn cookie_reply_mechanism_responder_under_load_v03() {
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
 fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
     use std::{thread::sleep, time::Duration};
+
+    use super::{Lifecycle, MortalExt};
 
     setup_logging();
     rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
