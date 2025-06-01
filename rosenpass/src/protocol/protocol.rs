@@ -36,25 +36,9 @@ use rosenpass_util::mem::DiscardResultExt;
 use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
 use zerocopy::{AsBytes, FromBytes, Ref};
 
+use super::timing::{has_happened, Timing, BCE, UNENDING};
+
 // CONSTANTS & SETTINGS //////////////////////////
-
-/// A type for time, e.g. for backoff before re-tries
-pub type Timing = f64;
-
-/// Magic time stamp to indicate some object is ancient; "Before Common Era"
-///
-/// This is for instance used as a magic time stamp indicating age when some
-/// cryptographic object certainly needs to be refreshed.
-///
-/// Using this instead of Timing::MIN or Timing::INFINITY to avoid floating
-/// point math weirdness.
-pub const BCE: Timing = -3600.0 * 24.0 * 356.0 * 10_000.0;
-
-/// Magic time stamp to indicate that some process is not time-limited
-///
-/// Actually it's eight hours; This is intentional to avoid weirdness
-/// regarding unexpectedly large numbers in system APIs as this is < i16::MAX
-pub const UNENDING: Timing = 3600.0 * 8.0;
 
 /// Time after which the responder attempts to rekey the session
 ///
@@ -121,31 +105,6 @@ pub const RETRANSMIT_DELAY_JITTER: Timing = 0.5;
 pub const EVENT_GRACE: Timing = 0.0025;
 
 // UTILITY FUNCTIONS /////////////////////////////
-
-/// An even `ev` has happened relative to a point in time `now`
-/// if the `ev` does not lie in the future relative to now.
-///
-/// An event lies in the future relative to `now` if
-/// does not lie in the past or present.
-///
-/// An event `ev` lies in the past if `ev < now`. It lies in the
-/// present if the absolute difference between `ev` and `now` is
-/// smaller than [EVENT_GRACE].
-///
-/// Think of this as `ev <= now` for with [EVENT_GRACE] applied.
-///
-/// # Examples
-///
-/// ```
-/// use rosenpass::protocol::{has_happened, EVENT_GRACE};
-/// assert!(has_happened(EVENT_GRACE * -1.0, 0.0));
-/// assert!(has_happened(0.0, 0.0));
-/// assert!(has_happened(EVENT_GRACE * 0.999, 0.0));
-/// assert!(!has_happened(EVENT_GRACE * 1.001, 0.0));
-/// ```
-pub fn has_happened(ev: Timing, now: Timing) -> bool {
-    (ev - now) < EVENT_GRACE
-}
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 
@@ -274,7 +233,7 @@ pub struct CryptoServer {
 ///
 /// ```
 /// use rosenpass_util::time::Timebase;
-/// use rosenpass::protocol::{BCE, SymKey, CookieStore};
+/// use rosenpass::protocol::{timing::BCE, SymKey, CookieStore};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -1928,7 +1887,7 @@ impl Mortal for KnownInitConfResponsePtr {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
+/// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -2536,7 +2495,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::hibernate().0, UNENDING);
     /// ```
@@ -2550,7 +2509,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::immediate_unless(false).0, 0.0);
     /// assert_eq!(Wait::immediate_unless(true).0, UNENDING);
@@ -2568,7 +2527,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_hibernate(None).0, UNENDING);
     /// assert_eq!(Wait::or_hibernate(Some(20.0)).0, 20.0);
@@ -2585,7 +2544,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_immediate(None).0, 0.0);
     /// assert_eq!(Wait::or_immediate(Some(20.0)).0, 20.0);
@@ -2602,7 +2561,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     ///
     /// assert_eq!(Wait(20.0).and(30.0).0, 30.0);
@@ -2674,7 +2633,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, UNENDING};
+    /// use rosenpass::protocol::{PollResult, timing::UNENDING};
     ///
     /// assert!(matches!(PollResult::hibernate(), PollResult::Sleep(UNENDING)));
     /// ```
@@ -2688,7 +2647,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr, UNENDING};
+    /// use rosenpass::protocol::{PollResult, PeerPtr, timing::UNENDING};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2943,7 +2902,7 @@ impl PollResult {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{begin_poll, PollResult, UNENDING};
+/// use rosenpass::protocol::{begin_poll, PollResult, timing::UNENDING};
 ///
 /// assert!(matches!(begin_poll(), PollResult::Sleep(UNENDING)));
 /// ```
@@ -4763,7 +4722,6 @@ mod test {
             poll(&mut b)?;
             check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
         }
-
         // We can even validate that the data is coming out of the cache by changing the cache
         // to use our broken messages. It does not matter that these messages are cryptographically
         // broken since we insert them manually into the cache
