@@ -85,3 +85,6 @@ pub mod timing;
 #[allow(clippy::module_inception)]
 mod protocol;
 pub use protocol::*;
+
+#[cfg(test)]
+mod test;
