@@ -3,23 +3,21 @@
 //! It is merged entirely into [crate::protocol] and should be split up into multiple
 //! files.
 
-use std::borrow::Borrow;
-use std::fmt::Debug;
-use std::mem::size_of;
-use std::ops::Deref;
+use std::collections::hash_map::{
+    Entry::{Occupied, Vacant},
+    HashMap,
+};
 use std::{
-    collections::hash_map::{
-        Entry::{Occupied, Vacant},
-        HashMap,
-    },
-    fmt::Display,
+    borrow::Borrow,
+    fmt::{Debug, Display},
+    mem::size_of,
+    ops::Deref,
 };
 
 use anyhow::{bail, ensure, Context, Result};
-use rand::Fill as Randomize;
-
-use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
+use zerocopy::{AsBytes, FromBytes, Ref};
+
 use rosenpass_cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
@@ -27,12 +25,15 @@ use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace
 use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, PublicBox, Secret};
-use rosenpass_to::ops::copy_slice;
-use rosenpass_to::To;
-use rosenpass_util::functional::ApplyExt;
-use rosenpass_util::mem::DiscardResultExt;
-use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
-use zerocopy::{AsBytes, FromBytes, Ref};
+use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_util::{
+    cat,
+    functional::ApplyExt,
+    mem::{cpy_min, DiscardResultExt},
+    time::Timebase,
+};
+
+use crate::{hash_domains, msgs::*, RosenpassError};
 
 use super::timing::{has_happened, Timing, BCE, UNENDING};
 
@@ -2218,10 +2219,13 @@ impl CryptoServer {
             &cookie_value,
         )?;
 
-        msg_out
-            .padding
-            .try_fill(&mut rosenpass_secret_memory::rand::rng())
-            .unwrap();
+        {
+            use rand::Fill;
+            msg_out
+                .padding
+                .try_fill(&mut rosenpass_secret_memory::rand::rng())
+                .unwrap();
+        }
 
         // length of the response
         let _len = Some(size_of::<CookieReply>());
