@@ -24,7 +24,7 @@ use rosenpass_cipher_traits::primitives::{
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
 use rosenpass_constant_time as constant_time;
-use rosenpass_secret_memory::{Public, PublicBox, Secret};
+use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::{
     cat,
@@ -35,6 +35,9 @@ use rosenpass_util::{
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 
+use super::basic_types::{
+    BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
+};
 use super::constants::{
     BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
     PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
@@ -47,38 +50,6 @@ use super::timing::{has_happened, Timing, BCE, UNENDING};
 use rosenpass_util::trace_bench::Trace as _;
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
-
-/// Static public key
-///
-/// Using [PublicBox] instead of [Public] because Classic McEliece keys are very large.
-pub type SPk = PublicBox<{ StaticKem::PK_LEN }>;
-/// Static secret key
-pub type SSk = Secret<{ StaticKem::SK_LEN }>;
-/// Ephemeral public key
-pub type EPk = Public<{ EphemeralKem::PK_LEN }>;
-pub type ESk = Secret<{ EphemeralKem::SK_LEN }>;
-
-/// Symmetric key
-pub type SymKey = Secret<KEY_LEN>;
-/// Symmetric hash
-pub type SymHash = Public<KEY_LEN>;
-
-/// Peer ID (derived from the public key, see the hash derivations in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub type PeerId = Public<KEY_LEN>;
-/// Session ID
-pub type SessionId = Public<SESSION_ID_LEN>;
-/// Biscuit ID
-pub type BiscuitId = Public<BISCUIT_ID_LEN>;
-
-/// Nonce for use with random-nonce AEAD
-pub type XAEADNonce = Public<{ XAead::NONCE_LEN }>;
-
-/// Buffer capably of holding any Rosenpass protocol message
-pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
-
-/// Server-local peer number; this is just the index in [CryptoServer::peers]
-pub type PeerNo = usize;
-
 /// This is the implementation of our cryptographic protocol.
 ///
 /// The scope of this is:
@@ -172,7 +143,7 @@ pub struct CryptoServer {
 ///
 /// ```
 /// use rosenpass_util::time::Timebase;
-/// use rosenpass::protocol::{timing::BCE, SymKey, CookieStore};
+/// use rosenpass::protocol::{timing::BCE, basic_types::SymKey, CookieStore};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -299,7 +270,8 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass::protocol::{SSk, SPk, SymKey, Peer, ProtocolVersion};
+/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+/// use rosenpass::protocol::{Peer, ProtocolVersion};
 /// use rosenpass_ciphers::StaticKem;
 /// use rosenpass_cipher_traits::primitives::Kem;
 ///
@@ -387,7 +359,8 @@ impl Peer {
     /// This is dirty but allows us to perform easy incremental construction of [Self].
     ///
     /// ```
-    /// use rosenpass::protocol::{Peer, SymKey, SPk, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{Peer, ProtocolVersion};
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     /// let p = Peer::zero(ProtocolVersion::V03);
     /// assert_eq!(p.psk.secret(), SymKey::zero().secret());
@@ -735,7 +708,8 @@ pub trait Mortal {
 /// ```
 /// use std::ops::DerefMut;
 /// use rosenpass_ciphers::StaticKem;
-/// use rosenpass::protocol::{SSk, SPk, testutils::ServerForTesting, ProtocolVersion};
+/// use rosenpass::protocol::basic_types::{SSk, SPk};
+/// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -1275,7 +1249,8 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::{SSk, SPk, CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;
     ///
@@ -1339,7 +1314,8 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::{SSk, SPk, SymKey, CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;
     ///

@@ -7,7 +7,7 @@
 //! - TODO: support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
 //! - TODO: provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
 
-use crate::protocol::{SPk, SSk};
+use crate::protocol::basic_types::{SPk, SSk};
 use rosenpass_util::file::LoadValue;
 use std::{
     collections::HashSet,

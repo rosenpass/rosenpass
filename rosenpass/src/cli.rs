@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
-use crate::protocol::{SPk, SSk, SymKey};
+use crate::protocol::basic_types::{SPk, SSk, SymKey};
 
 use super::config;
 
@@ -607,8 +607,8 @@ impl CliArgs {
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
 pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
-    let mut ssk = crate::protocol::SSk::random();
-    let mut spk = crate::protocol::SPk::random();
+    let mut ssk = crate::protocol::basic_types::SSk::random();
+    let mut spk = crate::protocol::basic_types::SPk::random();
     StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)

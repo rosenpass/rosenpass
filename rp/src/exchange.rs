@@ -206,7 +206,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use rosenpass::{
         app_server::{AppServer, BrokerPeer},
         config::Verbosity,
-        protocol::{SPk, SSk, SymKey},
+        protocol::basic_types::{SPk, SSk, SymKey},
     };
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
