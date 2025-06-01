@@ -10,7 +10,7 @@ use std::{
 use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
-    protocol::{SPk, SSk, SymKey},
+    protocol::basic_types::{SPk, SSk, SymKey},
 };
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;

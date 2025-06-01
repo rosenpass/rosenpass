@@ -17,7 +17,7 @@ use tempfile::TempDir;
 use zerocopy::AsBytes;
 
 use rosenpass::config::ProtocolVersion;
-use rosenpass::protocol::SymKey;
+use rosenpass::protocol::basic_types::SymKey;
 
 struct KillChild(std::process::Child);
 
