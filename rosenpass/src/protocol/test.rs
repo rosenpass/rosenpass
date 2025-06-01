@@ -14,8 +14,9 @@ use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, 
 use super::{
     basic_types::{MsgBuf, SPk, SSk, SymKey},
     constants::REKEY_AFTER_TIME_RESPONDER,
-    truncating_cast_into, truncating_cast_into_nomut, CryptoServer, HandleMsgResult,
-    HostIdentification, KnownInitConfResponsePtr, PeerPtr, PollResult, ProtocolVersion,
+    zerocopy::{truncating_cast_into, truncating_cast_into_nomut},
+    CryptoServer, HandleMsgResult, HostIdentification, KnownInitConfResponsePtr, PeerPtr,
+    PollResult, ProtocolVersion,
 };
 
 struct VecHostIdentifier(Vec<u8>);
