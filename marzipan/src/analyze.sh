@@ -16,20 +16,16 @@ clean_warnings() {
     exc rosenpass-marzipan clean-warnings
 }
 
-color_red='\033[0;31m'
-color_green='\033[0;32m'
-color_gray='\033[0;30m'
-color_clear='\033[0m'
+color_red='red'
+color_green='green'
+color_gray='gray'
+color_clear=''
 
 checkmark="✔"
 cross="❌"
 
 pretty_output_line() {
-  local prefix; prefix="$1"; shift
-  local mark; mark="$1"; shift
-  local color; color="$1"; shift
-  local text; text="$1"; shift
-  echo -ne "\033[0\r${color_gray}${prefix}${color}${mark} ${text}${color_clear}"
+  exc rosenpass-marzipan pretty-output-line "${@}"
 }
 
 pretty_output() {
@@ -138,6 +134,7 @@ main() {
 
   case "${cmd}" in
     analyze) analyze ;;
+    pretty) pretty_output_line PREFIX MARK green TEXT ;;
     clean_warnings) clean_warnings ;;
     *) err_usage
   esac

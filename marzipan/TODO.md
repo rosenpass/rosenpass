@@ -14,7 +14,7 @@
 ## Next Steps
 
 * `pretty_output` Bash function
-  * pretty_output_line
+  * ~~pretty_output_line~~
   * awk RESULT flush in marzipan()
 * move the whole metaverif function to Python
 * move the whole analyze function to Python
@@ -25,4 +25,7 @@
   * integrate this upstream, into the CI?
   * “make it beautiful” steps? more resiliency to working directory?
   * rewrite our awk usages into Python/…?
+    * yes, possibly as extension to the LARK grammar
+    * and rewrite the AST within Python
+    * reconstruct ProVerif input file for ProVerif
   * rewrite our CPP usages into Python/…?

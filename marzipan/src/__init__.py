@@ -1,6 +1,7 @@
 from .util import pkgs, setup_exports, export, rename
-from rich import print
+from rich import print as rich_print
 import click
+
 
 (__all__, export) = setup_exports()
 export(setup_exports)
@@ -58,16 +59,58 @@ def awk_prep(cpp_prep, awk_prep):
 @click.argument("color")
 @click.argument("text")
 def pretty_output_line(prefix, mark, color, text):
-    colored_prefix = f"[grey42]{prefix}[/grey42]"
-    colored_mark_text = f"[{color}]{mark} {text}[/{color}]"
-    print(colored_prefix, colored_mark_text)
+    colored = f"[grey42]{prefix}[/grey42][{color}]{mark} {text}[/{color}]"
+    rich_print(colored)
 
 
 @click.command()
+@click.argument("file")
+def pretty_output(file_path):
+    expected = []
+    descs = []
+
+    # Process lemmas first
+    with open(file_path, 'r') as file:
+        content = file.read()
+        expected += pkgs.re.findall(r'@(lemma)(?=\s+"[^\"]*")', content)
+        expected = ['true' if e == '@lemma' else e for e in expected]
+        descs += pkgs.re.findall(r'@(lemma)\s+"([^\"]*)"', content)
+        descs = [d[1] for d in descs]
+
+        # Then process regular queries
+        expected += pkgs.re.findall(r'@(query|reachable)(?=\s+"[^\"]*")', content)
+        expected = ['true' if e == '@query' else 'false' for e in expected]
+        descs += pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
+        descs = [d[1] for d in descs]
+
+    res = 0
+    ctr = 0
+    ta = pkgs.time.time()
+
+    for outp in expected:
+        tz = pkgs.time.time()
+        if outp == expected[ctr]:
+            pretty_output_line(f"{int(tz - ta)}s ", "✔", "green", descs[ctr])
+        else:
+            res = 1
+            pretty_output_line(f"{int(tz - ta)}s ", "✖", "red", descs[ctr])
+        print()
+
+        ctr += 1
+        ta = tz
+
+    return res
+
+
+
+
+@click.command()
+@click.argument("command")
 @click.argument("path")
-def analyze(path):
+def analyze(command, path):
     exc([
         f"{pkgs.pathlib.Path(__file__).resolve().parent}/analyze.sh",
+        command,
         path
     ])
 
@@ -109,4 +152,5 @@ main.add_command(run_proverif)
 main.add_command(cpp)
 main.add_command(awk_prep)
 main.add_command(pretty_output_line)
+main.add_command(pretty_output)
 main.add_command(clean_warnings)
