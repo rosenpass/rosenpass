@@ -29,41 +29,7 @@ pretty_output_line() {
 }
 
 pretty_output() {
-  local file; file="$1"; shift
-  local expected=() descs=()
-
-  # Lemmas are processed first
-  readarray -t -O "${#expected[@]}" expected < <(
-    < "$file" grep -Po '@(lemma)(?=\s+"[^\"]*")' \
-      | sed 's/@lemma/true/')
-  readarray -t -O "${#descs[@]}" descs < <(
-    < "$file" grep -Po '@(lemma)\s+"[^\"]*"' \
-      | sed 's/@\w\+\s\+//; s/"//g')
-
-  # Then regular queries
-  readarray -t -O "${#expected[@]}" expected < <(
-    < "$file" grep -Po '@(query|reachable)(?=\s+"[^\"]*")' \
-      | sed 's/@query/true/; s/@reachable/false/')
-  readarray -t -O "${#descs[@]}" descs < <(
-    < "$file" grep -Po '@(query|reachable)\s+"[^\"]*"' \
-      | sed 's/@\w\+\s\+//; s/"//g')
-
-  local outp ctr res ta tz; ctr=0; res=0; ta="$(date +%s)"
-  while read -r outp; do
-    tz="$(date +%s)"
-    if [[ "${outp}" = "${expected[$ctr]}" ]]; then
-      pretty_output_line "$((tz - ta))s " "${checkmark}" "${color_green}" "${descs[$ctr]}"
-    else
-      res=1
-      pretty_output_line "$((tz - ta))s " "${cross}" "${color_red}" "${descs[$ctr]}"
-    fi
-    echo
-
-    (( ctr += 1 ))
-    ta="${tz}"
-  done
-
-  return "$res"
+  exc rosenpass-marzipan pretty-output "${@}"
 }
 
 metaverif() {
@@ -89,10 +55,11 @@ metaverif() {
           }' \
       | pretty_output "${cpp_prep}"
   } || {
-    if ! grep -q "^Verification summary" "${log}"; then
-      echo -ne "\033[0\r"
-      cat "${log}"
-    fi
+    echo "TODO: Commented out some debug output"
+    #if ! grep -q "^Verification summary" "${log}"; then
+    #  echo -ne "\033[0\r"
+    #  cat "${log}"
+    #fi
   }
 }
 
@@ -134,7 +101,6 @@ main() {
 
   case "${cmd}" in
     analyze) analyze ;;
-    pretty) pretty_output_line PREFIX MARK green TEXT ;;
     clean_warnings) clean_warnings ;;
     *) err_usage
   esac

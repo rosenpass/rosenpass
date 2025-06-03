@@ -5,4 +5,4 @@
 
 * call the old script from the Rosenpass repository's root directory with `./analyze.sh`
 * call the new script:
-  * `nix run .# -- analyze $repo` where `$repo` is the absolute(?) path to the root directory of the Rosenpass repository.
+  * `nix run .# -- analyze analyze $repo` where `$repo` is the absolute(?) path to the root directory of the Rosenpass repository.

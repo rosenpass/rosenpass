@@ -53,18 +53,21 @@ def awk_prep(cpp_prep, awk_prep):
         file.write("\nprocess main")
 
 
-@click.command()
-@click.argument("prefix")
-@click.argument("mark")
-@click.argument("color")
-@click.argument("text")
+#@click.command()
+#@click.argument("prefix", required=True)
+#@click.argument("mark", required=True)
+#@click.argument("color", required=True)
+#@click.argument("text", default='')
 def pretty_output_line(prefix, mark, color, text):
-    colored = f"[grey42]{prefix}[/grey42][{color}]{mark} {text}[/{color}]"
-    rich_print(colored)
+    prefix = f"[grey42]{prefix}[/grey42]"
+    content = f"[{color}]{mark} {text}[/{color}]"
+
+    output = prefix + content
+    rich_print(output)
 
 
 @click.command()
-@click.argument("file")
+@click.argument("file_path")
 def pretty_output(file_path):
     expected = []
     descs = []
@@ -72,29 +75,29 @@ def pretty_output(file_path):
     # Process lemmas first
     with open(file_path, 'r') as file:
         content = file.read()
-        expected += pkgs.re.findall(r'@(lemma)(?=\s+"[^\"]*")', content)
-        expected = ['true' if e == '@lemma' else e for e in expected]
-        descs += pkgs.re.findall(r'@(lemma)\s+"([^\"]*)"', content)
-        descs = [d[1] for d in descs]
+        result = pkgs.re.findall(r'@(lemma)(?=\s+\"([^\"]*)\")', content)
+        if result:
+            expected.extend(['true' if e[0] == 'lemma' else e[0] for e in result])
+            descs.extend([e[1] for e in result])
 
         # Then process regular queries
-        expected += pkgs.re.findall(r'@(query|reachable)(?=\s+"[^\"]*")', content)
-        expected = ['true' if e == '@query' else 'false' for e in expected]
-        descs += pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
-        descs = [d[1] for d in descs]
+        result = pkgs.re.findall(r'@(query|reachable)(?=\s+"[^\"]*")', content)
+        if result:
+            expected.extend(['true' if e == '@query' else 'false' for e in result])
+            reachable_result = pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
+            descs.extend([e[1] for e in reachable_result])
 
     res = 0
     ctr = 0
     ta = pkgs.time.time()
 
-    for outp in expected:
+    for outp in pkgs.sys.stdin:
         tz = pkgs.time.time()
         if outp == expected[ctr]:
             pretty_output_line(f"{int(tz - ta)}s ", "✔", "green", descs[ctr])
         else:
             res = 1
             pretty_output_line(f"{int(tz - ta)}s ", "✖", "red", descs[ctr])
-        print()
 
         ctr += 1
         ta = tz
@@ -151,6 +154,6 @@ main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
 main.add_command(awk_prep)
-main.add_command(pretty_output_line)
+#main.add_command(pretty_output_line)
 main.add_command(pretty_output)
 main.add_command(clean_warnings)

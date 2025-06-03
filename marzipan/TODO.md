@@ -16,6 +16,8 @@
 * `pretty_output` Bash function
   * ~~pretty_output_line~~
   * awk RESULT flush in marzipan()
+  * click function intervention weirdness
+  * why is everything red in the pretty output? (see line 96 in __init__.py)
 * move the whole metaverif function to Python
 * move the whole analyze function to Python
   * find the files
