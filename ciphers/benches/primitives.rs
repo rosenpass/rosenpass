@@ -194,6 +194,33 @@ mod aead {
         let nonce = [23; NONCE_LEN];
         let ad = [];
 
+        c.bench_function(&aead_benchid("encrypt", "0byte"), |bench| {
+            const DATA_LEN: usize = 0;
+
+            let ptxt = [];
+            let mut ctxt = [0; DATA_LEN + TAG_LEN];
+
+            bench.iter(|| {
+                scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
+            });
+        });
+
+        c.bench_function(&aead_benchid("decrypt", "0byte"), |bench| {
+            const DATA_LEN: usize = 0;
+
+            let ptxt = [];
+            let mut ctxt = [0; DATA_LEN + TAG_LEN];
+            let mut ptxt_out = [0u8; DATA_LEN];
+
+            scheme.encrypt(&mut ctxt, &key, &nonce, &ad, &ptxt).unwrap();
+
+            bench.iter(|| {
+                scheme
+                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &mut ctxt)
+                    .unwrap()
+            })
+        });
+
         c.bench_function(&aead_benchid("encrypt", "32byte"), |bench| {
             const DATA_LEN: usize = 32;
 
@@ -312,7 +339,14 @@ mod keyed_hash {
         ];
         let keyedhash_benchid = |len| benchid(KvPairs(&base), KvPairs(&[KvPair("length", len)]));
 
-        c.bench_function(&keyedhash_benchid("32byte"), |bench| {
+        c.bench_function(&keyedhash_benchid("0byte"), |bench| {
+            let bytes = [];
+
+            bench.iter(|| {
+                H::keyed_hash(&key, &bytes, &mut out).unwrap();
+            })
+        })
+        .bench_function(&keyedhash_benchid("32byte"), |bench| {
             let bytes = [34u8; 32];
 
             bench.iter(|| {
