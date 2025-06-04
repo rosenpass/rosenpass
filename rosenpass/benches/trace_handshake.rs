@@ -1,4 +1,3 @@
-// Standard library imports
 use std::{
     collections::HashMap,
     hint::black_box,
@@ -7,16 +6,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-// External crate imports
 use anyhow::Result;
 use libcrux_test_utils::tracing::{EventType, Trace as _};
-use rosenpass::protocol::{
-    CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey,
-};
+
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass_util::trace_bench::{RpEventType, TRACE};
+
+use rosenpass::protocol::{
+    CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey,
+};
 
 const ITERATIONS: usize = 100;
 
@@ -116,8 +116,11 @@ fn main() {
     .expect("error writing json data");
 }
 
-/// Takes a vector of trace events, bins them by label, extracts durations,
-/// filters empty bins, calculates aggregate statistics (mean, std dev), and returns them.
+/// Performs a simple statistical analysis:
+/// - bins trace events by label
+/// - extracts durations of spamns
+/// - filters out empty bins
+/// - calculates aggregate statistics (mean, std dev)
 fn statistical_analysis(trace: Vec<RpEventType>) -> Vec<(&'static str, AggregateStat<Duration>)> {
     bin_events(trace)
         .into_iter()
@@ -132,9 +135,9 @@ fn statistical_analysis(trace: Vec<RpEventType>) -> Vec<(&'static str, Aggregate
 ///
 /// # Arguments
 /// * `w` - The writer to output JSON to (e.g., stdout, file).
-/// * `item_groups` - An iterator producing tuples of (`&'static str`, `II`), where
-///   `II` is itself an iterator producing (`&'static str`, `AggregateStat<Duration>`).
-///   Represents the protocol_version name and the statistics items within that protocol_version.
+/// * `item_groups` - An iterator producing tuples `(version, stats): (&'static str, II)`.
+///    Here `II` is itself an iterator producing `(label, agg_stat): (&'static str, AggregateStat<Duration>)`,
+///    where the label is the label of the span, e.g. "IHI2".
 ///
 /// # Type Parameters
 /// * `W` - A type that implements `std::io::Write`.

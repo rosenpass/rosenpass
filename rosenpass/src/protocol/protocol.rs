@@ -3548,7 +3548,7 @@ impl CryptoServer {
 
 /// Marks a section of the protocol using the same identifiers as are used in the whitepaper.
 /// When building with the trace benchmarking feature enabled, this also emits span events into the
-/// trace, which allows reconstructing the run times of the individual sections for performace
+/// trace, which allows reconstructing the run times of the individual sections for performance
 /// measurement.
 macro_rules! protocol_section {
     ($label:expr, $body:tt) => {{
