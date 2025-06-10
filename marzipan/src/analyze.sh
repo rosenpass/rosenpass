@@ -24,10 +24,6 @@ color_clear=''
 checkmark="✔"
 cross="❌"
 
-pretty_output_line() {
-  exc rosenpass-marzipan pretty-output-line "${@}"
-}
-
 pretty_output() {
   exc rosenpass-marzipan pretty-output "${@}"
 }

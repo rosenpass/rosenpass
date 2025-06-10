@@ -53,11 +53,6 @@ def awk_prep(cpp_prep, awk_prep):
         file.write("\nprocess main")
 
 
-#@click.command()
-#@click.argument("prefix", required=True)
-#@click.argument("mark", required=True)
-#@click.argument("color", required=True)
-#@click.argument("text", default='')
 def pretty_output_line(prefix, mark, color, text):
     prefix = f"[grey42]{prefix}[/grey42]"
     content = f"[{color}]{mark} {text}[/{color}]"
@@ -93,7 +88,11 @@ def pretty_output(file_path):
 
     for outp in pkgs.sys.stdin:
         tz = pkgs.time.time()
-        if outp == expected[ctr]:
+
+        # Output from ProVerif contains a trailing newline, which we do not have in the expected output. Remove it for meaningful matching.
+        outp_clean = outp.rstrip()
+
+        if outp_clean == expected[ctr]:
             pretty_output_line(f"{int(tz - ta)}s ", "✔", "green", descs[ctr])
         else:
             res = 1
@@ -154,6 +153,5 @@ main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
 main.add_command(awk_prep)
-#main.add_command(pretty_output_line)
 main.add_command(pretty_output)
 main.add_command(clean_warnings)
