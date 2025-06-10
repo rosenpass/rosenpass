@@ -44,6 +44,18 @@ def cpp(file, cpp_prep):
 
 
 @click.command()
+def parse_result_line():
+    for outp in pkgs.sys.stdin:
+        match = pkgs.re.search(r'^RESULT .* \b(true|false)\b\.$', outp)
+
+        if match:
+            result = match.group(1)
+            print(result, flush=True)
+        else:
+            pass
+
+
+@click.command()
 @click.argument("cpp_prep")
 @click.argument("awk_prep")
 def awk_prep(cpp_prep, awk_prep):
@@ -153,5 +165,6 @@ main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
 main.add_command(awk_prep)
+main.add_command(parse_result_line)
 main.add_command(pretty_output)
 main.add_command(clean_warnings)

@@ -43,12 +43,7 @@ metaverif() {
     run_proverif "${awk_prep}" "$@" \
       | clean_warnings \
       | tee "${log}" \
-      | awk '
-          /^RESULT/ {
-            gsub(/\./, "", $NF);
-            print($NF);
-            fflush(stdout);
-          }' \
+      | exc rosenpass-marzipan parse-result-line \
       | pretty_output "${cpp_prep}"
   } || {
     echo "TODO: Commented out some debug output"
