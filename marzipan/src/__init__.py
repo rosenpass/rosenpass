@@ -152,6 +152,41 @@ def clean_warnings():
         print(p)
 
 
+@click.command()
+@click.argument("tmpdir")
+@click.argument("file")
+def metaverif(tmpdir, file):
+    pass
+
+
+    # Extract the name using regex
+    name_match = pkgs.re.search(r'([^/]*)(?=\.mpv)', file)
+    if name_match:
+        name = name_match.group(0)  # Get the matched name
+
+        # Create the file paths
+        cpp_prep = pkgs.os.path.join(tmpdir, f"{name}.i.pv")
+        awk_prep = pkgs.os.path.join(tmpdir, f"{name}.o.pv")
+
+        # Output the results
+        print(f"Name: {name}")
+        print(f"CPP Prep Path: {cpp_prep}")
+        print(f"AWK Prep Path: {awk_prep}")
+
+        cpp_prep(name, cpp_prep)
+        awk_prep(cpp_prep, awk_prep)
+
+        log_file = pkgs.os.path.join(tmpdir, f"{name}.log")
+
+        with open(log_file, 'a') as log:
+            run_proverif(awk_prep)
+
+
+
+    else:
+        print("No match found for the file name.")
+
+
 @export
 @rename("main") # Click seems to erase __name__
 @click.group()
@@ -161,6 +196,7 @@ def main():
 
 
 main.add_command(analyze)
+main.add_command(metaverif)
 main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
