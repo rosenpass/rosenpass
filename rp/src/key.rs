@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use rosenpass_util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
-use rosenpass::protocol::{SPk, SSk};
+use rosenpass::protocol::basic_types::{SPk, SSk};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
@@ -118,7 +118,7 @@ pub fn pubkey(private_keys_dir: &Path, public_keys_dir: &Path) -> Result<()> {
 mod tests {
     use std::fs;
 
-    use rosenpass::protocol::{SPk, SSk};
+    use rosenpass::protocol::basic_types::{SPk, SSk};
     use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::LoadValue;
