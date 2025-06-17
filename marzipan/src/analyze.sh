@@ -65,7 +65,7 @@ analyze() {
   local procs; procs=()
   for entry in "${entries[@]}"; do
     echo "call metaverif"
-    exc metaverif "${entry}" "$@" >&2 & procs+=("$!")
+    exc rosenpass-marzipan metaverif "${tmpdir}" "${entry}" >&2 & procs+=("$!")
   done
 
   for entry in "${procs[@]}"; do

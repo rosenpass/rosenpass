@@ -19,6 +19,11 @@ def exc(argv, **kwargs):
     return ""
 
 
+def exc_piped(argv, **kwargs):
+    eprint("$", *argv)
+    return pkgs.subprocess.Popen(argv, **kwargs)
+
+
 @click.command()
 @click.argument("file")
 @click.argument("extra_args", required=False)
@@ -28,7 +33,34 @@ def run_proverif(file, extra_args=[]):
     params = ["proverif", "-test", *extra_args, file]
     print(params)
     eprint(params)
-    return exc(params, stderr=pkgs.sys.stderr)
+
+    process = exc_piped(params, stderr=pkgs.sys.subprocess.PIPE, stdout=pkgs.sys.subprocess.PIPE, text=True, bufsize=1)
+    try:
+        null, p = clean_warnings_init()
+        for line in process.stdout:
+            print(f"received a line: {line.strip()}")
+            # clean warnings
+            line = line.rstrip()
+            if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
+                if p != null:
+                    yield p
+                    #print(p)
+                p = line
+            else:
+                p = null
+            # append to log file
+            # parse result line
+            # pretty output
+            # save to file
+        if p != null:
+            yield p
+            #print(p)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        process.stdout.close()
+        process.wait()
+
 
 @click.command()
 @click.argument("file")
@@ -58,7 +90,7 @@ def parse_result_line():
 @click.command()
 @click.argument("cpp_prep")
 @click.argument("awk_prep")
-def awk_prep(cpp_prep, awk_prep):
+def awk(cpp_prep, awk_prep):
     params = ["awk", "-f", "marzipan/marzipan.awk", cpp_prep]
     with open(awk_prep, 'w') as file:
         exc(params, stderr=pkgs.sys.stderr, stdout=file)
@@ -73,9 +105,7 @@ def pretty_output_line(prefix, mark, color, text):
     rich_print(output)
 
 
-@click.command()
-@click.argument("file_path")
-def pretty_output(file_path):
+def pretty_output_init(file_path):
     expected = []
     descs = []
 
@@ -94,28 +124,36 @@ def pretty_output(file_path):
             reachable_result = pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
             descs.extend([e[1] for e in reachable_result])
 
+    ta = pkgs.time.time()
     res = 0
     ctr = 0
-    ta = pkgs.time.time()
-
-    for outp in pkgs.sys.stdin:
-        tz = pkgs.time.time()
-
-        # Output from ProVerif contains a trailing newline, which we do not have in the expected output. Remove it for meaningful matching.
-        outp_clean = outp.rstrip()
-
-        if outp_clean == expected[ctr]:
-            pretty_output_line(f"{int(tz - ta)}s ", "✔", "green", descs[ctr])
-        else:
-            res = 1
-            pretty_output_line(f"{int(tz - ta)}s ", "✖", "red", descs[ctr])
-
-        ctr += 1
-        ta = tz
-
-    return res
+    return ta, res, ctr, expected, descs
 
 
+def pretty_output_step(file_path, line, expected, descs, res, ctr, ta):
+    tz = pkgs.time.time()
+
+    # Output from ProVerif contains a trailing newline, which we do not have in the expected output. Remove it for meaningful matching.
+    outp_clean = line.rstrip()
+
+    if outp_clean == expected[ctr]:
+        pretty_output_line(f"{int(tz - ta)}s ", "✔", "green", descs[ctr])
+    else:
+        res = 1
+        pretty_output_line(f"{int(tz - ta)}s ", "✖", "red", descs[ctr])
+
+    ctr += 1
+    ta = tz
+
+    return res, ctr, ta
+
+
+@click.command()
+@click.argument("file_path")
+def pretty_output(file_path):
+    ta, res, ctr, expected, descs = pretty_output_init(file_path)
+    for line in pkgs.sys.stdin:
+        res, ctr, ta = pretty_output_step(file_path, line, expected, descs, res, ctr, ta)
 
 
 @click.command()
@@ -135,30 +173,57 @@ def clean():
     pass
 
 
-@click.command()
-def clean_warnings():
+def clean_warnings_init():
     null = "0455290a-50d5-4f28-8008-3d69605c2835"
     p = null
-    for line in pkgs.sys.stdin:
-        line = line.rstrip()
-        if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
-            if p != null:
-                print(p)
-            p = line
-        else:
-            p = null
+    return null, p
+
+
+def clean_warnings_line(null, p, line):
+    line = line.rstrip()
+    if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
+        if p != null:
+            yield p
+            print(p)
+        p = line
+    else:
+        p = null
+    return p
+
+
+def clean_warnings_finalize(null, p):
     # print last line after EOF
     if p != null:
+        yield p
         print(p)
+
+
+@click.command()
+def clean_warnings():
+    #null = "0455290a-50d5-4f28-8008-3d69605c2835"
+    #p = null
+    null, p = clean_warnings_init()
+
+    for line in pkgs.sys.stdin:
+        p = clean_warnings_line(null, p, line)
+        #line = line.rstrip()
+        #if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
+        #    if p != null:
+        #        print(p)
+        #    p = line
+        #else:
+        #    p = null
+
+    clean_warnings_finalize(null, p)
+    ## print last line after EOF
+    #if p != null:
+    #    print(p)
 
 
 @click.command()
 @click.argument("tmpdir")
 @click.argument("file")
 def metaverif(tmpdir, file):
-    pass
-
-
     # Extract the name using regex
     name_match = pkgs.re.search(r'([^/]*)(?=\.mpv)', file)
     if name_match:
@@ -173,16 +238,23 @@ def metaverif(tmpdir, file):
         print(f"CPP Prep Path: {cpp_prep}")
         print(f"AWK Prep Path: {awk_prep}")
 
-        cpp_prep(name, cpp_prep)
-        awk_prep(cpp_prep, awk_prep)
+        cpp(name, cpp_prep)
+        awk(cpp_prep, awk_prep)
 
         log_file = pkgs.os.path.join(tmpdir, f"{name}.log")
 
+        ta, res, ctr, expected, descs = pretty_output_init(cpp_prep)
         with open(log_file, 'a') as log:
-            run_proverif(awk_prep)
-
-
-
+            generator = run_proverif(awk_prep)
+            for line in generator:
+                log.write(line)
+                # parse-result-line:
+                match = pkgs.re.search(r'^RESULT .* \b(true|false)\b\.$', line)
+                if match:
+                    result = match.group(1)
+                    #print(result, flush=True)
+                    # pretty-output:
+                    res, ctr, ta = pretty_output_step(cpp_prep, result, expected, descs, res, ctr, ta)
     else:
         print("No match found for the file name.")
 
@@ -200,7 +272,7 @@ main.add_command(metaverif)
 main.add_command(clean)
 main.add_command(run_proverif)
 main.add_command(cpp)
-main.add_command(awk_prep)
+main.add_command(awk)
 main.add_command(parse_result_line)
 main.add_command(pretty_output)
 main.add_command(clean_warnings)

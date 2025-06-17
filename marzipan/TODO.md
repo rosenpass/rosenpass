@@ -10,14 +10,14 @@
 * ~~provide log parameter to `rosenpass-marzipan`-call~~ (no, it was intentionally not used)
 * ~~cpp pre-processing stuff~~
 * ~~awk pre-processing stuff~~
-
-## Next Steps
-
-* `pretty_output` Bash function
+* ~~`pretty_output` Bash function~~
   * ~~pretty_output_line~~
   * ~~click function intervention weirdness~~
   * ~~why is everything red in the pretty output? (see line 96 in __init__.py)~~
-  * awk RESULT flush in marzipan()
+  * ~~awk RESULT flush in marzipan()~~
+
+## Next Steps
+
 * move the whole metaverif function to Python
 * move the whole analyze function to Python
   * find the files
