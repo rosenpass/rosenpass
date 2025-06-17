@@ -110,7 +110,7 @@ jobs:
         run: git diff --exit-code || echo "Changes detected, committing..."
       - name: Commit and push changes for dependabot PRs
         if: success() && github.actor == 'dependabot[bot]' && (env.IS_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true')
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: Regenerate cargo vet exemptions
           commit_user_name: rosenpass-ci-bot[bot]
