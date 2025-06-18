@@ -28,6 +28,10 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cache/cargo-supply-chain/
           key: cargo-supply-chain-cache
+      - name: Install stable toolchain # Cargo-supply-chain is incompatible with older versions
+        run: |
+          rustup toolchain install stable
+          rustup default stable
       - uses: actions/cache@v4
         with:
           path: ${{ runner.tool_cache }}/cargo-supply-chain
@@ -35,7 +39,7 @@ jobs:
       - name: Add the tool cache directory to the search path
         run: echo "${{ runner.tool_cache }}/cargo-supply-chain/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-supply-chain binary
-        run: cargo install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
+        run: cargo +stable install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
       - name: Update data for cargo-supply-chain
         run: cargo supply-chain update
       - name: Generate cargo-supply-chain report about publishers
@@ -68,7 +72,7 @@ jobs:
       - name: Add the tool cache directory to the search path
         run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-vet binary
-        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
+        run: cargo +stable install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
       - name: Regenerate vet exemptions for dependabot PRs
         if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
         run: cargo vet regenerate exemptions
