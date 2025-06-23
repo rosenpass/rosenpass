@@ -11,27 +11,34 @@ readme = "readme.md"
 rust-version = "1.77.0"
 
 [features]
-experiment_libcrux_all = [
-  "experiment_libcrux_blake2",
-  "experiment_libcrux_chachapoly",
-  "experiment_libcrux_chachapoly_test",
-  "experiment_libcrux_kyber",
-]
-experiment_libcrux_blake2 = ["dep:libcrux-blake2", "dep:thiserror"]
-experiment_libcrux_chachapoly = ["dep:libcrux-chacha20poly1305"]
+# whether the types should be defined
+experiment_libcrux_define_blake2 = ["dep:libcrux-blake2", "dep:thiserror"]
+experiment_libcrux_define_kyber = ["dep:libcrux-ml-kem", "dep:rand"]
+experiment_libcrux_define_chachapoly = ["dep:libcrux-chacha20poly1305"]
+
+# whether the types should be used by default
+experiment_libcrux_blake2 = ["experiment_libcrux_define_blake2"]
+experiment_libcrux_kyber = ["experiment_libcrux_define_kyber"]
+experiment_libcrux_chachapoly = ["experiment_libcrux_define_chachapoly"]
 experiment_libcrux_chachapoly_test = [
-  "experiment_libcrux_chachapoly",
-  "dep:libcrux",
+    "experiment_libcrux_define_chachapoly",
+    "dep:libcrux",
 ]
-experiment_libcrux_kyber = ["dep:libcrux-ml-kem", "dep:rand"]
-bench = [
-  "dep:thiserror",
-  "dep:rand",
-  "dep:libcrux",
-  "dep:libcrux-blake2",
-  "dep:libcrux-ml-kem",
-  "dep:libcrux-chacha20poly1305",
+
+# shorthands
+experiment_libcrux_define_all = [
+    "experiment_libcrux_define_blake2",
+    "experiment_libcrux_define_chachapoly",
+    "experiment_libcrux_define_kyber",
 ]
+experiment_libcrux_all = [
+    "experiment_libcrux_blake2",
+    "experiment_libcrux_chachapoly",
+    "experiment_libcrux_chachapoly_test",
+    "experiment_libcrux_kyber",
+]
+
+bench = ["experiment_libcrux_define_all"]
 
 [[bench]]
 name = "primitives"

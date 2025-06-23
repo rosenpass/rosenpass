@@ -94,13 +94,13 @@ written to a trace, which is then inspected after a run.
 Benchmarks are automatically run on CI. The measurements are visualized in the
 [Benchmark Dashboard].
 
-[Benchmark Dashboard]: https://rosenpass.github.io/benchmarks
+[Benchmark Dashboard]: https://rosenpass.github.io/rosenpass/benchmarks
 
 ### Primitive Benchmarks
 
 There are benchmarks for the functions of the traits `Kem`, `Aead` and
 `KeyedHash`. They are run for all implementations in the `primitives`
-benchmark of `rosenpass-ciphers`. Run the benchmarks using
+benchmark of `rosenpass-ciphers`. Run the benchmarks and view their results using
 
 ```
 cargo bench -p rosenpass-ciphers --bench primitives -F bench
@@ -119,6 +119,8 @@ performs some minor statistical analysis of the trace can be run using
 ```
 cargo bench -p rosenpass --bench trace_handshake -F trace_bench
 ```
+
+This runs the benchmarks and prints the results in machine-readable JSON.
 
 ---
 

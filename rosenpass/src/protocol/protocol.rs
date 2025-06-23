@@ -17,6 +17,9 @@ use std::{
 
 use anyhow::{bail, ensure, Context, Result};
 
+#[cfg(feature = "trace_bench")]
+use rosenpass_util::trace_bench::Trace as _;
+
 use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
 use rosenpass_cipher_traits::primitives::{
@@ -3551,9 +3554,9 @@ impl CryptoServer {
 /// trace, which allows reconstructing the run times of the individual sections for performance
 /// measurement.
 macro_rules! protocol_section {
-    ($label:expr, $body:tt) => {{
+    ($label:expr, $body:block) => {{
         #[cfg(feature = "trace_bench")]
-        let _span_raii_handle = rosenpass_util::trace_bench::TRACE.emit_span($label);
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span($label);
 
         #[allow(unused_braces)]
         $body
@@ -3563,14 +3566,10 @@ macro_rules! protocol_section {
 impl CryptoServer {
     /// Core cryptographic protocol implementation: Kicks of the handshake
     /// on the initiator side, producing the InitHello message.
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_initiation",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_initiation");
+
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
             peer.get(self).protocol_version.keyed_hash(),
@@ -3633,19 +3632,15 @@ impl CryptoServer {
 
     /// Core cryptographic protocol implementation: Parses an [InitHello] message and produces a
     /// [RespHello] message on the responder side.
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_init_hello",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_init_hello(
         &mut self,
         ih: &InitHello,
         rh: &mut RespHello,
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_hello");
+
         let mut core = HandshakeState::zero(keyed_hash);
 
         core.sidi = SessionId::from_slice(&ih.sidi);
@@ -3721,14 +3716,10 @@ impl CryptoServer {
 
     /// Core cryptographic protocol implementation: Parses an [RespHello] message and produces an
     /// [InitConf] message on the initiator side.
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_resp_hello",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_hello");
+
         // RHI2
         let peer = self
             .lookup_handshake(SessionId::from_slice(&rh.sidi))
@@ -3844,19 +3835,15 @@ impl CryptoServer {
     ///
     /// This concludes the handshake on the cryptographic level; the [EmptyData] message is just
     /// an acknowledgement message telling the initiator to stop performing retransmissions.
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_init_conf",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_init_conf(
         &mut self,
         ic: &InitConf,
         rc: &mut EmptyData,
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_conf");
+
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
         let (peer, biscuit_no, mut core) = protocol_section!("ICR1", {
@@ -3956,18 +3943,14 @@ impl CryptoServer {
     /// message then terminates the handshake.
     ///
     /// The EmptyData message is just there to tell the initiator to abort retransmissions.
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_resp_conf",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_resp_conf(
         &mut self,
         msg_in: &Ref<&[u8], Envelope<EmptyData>>,
         seal_broken: String,
     ) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_conf");
+
         let rc: &EmptyData = &msg_in.payload;
         let sid = SessionId::from_slice(&rc.sid);
         let hs = self
@@ -4020,14 +4003,10 @@ impl CryptoServer {
     /// DOS mitigation features.
     ///
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
-    #[cfg_attr(
-        feature = "trace_bench",
-        rosenpass_util::trace_bench::trace_span(
-            "handle_cookie_reply",
-            rosenpass_util::trace_bench::TRACE
-        )
-    )]
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_cookie_reply");
+
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))
             .map(|v| PeerPtr(v.0))

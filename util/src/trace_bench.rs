@@ -1,11 +1,10 @@
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use libcrux_test_utils::tracing;
 
-lazy_static::lazy_static! {
-    /// The trace value used in all Rosepass crates.
-    pub static ref TRACE: RpTrace = RpTrace::default();
-}
+/// The trace value used in all Rosepass crates.
+static TRACE: OnceLock<RpTrace> = OnceLock::new();
 
 /// The trace type used to trace Rosenpass for performance measurement.
 pub type RpTrace = tracing::MutexTrace<&'static str, Instant>;
@@ -17,3 +16,8 @@ pub type RpEventType = tracing::TraceEvent<&'static str, Instant>;
 // [`libcrux_test_utils`].
 pub use libcrux_test_utils::tracing::trace_span;
 pub use tracing::Trace;
+
+/// Returns a reference to the trace and lazily initializes it.
+pub fn trace() -> &'static tracing::MutexTrace<&'static str, Instant> {
+    TRACE.get_or_init(tracing::MutexTrace::default)
+}

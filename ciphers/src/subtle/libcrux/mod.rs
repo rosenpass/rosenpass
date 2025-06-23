@@ -4,11 +4,11 @@
 //!
 //! [Github](https://github.com/cryspen/libcrux)
 
-#[cfg(any(feature = "experiment_libcrux_blake2", feature = "bench"))]
+#[cfg(feature = "experiment_libcrux_define_blake2")]
 pub mod blake2b;
 
-#[cfg(any(feature = "experiment_libcrux_chachapoly", feature = "bench"))]
+#[cfg(feature = "experiment_libcrux_define_chachapoly")]
 pub mod chacha20poly1305_ietf;
 
-#[cfg(any(feature = "experiment_libcrux_kyber", feature = "bench"))]
+#[cfg(feature = "experiment_libcrux_define_kyber")]
 pub mod kyber512;

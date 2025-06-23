@@ -12,7 +12,7 @@ use libcrux_test_utils::tracing::{EventType, Trace as _};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
-use rosenpass_util::trace_bench::{RpEventType, TRACE};
+use rosenpass_util::trace_bench::RpEventType;
 
 use rosenpass::protocol::{
     CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, ProtocolVersion, SPk, SSk, SymKey,
@@ -20,6 +20,10 @@ use rosenpass::protocol::{
 
 const ITERATIONS: usize = 100;
 
+/// Performs a full protocol run by processing a message and recursing into handling that message,
+/// until no further response is produced. Returns the keys produce by the two parties.
+///
+/// Ensures that each party produces one of the two keys.
 fn handle(
     tx: &mut CryptoServer,
     msgb: &mut MsgBuf,
@@ -46,6 +50,10 @@ fn handle(
     Ok((txk, rxk.or(xch)))
 }
 
+/// Performs the full handshake by calling `handle` with the correct values, based on just two
+/// `CryptoServer`s.
+///
+/// Ensures that both parties compute the same keys.
 fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
     let (mut inib, mut resb) = (MsgBuf::zero(), MsgBuf::zero());
     let sz = ini.initiate_handshake(PeerPtr(0), &mut *inib)?;
@@ -54,12 +62,14 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
     Ok(())
 }
 
+/// Generates a new key pair.
 fn keygen() -> Result<(SSk, SPk)> {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
     StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
     Ok((sk, pk))
 }
 
+/// Creates two instanves of `CryptoServer`, generating key pairs for each.
 fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, CryptoServer)> {
     let psk = SymKey::random();
     let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
@@ -73,6 +83,8 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 }
 
 fn main() {
+    let trace = rosenpass_util::trace_bench::trace();
+
     // Attempt to use memfd_secrets for storing sensitive key material
     secret_policy_try_use_memfd_secrets();
 
@@ -83,7 +95,7 @@ fn main() {
     }
 
     // Emit a marker event to separate V02 and V03 trace sections
-    TRACE.emit_on_the_fly("start-hs-v03");
+    trace.emit_on_the_fly("start-hs-v03");
 
     // Run protocol for V03
     let (mut a_v03, mut b_v03) = make_server_pair(ProtocolVersion::V03).unwrap();
@@ -92,7 +104,7 @@ fn main() {
     }
 
     // Collect the trace events generated during the handshakes
-    let trace: Vec<_> = TRACE.clone().report();
+    let trace: Vec<_> = trace.clone().report();
 
     // Split the trace into V02 and V03 sections based on the marker
     let (trace_v02, trace_v03) = {
