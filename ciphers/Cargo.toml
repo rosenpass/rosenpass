@@ -21,21 +21,21 @@ experiment_libcrux_blake2 = ["experiment_libcrux_define_blake2"]
 experiment_libcrux_kyber = ["experiment_libcrux_define_kyber"]
 experiment_libcrux_chachapoly = ["experiment_libcrux_define_chachapoly"]
 experiment_libcrux_chachapoly_test = [
-    "experiment_libcrux_define_chachapoly",
-    "dep:libcrux",
+  "experiment_libcrux_define_chachapoly",
+  "dep:libcrux",
 ]
 
 # shorthands
 experiment_libcrux_define_all = [
-    "experiment_libcrux_define_blake2",
-    "experiment_libcrux_define_chachapoly",
-    "experiment_libcrux_define_kyber",
+  "experiment_libcrux_define_blake2",
+  "experiment_libcrux_define_chachapoly",
+  "experiment_libcrux_define_kyber",
 ]
 experiment_libcrux_all = [
-    "experiment_libcrux_blake2",
-    "experiment_libcrux_chachapoly",
-    "experiment_libcrux_chachapoly_test",
-    "experiment_libcrux_kyber",
+  "experiment_libcrux_blake2",
+  "experiment_libcrux_chachapoly",
+  "experiment_libcrux_chachapoly_test",
+  "experiment_libcrux_kyber",
 ]
 
 bench = ["experiment_libcrux_define_all"]
