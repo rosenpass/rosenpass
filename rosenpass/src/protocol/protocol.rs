@@ -3,184 +3,60 @@
 //! It is merged entirely into [crate::protocol] and should be split up into multiple
 //! files.
 
-use std::borrow::Borrow;
-use std::fmt::Debug;
-use std::mem::size_of;
-use std::ops::Deref;
+use std::collections::hash_map::{
+    Entry::{Occupied, Vacant},
+    HashMap,
+};
 use std::{
-    collections::hash_map::{
-        Entry::{Occupied, Vacant},
-        HashMap,
-    },
-    fmt::Display,
+    borrow::Borrow,
+    fmt::{Debug, Display},
+    mem::size_of,
+    ops::Deref,
 };
 
 use anyhow::{bail, ensure, Context, Result};
-
-#[cfg(feature = "trace_bench")]
-use rosenpass_util::trace_bench::Trace as _;
-
-use crate::{hash_domains, msgs::*, RosenpassError};
 use memoffset::span_of;
+use zerocopy::{AsBytes, FromBytes, Ref};
+
 use rosenpass_cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead, KEY_LEN};
+use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
 use rosenpass_constant_time as constant_time;
-use rosenpass_secret_memory::{Public, PublicBox, Secret};
-use rosenpass_to::ops::copy_slice;
-use rosenpass_to::To;
-use rosenpass_util::functional::ApplyExt;
-use rosenpass_util::mem::DiscardResultExt;
-use rosenpass_util::{cat, mem::cpy_min, time::Timebase};
-use zerocopy::{AsBytes, FromBytes, Ref};
+use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_util::{
+    cat,
+    functional::ApplyExt,
+    mem::{cpy_min, DiscardResultExt},
+    time::Timebase,
+};
 
-// CONSTANTS & SETTINGS //////////////////////////
+use crate::{hash_domains, msgs::*, RosenpassError};
 
-/// A type for time, e.g. for backoff before re-tries
-pub type Timing = f64;
+use super::constants::{
+    BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
+    PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
+    REKEY_AFTER_TIME_RESPONDER, RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END,
+    RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
+};
+use super::index::{PeerIndex, PeerIndexKey};
+use super::timing::{has_happened, Timing, BCE, UNENDING};
+use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
+use super::{
+    basic_types::{
+        BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
+    },
+    cookies::BiscuitKey,
+};
 
-/// Magic time stamp to indicate some object is ancient; "Before Common Era"
-///
-/// This is for instance used as a magic time stamp indicating age when some
-/// cryptographic object certainly needs to be refreshed.
-///
-/// Using this instead of Timing::MIN or Timing::INFINITY to avoid floating
-/// point math weirdness.
-pub const BCE: Timing = -3600.0 * 24.0 * 356.0 * 10_000.0;
+use super::cookies::{CookieSecret, CookieStore};
 
-/// Magic time stamp to indicate that some process is not time-limited
-///
-/// Actually it's eight hours; This is intentional to avoid weirdness
-/// regarding unexpectedly large numbers in system APIs as this is < i16::MAX
-pub const UNENDING: Timing = 3600.0 * 8.0;
-
-/// Time after which the responder attempts to rekey the session
-///
-/// From the wireguard paper: rekey every two minutes,
-/// discard the key if no rekey is achieved within three
-pub const REKEY_AFTER_TIME_RESPONDER: Timing = 120.0;
-/// Time after which the initiator attempts to rekey the session.
-///
-/// This happens ten seconds after [REKEY_AFTER_TIME_RESPONDER], so
-/// parties would usually switch roles after every handshake.
-///
-/// From the wireguard paper: rekey every two minutes,
-/// discard the key if no rekey is achieved within three
-pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
-/// Time after which either party rejects the current key.
-///
-/// At this point a new key should have been negotiated.
-/// Rejection happens 50-60 seconds after key renegotiation
-/// to allow for a graceful handover.
-///
-/// From the wireguard paper: rekey every two minutes,
-/// discard the key if no rekey is achieved within three
-pub const REJECT_AFTER_TIME: Timing = 180.0;
-
-/// Maximum period between sending rekey initiation messages
-///
-/// From the wireguard paper; "under no circumstances send an initiation message more than once every 5 seconds"
-pub const REKEY_TIMEOUT: Timing = 5.0;
-
-/// The length of the `cookie_secret` in the [whitepaper](https://rosenpass.eu/whitepaper.pdf)
-pub const COOKIE_SECRET_LEN: usize = MAC_SIZE;
-/// The life time of the `cookie_secret` in the [whitepaper](https://rosenpass.eu/whitepaper.pdf)
-pub const COOKIE_SECRET_EPOCH: Timing = 120.0;
-
-/// Length of a cookie value (see info about the cookie mechanism in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub const COOKIE_VALUE_LEN: usize = MAC_SIZE;
-/// Time after which to delete a cookie, as the initiator, for a certain peer (see info about the cookie mechanism in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub const PEER_COOKIE_VALUE_EPOCH: Timing = 120.0;
-
-/// Seconds until the biscuit key is changed; we issue biscuits
-/// using one biscuit key for one epoch and store the biscuit for
-/// decryption for a second epoch
-///
-/// The biscuit mechanism is used to make sure the responder is stateless in our protocol.
-pub const BISCUIT_EPOCH: Timing = 300.0;
-
-/// The initiator opportunistically retransmits their messages; it applies an increasing delay
-/// between each retreansmission. This is the factor by which the delay grows after each
-/// retransmission.
-pub const RETRANSMIT_DELAY_GROWTH: Timing = 2.0;
-/// The initiator opportunistically retransmits their messages; it applies an increasing delay
-/// between each retreansmission. This is the initial delay between retransmissions.
-pub const RETRANSMIT_DELAY_BEGIN: Timing = 0.5;
-/// The initiator opportunistically retransmits their messages; it applies an increasing delay
-/// between each retreansmission. This is the maximum delay between retransmissions.
-pub const RETRANSMIT_DELAY_END: Timing = 10.0;
-/// The initiator opportunistically retransmits their messages; it applies an increasing delay
-/// between each retreansmission. This is the jitter (randomness) applied to the retransmission
-/// delay.
-pub const RETRANSMIT_DELAY_JITTER: Timing = 0.5;
-
-/// This is the maximum delay that can separate two events for us to consider the events to have
-/// happened at the same time.
-pub const EVENT_GRACE: Timing = 0.0025;
-
-// UTILITY FUNCTIONS /////////////////////////////
-
-/// An even `ev` has happened relative to a point in time `now`
-/// if the `ev` does not lie in the future relative to now.
-///
-/// An event lies in the future relative to `now` if
-/// does not lie in the past or present.
-///
-/// An event `ev` lies in the past if `ev < now`. It lies in the
-/// present if the absolute difference between `ev` and `now` is
-/// smaller than [EVENT_GRACE].
-///
-/// Think of this as `ev <= now` for with [EVENT_GRACE] applied.
-///
-/// # Examples
-///
-/// ```
-/// use rosenpass::protocol::{has_happened, EVENT_GRACE};
-/// assert!(has_happened(EVENT_GRACE * -1.0, 0.0));
-/// assert!(has_happened(0.0, 0.0));
-/// assert!(has_happened(EVENT_GRACE * 0.999, 0.0));
-/// assert!(!has_happened(EVENT_GRACE * 1.001, 0.0));
-/// ```
-pub fn has_happened(ev: Timing, now: Timing) -> bool {
-    (ev - now) < EVENT_GRACE
-}
+#[cfg(feature = "trace_bench")]
+use rosenpass_util::trace_bench::Trace as _;
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
-
-/// Static public key
-///
-/// Using [PublicBox] instead of [Public] because Classic McEliece keys are very large.
-pub type SPk = PublicBox<{ StaticKem::PK_LEN }>;
-/// Static secret key
-pub type SSk = Secret<{ StaticKem::SK_LEN }>;
-/// Ephemeral public key
-pub type EPk = Public<{ EphemeralKem::PK_LEN }>;
-/// Ephemeral secret key
-pub type ESk = Secret<{ EphemeralKem::SK_LEN }>;
-
-/// Symmetric key
-pub type SymKey = Secret<KEY_LEN>;
-/// Symmetric hash
-pub type SymHash = Public<KEY_LEN>;
-
-/// Peer ID (derived from the public key, see the hash derivations in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub type PeerId = Public<KEY_LEN>;
-/// Session ID
-pub type SessionId = Public<SESSION_ID_LEN>;
-/// Biscuit ID
-pub type BiscuitId = Public<BISCUIT_ID_LEN>;
-
-/// Nonce for use with random-nonce AEAD
-pub type XAEADNonce = Public<{ XAead::NONCE_LEN }>;
-
-/// Buffer capably of holding any Rosenpass protocol message
-pub type MsgBuf = Public<MAX_MESSAGE_LEN>;
-
-/// Server-local peer number; this is just the index in [CryptoServer::peers]
-pub type PeerNo = usize;
-
 /// This is the implementation of our cryptographic protocol.
 ///
 /// The scope of this is:
@@ -230,12 +106,12 @@ pub struct CryptoServer {
 
     /// List of peers and their session and handshake states
     pub peers: Vec<Peer>,
-    /// Index into the list of peers. See [IndexKey] for details.
-    pub index: HashMap<IndexKey, PeerNo>,
+    /// Index into the list of peers. See [PeerIndexKey] for details.
+    pub index: PeerIndex,
     /// Hash key for known responder confirmation responses.
     ///
     /// These hashes are then used for lookups in [Self::index] using
-    /// the [IndexKey::KnownInitConfResponse] enum case.
+    /// the [PeerIndexKey::KnownInitConfResponse] enum case.
     ///
     /// This is used to allow for retransmission of responder confirmation (i.e.
     /// [Envelope]<[EmptyData]>) messages in response to [Envelope]<[InitConf]>
@@ -262,106 +138,6 @@ pub struct CryptoServer {
     ///
     /// See [CryptoServer::handle_msg_under_load], and [CryptoServer::active_or_retired_cookie_secrets].
     pub cookie_secrets: [CookieSecret; 2],
-}
-
-/// Container for storing cookie secrets like [BiscuitKey] or [CookieSecret].
-///
-/// This is really just a secret key and a time stamp of creation. Concrete
-/// usages (such as for the biscuit key) impose a time limit about how long
-/// a key can be used and the time of creation is used to impose that time limit.
-///
-/// # Examples
-///
-/// ```
-/// use rosenpass_util::time::Timebase;
-/// use rosenpass::protocol::{BCE, SymKey, CookieStore};
-///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-///
-/// let fixed_secret = SymKey::random();
-/// let timebase = Timebase::default();
-///
-/// let mut store = CookieStore::<32>::new();
-/// assert_ne!(store.value.secret(), SymKey::zero().secret());
-/// assert_eq!(store.created_at, BCE);
-///
-/// let time_before_call = timebase.now();
-/// store.update(&timebase, fixed_secret.secret());
-/// assert_eq!(store.value.secret(), fixed_secret.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
-///
-/// // Same as new()
-/// store.erase();
-/// assert_ne!(store.value.secret(), SymKey::zero().secret());
-/// assert_eq!(store.created_at, BCE);
-///
-/// let secret_before_call = store.value.clone();
-/// let time_before_call = timebase.now();
-/// store.randomize(&timebase);
-/// assert_ne!(store.value.secret(), secret_before_call.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
-/// ```
-#[derive(Debug)]
-pub struct CookieStore<const N: usize> {
-    /// Time of creation of the secret key
-    pub created_at: Timing,
-    /// The secret key
-    pub value: Secret<N>,
-}
-
-/// Stores cookie secret, which is used to create a rotating the cookie value
-///
-/// Concrete value is in [CryptoServer::cookie_secrets].
-///
-/// The pointer type is [ServerCookieSecretPtr].
-pub type CookieSecret = CookieStore<COOKIE_SECRET_LEN>;
-
-/// Storage for our biscuit keys.
-///
-/// The biscuit keys encrypt what we call "biscuits".
-/// These biscuits contain the responder state for a particular handshake. By moving
-/// state into these biscuits, we make sure the responder is stateless.
-///
-/// A Biscuit is like a fancy cookie. To avoid state disruption attacks,
-/// the responder doesn't store state. Instead the state is stored in a
-/// Biscuit, that is encrypted using the [BiscuitKey] which is only known to
-/// the Responder. Thus secrecy of the Responder state is not violated, still
-/// the responder can avoid storing this state.
-///
-/// Concrete value is in [CryptoServer::biscuit_keys].
-///
-/// The pointer type is [BiscuitKeyPtr].
-pub type BiscuitKey = CookieStore<KEY_LEN>;
-
-/// We maintain various indices in [CryptoServer::index], mapping some key to a particular
-/// [PeerNo], i.e. to an index in [CryptoServer::peers]. These are the possible index key.
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum IndexKey {
-    /// Lookup of a particular peer given the [PeerId], i.e. a value derived from the peers public
-    /// key as created by [CryptoServer::pidm] or [Peer::pidt].
-    ///
-    /// The peer id is used by the initiator to tell the responder about its identity in
-    /// [crate::msgs::InitHello].
-    ///
-    /// See also the pointer types [PeerPtr].
-    Peer(PeerId),
-    /// Lookup of a particular session id.
-    ///
-    /// This is used to look up both established sessions (see
-    /// [CryptoServer::lookup_session]) and ongoing handshakes (see [CryptoServer::lookup_handshake]).
-    ///
-    /// Lookup of a peer to get an established session or a handshake is sufficient, because a peer
-    /// contains a limited number of sessions and handshakes ([Peer::session] and [Peer::handshake] respectively).
-    ///
-    /// See also the pointer types [IniHsPtr] and [SessionPtr].
-    Sid(SessionId),
-    /// Lookup of a cached response ([Envelope]<[EmptyData]>) to an [InitConf] (i.e.
-    /// [Envelope]<[InitConf]>) message.
-    ///
-    /// See [KnownInitConfResponsePtr] on how this value is maintained.
-    KnownInitConfResponse(KnownResponseHash),
 }
 
 /// Specifies the protocol version used by a peer.
@@ -395,13 +171,14 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// Peers generally live in [CryptoServer::peers]. [PeerNo] captures an array
 /// into this field and [PeerPtr] is a wrapper around a [PeerNo] imbued with
 /// peer specific functionality. [CryptoServer::index] contains a list of lookup-keys
-/// for retrieving peers using various keys (see [IndexKey]).
+/// for retrieving peers using various keys (see [PeerIndexKey]).
 ///
 /// # Examples
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass::protocol::{SSk, SPk, SymKey, Peer, ProtocolVersion};
+/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+/// use rosenpass::protocol::{Peer, ProtocolVersion};
 /// use rosenpass_ciphers::StaticKem;
 /// use rosenpass_cipher_traits::primitives::Kem;
 ///
@@ -452,7 +229,7 @@ pub struct Peer {
     pub biscuit_used: BiscuitId,
     /// The last established session
     ///
-    /// This is indexed though [IndexKey::Sid].
+    /// This is indexed though [PeerIndexKey::Sid].
     pub session: Option<Session>,
     /// Ongoing handshake, in initiator mode.
     ///
@@ -460,7 +237,7 @@ pub struct Peer {
     /// because the state is stored inside a [Biscuit] to make sure the responder
     /// is stateless.
     ///
-    /// This is indexed though [IndexKey::Sid].
+    /// This is indexed though [PeerIndexKey::Sid].
     pub handshake: Option<InitiatorHandshake>,
     /// Used to make sure that the same [PollResult::SendInitiation] event is never issued twice.
     ///
@@ -472,7 +249,7 @@ pub struct Peer {
     /// [Envelope]<[EmptyData]>.
     ///
     /// Upon reception of an InitConf message, [CryptoServer::handle_msg] first checks
-    /// if a cached response exists through [IndexKey::KnownInitConfResponse]. If one exists,
+    /// if a cached response exists through [PeerIndexKey::KnownInitConfResponse]. If one exists,
     /// then this field must be set to [Option::Some] and the cached response is returned.
     ///
     /// This allows us to perform retransmission for the purpose of dealing with packet loss
@@ -489,7 +266,8 @@ impl Peer {
     /// This is dirty but allows us to perform easy incremental construction of [Self].
     ///
     /// ```
-    /// use rosenpass::protocol::{Peer, SymKey, SPk, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{Peer, ProtocolVersion};
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     /// let p = Peer::zero(ProtocolVersion::V03);
     /// assert_eq!(p.psk.secret(), SymKey::zero().secret());
@@ -608,6 +386,8 @@ pub struct InitiatorHandshake {
     /// mechanism.
     ///
     /// TODO: cookie_value should be an Option<_>
+    /// TODO: This should not use CookieStore, which exists to store randomly generated cookie
+    /// secrets
     ///
     /// This value seems to default-initialized with a random value according to
     /// [Self::zero_with_timestamp], which does not really make sense since this
@@ -664,14 +444,14 @@ fn known_response_format() {
 pub type KnownInitConfResponse = KnownResponse<EmptyData>;
 
 /// The type used to represent the hash of a known response
-/// in the context of [KnownResponse]/[IndexKey::KnownInitConfResponse]
+/// in the context of [KnownResponse]/[PeerIndexKey::KnownInitConfResponse]
 pub type KnownResponseHash = Public<16>;
 
 /// Object that produces [KnownResponseHash].
 ///
 /// Merely a key plus some utility functions.
 ///
-/// See [IndexKey::KnownInitConfResponse] and [KnownResponse::request_mac]
+/// See [PeerIndexKey::KnownInitConfResponse] and [KnownResponse::request_mac]
 ///
 /// # Examples
 ///
@@ -837,7 +617,8 @@ pub trait Mortal {
 /// ```
 /// use std::ops::DerefMut;
 /// use rosenpass_ciphers::StaticKem;
-/// use rosenpass::protocol::{SSk, SPk, testutils::ServerForTesting, ProtocolVersion};
+/// use rosenpass::protocol::basic_types::{SSk, SPk};
+/// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -1242,7 +1023,7 @@ impl KnownInitConfResponsePtr {
     pub fn remove(&self, srv: &mut CryptoServer) -> Option<KnownInitConfResponse> {
         let peer = self.peer();
         let val = peer.get_mut(srv).known_init_conf_response.take()?;
-        let lookup_key = IndexKey::KnownInitConfResponse(val.request_mac);
+        let lookup_key = PeerIndexKey::KnownInitConfResponse(val.request_mac);
         srv.index.remove(&lookup_key).unwrap();
         Some(val)
     }
@@ -1261,7 +1042,7 @@ impl KnownInitConfResponsePtr {
     pub fn insert(&self, srv: &mut CryptoServer, known_response: KnownInitConfResponse) {
         self.remove(srv).discard_result();
 
-        let index_key = IndexKey::KnownInitConfResponse(known_response.request_mac);
+        let index_key = PeerIndexKey::KnownInitConfResponse(known_response.request_mac);
         self.peer().get_mut(srv).known_init_conf_response = Some(known_response);
 
         // There is a question here whether we should just discard the result…or panic if the
@@ -1362,9 +1143,9 @@ impl KnownInitConfResponsePtr {
 
     /// Calculate an appropriate index key for `req`
     ///
-    /// Merely forwards [Self::index_key_for_msg] and wraps the result in [IndexKey::KnownInitConfResponse]
-    pub fn index_key_for_msg(srv: &CryptoServer, req: &Envelope<InitConf>) -> IndexKey {
-        Self::index_key_hash_for_msg(srv, req).apply(IndexKey::KnownInitConfResponse)
+    /// Merely forwards [Self::index_key_for_msg] and wraps the result in [PeerIndexKey::KnownInitConfResponse]
+    pub fn index_key_for_msg(srv: &CryptoServer, req: &Envelope<InitConf>) -> PeerIndexKey {
+        Self::index_key_hash_for_msg(srv, req).apply(PeerIndexKey::KnownInitConfResponse)
     }
 }
 
@@ -1377,7 +1158,8 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::{SSk, SPk, CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;
     ///
@@ -1441,7 +1223,8 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::{SSk, SPk, SymKey, CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;
     ///
@@ -1480,7 +1263,7 @@ impl CryptoServer {
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
-        match self.index.entry(IndexKey::Peer(peerid)) {
+        match self.index.entry(PeerIndexKey::Peer(peerid)) {
             Occupied(_) => bail!(
                 "Cannot insert peer with id {:?}; peer with this id already registered.",
                 peerid
@@ -1504,7 +1287,7 @@ impl CryptoServer {
     /// To rgister a session, you should generally use [SessionPtr::insert] or [IniHsPtr::insert]
     /// instead of this, more lower level function.
     pub fn register_session(&mut self, id: SessionId, peer: PeerPtr) -> Result<()> {
-        match self.index.entry(IndexKey::Sid(id)) {
+        match self.index.entry(PeerIndexKey::Sid(id)) {
             Occupied(p) if PeerPtr(*p.get()) == peer => {} // Already registered
             Occupied(_) => bail!("Cannot insert session with id {:?}; id is in use.", id),
             Vacant(e) => {
@@ -1523,7 +1306,7 @@ impl CryptoServer {
     /// To unregister a session, you should generally use [SessionPtr::take] or [IniHsPtr::take]
     /// instead of this, more lower level function.
     pub fn unregister_session(&mut self, id: SessionId) {
-        self.index.remove(&IndexKey::Sid(id));
+        self.index.remove(&PeerIndexKey::Sid(id));
     }
 
     /// Unregister a session previously registered using [Self::register_session],
@@ -1552,7 +1335,9 @@ impl CryptoServer {
     /// This function is used in cryptographic message processing
     /// [CryptoServer::handle_init_hello], and [HandshakeState::load_biscuit]
     pub fn find_peer(&self, id: PeerId) -> Option<PeerPtr> {
-        self.index.get(&IndexKey::Peer(id)).map(|no| PeerPtr(*no))
+        self.index
+            .get(&PeerIndexKey::Peer(id))
+            .map(|no| PeerPtr(*no))
     }
 
     /// Look up a handshake given its session id [HandshakeState::sidi]
@@ -1560,7 +1345,7 @@ impl CryptoServer {
     /// This is called `lookup_session` in [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn lookup_handshake(&self, id: SessionId) -> Option<IniHsPtr> {
         self.index
-            .get(&IndexKey::Sid(id)) // lookup the session in the index
+            .get(&PeerIndexKey::Sid(id)) // lookup the session in the index
             .map(|no| IniHsPtr(*no)) // convert to peer pointer
             .filter(|hsptr| {
                 hsptr
@@ -1576,7 +1361,7 @@ impl CryptoServer {
     /// This is called `lookup_session` in [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn lookup_session(&self, id: SessionId) -> Option<SessionPtr> {
         self.index
-            .get(&IndexKey::Sid(id))
+            .get(&PeerIndexKey::Sid(id))
             .map(|no| SessionPtr(*no))
             .filter(|sptr| {
                 sptr.get(self)
@@ -1928,7 +1713,7 @@ impl Mortal for KnownInitConfResponsePtr {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
+/// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -2261,11 +2046,13 @@ impl CryptoServer {
             &cookie_value,
         )?;
 
-        use rand::Fill;
-        msg_out
-            .padding
-            .try_fill(&mut rosenpass_secret_memory::rand::rng())
-            .unwrap();
+        {
+            use rand::Fill;
+            msg_out
+                .padding
+                .try_fill(&mut rosenpass_secret_memory::rand::rng())
+                .unwrap();
+        }
 
         // length of the response
         let _len = Some(size_of::<CookieReply>());
@@ -2536,7 +2323,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::hibernate().0, UNENDING);
     /// ```
@@ -2550,7 +2337,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::immediate_unless(false).0, 0.0);
     /// assert_eq!(Wait::immediate_unless(true).0, UNENDING);
@@ -2568,7 +2355,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_hibernate(None).0, UNENDING);
     /// assert_eq!(Wait::or_hibernate(Some(20.0)).0, 20.0);
@@ -2585,7 +2372,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_immediate(None).0, 0.0);
     /// assert_eq!(Wait::or_immediate(Some(20.0)).0, 20.0);
@@ -2602,7 +2389,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     ///
     /// assert_eq!(Wait(20.0).and(30.0).0, 30.0);
@@ -2649,7 +2436,7 @@ pub enum PollResult {
     /// The caller should immediately erase any cryptographic keys exchanged with
     /// the peer previously and then immediately call poll again.
     ///
-    /// This is raised after [REKEY_TIMEOUT] if no successful rekey could be achieved.
+    /// This is raised after [REJECT_AFTER_TIME] if no successful rekey could be achieved.
     DeleteKey(PeerPtr),
     /// The caller should invoke [CryptoServer::handle_initiation] and transmit the
     /// initiation to the other party before invoking poll again.
@@ -2674,7 +2461,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, UNENDING};
+    /// use rosenpass::protocol::{PollResult, timing::UNENDING};
     ///
     /// assert!(matches!(PollResult::hibernate(), PollResult::Sleep(UNENDING)));
     /// ```
@@ -2688,7 +2475,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr, UNENDING};
+    /// use rosenpass::protocol::{PollResult, PeerPtr, timing::UNENDING};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2943,7 +2730,7 @@ impl PollResult {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{begin_poll, PollResult, UNENDING};
+/// use rosenpass::protocol::{begin_poll, PollResult, timing::UNENDING};
 ///
 /// assert!(matches!(begin_poll(), PollResult::Sleep(UNENDING)));
 /// ```
@@ -4071,731 +3858,5 @@ impl CryptoServer {
         } else {
             bail!("No such peer {pidr:?}.", pidr = cr.inner.sid);
         }
-    }
-}
-
-/// Used to parse a network message using [zerocopy]
-fn truncating_cast_into<T: FromBytes>(buf: &mut [u8]) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
-}
-
-/// Used to parse a network message using [zerocopy], mutably
-pub fn truncating_cast_into_nomut<T: FromBytes>(
-    buf: &[u8],
-) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
-}
-
-pub mod testutils {
-    use std::ops::DerefMut;
-
-    use super::*;
-
-    /// Helper for tests and examples
-    pub struct ServerForTesting {
-        pub peer: PeerPtr,
-        pub peer_keys: (SSk, SPk),
-        pub srv: CryptoServer,
-    }
-
-    /// TODO: Document that the protocol version is only used for creating the peer for testing
-    impl ServerForTesting {
-        pub fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
-            let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
-            StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
-            let mut srv = CryptoServer::new(sskm, spkm);
-
-            let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
-            StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
-            let peer = srv.add_peer(None, spkt.clone(), protocol_version)?;
-
-            let peer_keys = (sskt, spkt);
-            Ok(ServerForTesting {
-                peer,
-                peer_keys,
-                srv,
-            })
-        }
-
-        pub fn tuple(self) -> (PeerPtr, (SSk, SPk), CryptoServer) {
-            (self.peer, self.peer_keys, self.srv)
-        }
-    }
-
-    /// Time travel forward in time
-    pub fn time_travel_forward(srv: &mut CryptoServer, secs: f64) {
-        let dur = std::time::Duration::from_secs_f64(secs);
-        srv.timebase.0 = srv.timebase.0.checked_sub(dur).unwrap();
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::{borrow::BorrowMut, net::SocketAddrV4, ops::DerefMut};
-
-    use super::*;
-    use serial_test::serial;
-    use zerocopy::FromZeroes;
-
-    struct VecHostIdentifier(Vec<u8>);
-
-    impl HostIdentification for VecHostIdentifier {
-        fn encode(&self) -> &[u8] {
-            &self.0
-        }
-    }
-
-    impl Display for VecHostIdentifier {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{:?}", self.0)
-        }
-    }
-
-    impl From<Vec<u8>> for VecHostIdentifier {
-        fn from(v: Vec<u8>) -> Self {
-            VecHostIdentifier(v)
-        }
-    }
-
-    fn setup_logging() {
-        use std::io::Write;
-        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
-        log_builder.filter_level(log::LevelFilter::Info);
-        log_builder.format_timestamp_nanos();
-        log_builder.format(|buf, record| {
-            let ts_format = buf.timestamp_nanos().to_string();
-            writeln!(buf, "{}: {}", &ts_format[14..], record.args())
-        });
-
-        let _ = log_builder.try_init();
-    }
-
-    #[test]
-    #[serial]
-    fn handles_incorrect_size_messages_v02() {
-        handles_incorrect_size_messages(ProtocolVersion::V02)
-    }
-
-    #[test]
-    #[serial]
-    fn handles_incorrect_size_messages_v03() {
-        handles_incorrect_size_messages(ProtocolVersion::V03)
-    }
-
-    /// Ensure that the protocol implementation can deal with truncated
-    /// messages and with overlong messages.
-    ///
-    /// This test performs a complete handshake between two randomly generated
-    /// servers; instead of delivering the message correctly at first messages
-    /// of length zero through about 1.2 times the correct message size are delivered.
-    ///
-    /// Producing an error is expected on each of these messages.
-    ///
-    /// Finally the correct message is delivered and the same process
-    /// starts again in the other direction.
-    ///
-    /// Through all this, the handshake should still successfully terminate;
-    /// i.e. an exchanged key must be produced in both servers.
-    fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
-        setup_logging();
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-        stacker::grow(8 * 1024 * 1024, || {
-            const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
-            type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
-
-            const PEER0: PeerPtr = PeerPtr(0);
-
-            let (mut me, mut they) = make_server_pair(protocol_version).unwrap();
-            let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
-
-            // Process the entire handshake
-            let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
-            while let Some(l) = msglen {
-                std::mem::swap(&mut me, &mut they);
-                std::mem::swap(&mut msgbuf, &mut resbuf);
-                msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
-            }
-
-            assert_eq!(
-                me.osk(PEER0).unwrap().secret(),
-                they.osk(PEER0).unwrap().secret()
-            );
-        });
-    }
-
-    /// Used in handles_incorrect_size_messages() to first deliver many truncated
-    /// and overlong messages, finally the correct message is delivered and the response
-    /// returned.
-    fn test_incorrect_sizes_for_msg(
-        srv: &mut CryptoServer,
-        msgbuf: &[u8],
-        msglen: usize,
-        resbuf: &mut [u8],
-    ) -> Option<usize> {
-        resbuf.fill(0);
-
-        for l in 0..(((msglen as f32) * 1.2) as usize) {
-            if l == msglen {
-                continue;
-            }
-
-            let res = srv.handle_msg(&msgbuf[..l], resbuf);
-            assert!(res.is_err()); // handle_msg should raise an error
-            assert!(!resbuf.iter().any(|x| *x != 0)); // resbuf should not have been changed
-        }
-
-        // Apply the proper handle_msg operation
-        srv.handle_msg(&msgbuf[..msglen], resbuf).unwrap().resp
-    }
-
-    fn keygen() -> Result<(SSk, SPk)> {
-        // TODO: Copied from the benchmark; deduplicate
-        let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-        StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
-        Ok((sk, pk))
-    }
-
-    fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, CryptoServer)> {
-        // TODO: Copied from the benchmark; deduplicate
-        let psk = SymKey::random();
-        let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
-        let (mut a, mut b) = (
-            CryptoServer::new(ska, pka.clone()),
-            CryptoServer::new(skb, pkb.clone()),
-        );
-        a.add_peer(Some(psk.clone()), pkb, protocol_version.clone())?;
-        b.add_peer(Some(psk), pka, protocol_version)?;
-        Ok((a, b))
-    }
-
-    #[test]
-    #[serial]
-    fn test_regular_exchange_v02() {
-        test_regular_exchange(ProtocolVersion::V02)
-    }
-
-    #[test]
-    #[serial]
-    fn test_regular_exchange_v03() {
-        test_regular_exchange(ProtocolVersion::V03)
-    }
-
-    fn test_regular_exchange(protocol_version: ProtocolVersion) {
-        setup_logging();
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-        stacker::grow(8 * 1024 * 1024, || {
-            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-            let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
-
-            let mut a_to_b_buf = MsgBufPlus::zero();
-            let mut b_to_a_buf = MsgBufPlus::zero();
-
-            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-
-            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-
-            let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(init_msg_type, MsgType::InitHello);
-
-            //B handles InitHello, sends RespHello
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let resp_hello_len = resp.unwrap();
-
-            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::RespHello);
-
-            let HandleMsgResult {
-                resp,
-                exchanged_with,
-            } = a
-                .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
-                .unwrap();
-
-            let init_conf_len = resp.unwrap();
-            let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-
-            assert_eq!(exchanged_with, Some(PeerPtr(0)));
-            assert_eq!(init_conf_msg_type, MsgType::InitConf);
-
-            //B handles InitConf, sends EmptyData
-            let HandleMsgResult {
-                resp: _,
-                exchanged_with,
-            } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-
-            assert_eq!(exchanged_with, Some(PeerPtr(0)));
-            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
-        });
-    }
-
-    #[test]
-    #[serial]
-    fn test_regular_init_conf_retransmit_v02() {
-        test_regular_init_conf_retransmit(ProtocolVersion::V02)
-    }
-
-    #[test]
-    #[serial]
-    fn test_regular_init_conf_retransmit_v03() {
-        test_regular_init_conf_retransmit(ProtocolVersion::V03)
-    }
-
-    fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
-        setup_logging();
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-        stacker::grow(8 * 1024 * 1024, || {
-            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-            let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
-
-            let mut a_to_b_buf = MsgBufPlus::zero();
-            let mut b_to_a_buf = MsgBufPlus::zero();
-
-            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-
-            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-
-            let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(init_msg_type, MsgType::InitHello);
-
-            //B handles InitHello, sends RespHello
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let resp_hello_len = resp.unwrap();
-
-            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::RespHello);
-
-            //A handles RespHello, sends InitConf, exchanges keys
-            let HandleMsgResult {
-                resp,
-                exchanged_with,
-            } = a
-                .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
-                .unwrap();
-
-            let init_conf_len = resp.unwrap();
-            let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-
-            assert_eq!(exchanged_with, Some(PeerPtr(0)));
-            assert_eq!(init_conf_msg_type, MsgType::InitConf);
-
-            //B handles InitConf, sends EmptyData
-            let HandleMsgResult {
-                resp: _,
-                exchanged_with,
-            } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-
-            assert_eq!(exchanged_with, Some(PeerPtr(0)));
-            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
-
-            //B handles InitConf again, sends EmptyData
-            let HandleMsgResult {
-                resp: _,
-                exchanged_with,
-            } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-
-            assert!(exchanged_with.is_none());
-            assert_eq!(empty_data_msg_type, MsgType::EmptyData);
-        });
-    }
-
-    #[test]
-    #[serial]
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_responder_under_load_v02() {
-        cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
-    }
-
-    #[test]
-    #[serial]
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_responder_under_load_v03() {
-        cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
-    }
-
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
-        use std::time::Duration;
-
-        setup_logging();
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-        stacker::grow(8 * 1024 * 1024, || {
-            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-            let (mut a, mut b) = make_server_pair(protocol_version.clone()).unwrap();
-
-            let mut a_to_b_buf = MsgBufPlus::zero();
-            let mut b_to_a_buf = MsgBufPlus::zero();
-
-            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-
-            let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-            let socket_addr_a = std::net::SocketAddr::V4(ip_a);
-            let mut ip_addr_port_a = match socket_addr_a.ip() {
-                std::net::IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
-                std::net::IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
-            };
-
-            ip_addr_port_a.extend_from_slice(&socket_addr_a.port().to_be_bytes());
-
-            let ip_addr_port_a: VecHostIdentifier = ip_addr_port_a.into();
-
-            //B handles handshake under load, should send cookie reply message with invalid cookie
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg_under_load(
-                    &a_to_b_buf.as_slice()[..init_hello_len],
-                    &mut *b_to_a_buf,
-                    &ip_addr_port_a,
-                )
-                .unwrap();
-
-            let cookie_reply_len = resp.unwrap();
-
-            //A handles cookie reply message
-            a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
-                .unwrap();
-
-            assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
-
-            let expected_cookie_value = hash_domains::cookie_value(protocol_version.keyed_hash())
-                .unwrap()
-                .mix(
-                    b.active_or_retired_cookie_secrets()[0]
-                        .unwrap()
-                        .get(&b)
-                        .value
-                        .secret(),
-                )
-                .unwrap()
-                .mix(ip_addr_port_a.encode())
-                .unwrap()
-                .into_value()[..16]
-                .to_vec();
-
-            assert_eq!(
-                PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
-                Some(&expected_cookie_value[..])
-            );
-
-            let retx_init_hello_len = loop {
-                match a.poll().unwrap() {
-                    PollResult::SendRetransmission(peer) => {
-                        break a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap();
-                    }
-                    PollResult::Sleep(time) => {
-                        std::thread::sleep(Duration::from_secs_f64(time));
-                    }
-                    _ => {}
-                }
-            };
-
-            let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-            assert_eq!(retx_msg_type, MsgType::InitHello);
-
-            //B handles retransmitted message
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg_under_load(
-                    &a_to_b_buf.as_slice()[..retx_init_hello_len],
-                    &mut *b_to_a_buf,
-                    &ip_addr_port_a,
-                )
-                .unwrap();
-
-            let _resp_hello_len = resp.unwrap();
-
-            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::RespHello);
-        });
-    }
-
-    #[test]
-    #[serial]
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v02() {
-        cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
-    }
-
-    #[test]
-    #[serial]
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v03() {
-        cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
-    }
-
-    #[cfg(feature = "experiment_cookie_dos_mitigation")]
-    fn cookie_reply_mechanism_initiator_bails_on_message_under_load(
-        protocol_version: ProtocolVersion,
-    ) {
-        setup_logging();
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-        stacker::grow(8 * 1024 * 1024, || {
-            type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-            let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
-
-            let mut a_to_b_buf = MsgBufPlus::zero();
-            let mut b_to_a_buf = MsgBufPlus::zero();
-
-            let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-            let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-            ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-            let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-            //A initiates handshake
-            let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-
-            //B handles InitHello message, should respond with RespHello
-            let HandleMsgResult { resp, .. } = b
-                .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
-                .unwrap();
-
-            let resp_hello_len = resp.unwrap();
-            let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-            assert_eq!(resp_msg_type, MsgType::RespHello);
-
-            let socket_addr_b = std::net::SocketAddr::V4(ip_b);
-            let mut ip_addr_port_b = [0u8; 18];
-            let mut ip_addr_port_b_len = 0;
-            match socket_addr_b.ip() {
-                std::net::IpAddr::V4(ipv4) => {
-                    ip_addr_port_b[0..4].copy_from_slice(&ipv4.octets());
-                    ip_addr_port_b_len += 4;
-                }
-                std::net::IpAddr::V6(ipv6) => {
-                    ip_addr_port_b[0..16].copy_from_slice(&ipv6.octets());
-                    ip_addr_port_b_len += 16;
-                }
-            };
-
-            ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len + 2]
-                .copy_from_slice(&socket_addr_b.port().to_be_bytes());
-            ip_addr_port_b_len += 2;
-
-            let ip_addr_port_b: VecHostIdentifier =
-                ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
-
-            //A handles RespHello message under load, should not send cookie reply
-            assert!(a
-                .handle_msg_under_load(
-                    &b_to_a_buf[..resp_hello_len],
-                    &mut *a_to_b_buf,
-                    &ip_addr_port_b
-                )
-                .is_err());
-        });
-    }
-
-    #[test]
-    fn init_conf_retransmission_v02() -> Result<()> {
-        init_conf_retransmission(ProtocolVersion::V02)
-    }
-
-    #[test]
-    fn init_conf_retransmission_v03() -> Result<()> {
-        init_conf_retransmission(ProtocolVersion::V03)
-    }
-
-    fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-        rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
-
-        fn keypair() -> Result<(SSk, SPk)> {
-            let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-            StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
-            Ok((sk, pk))
-        }
-
-        fn proc_initiation(srv: &mut CryptoServer, peer: PeerPtr) -> Result<Envelope<InitHello>> {
-            let mut buf = MsgBuf::zero();
-            srv.initiate_handshake(peer, buf.as_mut_slice())?
-                .discard_result();
-            let msg = truncating_cast_into::<Envelope<InitHello>>(buf.borrow_mut())?;
-            Ok(msg.read())
-        }
-
-        fn proc_msg<Rx: AsBytes + FromBytes, Tx: AsBytes + FromBytes>(
-            srv: &mut CryptoServer,
-            rx: &Envelope<Rx>,
-        ) -> anyhow::Result<Envelope<Tx>> {
-            let mut buf = MsgBuf::zero();
-            srv.handle_msg(rx.as_bytes(), buf.as_mut_slice())?
-                .resp
-                .context("Failed to produce RespHello message")?
-                .discard_result();
-            let msg = truncating_cast_into::<Envelope<Tx>>(buf.borrow_mut())?;
-            Ok(msg.read())
-        }
-
-        fn proc_init_hello(
-            srv: &mut CryptoServer,
-            ih: &Envelope<InitHello>,
-        ) -> anyhow::Result<Envelope<RespHello>> {
-            proc_msg::<InitHello, RespHello>(srv, ih)
-        }
-
-        fn proc_resp_hello(
-            srv: &mut CryptoServer,
-            rh: &Envelope<RespHello>,
-        ) -> anyhow::Result<Envelope<InitConf>> {
-            proc_msg::<RespHello, InitConf>(srv, rh)
-        }
-
-        fn proc_init_conf(
-            srv: &mut CryptoServer,
-            rh: &Envelope<InitConf>,
-        ) -> anyhow::Result<Envelope<EmptyData>> {
-            proc_msg::<InitConf, EmptyData>(srv, rh)
-        }
-
-        fn poll(srv: &mut CryptoServer) -> anyhow::Result<()> {
-            // Discard all events; just apply the side effects
-            while !matches!(srv.poll()?, PollResult::Sleep(_)) {}
-            Ok(())
-        }
-
-        // TODO: Implement Clone on our message types
-        fn clone_msg<Msg: AsBytes + FromBytes>(msg: &Msg) -> anyhow::Result<Msg> {
-            Ok(truncating_cast_into_nomut::<Msg>(msg.as_bytes())?.read())
-        }
-
-        fn break_payload<Msg: AsBytes + FromBytes>(
-            srv: &mut CryptoServer,
-            peer: PeerPtr,
-            msg: &Envelope<Msg>,
-        ) -> anyhow::Result<Envelope<Msg>> {
-            let mut msg = clone_msg(msg)?;
-            msg.as_bytes_mut()[memoffset::offset_of!(Envelope<Msg>, payload)] ^= 0x01;
-            msg.seal(peer, srv)?; // Recalculate seal; we do not want to focus on "seal broken" errs
-            Ok(msg)
-        }
-
-        fn check_faulty_proc_init_conf(srv: &mut CryptoServer, ic_broken: &Envelope<InitConf>) {
-            let mut buf = MsgBuf::zero();
-            let res = srv.handle_msg(ic_broken.as_bytes(), buf.as_mut_slice());
-            assert!(res.is_err());
-        }
-
-        // we this as a closure in orer to use the protocol_version variable in it.
-        let check_retransmission = |srv: &mut CryptoServer,
-                                    ic: &Envelope<InitConf>,
-                                    ic_broken: &Envelope<InitConf>,
-                                    rc: &Envelope<EmptyData>|
-         -> Result<()> {
-            // Processing the same RespHello package again leads to retransmission (i.e. exactly the
-            // same output)
-            let rc_dup = proc_init_conf(srv, ic)?;
-            assert_eq!(rc.as_bytes(), rc_dup.as_bytes());
-
-            // Though if we directly call handle_resp_hello() we get an error since
-            // retransmission is not being handled by the cryptographic code
-            let mut discard_resp_conf = EmptyData::new_zeroed();
-            let res = srv.handle_init_conf(
-                &ic.payload,
-                &mut discard_resp_conf,
-                protocol_version.clone().keyed_hash(),
-            );
-            assert!(res.is_err());
-
-            // Obviously, a broken InitConf message should still be rejected
-            check_faulty_proc_init_conf(srv, ic_broken);
-
-            Ok(())
-        };
-
-        let (ska, pka) = keypair()?;
-        let (skb, pkb) = keypair()?;
-
-        // initialize server and a pre-shared key
-        let mut a = CryptoServer::new(ska, pka.clone());
-        let mut b = CryptoServer::new(skb, pkb.clone());
-
-        // introduce peers to each other
-        let b_peer = a.add_peer(None, pkb, protocol_version.clone())?;
-        let a_peer = b.add_peer(None, pka, protocol_version.clone())?;
-
-        // Execute protocol up till the responder confirmation (EmptyData)
-        let ih1 = proc_initiation(&mut a, b_peer)?;
-        let rh1 = proc_init_hello(&mut b, &ih1)?;
-        let ic1 = proc_resp_hello(&mut a, &rh1)?;
-        let rc1 = proc_init_conf(&mut b, &ic1)?;
-
-        // Modified version of ic1 and rc1, for tests that require it
-        let ic1_broken = break_payload(&mut a, b_peer, &ic1)?;
-        assert_ne!(ic1.as_bytes(), ic1_broken.as_bytes());
-
-        // Modified version of rc1, for tests that require it
-        let rc1_broken = break_payload(&mut b, a_peer, &rc1)?;
-        assert_ne!(rc1.as_bytes(), rc1_broken.as_bytes());
-
-        // Retransmission works as designed
-        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-
-        // Even with a couple of poll operations in between (which clears the cache
-        // after a time out of two minutes…we should never hit this time out in this
-        // cache)
-        for _ in 0..4 {
-            poll(&mut b)?;
-            check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-        }
-
-        // We can even validate that the data is coming out of the cache by changing the cache
-        // to use our broken messages. It does not matter that these messages are cryptographically
-        // broken since we insert them manually into the cache
-        // a_peer.known_init_conf_response()
-        KnownInitConfResponsePtr::insert_for_request_msg(
-            &mut b,
-            a_peer,
-            &ic1_broken,
-            rc1_broken.clone(),
-        );
-        check_retransmission(&mut b, &ic1_broken, &ic1, &rc1_broken)?;
-
-        // Lets reset to the correct message though
-        KnownInitConfResponsePtr::insert_for_request_msg(&mut b, a_peer, &ic1, rc1.clone());
-
-        // Again, nothing changes after calling poll
-        poll(&mut b)?;
-        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-
-        // Except if we jump forward into the future past the point where the responder
-        // starts to initiate rekeying; in this case, the automatic time out is triggered and the cache is cleared
-        super::testutils::time_travel_forward(&mut b, REKEY_AFTER_TIME_RESPONDER);
-
-        // As long as we do not call poll, everything is fine
-        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-
-        // But after we do, the response is gone and can not be recreated
-        // since the biscuit is stale
-        poll(&mut b)?;
-        check_faulty_proc_init_conf(&mut b, &ic1); // ic1 is now effectively broken
-        assert!(b.peers[0].known_init_conf_response.is_none()); // The cache is gone
-
-        Ok(())
     }
 }

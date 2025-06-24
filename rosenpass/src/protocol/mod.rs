@@ -27,9 +27,8 @@
 //! use rosenpass_secret_memory::policy::*;
 //! use rosenpass_cipher_traits::primitives::Kem;
 //! use rosenpass_ciphers::StaticKem;
-//! use rosenpass::{
-//!     protocol::{SSk, SPk, MsgBuf, PeerPtr, CryptoServer, SymKey},
-//! };
+//! use rosenpass::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
+//! use rosenpass::protocol::{PeerPtr, CryptoServer};
 //! # fn main() -> anyhow::Result<()> {
 //! // Set security policy for storing secrets
 //!
@@ -76,8 +75,19 @@
 //! ```
 
 mod build_crypto_server;
+pub use build_crypto_server::*;
+
+pub mod basic_types;
+pub mod constants;
+pub mod cookies;
+pub mod index;
+pub mod testutils;
+pub mod timing;
+pub mod zerocopy;
+
 #[allow(clippy::module_inception)]
 mod protocol;
-
-pub use build_crypto_server::*;
 pub use protocol::*;
+
+#[cfg(test)]
+mod test;
