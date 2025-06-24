@@ -2261,6 +2261,7 @@ impl CryptoServer {
             &cookie_value,
         )?;
 
+        use rand::Fill;
         msg_out
             .padding
             .try_fill(&mut rosenpass_secret_memory::rand::rng())
@@ -4439,6 +4440,8 @@ mod test {
 
     #[cfg(feature = "experiment_cookie_dos_mitigation")]
     fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
+        use std::time::Duration;
+
         setup_logging();
         rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
         stacker::grow(8 * 1024 * 1024, || {
@@ -4508,7 +4511,7 @@ mod test {
                         break a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap();
                     }
                     PollResult::Sleep(time) => {
-                        sleep(Duration::from_secs_f64(time));
+                        std::thread::sleep(Duration::from_secs_f64(time));
                     }
                     _ => {}
                 }

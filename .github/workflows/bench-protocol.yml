@@ -42,9 +42,9 @@ jobs:
 
       - name: 🛠️ Prepare Benchmark Path
         env:
-          EVENT_NAME:  ${{ github.event_name }}
+          EVENT_NAME: ${{ github.event_name }}
           BRANCH_NAME: ${{ github.ref_name   }}
-          PR_NUMBER:   ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           case "$EVENT_NAME" in
           "push")
