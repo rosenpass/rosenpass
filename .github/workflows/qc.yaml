@@ -30,11 +30,27 @@ jobs:
         uses: ludeeus/action-shellcheck@master
 
   rustfmt:
-    name: Rust Format
+    name: Rust code formatting
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - name: Run Rust Formatting Script
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install nightly toolchain
+        run: |
+          rustup toolchain install nightly
+          rustup override set nightly
+      - run: rustup component add rustfmt
+      - name: Run Cargo Fmt
+        run: cargo fmt --all --check
+      - name: Run Rust Markdown code block Formatting Script
         run: bash format_rust_code.sh --mode check
 
   cargo-bench:
@@ -159,7 +175,6 @@ jobs:
 
   cargo-fuzz:
     runs-on: ubicloud-standard-2-ubuntu-2204
-    env:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -174,7 +189,7 @@ jobs:
       - name: Install nightly toolchain
         run: |
           rustup toolchain install nightly
-          rustup override nightly
+          rustup override set nightly
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Run fuzzing
@@ -193,9 +208,23 @@ jobs:
 
   codecov:
     runs-on: ubicloud-standard-2-ubuntu-2204
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v4
-      - run: rustup default nightly
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install nightly toolchain
+        run: |
+          rustup toolchain install nightly
+          rustup override set nightly
       - run: rustup component add llvm-tools-preview
       - run: |
           cargo install cargo-llvm-cov || true
@@ -209,6 +238,4 @@ jobs:
         with:
           files: ./target/grcov/lcov
           verbose: true
-        env:
-          RUSTUP_TOOLCHAIN: 1.81
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
