@@ -89,6 +89,7 @@
         [
           "x86_64-linux"
           "aarch64-linux"
+          "i686-linux"
         ]
         (
           system:
@@ -171,6 +172,14 @@
               env = {
                 inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
               };
+            };
+            devShells.benchmarks = pkgs.mkShell {
+              inputsFrom = [ pkgs.rosenpass ];
+              nativeBuildInputs = with pkgs; [
+                cargo-release
+                clippy
+                rustfmt
+              ];
             };
 
             checks =
