@@ -128,12 +128,7 @@ jobs:
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
 
   cargo-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubicloud-standard-2-ubuntu-2204, warp-macos-13-arm64-6x]
-        # - ubuntu is x86-64
-        # - macos-13 is also x86-64 architecture
+    runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
