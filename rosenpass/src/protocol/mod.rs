@@ -31,6 +31,7 @@
 //!
 //! use rosenpass::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
 //! use rosenpass::protocol::{PeerPtr, CryptoServer};
+//! use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Set security policy for storing secrets
@@ -52,8 +53,8 @@
 //! let mut b = CryptoServer::new(peer_b_sk, peer_b_pk.clone());
 //!
 //! // introduce peers to each other
-//! a.add_peer(Some(psk.clone()), peer_b_pk, ProtocolVersion::V03)?;
-//! b.add_peer(Some(psk), peer_a_pk, ProtocolVersion::V03)?;
+//! a.add_peer(Some(psk.clone()), peer_b_pk, ProtocolVersion::V03, OskDomainSeparator::default())?;
+//! b.add_peer(Some(psk), peer_a_pk, ProtocolVersion::V03, OskDomainSeparator::default())?;
 //!
 //! // declare buffers for message exchange
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
@@ -84,6 +85,7 @@ pub mod basic_types;
 pub mod constants;
 pub mod cookies;
 pub mod index;
+pub mod osk_domain_separator;
 pub mod testutils;
 pub mod timing;
 pub mod zerocopy;

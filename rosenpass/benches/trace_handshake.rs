@@ -12,6 +12,7 @@ use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass_util::trace_bench::RpEventType;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 
 const ITERATIONS: usize = 100;
@@ -73,8 +74,18 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
-    a.add_peer(Some(psk.clone()), pkb, protocol_version.clone())?;
-    b.add_peer(Some(psk), pka, protocol_version)?;
+    a.add_peer(
+        Some(psk.clone()),
+        pkb,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
+    b.add_peer(
+        Some(psk),
+        pka,
+        protocol_version,
+        OskDomainSeparator::default(),
+    )?;
     Ok((a, b))
 }
 

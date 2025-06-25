@@ -295,25 +295,21 @@ hash_domain_ns!(
     /// We do recommend that third parties base their specific domain separators
     /// on a internet domain and/or mix in much more specific information.
     ///
-    /// We only really use this to derive a output key for wireguard; see [osk].
-    ///
     /// See [_ckextract].
     ///
     /// # Examples
     ///
     /// See the [module](self) documentation on how to use the hash domains in general.
-    _ckextract, _user, "user");
+    _ckextract, cke_user, "user");
 hash_domain_ns!(
     /// Chaining key domain separator for any rosenpass specific purposes.
     ///
-    /// We only really use this to derive a output key for wireguard; see [osk].
-    ///
     /// See [_ckextract].
     ///
     /// # Examples
     ///
     /// See the [module](self) documentation on how to use the hash domains in general.
-    _user, _rp, "rosenpass.eu");
+    cke_user, cke_user_rosenpass, "rosenpass.eu");
 hash_domain!(
     /// Chaining key domain separator for deriving the key sent to WireGuard.
     ///
@@ -325,4 +321,4 @@ hash_domain!(
     /// Check out its source code!
     ///
     /// See the [module](self) documentation on how to use the hash domains in general.
-    _rp, osk, "wireguard psk");
+    cke_user_rosenpass, ext_wireguard_psk_osk, "wireguard psk");

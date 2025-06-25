@@ -6,6 +6,7 @@ use rosenpass_util::{build::Build, result::ensure_or};
 use crate::config::ProtocolVersion;
 
 use super::basic_types::{SPk, SSk, SymKey};
+use super::osk_domain_separator::OskDomainSeparator;
 use super::{CryptoServer, PeerPtr};
 
 #[derive(Debug, Clone)]
@@ -148,20 +149,23 @@ pub struct MissingKeypair;
 ///
 /// ```rust
 /// use rosenpass_util::build::Build;
-/// use rosenpass::protocol::basic_types::{SPk, SymKey};
-/// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
+/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+///
 /// use rosenpass::config::ProtocolVersion;
 ///
+/// use rosenpass::protocol::basic_types::{SPk, SymKey};
+/// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
+/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+///
 /// // We have to define the security policy before using Secrets.
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let keypair = Keypair::random();
-/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random(), protocol_version: ProtocolVersion::V02 };
-/// let peer2 = PeerParams { psk: None, pk: SPk::random(), protocol_version: ProtocolVersion::V02 };
+/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random(), protocol_version: ProtocolVersion::V02, osk_domain_separator: OskDomainSeparator::default() };
+/// let peer2 = PeerParams { psk: None, pk: SPk::random(), protocol_version: ProtocolVersion::V02, osk_domain_separator: OskDomainSeparator::default() };
 ///
 /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![peer1]);
-/// builder.add_peer(peer2.psk.clone(), peer2.pk, ProtocolVersion::V02);
+/// builder.add_peer(peer2.psk.clone(), peer2.pk, ProtocolVersion::V02, OskDomainSeparator::default());
 ///
 /// let server = builder.build().expect("build failed");
 /// assert_eq!(server.peers.len(), 2);
@@ -191,16 +195,17 @@ impl Build<CryptoServer> for BuildCryptoServer {
 
         let mut srv = CryptoServer::new(sk, pk);
 
-        for (
-            idx,
-            PeerParams {
+        for (idx, params) in self.peers.into_iter().enumerate() {
+            let PeerParams {
                 psk,
                 pk,
                 protocol_version,
-            },
-        ) in self.peers.into_iter().enumerate()
-        {
-            let PeerPtr(idx2) = srv.add_peer(psk, pk, protocol_version.into())?;
+                osk_domain_separator,
+            } = params;
+
+            let PeerPtr(idx2) =
+                srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
+
             assert!(idx == idx2, "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error.")
         }
 
@@ -223,6 +228,7 @@ pub struct PeerParams {
     pub pk: SPk,
     /// The used protocol version.
     pub protocol_version: ProtocolVersion,
+    pub osk_domain_separator: OskDomainSeparator,
 }
 
 impl BuildCryptoServer {
@@ -321,13 +327,15 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// use rosenpass::config::ProtocolVersion;
-    /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
-    /// secret_policy_use_only_malloc_secrets();
     ///
     /// use rosenpass_util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    ///
+    /// // We have to define the security policy before using Secrets.
+    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// secret_policy_use_only_malloc_secrets();
     ///
     /// // Deferred initialization: Create builder first, add some peers later
     /// let keypair_option = Some(Keypair::random());
@@ -340,7 +348,7 @@ impl BuildCryptoServer {
     /// // Now we've found a peer that should be added to the configuration
     /// let pre_shared_key = SymKey::random();
     /// let public_key = SPk::random();
-    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone(), ProtocolVersion::V02);
+    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone(), ProtocolVersion::V02, OskDomainSeparator::default());
     ///
     /// // New server instances will then start with the peer being registered already
     /// let server = builder.build().expect("build failed");
@@ -355,12 +363,14 @@ impl BuildCryptoServer {
         psk: Option<SymKey>,
         pk: SPk,
         protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
     ) -> &mut Self {
         // TODO: Check here already whether peer was already added
         self.peers.push(PeerParams {
             psk,
             pk,
             protocol_version,
+            osk_domain_separator,
         });
         self
     }
@@ -371,9 +381,10 @@ impl BuildCryptoServer {
         psk: Option<SymKey>,
         pk: SPk,
         protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
     ) -> PeerPtr {
         let id = PeerPtr(self.peers.len());
-        self.with_added_peer(psk, pk, protocol_version);
+        self.with_added_peer(psk, pk, protocol_version, osk_domain_separator);
         id
     }
 
@@ -394,6 +405,7 @@ impl BuildCryptoServer {
     ///
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
     /// secret_policy_use_only_malloc_secrets();
@@ -401,7 +413,7 @@ impl BuildCryptoServer {
     /// let keypair = Keypair::random();
     /// let peer_pk = SPk::random();
     /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![]);
-    /// builder.add_peer(None, peer_pk, ProtocolVersion::V02);
+    /// builder.add_peer(None, peer_pk, ProtocolVersion::V02, OskDomainSeparator::default());
     ///
     /// // Extract configuration parameters from the decomissioned builder
     /// let (keypair_option, peers) = builder.take_parts();

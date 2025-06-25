@@ -26,6 +26,7 @@ use rosenpass_wireguard_broker::{WireguardBrokerCfg, WireguardBrokerMio, WG_KEY_
 use crate::config::{ProtocolVersion, Verbosity};
 
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use crate::protocol::osk_domain_separator::OskDomainSeparator;
 use crate::protocol::timing::Timing;
 use crate::protocol::{BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr};
 
@@ -1013,6 +1014,7 @@ impl AppServer {
     /// # Examples
     ///
     /// See [Self::new].
+    #[allow(clippy::too_many_arguments)]
     pub fn add_peer(
         &mut self,
         psk: Option<SymKey>,
@@ -1021,11 +1023,16 @@ impl AppServer {
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
         protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),
-            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk, protocol_version),
-            ConstructionSite::Product(srv) => srv.add_peer(psk, pk, protocol_version.into())?,
+            ConstructionSite::Builder(builder) => {
+                builder.add_peer(psk, pk, protocol_version, osk_domain_separator)
+            }
+            ConstructionSite::Product(srv) => {
+                srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?
+            }
         };
         assert!(pn == self.peers.len());
 

@@ -13,6 +13,7 @@ use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, 
 
 use super::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use super::constants::REKEY_AFTER_TIME_RESPONDER;
+use super::osk_domain_separator::OskDomainSeparator;
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 use super::{
     CryptoServer, HandleMsgResult, HostIdentification, KnownInitConfResponsePtr, PeerPtr,
@@ -145,8 +146,18 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
-    a.add_peer(Some(psk.clone()), pkb, protocol_version.clone())?;
-    b.add_peer(Some(psk), pka, protocol_version)?;
+    a.add_peer(
+        Some(psk.clone()),
+        pkb,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
+    b.add_peer(
+        Some(psk),
+        pka,
+        protocol_version,
+        OskDomainSeparator::default(),
+    )?;
     Ok((a, b))
 }
 
@@ -619,8 +630,18 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
     let mut b = CryptoServer::new(skb, pkb.clone());
 
     // introduce peers to each other
-    let b_peer = a.add_peer(None, pkb, protocol_version.clone())?;
-    let a_peer = b.add_peer(None, pka, protocol_version.clone())?;
+    let b_peer = a.add_peer(
+        None,
+        pkb,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
+    let a_peer = b.add_peer(
+        None,
+        pka,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
 
     // Execute protocol up till the responder confirmation (EmptyData)
     let ih1 = proc_initiation(&mut a, b_peer)?;

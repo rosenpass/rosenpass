@@ -10,6 +10,7 @@ use rosenpass_ciphers::StaticKem;
 use rosenpass_util::result::OkExt;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::testutils::time_travel_forward;
 use rosenpass::protocol::timing::{Timing, UNENDING};
 use rosenpass::protocol::{CryptoServer, HostIdentification, PeerPtr, PollResult, ProtocolVersion};
@@ -19,19 +20,38 @@ use rosenpass::protocol::{CryptoServer, HostIdentification, PeerPtr, PollResult,
 
 #[test]
 fn test_successful_exchange_with_poll_v02() -> anyhow::Result<()> {
-    test_successful_exchange_with_poll(ProtocolVersion::V02)
+    test_successful_exchange_with_poll(ProtocolVersion::V02, OskDomainSeparator::default())
 }
 
 #[test]
 fn test_successful_exchange_with_poll_v03() -> anyhow::Result<()> {
-    test_successful_exchange_with_poll(ProtocolVersion::V03)
+    test_successful_exchange_with_poll(ProtocolVersion::V03, OskDomainSeparator::default())
 }
 
-fn test_successful_exchange_with_poll(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
+#[test]
+fn test_successful_exchange_with_poll_v02_custom_domain_separator() -> anyhow::Result<()> {
+    test_successful_exchange_with_poll(
+        ProtocolVersion::V02,
+        OskDomainSeparator::custom_utf8_single_label("example.org", "Example Label"),
+    )
+}
+
+#[test]
+fn test_successful_exchange_with_poll_v03_custom_domain_separator() -> anyhow::Result<()> {
+    test_successful_exchange_with_poll(
+        ProtocolVersion::V03,
+        OskDomainSeparator::custom_utf8_single_label("example.org", "Example Label"),
+    )
+}
+
+fn test_successful_exchange_with_poll(
+    protocol_version: ProtocolVersion,
+    osk_domain_separator: OskDomainSeparator,
+) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
-    let mut sim = RosenpassSimulator::new(protocol_version)?;
+    let mut sim = RosenpassSimulator::new(protocol_version, osk_domain_separator)?;
     sim.poll_loop(150)?; // Poll 75 times
     let transcript = sim.transcript;
 
@@ -104,7 +124,7 @@ fn test_successful_exchange_under_packet_loss(
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     // Create the simulator
-    let mut sim = RosenpassSimulator::new(protocol_version)?;
+    let mut sim = RosenpassSimulator::new(protocol_version, OskDomainSeparator::default())?;
 
     // Make sure the servers are set to under load condition
     sim.srv_a.under_load = true;
@@ -181,6 +201,94 @@ fn test_successful_exchange_under_packet_loss(
     Ok(())
 }
 
+#[test]
+fn test_osk_label_mismatch() -> anyhow::Result<()> {
+    // Set security policy for storing secrets; choose the one that is faster for testing
+    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+
+    let ds_wg = OskDomainSeparator::for_wireguard_psk();
+    let ds_custom1 = OskDomainSeparator::custom_utf8("example.com", ["Example Label"]);
+    let ds_custom2 =
+        OskDomainSeparator::custom_utf8("example.com", ["Example Label", "Second Token"]);
+
+    // Create the simulator
+    let mut sim = RosenpassSimulator::new(ProtocolVersion::V03, ds_custom1.clone())?;
+    assert_eq!(sim.srv_a.srv.peers[0].osk_domain_separator, ds_custom1);
+    assert_eq!(sim.srv_b.srv.peers[0].osk_domain_separator, ds_custom1);
+
+    // Deliberately produce a label mismatch
+    sim.srv_b.srv.peers[0].osk_domain_separator = ds_custom2.clone();
+    assert_eq!(sim.srv_a.srv.peers[0].osk_domain_separator, ds_custom1);
+    assert_eq!(sim.srv_b.srv.peers[0].osk_domain_separator, ds_custom2);
+
+    // Perform the key exchanges
+    for _ in 0..300 {
+        let ev = sim.poll()?;
+
+        assert!(!matches!(ev, TranscriptEvent::CompletedExchange(_)),
+            "We deliberately provoked a mismatch in OSK domain separator, but still saw a successfully completed key exchange");
+
+        // Wait for a key exchange that failed with a KeyMismatch event
+        let (osk_a_custom1, osk_b_custom2) = match ev {
+            TranscriptEvent::FailedExchangeWithKeyMismatch(osk_a, osk_b) => {
+                (osk_a.clone(), osk_b.clone())
+            }
+            _ => continue,
+        };
+
+        // The OSKs have been produced through the call to the function CryptoServer::osk(…)
+        assert_eq!(
+            sim.srv_a.srv.osk(PeerPtr(0))?.secret(),
+            osk_a_custom1.secret()
+        );
+        assert_eq!(
+            sim.srv_b.srv.osk(PeerPtr(0))?.secret(),
+            osk_b_custom2.secret()
+        );
+
+        // They are not matching (obviously)
+        assert_ne!(osk_a_custom1.secret(), osk_b_custom2.secret());
+
+        // We can manually generate OSKs with matching labels
+        let osk_a_custom2 = sim
+            .srv_a
+            .srv
+            .osk_with_domain_separator(PeerPtr(0), &ds_custom2)?;
+        let osk_b_custom1 = sim
+            .srv_b
+            .srv
+            .osk_with_domain_separator(PeerPtr(0), &ds_custom1)?;
+        let osk_a_wg = sim
+            .srv_a
+            .srv
+            .osk_with_domain_separator(PeerPtr(0), &ds_wg)?;
+        let osk_b_wg = sim
+            .srv_b
+            .srv
+            .osk_with_domain_separator(PeerPtr(0), &ds_wg)?;
+
+        // The key exchange may have failed for some other reason, in this case we expect a
+        // successful-but-label-mismatch exchange later in the protocol
+        if osk_a_custom1.secret() != osk_b_custom1.secret() {
+            continue;
+        }
+
+        // But if one of the labeled keys match, all should match
+        assert_eq!(osk_a_custom2.secret(), osk_b_custom2.secret());
+        assert_eq!(osk_a_wg.secret(), osk_b_wg.secret());
+
+        // But the three keys do not match each other
+        assert_ne!(osk_a_custom1.secret(), osk_a_custom2.secret());
+        assert_ne!(osk_a_custom1.secret(), osk_a_wg.secret());
+        assert_ne!(osk_a_custom2.secret(), osk_a_wg.secret());
+
+        // The test succeeded
+        return Ok(());
+    }
+
+    panic!("Test did not succeed even after allowing for a large number of communication rounds");
+}
+
 type MessageType = u8;
 
 /// Lets record the events that are produced by Rosenpass
@@ -193,6 +301,7 @@ enum TranscriptEvent {
         event: ServerEvent,
     },
     CompletedExchange(SymKey),
+    FailedExchangeWithKeyMismatch(SymKey, SymKey),
 }
 
 #[derive(Debug)]
@@ -292,7 +401,10 @@ struct SimulatorServer {
 
 impl RosenpassSimulator {
     /// Set up the simulator
-    fn new(protocol_version: ProtocolVersion) -> anyhow::Result<Self> {
+    fn new(
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
+    ) -> anyhow::Result<Self> {
         // Set up the first server
         let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());
         StaticKem.keygen(peer_a_sk.secret_mut(), peer_a_pk.deref_mut())?;
@@ -305,8 +417,18 @@ impl RosenpassSimulator {
 
         // Generate a PSK and introduce the Peers to each other.
         let psk = SymKey::random();
-        let peer_a = srv_a.add_peer(Some(psk.clone()), peer_b_pk, protocol_version.clone())?;
-        let peer_b = srv_b.add_peer(Some(psk), peer_a_pk, protocol_version.clone())?;
+        let peer_a = srv_a.add_peer(
+            Some(psk.clone()),
+            peer_b_pk,
+            protocol_version.clone(),
+            osk_domain_separator.clone(),
+        )?;
+        let peer_b = srv_b.add_peer(
+            Some(psk),
+            peer_a_pk,
+            protocol_version.clone(),
+            osk_domain_separator.clone(),
+        )?;
 
         // Set up the individual server data structures
         let srv_a = SimulatorServer::new(srv_a, peer_b);
@@ -566,10 +688,18 @@ impl ServerPtr {
             None => return Ok(()),
         };
 
+        // Make sure the OSK of server A always comes first
+        let (osk_a, osk_b) = match self == ServerPtr::A {
+            true => (osk, other_osk),
+            false => (other_osk, osk),
+        };
+
         // Issue the successful exchange event if the OSKs are equal;
         // be careful to use constant time comparison for things like this!
-        if rosenpass_constant_time::memcmp(osk.secret(), other_osk.secret()) {
-            self.enqueue_upcoming_poll_event(sim, TE::CompletedExchange(osk));
+        if rosenpass_constant_time::memcmp(osk_a.secret(), osk_b.secret()) {
+            self.enqueue_upcoming_poll_event(sim, TE::CompletedExchange(osk_a));
+        } else {
+            self.enqueue_upcoming_poll_event(sim, TE::FailedExchangeWithKeyMismatch(osk_a, osk_b));
         }
 
         Ok(())

@@ -208,7 +208,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use rosenpass::{
         app_server::{AppServer, BrokerPeer},
         config::Verbosity,
-        protocol::basic_types::{SPk, SSk, SymKey},
+        protocol::{
+            basic_types::{SPk, SSk, SymKey},
+            osk_domain_separator::OskDomainSeparator,
+        },
     };
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
@@ -362,6 +365,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             broker_peer,
             peer.endpoint.map(|x| x.to_string()),
             peer.protocol_version,
+            OskDomainSeparator::for_wireguard_psk(),
         )?;
 
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up

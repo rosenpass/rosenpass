@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn test_lpe_error_conversion_downcast_invalid() {
         let pos_error = PositionOutOfBufferBounds;
-        let sanity_error = SanityError::PositionOutOfBufferBounds(pos_error.into());
+        let sanity_error = SanityError::PositionOutOfBufferBounds(pos_error);
         match MessageLenSanityError::try_from(sanity_error) {
             Ok(_) => panic!("Conversion should always fail (incompatible enum variant)"),
             Err(err) => assert!(matches!(err, PositionOutOfBufferBounds)),

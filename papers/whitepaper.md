@@ -548,6 +548,28 @@ When the responder is under load and it recieves an InitConf message, the messag
 
 The main extension point for the Rosenpass protocol is to generate `osk`s (speak output shared keys, see Sec. \ref{symmetric-keys}) for purposes other than using them to secure WireGuard. By default, the Rosenpass application generates keys for the WireGuard PSK (see \ref{protocol-extension-wireguard-psk}). It would not be impossible to use the keys generated for WireGuard in other use cases, but this might lead to attacks[@oraclecloning]. Specifying a custom protocol extension in practice just means settling on alternative domain separators (see Sec. \ref{symmetric-keys}, Fig. \ref{img:HashingTree}).
 
+## Using custom domain separators in the Rosenpass application
+
+The Rosenpass application supports protocol extensions to change the OSK domain separator without modification of the source code.
+
+The following example configuration file can be used to execute Rosenpass in outfile mode with custom domain separators.
+In this mode, the Rosenpass application will write keys to the file specified with `key_out` and send notifications when new keys are exchanged via standard out.
+This can be used to embed Rosenpass into third-party application.
+
+```toml
+# peer-a.toml
+public_key = "peer-a.pk"
+secret_key = "peer-a.sk"
+listen = ["[::1]:6789"]
+verbosity = "Verbose"
+
+[[peers]]
+public_key = "peer-b.pk"
+key_out = "peer-a.osk" # path to store the key
+osk_organization = "myorg.com"
+osk_label = ["My Custom Messenger app", "Backend VPN Example Subusecase"]
+```
+
 ## Extension: WireGuard PSK {#protocol-extension-wireguard-psk}
 
 The WireGuard PSK protocol extension is active by default; this is the mode where Rosenpass is used to provide post-quantum security for WireGuard. Hybrid security (i.e. redundant pre-quantum and post-quantum security) is achieved because WireGuard provides pre-quantum security, with or without Rosenpass.
