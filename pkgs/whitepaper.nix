@@ -44,6 +44,7 @@ let
         xifthen
         xkeyval
         xurl
+        dirtytalk
         ;
     }
   );
