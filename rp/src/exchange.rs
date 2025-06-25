@@ -15,6 +15,7 @@ use crate::key::WG_B64_LEN;
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
 /// for how long the connection should be kept alive and a list of allowed IPs for the peer.
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExchangePeer {
     /// Directory where public keys are stored
     pub public_keys_dir: PathBuf,
@@ -31,6 +32,7 @@ pub struct ExchangePeer {
 
 /// Options for the exchange operation of the `rp` binary.
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExchangeOptions {
     /// Whether the cli output should be verbose.
     pub verbose: bool,
