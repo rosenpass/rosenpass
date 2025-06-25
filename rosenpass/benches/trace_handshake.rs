@@ -1,12 +1,9 @@
-use std::{
-    collections::HashMap,
-    hint::black_box,
-    io::{self, Write},
-    ops::DerefMut,
-    time::{Duration, Instant},
-};
+use std::io::{self, Write};
+use std::time::{Duration, Instant};
+use std::{collections::HashMap, hint::black_box, ops::DerefMut};
 
 use anyhow::Result;
+
 use libcrux_test_utils::tracing::{EventType, Trace as _};
 
 use rosenpass_cipher_traits::primitives::Kem;

@@ -35,23 +35,19 @@ use rosenpass_util::{
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 
+use super::basic_types::{
+    BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
+};
 use super::constants::{
     BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
     PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
     REKEY_AFTER_TIME_RESPONDER, RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END,
     RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
 };
+use super::cookies::{BiscuitKey, CookieSecret, CookieStore};
 use super::index::{PeerIndex, PeerIndexKey};
 use super::timing::{has_happened, Timing, BCE, UNENDING};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
-use super::{
-    basic_types::{
-        BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
-    },
-    cookies::BiscuitKey,
-};
-
-use super::cookies::{CookieSecret, CookieStore};
 
 #[cfg(feature = "trace_bench")]
 use rosenpass_util::trace_bench::Trace as _;
@@ -177,10 +173,12 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-/// use rosenpass::protocol::{Peer, ProtocolVersion};
+///
 /// use rosenpass_ciphers::StaticKem;
 /// use rosenpass_cipher_traits::primitives::Kem;
+///
+/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+/// use rosenpass::protocol::{Peer, ProtocolVersion};
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///

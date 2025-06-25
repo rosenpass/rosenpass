@@ -9,12 +9,10 @@ use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_util::result::OkExt;
 
-use rosenpass::protocol::{
-    basic_types::{MsgBuf, SPk, SSk, SymKey},
-    testutils::time_travel_forward,
-    timing::{Timing, UNENDING},
-    CryptoServer, HostIdentification, PeerPtr, PollResult, ProtocolVersion,
-};
+use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::testutils::time_travel_forward;
+use rosenpass::protocol::timing::{Timing, UNENDING};
+use rosenpass::protocol::{CryptoServer, HostIdentification, PeerPtr, PollResult, ProtocolVersion};
 
 // TODO: Most of the utility functions in here should probably be moved to
 // rosenpass::protocol::testutils;

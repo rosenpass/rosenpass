@@ -1,13 +1,14 @@
-use anyhow::Result;
-use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 use std::ops::DerefMut;
+
+use anyhow::Result;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+
+use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 
 fn handle(
     tx: &mut CryptoServer,

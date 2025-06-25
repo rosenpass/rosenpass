@@ -7,19 +7,17 @@
 //! - TODO: support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
 //! - TODO: provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
 
-use crate::protocol::basic_types::{SPk, SSk};
-use rosenpass_util::file::LoadValue;
-use std::{
-    collections::HashSet,
-    fs,
-    io::Write,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs},
-    path::{Path, PathBuf},
-};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::path::{Path, PathBuf};
+use std::{collections::HashSet, fs, io::Write};
 
 use anyhow::{bail, ensure};
-use rosenpass_util::file::{fopen_w, Visibility};
+
 use serde::{Deserialize, Serialize};
+
+use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
+
+use crate::protocol::basic_types::{SPk, SSk};
 
 use crate::app_server::AppServer;
 

@@ -1,12 +1,12 @@
+use thiserror::Error;
+
+use rosenpass_util::mem::{DiscardResultExt, SwapWithDefaultExt};
+use rosenpass_util::{build::Build, result::ensure_or};
+
+use crate::config::ProtocolVersion;
+
 use super::basic_types::{SPk, SSk, SymKey};
 use super::{CryptoServer, PeerPtr};
-use crate::config::ProtocolVersion;
-use rosenpass_util::{
-    build::Build,
-    mem::{DiscardResultExt, SwapWithDefaultExt},
-    result::ensure_or,
-};
-use thiserror::Error;
 
 #[derive(Debug, Clone)]
 /// A pair of matching public/secret keys used to launch the crypto server.
@@ -386,15 +386,17 @@ impl BuildCryptoServer {
     ///  Extracting the server configuration from a builder:
     ///
     /// ```rust
-    /// // We have to define the security policy before using Secrets.
+    /// use rosenpass_util::build::Build;
+    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    ///
     /// use rosenpass::config::ProtocolVersion;
     /// use rosenpass::hash_domains::protocol;
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
-    /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use rosenpass_util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    ///
+    /// // We have to define the security policy before using Secrets.
+    /// secret_policy_use_only_malloc_secrets();
     ///
     /// let keypair = Keypair::random();
     /// let peer_pk = SPk::random();

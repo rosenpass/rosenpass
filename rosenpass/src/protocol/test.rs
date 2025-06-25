@@ -11,10 +11,10 @@ use rosenpass_util::mem::DiscardResultExt;
 
 use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, MAX_MESSAGE_LEN};
 
+use super::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use super::constants::REKEY_AFTER_TIME_RESPONDER;
+use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 use super::{
-    basic_types::{MsgBuf, SPk, SSk, SymKey},
-    constants::REKEY_AFTER_TIME_RESPONDER,
-    zerocopy::{truncating_cast_into, truncating_cast_into_nomut},
     CryptoServer, HandleMsgResult, HostIdentification, KnownInitConfResponsePtr, PeerPtr,
     PollResult, ProtocolVersion,
 };

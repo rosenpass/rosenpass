@@ -1,15 +1,15 @@
-use anyhow::Error;
+use std::{
+    future::Future, net::SocketAddr, ops::DerefMut, path::PathBuf, pin::Pin, process::Command,
+    sync::Arc,
+};
+
+use anyhow::{Error, Result};
 use serde::Deserialize;
-use std::future::Future;
-use std::ops::DerefMut;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::{net::SocketAddr, path::PathBuf, process::Command};
+
+use rosenpass::config::ProtocolVersion;
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
-use anyhow::Result;
-use rosenpass::config::ProtocolVersion;
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
