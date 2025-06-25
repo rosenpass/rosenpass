@@ -395,7 +395,7 @@ fn load_biscuit(nct) {
 
     // In December 2024, the InitConf retransmission mechanisim was redesigned
     // in a backwards-compatible way. See the changelog.
-    // 
+    //
     // -- 2024-11-30, Karolin Varner
     if (protocol_version!(< "0.3.0")) {
         // Ensure that the biscuit is used only once
@@ -536,7 +536,8 @@ When the responder is under load and it recieves an InitConf message, the messag
 \vspace{0.5em}
 
 Author: David Niehues
-PR: [#653](https://github.com/rosenpass/rosenpass/pull/653)  
+
+PR: [#653](https://github.com/rosenpass/rosenpass/pull/653)
 
 \vspace{0.5em}
 
@@ -554,9 +555,11 @@ In order to maintain compatablity without introducing an explcit version number 
 
 \vspace{0.5em}
 
-Author: Karolin Varner  
-Issue: [#331](https://github.com/rosenpass/rosenpass/issues/331)  
-PR: [#513](https://github.com/rosenpass/rosenpass/pull/513)  
+Author: Karolin Varner
+
+Issue: [#331](https://github.com/rosenpass/rosenpass/issues/331)
+
+PR: [#513](https://github.com/rosenpass/rosenpass/pull/513)
 
 \vspace{0.5em}
 
@@ -574,7 +577,7 @@ By removing all retransmission handling code from the cryptographic protocol, we
         The responder does not need to do anything special to handle RespHello retransmission – if the RespHello package is lost, the initiator retransmits InitHello and the responder can generate another RespHello package from that. InitConf retransmission needs to be handled specifically in the responder code because accepting an InitConf retransmission would reset the live session including the nonce counter, which would cause nonce reuse. Implementations must detect the case that `biscuit_no = biscuit_used` in ICR5, skip execution of ICR6 and ICR7, and just transmit another EmptyData package to confirm that the initiator can stop transmitting InitConf.
     \end{quote}
 
-    by 
+    by
 
     \begin{quote}
         The responder uses less complex form of the same mechanism: The responder never retransmits RespHello, instead the responder generates a new RespHello message if InitHello is retransmitted. Responder confirmation messages of completed handshake (EmptyData) messages are retransmitted by storing the most recent InitConf messages (or their hashes) and caching the associated EmptyData messages. Through this cache, InitConf retransmission is detected and the associated EmptyData message is retransmitted.
@@ -597,7 +600,7 @@ By removing all retransmission handling code from the cryptographic protocol, we
         \begin{minted}{pseudorust}
         // In December 2024, the InitConf retransmission mechanisim was redesigned
         // in a backwards-compatible way. See the changelog.
-        // 
+        //
         // -- 2024-11-30, Karolin Varner
         if (protocol_version!(< "0.3.0")) {
             // Ensure that the biscuit is used only once
@@ -611,9 +614,11 @@ By removing all retransmission handling code from the cryptographic protocol, we
 
 \vspace{0.5em}
 
-Author: Prabhpreet Dua  
-Issue: [#137](https://github.com/rosenpass/rosenpass/issues/137)  
-PR: [#142](https://github.com/rosenpass/rosenpass/pull/142)  
+Author: Prabhpreet Dua
+
+Issue: [#137](https://github.com/rosenpass/rosenpass/issues/137)
+
+PR: [#142](https://github.com/rosenpass/rosenpass/pull/142)
 
 \vspace{0.5em}
 
