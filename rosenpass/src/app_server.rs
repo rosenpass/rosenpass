@@ -1,5 +1,6 @@
-/// This contains the bulk of the rosenpass server IO handling code whereas
-/// the actual cryptographic code lives in the [crate::protocol] module
+//! This contains the bulk of the rosenpass server IO handling code whereas
+//! the actual cryptographic code lives in the [crate::protocol] module
+
 use std::collections::{HashMap, VecDeque};
 use std::io::{stdout, ErrorKind, Write};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
