@@ -106,6 +106,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
                 extra_params: vec![],
             }),
             protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 
@@ -127,6 +128,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             pre_shared_key: None,
             wg: None,
             protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 

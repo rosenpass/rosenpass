@@ -1,13 +1,15 @@
-use anyhow::Result;
-use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 use std::ops::DerefMut;
+
+use anyhow::Result;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+
+use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 
 fn handle(
     tx: &mut CryptoServer,
@@ -53,8 +55,18 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
-    a.add_peer(Some(psk.clone()), pkb, protocol_version.clone())?;
-    b.add_peer(Some(psk), pka, protocol_version)?;
+    a.add_peer(
+        Some(psk.clone()),
+        pkb,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
+    b.add_peer(
+        Some(psk),
+        pka,
+        protocol_version,
+        OskDomainSeparator::default(),
+    )?;
     Ok((a, b))
 }
 

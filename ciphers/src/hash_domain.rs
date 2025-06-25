@@ -83,6 +83,33 @@ impl HashDomain {
         Ok(Self(new_key, self.1))
     }
 
+    /// Version of [Self::mix] that accepts an iterator and mixes all values from the iterator into
+    /// this hash domain.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rosenpass_ciphers::{hash_domain::HashDomain, KeyedHash};
+    ///
+    /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
+    /// assert_eq!(
+    ///     hasher.clone().mix(b"Hello")?.mix(b"World")?.into_value(),
+    ///     hasher.clone().mix_many([b"Hello", b"World"])?.into_value()
+    /// );
+    ///
+    /// Ok::<(), anyhow::Error>(())
+    /// ```
+    pub fn mix_many<I, T>(mut self, it: I) -> Result<Self>
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<[u8]>,
+    {
+        for e in it {
+            self = self.mix(e.as_ref())?;
+        }
+        Ok(self)
+    }
+
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`
     /// by calling [SecretHashDomain::invoke_primitive] with this
     /// [HashDomain]'s key as `k` and `v` as `d`.
@@ -159,6 +186,46 @@ impl SecretHashDomain {
     /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
     pub fn mix(self, v: &[u8]) -> Result<SecretHashDomain> {
         Self::invoke_primitive(self.0.secret(), v, self.1)
+    }
+
+    /// Version of [Self::mix] that accepts an iterator and mixes all values from the iterator into
+    /// this hash domain.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rosenpass_ciphers::{hash_domain::HashDomain, KeyedHash};
+    ///
+    /// rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
+    ///
+    /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
+    /// assert_eq!(
+    ///     hasher
+    ///         .clone()
+    ///         .turn_secret()
+    ///         .mix(b"Hello")?
+    ///         .mix(b"World")?
+    ///         .into_secret()
+    ///         .secret(),
+    ///     hasher
+    ///         .clone()
+    ///         .turn_secret()
+    ///         .mix_many([b"Hello", b"World"])?
+    ///         .into_secret()
+    ///         .secret(),
+    /// );
+
+    /// Ok::<(), anyhow::Error>(())
+    /// ```
+    pub fn mix_many<I, T>(mut self, it: I) -> Result<Self>
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<[u8]>,
+    {
+        for e in it {
+            self = self.mix(e.as_ref())?;
+        }
+        Ok(self)
     }
 
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`

@@ -35,23 +35,21 @@ use rosenpass_util::{
 
 use crate::{hash_domains, msgs::*, RosenpassError};
 
+use super::basic_types::{
+    BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, PublicSymKey, SPk, SSk, SessionId, SymKey,
+    XAEADNonce,
+};
 use super::constants::{
     BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
     PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
     REKEY_AFTER_TIME_RESPONDER, RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END,
     RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
 };
+use super::cookies::{BiscuitKey, CookieSecret, CookieStore};
 use super::index::{PeerIndex, PeerIndexKey};
+use super::osk_domain_separator::OskDomainSeparator;
 use super::timing::{has_happened, Timing, BCE, UNENDING};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
-use super::{
-    basic_types::{
-        BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, SPk, SSk, SessionId, SymKey, XAEADNonce,
-    },
-    cookies::BiscuitKey,
-};
-
-use super::cookies::{CookieSecret, CookieStore};
 
 #[cfg(feature = "trace_bench")]
 use rosenpass_util::trace_bench::Trace as _;
@@ -177,10 +175,13 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-/// use rosenpass::protocol::{Peer, ProtocolVersion};
+///
 /// use rosenpass_ciphers::StaticKem;
 /// use rosenpass_cipher_traits::primitives::Kem;
+///
+/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+/// use rosenpass::protocol::{Peer, ProtocolVersion};
+/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -193,13 +194,13 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// let psk = SymKey::random();
 ///
 /// // Creation with a PSK
-/// let peer_psk = Peer::new(psk, spkt.clone(), ProtocolVersion::V03);
+/// let peer_psk = Peer::new(psk, spkt.clone(), ProtocolVersion::V03, OskDomainSeparator::default());
 ///
 /// // Creation without a PSK
-/// let peer_nopsk = Peer::new(SymKey::zero(), spkt, ProtocolVersion::V03);
+/// let peer_nopsk = Peer::new(SymKey::zero(), spkt, ProtocolVersion::V03, OskDomainSeparator::default());
 ///
 /// // Create a second peer
-/// let peer_psk_2 = Peer::new(SymKey::zero(), spkt2, ProtocolVersion::V03);
+/// let peer_psk_2 = Peer::new(SymKey::zero(), spkt2, ProtocolVersion::V03, OskDomainSeparator::default());
 ///
 /// // Peer ID does not depend on PSK, but it does depend on the public key
 /// assert_eq!(peer_psk.pidt()?, peer_nopsk.pidt()?);
@@ -255,9 +256,10 @@ pub struct Peer {
     /// This allows us to perform retransmission for the purpose of dealing with packet loss
     /// on the network without having to account for it in the cryptographic code itself.
     pub known_init_conf_response: Option<KnownInitConfResponse>,
-
     /// The protocol version used by with this peer.
     pub protocol_version: ProtocolVersion,
+    /// Domain separator for generated OSKs
+    pub osk_domain_separator: OskDomainSeparator,
 }
 
 impl Peer {
@@ -284,6 +286,7 @@ impl Peer {
             handshake: None,
             known_init_conf_response: None,
             protocol_version,
+            osk_domain_separator: OskDomainSeparator::default(),
         }
     }
 }
@@ -1224,6 +1227,7 @@ impl CryptoServer {
     /// ```
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;
@@ -1239,7 +1243,7 @@ impl CryptoServer {
     ///
     /// let psk = SymKey::random();
     /// // We use the latest protocol version for the example.
-    /// let peer = srv.add_peer(Some(psk), spkt.clone(), ProtocolVersion::V03)?;
+    /// let peer = srv.add_peer(Some(psk), spkt.clone(), ProtocolVersion::V03, OskDomainSeparator::for_wireguard_psk())?;
     ///
     /// assert_eq!(peer.get(&srv).spkt, spkt);
     ///
@@ -1250,6 +1254,7 @@ impl CryptoServer {
         psk: Option<SymKey>,
         pk: SPk,
         protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
     ) -> Result<PeerPtr> {
         let peer = Peer {
             psk: psk.unwrap_or_else(SymKey::zero),
@@ -1260,6 +1265,7 @@ impl CryptoServer {
             known_init_conf_response: None,
             initiation_requested: false,
             protocol_version,
+            osk_domain_separator,
         };
         let peerid = peer.pidt()?;
         let peerno = self.peers.len();
@@ -1449,7 +1455,12 @@ impl Peer {
     /// # Examples
     ///
     /// See example in [Self].
-    pub fn new(psk: SymKey, pk: SPk, protocol_version: ProtocolVersion) -> Peer {
+    pub fn new(
+        psk: SymKey,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
+    ) -> Peer {
         Peer {
             psk,
             spkt: pk,
@@ -1459,6 +1470,7 @@ impl Peer {
             known_init_conf_response: None,
             initiation_requested: false,
             protocol_version,
+            osk_domain_separator,
         }
     }
 
@@ -3312,9 +3324,44 @@ impl HandshakeState {
 }
 
 impl CryptoServer {
+    /// Variant of [Self::osk] that allows a custom, already compressed domain separator to be specified
+    ///
+    /// Refer to the documentation of [Self::osk] for more information.
+    pub fn osk_with_compressed_domain_separator(
+        &self,
+        peer: PeerPtr,
+        compressed_domain_separator: &PublicSymKey,
+    ) -> Result<SymKey> {
+        let session = peer
+            .session()
+            .get(self)
+            .as_ref()
+            .with_context(|| format!("No current session for peer {:?}", peer))?;
+
+        Ok(session.ck.mix(compressed_domain_separator)?.into_secret())
+    }
+
+    /// Variant of [Self::osk] that allows a custom domain separator to be specified
+    ///
+    /// Refer to the documentation of [Self::osk] for more information.
+    pub fn osk_with_domain_separator(
+        &self,
+        peer: PeerPtr,
+        domain_separator: &OskDomainSeparator,
+    ) -> Result<SymKey> {
+        let hash_choice = peer.get(self).protocol_version.keyed_hash();
+        let compressed_domain_separator = domain_separator.compress_with(hash_choice)?;
+        self.osk_with_compressed_domain_separator(peer, &compressed_domain_separator)
+    }
+
     /// Get the shared key that was established with given peer
     ///
     /// Fail if no session is available with the peer
+    ///
+    /// # See also
+    ///
+    /// - [Self::osk_with_domain_separator]
+    /// - [Self::osk_with_compressed_domain_separator]
     ///
     /// # Examples
     ///
@@ -3322,18 +3369,16 @@ impl CryptoServer {
     /// of how to perform a key exchange using Rosenpass.
     ///
     /// See the example in [CryptoServer::poll] for a complete example.
+    ///
+    /// See the documentation and examples in [super::osk_domain_separator] for more information
+    /// about using custom domain separators.
     pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
-        let session = peer
-            .session()
+        let hash_choice = peer.get(self).protocol_version.keyed_hash();
+        let compressed_domain_separator = peer
             .get(self)
-            .as_ref()
-            .with_context(|| format!("No current session for peer {:?}", peer))?;
-        Ok(session
-            .ck
-            .mix(&hash_domains::osk(
-                peer.get(self).protocol_version.keyed_hash(),
-            )?)?
-            .into_secret())
+            .osk_domain_separator
+            .compress_with(hash_choice)?;
+        self.osk_with_compressed_domain_separator(peer, &compressed_domain_separator)
     }
 }
 

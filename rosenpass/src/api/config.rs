@@ -8,6 +8,7 @@ use crate::app_server::AppServer;
 
 /// Configuration options for the Rosenpass API
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ApiConfig {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
     /// connections on

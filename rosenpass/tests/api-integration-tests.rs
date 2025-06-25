@@ -83,6 +83,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             pre_shared_key: None,
             wg: None,
             protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 
@@ -104,6 +105,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             pre_shared_key: None,
             wg: None,
             protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 

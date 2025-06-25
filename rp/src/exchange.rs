@@ -1,20 +1,21 @@
-use anyhow::Error;
+use std::{
+    future::Future, net::SocketAddr, ops::DerefMut, path::PathBuf, pin::Pin, process::Command,
+    sync::Arc,
+};
+
+use anyhow::{Error, Result};
 use serde::Deserialize;
-use std::future::Future;
-use std::ops::DerefMut;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::{net::SocketAddr, path::PathBuf, process::Command};
+
+use rosenpass::config::ProtocolVersion;
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
-use anyhow::Result;
-use rosenpass::config::ProtocolVersion;
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
 /// for how long the connection should be kept alive and a list of allowed IPs for the peer.
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExchangePeer {
     /// Directory where public keys are stored
     pub public_keys_dir: PathBuf,
@@ -31,6 +32,7 @@ pub struct ExchangePeer {
 
 /// Options for the exchange operation of the `rp` binary.
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExchangeOptions {
     /// Whether the cli output should be verbose.
     pub verbose: bool,
@@ -206,7 +208,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use rosenpass::{
         app_server::{AppServer, BrokerPeer},
         config::Verbosity,
-        protocol::basic_types::{SPk, SSk, SymKey},
+        protocol::{
+            basic_types::{SPk, SSk, SymKey},
+            osk_domain_separator::OskDomainSeparator,
+        },
     };
     use rosenpass_secret_memory::Secret;
     use rosenpass_util::file::{LoadValue as _, LoadValueB64};
@@ -360,6 +365,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             broker_peer,
             peer.endpoint.map(|x| x.to_string()),
             peer.protocol_version,
+            OskDomainSeparator::for_wireguard_psk(),
         )?;
 
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
