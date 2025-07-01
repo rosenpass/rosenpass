@@ -65,12 +65,15 @@ analyze() {
   local procs; procs=()
   for entry in "${entries[@]}"; do
     echo "call metaverif"
-    exc rosenpass-marzipan metaverif "${tmpdir}" "${entry}" >&2 & procs+=("$!")
+    # TODO: commented out for testing
+    #exc rosenpass-marzipan metaverif "${tmpdir}" "${entry}" >&2 & procs+=("$!")
+    exc rosenpass-marzipan metaverif "${tmpdir}" "${entry}" >&2
   done
 
-  for entry in "${procs[@]}"; do
-    exc wait -f "${entry}"
-  done
+  # TODO: commented out for testing
+  # for entry in "${procs[@]}"; do
+  #   exc wait -f "${entry}"
+  # done
 }
 
 err_usage() {

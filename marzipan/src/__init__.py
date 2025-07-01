@@ -48,10 +48,36 @@ def run_proverif(file, extra_args=[]):
                 p = line
             else:
                 p = null
-            # append to log file
-            # parse result line
-            # pretty output
-            # save to file
+        if p != null:
+            yield p
+            #print(p)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        process.stdout.close()
+        process.wait()
+
+def _run_proverif(file, extra_args=[]):
+    if extra_args is None:
+        extra_args = []
+    params = ["proverif", "-test", *extra_args, file]
+    print(params)
+    eprint(params)
+
+    process = exc_piped(params, stderr=pkgs.subprocess.PIPE, stdout=pkgs.subprocess.PIPE, text=True, bufsize=1)
+    try:
+        null, p = clean_warnings_init()
+        for line in process.stdout:
+            print(f"received a line: {line.strip()}")
+            # clean warnings
+            line = line.rstrip()
+            if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
+                if p != null:
+                    yield p
+                    #print(p)
+                p = line
+            else:
+                p = null
         if p != null:
             yield p
             #print(p)
@@ -66,6 +92,17 @@ def run_proverif(file, extra_args=[]):
 @click.argument("file")
 @click.argument("cpp_prep")
 def cpp(file, cpp_prep):
+    file_path = pkgs.pathlib.Path(file)
+
+    dirname = file_path.parent
+    cwd = pkgs.pathlib.Path.cwd()
+
+    params = ["cpp", "-P", f"-I{cwd}/{dirname}", file, "-o", cpp_prep]
+    return exc(params, stderr=pkgs.sys.stderr)
+
+
+def _cpp(file, cpp_prep):
+    print(f"_cpp: {file}, {cpp_prep}")
     file_path = pkgs.pathlib.Path(file)
 
     dirname = file_path.parent
@@ -95,6 +132,13 @@ def awk(cpp_prep, awk_prep):
     with open(awk_prep, 'w') as file:
         exc(params, stderr=pkgs.sys.stderr, stdout=file)
         file.write("\nprocess main")
+
+def _awk(cpp_prep, awk_prep):
+    params = ["awk", "-f", "marzipan/marzipan.awk", cpp_prep]
+    with open(awk_prep, 'w') as file:
+        exc(params, stderr=pkgs.sys.stderr, stdout=file)
+        file.write("\nprocess main")
+
 
 
 def pretty_output_line(prefix, mark, color, text):
@@ -238,14 +282,14 @@ def metaverif(tmpdir, file):
         print(f"CPP Prep Path: {cpp_prep}")
         print(f"AWK Prep Path: {awk_prep}")
 
-        cpp(name, cpp_prep)
-        awk(cpp_prep, awk_prep)
+        _cpp(file, cpp_prep)
+        _awk(cpp_prep, awk_prep)
 
         log_file = pkgs.os.path.join(tmpdir, f"{name}.log")
 
         ta, res, ctr, expected, descs = pretty_output_init(cpp_prep)
         with open(log_file, 'a') as log:
-            generator = run_proverif(awk_prep)
+            generator = _run_proverif(awk_prep)
             for line in generator:
                 log.write(line)
                 # parse-result-line:
