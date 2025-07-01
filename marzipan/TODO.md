@@ -15,10 +15,11 @@
   * ~~click function intervention weirdness~~
   * ~~why is everything red in the pretty output? (see line 96 in __init__.py)~~
   * ~~awk RESULT flush in marzipan()~~
+  * ~~move the whole metaverif function to Python~~
 
 ## Next Steps
 
-* move the whole metaverif function to Python
+
 * move the whole analyze function to Python
   * find the files
   * start subprocesses in parallel
