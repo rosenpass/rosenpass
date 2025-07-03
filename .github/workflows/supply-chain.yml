@@ -28,10 +28,10 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cache/cargo-supply-chain/
           key: cargo-supply-chain-cache
-      - name: Install stable toolchain # Cargo-supply-chain is incompatible with older versions
+      - name: Install nightly toolchain
         run: |
-          rustup toolchain install stable
-          rustup default stable
+          rustup toolchain install nightly
+          rustup override set nightly
       - uses: actions/cache@v4
         with:
           path: ${{ runner.tool_cache }}/cargo-supply-chain
@@ -39,7 +39,7 @@ jobs:
       - name: Add the tool cache directory to the search path
         run: echo "${{ runner.tool_cache }}/cargo-supply-chain/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-supply-chain binary
-        run: cargo +stable install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
+        run: cargo install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
       - name: Update data for cargo-supply-chain
         run: cargo supply-chain update
       - name: Generate cargo-supply-chain report about publishers
@@ -54,6 +54,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CI_BOT_PAT }}
       - uses: actions/cache@v4
         with:
           path: |
@@ -61,10 +63,10 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
           key: cargo-vet-cache
-      - name: Install stable toolchain # Since we are running/compiling cargo-vet, we should rely on the stable toolchain.
+      - name: Install nightly toolchain
         run: |
-          rustup toolchain install stable
-          rustup default stable
+          rustup toolchain install nightly
+          rustup override set nightly
       - uses: actions/cache@v4
         with:
           path: ${{ runner.tool_cache }}/cargo-vet
@@ -72,24 +74,95 @@ jobs:
       - name: Add the tool cache directory to the search path
         run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-vet binary
-        run: cargo +stable install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
-      - name: Regenerate vet exemptions for dependabot PRs
-        if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
-        run: cargo vet regenerate exemptions
-      - name: Check for changes in case of dependabot PR
-        if: github.actor == 'dependabot[bot]' # Run only for Dependabot PRs
-        run: git diff --exit-code || echo "Changes detected, committing..."
-      - name: Commit and push changes for dependabot PRs
-        if: success() && github.actor == 'dependabot[bot]'
+        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
+      - name: Check which event triggered this CI run, a push or a pull request.
         run: |
-          git fetch origin ${{ github.head_ref }}
-          git switch ${{ github.head_ref }}
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions@github.com"
-          git add supply-chain/*
-          git commit -m "Regenerate cargo vet exemptions"
-          git push origin ${{ github.head_ref }}
+          EVENT_NAME="${{ github.event_name }}"
+          IS_PR="false"
+          IS_PUSH="false"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            echo "This CI run was triggered in the context of a pull request."
+            IS_PR="true"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            echo "This CI run was triggered in the context of a push."
+            IS_PUSH="true"
+          else
+            echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
+            exit 1
+          fi
+          echo "IS_PR=$IS_PR" >> $GITHUB_ENV
+          echo "IS_PUSH=$IS_PUSH" >> $GITHUB_ENV
+      - name: Check if last commit was by Dependabot
+        run: |
+          # Depending on the trigger for, the relevant commit has to be deduced differently.
+          if [[ "$IS_PR" == true ]]; then
+            # This is the commit ID for the last commit to the head branch of the pull request.
+            # If we used github.sha here instead, it would point to a merge commit between the PR and the main branch, which is only created for the CI run.
+            SHA="${{ github.event.pull_request.head.sha }}"
+            REF="${{ github.head_ref }}"
+          elif [[ "$IS_PUSH" == "true" ]]; then
+            SHA="${{ github.sha }}" # This is the last commit to the branch.
+            REF=${GITHUB_REF#refs/heads/}
+          else
+            echo "ERROR: This action only supports pull requests and push events as triggers. Exiting with error."
+            exit 1
+          fi
+          echo "Commit SHA is $SHA"
+          echo "Branch is $REF"
+
+          git fetch origin $REF # ensure that we are up to date.
+          git switch $REF # ensure that we are NOT in a detached HEAD state. This is important for the commit action in the end.
+
+          COMMIT_AUTHOR=$(gh api repos/${{ github.repository }}/commits/$SHA --jq .author.login) # .author.login might be null, but for dependabot it will always be there and cannot be spoofed in contrast to .commit.author.name
+          echo "The author of the last commit is $COMMIT_AUTHOR"
+          if [[ "$COMMIT_AUTHOR" == "dependabot[bot]" ]]; then
+            echo "The last commit was made by dependabot"
+            LAST_COMMIT_IS_BY_DEPENDABOT=true
+          else
+            echo "The last commit was made by $COMMIT_AUTHOR not by dependabot"
+            LAST_COMMIT_IS_BY_DEPENDABOT=false
+          fi
+          echo "LAST_COMMIT_IS_BY_DEPENDABOT=$LAST_COMMIT_IS_BY_DEPENDABOT" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check if the last commit's message ends in "--regenerate-exemptions"
+        run: |
+          # Get commit message
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s")
+          if [[ "$COMMIT_MESSAGE" == *"--regenerate-exemptions" ]]; then
+            echo "The last commit message ends in --regenerate-exemptions"
+            REGEN_EXEMP=true
+          else
+            echo "The last commit message does not end in --regenerate-exemptions"
+            REGEN_EXEMP=false
+          fi
+          echo "REGEN_EXEMP=$REGEN_EXEMP" >> $GITHUB_ENV
+      - name: Check if the CI run happens in the context of a dependabot PR # Even if a PR is created by dependabot, the last commit can, and often should be, the regeneration of the cargo vet exemptions. It could also be from an individual making manual changes.
+        run: |
+          IN_DEPENDABOT_PR_CONTEXT="false"
+          if [[ $IS_PR == "true" && "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+            IN_DEPENDABOT_PR_CONTEXT="true"
+            echo "This CI run is in the context of PR by dependabot."
+          else
+            echo "This CI run is NOT in the context of PR by dependabot."
+            IN_DEPENDABOT_PR_CONTEXT="false"
+          fi
+          echo "IN_DEPENDABOT_PR_CONTEXT=$IN_DEPENDABOT_PR_CONTEXT" >> $GITHUB_ENV
+      - name: Regenerate cargo vet exemptions if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
+        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true') # Run only for Dependabot PRs or if specifically requested
+        run: cargo vet regenerate exemptions
+      - name: Check for changes if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
+        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true') # Run only for Dependabot PRs or if specifically requested
+        run: git diff --exit-code || echo "Changes detected, committing..."
+      - name: Commit and push changes if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
+        if: success() && env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true')
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: Regenerate cargo vet exemptions
+          commit_user_name: rosenpass-ci-bot[bot]
+          commit_user_email: noreply@rosenpass.eu
+          commit_author: Rosenpass CI Bot <noreply@rosenpass.eu>
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_BOT_PAT }}
       - name: Invoke cargo-vet
         run: cargo vet --locked
