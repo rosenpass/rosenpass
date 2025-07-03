@@ -10,7 +10,7 @@ static TRACE: OnceLock<RpTrace> = OnceLock::new();
 pub type RpTrace = tracing::MutexTrace<&'static str, Instant>;
 
 /// The trace event type used to trace Rosenpass for performance measurement.
-pub type RpEventType = tracing::TraceEvent<&'static str, Instant>;
+pub type RpEvent = tracing::TraceEvent<&'static str, Instant>;
 
 // Re-export to make functionality available and callers don't need to also directly depend on
 // [`libcrux_test_utils`].
