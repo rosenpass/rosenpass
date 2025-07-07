@@ -18,6 +18,8 @@ pub type ESk = Secret<{ EphemeralKem::SK_LEN }>;
 
 /// Symmetric key
 pub type SymKey = Secret<KEY_LEN>;
+/// Variant of [SymKey] for use cases where the value is public
+pub type PublicSymKey = [u8; 32];
 
 /// Peer ID (derived from the public key, see the hash derivations in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
 pub type PeerId = Public<KEY_LEN>;

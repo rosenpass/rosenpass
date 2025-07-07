@@ -1,20 +1,13 @@
-use std::{
-    net::SocketAddr,
-    ops::DerefMut,
-    str::FromStr,
-    sync::mpsc,
-    thread::{self, sleep},
-    time::Duration,
-};
+use std::thread::{self, sleep};
+use std::{net::SocketAddr, ops::DerefMut, str::FromStr, sync::mpsc, time::Duration};
 
-use rosenpass::config::ProtocolVersion;
-use rosenpass::{
-    app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE},
-    protocol::basic_types::{SPk, SSk, SymKey},
-};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
+
+use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
+use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
+use rosenpass::{config::ProtocolVersion, protocol::osk_domain_separator::OskDomainSeparator};
 
 #[test]
 fn key_exchange_with_app_server_v02() -> anyhow::Result<()> {
@@ -69,7 +62,8 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
                     outfile,
                     broker_peer,
                     hostname,
-                    protocol_version.clone(),
+                    protocol_version,
+                    OskDomainSeparator::default(),
                 )?;
 
                 srv.app_srv.event_loop()

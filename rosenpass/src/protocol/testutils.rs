@@ -7,6 +7,7 @@ use rosenpass_ciphers::StaticKem;
 
 use super::{
     basic_types::{SPk, SSk},
+    osk_domain_separator::OskDomainSeparator,
     CryptoServer, PeerPtr, ProtocolVersion,
 };
 
@@ -26,7 +27,12 @@ impl ServerForTesting {
 
         let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
         StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
-        let peer = srv.add_peer(None, spkt.clone(), protocol_version)?;
+        let peer = srv.add_peer(
+            None,
+            spkt.clone(),
+            protocol_version,
+            OskDomainSeparator::default(),
+        )?;
 
         let peer_keys = (sskt, spkt);
         Ok(ServerForTesting {
