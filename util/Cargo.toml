@@ -8,6 +8,7 @@ description = "Rosenpass internal utilities"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
+rust-version = "1.77.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,7 +24,9 @@ thiserror = { workspace = true }
 mio = { workspace = true }
 tempfile = { workspace = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
-rosenpass-to = { path = "../to" }
+libcrux-test-utils = { workspace = true, optional = true }
+rosenpass-to = { workspace = true }
 
 [features]
 experiment_file_descriptor_passing = ["uds"]
+trace_bench = ["dep:libcrux-test-utils"]

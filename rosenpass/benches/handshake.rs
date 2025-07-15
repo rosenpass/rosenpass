@@ -1,12 +1,15 @@
-use anyhow::Result;
-use rosenpass::protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey};
 use std::ops::DerefMut;
 
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::StaticKem;
-
+use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+
+use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 
 fn handle(
     tx: &mut CryptoServer,
@@ -41,25 +44,43 @@ fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
 
 fn keygen() -> Result<(SSk, SPk)> {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
-    StaticKem::keygen(sk.secret_mut(), pk.deref_mut())?;
+    StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;
     Ok((sk, pk))
 }
 
-fn make_server_pair() -> Result<(CryptoServer, CryptoServer)> {
+fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, CryptoServer)> {
     let psk = SymKey::random();
     let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
     let (mut a, mut b) = (
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
-    a.add_peer(Some(psk.clone()), pkb)?;
-    b.add_peer(Some(psk), pka)?;
+    a.add_peer(
+        Some(psk.clone()),
+        pkb,
+        protocol_version.clone(),
+        OskDomainSeparator::default(),
+    )?;
+    b.add_peer(
+        Some(psk),
+        pka,
+        protocol_version,
+        OskDomainSeparator::default(),
+    )?;
     Ok((a, b))
 }
 
-fn criterion_benchmark(c: &mut Criterion) {
+fn criterion_benchmark_v02(c: &mut Criterion) {
+    criterion_benchmark(c, ProtocolVersion::V02)
+}
+
+fn criterion_benchmark_v03(c: &mut Criterion) {
+    criterion_benchmark(c, ProtocolVersion::V03)
+}
+
+fn criterion_benchmark(c: &mut Criterion, protocol_version: ProtocolVersion) {
     secret_policy_try_use_memfd_secrets();
-    let (mut a, mut b) = make_server_pair().unwrap();
+    let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {
             SSk::zero();
@@ -82,5 +103,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches);
+criterion_group!(benches_v02, criterion_benchmark_v02);
+criterion_group!(benches_v03, criterion_benchmark_v03);
+criterion_main!(benches_v02, benches_v03);

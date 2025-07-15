@@ -1,11 +1,13 @@
-use rosenpass_util::{
-    build::Build,
-    mem::{DiscardResultExt, SwapWithDefaultExt},
-    result::ensure_or,
-};
 use thiserror::Error;
 
-use super::{CryptoServer, PeerPtr, SPk, SSk, SymKey};
+use rosenpass_util::mem::{DiscardResultExt, SwapWithDefaultExt};
+use rosenpass_util::{build::Build, result::ensure_or};
+
+use crate::config::ProtocolVersion;
+
+use super::basic_types::{SPk, SSk, SymKey};
+use super::osk_domain_separator::OskDomainSeparator;
+use super::{CryptoServer, PeerPtr};
 
 #[derive(Debug, Clone)]
 /// A pair of matching public/secret keys used to launch the crypto server.
@@ -47,7 +49,8 @@ impl Keypair {
     /// # Example
     ///
     /// ```rust
-    /// use rosenpass::protocol::{Keypair, SSk, SPk};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
@@ -66,12 +69,13 @@ impl Keypair {
 
     /// Creates a new "empty" key pair. All bytes are initialized to zero.
     ///
-    /// See [SSk:zero()][crate::protocol::SSk::zero] and [SPk:zero()][crate::protocol::SPk::zero], respectively.
+    /// See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
     ///
     /// # Example
     ///
     /// ```rust
-    /// use rosenpass::protocol::{Keypair, SSk, SPk};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
@@ -90,7 +94,7 @@ impl Keypair {
 
     /// Creates a new (securely-)random key pair. The mechanism is described in [rosenpass_secret_memory::Secret].
     ///
-    /// See [SSk:random()][crate::protocol::SSk::random] and [SPk:random()][crate::protocol::SPk::random], respectively.
+    /// See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
     pub fn random() -> Self {
         Self::new(SSk::random(), SPk::random())
     }
@@ -127,7 +131,7 @@ pub struct MissingKeypair;
 ///
 /// There are multiple ways of creating a crypto server:
 ///
-/// 1. Provide the key pair at initialization time (using [CryptoServer::new][crate::protocol::CryptoServer::new])
+/// 1. Provide the key pair at initialization time (using [CryptoServer::new][CryptoServer::new])
 /// 2. Provide the key pair at a later time (using [BuildCryptoServer::empty])
 ///
 /// With BuildCryptoServer, you can gradually configure parameters as they become available.
@@ -145,18 +149,23 @@ pub struct MissingKeypair;
 ///
 /// ```rust
 /// use rosenpass_util::build::Build;
-/// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams, SPk, SymKey};
+/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+///
+/// use rosenpass::config::ProtocolVersion;
+///
+/// use rosenpass::protocol::basic_types::{SPk, SymKey};
+/// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
+/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
 /// // We have to define the security policy before using Secrets.
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let keypair = Keypair::random();
-/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random() };
-/// let peer2 = PeerParams { psk: None, pk: SPk::random() };
+/// let peer1 = PeerParams { psk: Some(SymKey::random()), pk: SPk::random(), protocol_version: ProtocolVersion::V02, osk_domain_separator: OskDomainSeparator::default() };
+/// let peer2 = PeerParams { psk: None, pk: SPk::random(), protocol_version: ProtocolVersion::V02, osk_domain_separator: OskDomainSeparator::default() };
 ///
 /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![peer1]);
-/// builder.add_peer(peer2.psk.clone(), peer2.pk);
+/// builder.add_peer(peer2.psk.clone(), peer2.pk, ProtocolVersion::V02, OskDomainSeparator::default());
 ///
 /// let server = builder.build().expect("build failed");
 /// assert_eq!(server.peers.len(), 2);
@@ -186,8 +195,17 @@ impl Build<CryptoServer> for BuildCryptoServer {
 
         let mut srv = CryptoServer::new(sk, pk);
 
-        for (idx, PeerParams { psk, pk }) in self.peers.into_iter().enumerate() {
-            let PeerPtr(idx2) = srv.add_peer(psk, pk)?;
+        for (idx, params) in self.peers.into_iter().enumerate() {
+            let PeerParams {
+                psk,
+                pk,
+                protocol_version,
+                osk_domain_separator,
+            } = params;
+
+            let PeerPtr(idx2) =
+                srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
+
             assert!(idx == idx2, "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error.")
         }
 
@@ -196,18 +214,21 @@ impl Build<CryptoServer> for BuildCryptoServer {
 }
 
 #[derive(Debug)]
-/// Cryptographic key(s) identifying the connected [peer][crate::protocol::Peer] ("client")
+/// Cryptographic key(s) identifying the connected [peer][super::Peer] ("client")
 /// for a given session that is being managed by the crypto server.
 ///
-/// Each peer must be identified by a [public key (SPk)][crate::protocol::SPk].
-/// Optionally, a [symmetric key (SymKey)][crate::protocol::SymKey]
+/// Each peer must be identified by a [public key (SPk)][SPk].
+/// Optionally, a [symmetric key (SymKey)][SymKey]
 /// can be provided when setting up the connection.
-/// For more information on the intended usage and security considerations, see [Peer::psk][crate::protocol::Peer::psk] and [Peer::spkt][crate::protocol::Peer::spkt].
+/// For more information on the intended usage and security considerations, see [Peer::psk][super::Peer::psk] and [Peer::spkt][super::Peer::spkt].
 pub struct PeerParams {
     /// Pre-shared (symmetric) encryption keys that should be used with this peer.
     pub psk: Option<SymKey>,
     /// Public key identifying the peer.
     pub pk: SPk,
+    /// The used protocol version.
+    pub protocol_version: ProtocolVersion,
+    pub osk_domain_separator: OskDomainSeparator,
 }
 
 impl BuildCryptoServer {
@@ -305,12 +326,16 @@ impl BuildCryptoServer {
     /// Adding peers to an existing builder:
     ///
     /// ```rust
+    /// use rosenpass::config::ProtocolVersion;
+    ///
+    /// use rosenpass_util::build::Build;
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
-    ///
-    /// use rosenpass_util::build::Build;
-    /// use rosenpass::protocol::{BuildCryptoServer, Keypair, SymKey, SPk};
     ///
     /// // Deferred initialization: Create builder first, add some peers later
     /// let keypair_option = Some(Keypair::random());
@@ -323,7 +348,7 @@ impl BuildCryptoServer {
     /// // Now we've found a peer that should be added to the configuration
     /// let pre_shared_key = SymKey::random();
     /// let public_key = SPk::random();
-    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone());
+    /// builder.with_added_peer(Some(pre_shared_key.clone()), public_key.clone(), ProtocolVersion::V02, OskDomainSeparator::default());
     ///
     /// // New server instances will then start with the peer being registered already
     /// let server = builder.build().expect("build failed");
@@ -333,16 +358,33 @@ impl BuildCryptoServer {
     /// assert_eq!(peer.spkt, public_key);
     /// assert_eq!(peer_psk.secret(), pre_shared_key.secret());
     /// ```
-    pub fn with_added_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> &mut Self {
+    pub fn with_added_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
+    ) -> &mut Self {
         // TODO: Check here already whether peer was already added
-        self.peers.push(PeerParams { psk, pk });
+        self.peers.push(PeerParams {
+            psk,
+            pk,
+            protocol_version,
+            osk_domain_separator,
+        });
         self
     }
 
     /// Add a new entry to the list of registered peers, with or without a pre-shared key.
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk) -> PeerPtr {
+    pub fn add_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
+    ) -> PeerPtr {
         let id = PeerPtr(self.peers.len());
-        self.with_added_peer(psk, pk);
+        self.with_added_peer(psk, pk, protocol_version, osk_domain_separator);
         id
     }
 
@@ -355,17 +397,23 @@ impl BuildCryptoServer {
     ///  Extracting the server configuration from a builder:
     ///
     /// ```rust
-    /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
-    /// secret_policy_use_only_malloc_secrets();
-    ///
     /// use rosenpass_util::build::Build;
-    /// use rosenpass::protocol::{BuildCryptoServer, Keypair, SymKey, SPk};
+    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    ///
+    /// use rosenpass::config::ProtocolVersion;
+    /// use rosenpass::hash_domains::protocol;
+    ///
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    ///
+    /// // We have to define the security policy before using Secrets.
+    /// secret_policy_use_only_malloc_secrets();
     ///
     /// let keypair = Keypair::random();
     /// let peer_pk = SPk::random();
     /// let mut builder = BuildCryptoServer::new(Some(keypair.clone()), vec![]);
-    /// builder.add_peer(None, peer_pk);
+    /// builder.add_peer(None, peer_pk, ProtocolVersion::V02, OskDomainSeparator::default());
     ///
     /// // Extract configuration parameters from the decomissioned builder
     /// let (keypair_option, peers) = builder.take_parts();

@@ -1,12 +1,15 @@
-{ lib, system, runCommand, rosenpass, rpm }:
+{
+  lib,
+  system,
+  runCommand,
+  rosenpass,
+  rpm,
+}:
 
 let
   splitVersion = lib.strings.splitString "-" rosenpass.version;
   version = builtins.head splitVersion;
-  release =
-    if builtins.length splitVersion != 2
-    then "release"
-    else builtins.elemAt splitVersion 1;
+  release = if builtins.length splitVersion != 2 then "release" else builtins.elemAt splitVersion 1;
   arch = builtins.head (builtins.split "-" system);
 in
 

@@ -5,8 +5,8 @@
 
 use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
-use rosenpass_cipher_traits::Kem;
-use rosenpass_ciphers::kem::StaticKem;
+use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
 use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
-use crate::protocol::{SPk, SSk, SymKey};
+use crate::protocol::basic_types::{SPk, SSk, SymKey};
 
 use super::config;
 
@@ -490,6 +490,8 @@ impl CliArgs {
                 cfg_peer.key_out,
                 broker_peer,
                 cfg_peer.endpoint.clone(),
+                cfg_peer.protocol_version.into(),
+                cfg_peer.osk_domain_separator.try_into()?,
             )?;
         }
 
@@ -606,9 +608,9 @@ impl CliArgs {
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
 pub fn generate_and_save_keypair(secret_key: PathBuf, public_key: PathBuf) -> anyhow::Result<()> {
-    let mut ssk = crate::protocol::SSk::random();
-    let mut spk = crate::protocol::SPk::random();
-    StaticKem::keygen(ssk.secret_mut(), spk.deref_mut())?;
+    let mut ssk = crate::protocol::basic_types::SSk::random();
+    let mut spk = crate::protocol::basic_types::SPk::random();
+    StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
     ssk.store_secret(secret_key)?;
     spk.store(public_key)
 }

@@ -30,6 +30,9 @@ pub mod option;
 pub mod result;
 /// Time and duration utilities.
 pub mod time;
+/// Trace benchmarking utilities
+#[cfg(feature = "trace_bench")]
+pub mod trace_bench;
 /// Type-level numbers and arithmetic.
 pub mod typenum;
 /// Zero-copy serialization utilities.

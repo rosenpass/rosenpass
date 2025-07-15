@@ -129,7 +129,7 @@ fn run_server_client_exchange(
     });
 
     // give them some time to do the key exchange under load
-    std::thread::sleep(Duration::from_secs(10));
+    std::thread::sleep(Duration::from_secs(30));
 
     // time's up, kill the childs
     server_terminate.send(()).unwrap();
@@ -251,7 +251,7 @@ fn check_exchange_under_normal() {
     fs::remove_dir_all(&tmpdir).unwrap();
 }
 
-// check that we can trigger a DoS condition  and we can exchange keys under DoS
+// check that we can trigger a DoS condition, and we can exchange keys under DoS
 // This test creates a responder (server) with the feature flag "integration_test_always_under_load" to always be under load condition for the test.
 #[test]
 #[serial]

@@ -1,7 +1,7 @@
 use crate::debug::debug_crypto_array;
 use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
-use rosenpass_to::{ops::copy_slice, ToLifetime};
+use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
     fopen_r, fopen_w, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue,
@@ -40,7 +40,7 @@ pub struct Public<const N: usize> {
 impl<const N: usize> Public<N> {
     /// Create a new [Public] from a byte slice.
     pub fn from_slice(value: &[u8]) -> Self {
-        rosenpass_to::ToLifetime::to_this(copy_slice(value), Self::zero)
+        copy_slice(value).to_this(|| Self::zero())
     }
 
     /// Create a new [Public] from a byte array.
@@ -124,12 +124,10 @@ impl<const N: usize> BorrowMut<[u8]> for Public<N> {
 impl<const N: usize> LoadValue for Public<N> {
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let mut v = Self::random();
-        let _read = rosenpass_to::ToLifetime::to(
-            fopen_r(path)?.read_exact_to_end(),
-            &mut v.value
-        ).context("Failed to read file")?;
+        fopen_r(path)?.read_exact_to_end(&mut *v)?;
         Ok(v)
     }
 }
@@ -157,15 +155,13 @@ impl<const N: usize> LoadValueB64 for Public<N> {
         let mut v = Public::zero();
         let p = path.as_ref();
 
-        let len = rosenpass_to::ToLifetime::to(
-            fopen_r(p)?.read_slice_to_end(),
-            &mut f
-        ).context(format!("Could not load file {p:?}"))?;
+        let len = fopen_r(p)?
+            .read_slice_to_end(&mut f)
+            .with_context(|| format!("Could not load file {p:?}"))?;
 
-        rosenpass_to::ToLifetime::to(
-            b64_decode(&f[0..len]), 
-            &mut v.value
-        ).context(format!("Could not decode base64 file {p:?}"))?;
+        b64_decode(&f[0..len])
+            .to(&mut v.value)
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
     }
@@ -174,16 +170,15 @@ impl<const N: usize> LoadValueB64 for Public<N> {
 impl<const N: usize> StoreValueB64 for Public<N> {
     type Error = anyhow::Error;
 
+    // No extra documentation here because the Trait already provides a good documentation.
     fn store_b64<const F: usize, P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let p = path.as_ref();
         let mut f = [0u8; F];
-        let encoded = rosenpass_to::ToLifetime::to(
-            b64_encode(&self.value), 
-            &mut f
-        ).context(format!("Could not encode base64 file {p:?}"))?;
+        let encoded_str = b64_encode(&self.value, &mut f)
+            .with_context(|| format!("Could not encode secret to base64 for file {p:?}"))?;
         fopen_w(p, Visibility::Public)?
-            .write_all(encoded.as_bytes())
-            .context(format!("Could not write file {p:?}"))?;
+            .write_all(encoded_str.as_bytes())
+            .with_context(|| format!("Could not write file {p:?}"))?;
         Ok(())
     }
 }
@@ -198,14 +193,12 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
         mut writer: W,
     ) -> Result<(), Self::Error> {
         let mut f = [0u8; F];
-        let encoded_str = rosenpass_to::ToLifetime::to(
-            b64_encode(&self.value), 
-            &mut f
-        ).context("Could not encode secret to base64")?;
+        let encoded_str =
+            b64_encode(&self.value, &mut f).with_context(|| "Could not encode secret to base64")?;
 
         writer
             .write_all(encoded_str.as_bytes())
-            .context("Could not write base64 to writer")?;
+            .with_context(|| "Could not write base64 to writer")?;
         Ok(())
     }
 }
@@ -316,14 +309,14 @@ impl<const N: usize> BorrowMut<[u8]> for PublicBox<N> {
 }
 
 impl<const N: usize> LoadValue for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // This is implemented separately from Public to avoid allocating too much stack memory
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let mut p = Self::random();
-        rosenpass_to::ToLifetime::to(
-            fopen_r(path)?.read_exact_to_end(),
-            p.deref_mut()
-        ).context("Failed to read file")?;
+        fopen_r(path)?.read_exact_to_end(p.deref_mut())?;
         Ok(p)
     }
 }
@@ -339,25 +332,27 @@ impl<const N: usize> StoreValue for PublicBox<N> {
 }
 
 impl<const N: usize> LoadValueB64 for PublicBox<N> {
+    // No extra documentation here because the Trait already provides a good documentation.
     type Error = anyhow::Error;
 
+    // This is implemented separately from Public to avoid allocating too much stack memory.
+    // No extra documentation here because the Trait already provides a good documentation.
     fn load_b64<const F: usize, P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
         Self: Sized,
     {
+        // A vector is used here to ensure heap allocation without copy from stack.
         let mut f = vec![0u8; F];
         let mut v = PublicBox::zero();
         let p = path.as_ref();
 
-        let len = rosenpass_to::ToLifetime::to(
-            fopen_r(p)?.read_slice_to_end(),
-            &mut f
-        ).context(format!("Could not load file {p:?}"))?;
+        let len = fopen_r(p)?
+            .read_slice_to_end(&mut f)
+            .with_context(|| format!("Could not load file {p:?}"))?;
 
-        rosenpass_to::ToLifetime::to(
-            b64_decode(&f[0..len]),
-            v.deref_mut()
-        ).context(format!("Could not decode base64 file {p:?}"))?;
+        b64_decode(&f[0..len])
+            .to(v.deref_mut())
+            .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
     }
@@ -450,14 +445,13 @@ mod tests {
                 + StoreValueB64Writer<Error = anyhow::Error>
                 + Deref<Target = [u8; N]>,
         >() {
+            // Generate original random bytes
             let original_bytes: [u8; N] = [rand::random(); N];
+            // Create a temporary directory
             let temp_dir = tempdir().unwrap();
             let example_file = temp_dir.path().join("example_file");
             let mut encoded_public = [0u8; N * 2];
-            let encoded_public = rosenpass_to::ToLifetime::to(
-                b64_encode(&original_bytes), 
-                &mut encoded_public
-            ).unwrap();
+            let encoded_public = b64_encode(&original_bytes, &mut encoded_public).unwrap();
             std::fs::write(&example_file, encoded_public).unwrap();
 
             // Load the public from the example file

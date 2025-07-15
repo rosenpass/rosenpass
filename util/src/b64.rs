@@ -2,9 +2,10 @@
 
 use base64ct::{Base64, Decoder as B64Reader, Encoder as B64Writer};
 use zeroize::Zeroize;
-use std::fmt::Display;
+
 use rosenpass_to::{with_destination, To};
-use rosenpass_to::ToLifetime;
+
+use std::fmt::Display;
 
 /// Formatter that displays its input as base64.
 ///
@@ -14,8 +15,8 @@ pub struct B64DisplayHelper<'a, const F: usize>(&'a [u8]);
 impl<const F: usize> Display for B64DisplayHelper<'_, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut bytes = [0u8; F];
-        let string = b64_encode(self.0).to(&mut bytes).map_err(|_| std::fmt::Error)?;
-        let result = f.write_str(&string);
+        let string = b64_encode(self.0, &mut bytes).map_err(|_| std::fmt::Error)?;
+        let result = f.write_str(string);
         bytes.zeroize();
         result
     }
@@ -63,50 +64,49 @@ impl<T: AsRef<[u8]>> B64Display for T {
 pub fn b64_decode(input: &[u8]) -> impl To<[u8], anyhow::Result<()>> + '_ {
     with_destination(move |output: &mut [u8]| {
         if input.is_empty() {
-            return Ok(()); // Handle empty input gracefully
+            return Ok(());
         }
         let mut reader = B64Reader::<Base64>::new(input).map_err(|e| anyhow::anyhow!(e))?;
-        match reader.decode(output){
+
+        match reader.decode(output) {
             Ok(_) => (),
             Err(base64ct::Error::InvalidLength) => (),
             Err(e) => {
                 return Err(anyhow::anyhow!(e));
+            }
         }
+        if reader.is_finished() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "Input not decoded completely (buffer size too small?)"
+            ))
         }
-        if !reader.is_finished() {
-            return Err(anyhow::anyhow!("buffer size too small"));
-        }
-        Ok(())
     })
 }
 
 /// Encode a value as base64.
 ///
-/// ```rust
+/// ```
 /// use rosenpass_util::b64::{b64_encode, b64_decode};
-/// use rosenpass_to::{To, ToLifetime};
+/// use rosenpass_to::To;
 ///
 /// let bytes = b"Hello World";
 ///
 /// let mut encoder_buffer = [0u8; 64];
-/// let encoded = b64_encode(bytes).to(&mut encoder_buffer)?;
+/// let encoded = b64_encode(bytes, &mut encoder_buffer)?;
 ///
 /// let mut bytes_decoded = [0u8; 11];
-/// To::to(b64_decode(encoded.as_bytes()), &mut bytes_decoded)?;
+/// b64_decode(encoded.as_bytes()).to(&mut bytes_decoded);
 /// assert_eq!(bytes, &bytes_decoded);
 ///
 /// Ok::<(), anyhow::Error>(())
 /// ```
 ///
-pub fn b64_encode<'a>(input: &'a [u8]) -> impl rosenpass_to::ToLifetime<'a, [u8], anyhow::Result<String>> {
-    with_destination(move |output: &mut [u8]| {
-        let mut writer = B64Writer::<Base64>::new(output).map_err(|e| anyhow::anyhow!(e))?;
-        writer.encode(input).map_err(|e| anyhow::anyhow!(e))?;
-        let output_str = writer.finish().map_err(move |e| anyhow::anyhow!(e))?;
-        let used = output_str.len(); // Get the length of the output string
-        let encoded = std::str::from_utf8(&output[..used]).map_err(|e| anyhow::anyhow!(e))?.to_string();
-        Ok(encoded)
-    })
+pub fn b64_encode<'o>(input: &[u8], output: &'o mut [u8]) -> anyhow::Result<&'o str> {
+    let mut writer = B64Writer::<Base64>::new(output).map_err(|e| anyhow::anyhow!(e))?;
+    writer.encode(input).map_err(|e| anyhow::anyhow!(e))?;
+    writer.finish().map_err(|e| anyhow::anyhow!(e))
 }
 
 #[cfg(test)]
@@ -117,7 +117,7 @@ mod tests {
     fn test_b64_encode() {
         let input = b"Hello, World!";
         let mut output = [0u8; 20];
-        let result = b64_encode(input).to(&mut output);
+        let result = b64_encode(input, &mut output);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "SGVsbG8sIFdvcmxkIQ==");
     }
@@ -126,7 +126,7 @@ mod tests {
     fn test_b64_encode_small_buffer() {
         let input = b"Hello, World!";
         let mut output = [0u8; 10]; // Small output buffer
-        let result = b64_encode(input).to(&mut output);
+        let result = b64_encode(input, &mut output);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "invalid Base64 length");
     }
@@ -135,7 +135,7 @@ mod tests {
     fn test_b64_encode_empty_buffer() {
         let input = b"";
         let mut output = [0u8; 16];
-        let result = b64_encode(input).to(&mut output);
+        let result = b64_encode(input, &mut output);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "");
     }
@@ -144,7 +144,7 @@ mod tests {
     fn test_b64_decode() {
         let input = b"SGVsbG8sIFdvcmxkIQ==";
         let mut output = [0u8; 1000];
-        rosenpass_to::To::to(b64_decode(input), &mut output).unwrap();
+        b64_decode(input).to(&mut output).unwrap();
         assert_eq!(&output[..13], b"Hello, World!");
     }
 
@@ -152,11 +152,11 @@ mod tests {
     fn test_b64_decode_small_buffer() {
         let input = b"SGVsbG8sIFdvcmxkIQ==";
         let mut output = [0u8; 10]; // Small output buffer
-        let result = rosenpass_to::To::to(b64_decode(input), &mut output);
+        let result = b64_decode(input).to(&mut output);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "buffer size too small"
+            "Input not decoded completely (buffer size too small?)"
         );
     }
 
@@ -164,7 +164,7 @@ mod tests {
     fn test_b64_decode_empty_buffer() {
         let input = b"";
         let mut output = [0u8; 16];
-        let result = rosenpass_to::ToLifetime::to(b64_decode(input), &mut output);
+        let result = b64_decode(input).to(&mut output);
         assert!(result.is_ok());
     }
 

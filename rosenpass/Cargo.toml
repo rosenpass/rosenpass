@@ -8,6 +8,7 @@ description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
+rust-version = "1.77.0"
 
 [[bin]]
 name = "rosenpass"
@@ -28,7 +29,16 @@ required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
 name = "gen-ipc-msg-types"
-required-features = ["experiment_api", "internal_testing", "internal_bin_gen_ipc_msg_types"]
+required-features = [
+  "experiment_api",
+  "internal_testing",
+  "internal_bin_gen_ipc_msg_types",
+]
+
+[[bench]]
+name = "trace_handshake"
+harness = false
+required-features = ["trace_bench"]
 
 [[bench]]
 name = "handshake"
@@ -67,6 +77,7 @@ command-fds = { workspace = true, optional = true }
 rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 signal-hook = { workspace = true, optional = true }
+libcrux-test-utils = { workspace = true, optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -81,20 +92,27 @@ tempfile = { workspace = true }
 rustix = { workspace = true }
 
 [features]
-default = []
+#default = ["experiment_libcrux_all"]
+experiment_cookie_dos_mitigation = []
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
-experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
+experiment_libcrux_all = ["rosenpass-ciphers/experiment_libcrux_all"]
+experiment_libcrux_blake2 = ["rosenpass-ciphers/experiment_libcrux_blake2"]
+experiment_libcrux_chachapoly = [
+  "rosenpass-ciphers/experiment_libcrux_chachapoly",
+]
+experiment_libcrux_kyber = ["rosenpass-ciphers/experiment_libcrux_kyber"]
 experiment_api = [
-    "hex-literal",
-    "uds",
-    "command-fds",
-    "rustix",
-    "rosenpass-util/experiment_file_descriptor_passing",
-    "rosenpass-wireguard-broker/experiment_api",
+  "hex-literal",
+  "uds",
+  "command-fds",
+  "rustix",
+  "rosenpass-util/experiment_file_descriptor_passing",
+  "rosenpass-wireguard-broker/experiment_api",
 ]
 internal_signal_handling_for_coverage_reports = ["signal-hook"]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
+trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

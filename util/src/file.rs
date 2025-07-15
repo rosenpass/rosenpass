@@ -212,6 +212,7 @@ pub trait LoadValueB64 {
     /// ```
     /// use std::path::Path;
     /// use tempfile::tempdir;
+    /// use rosenpass_to::To;
     /// use rosenpass_util::b64::{b64_decode, b64_encode};
     /// use rosenpass_util::file::{
     ///     fopen_r, fopen_w, LoadValueB64, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
