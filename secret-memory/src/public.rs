@@ -40,7 +40,7 @@ pub struct Public<const N: usize> {
 impl<const N: usize> Public<N> {
     /// Create a new [Public] from a byte slice.
     pub fn from_slice(value: &[u8]) -> Self {
-        copy_slice(value).to_this(Self::zero)
+        copy_slice(value).to_this(|| Self::zero())
     }
 
     /// Create a new [Public] from a byte array.
@@ -159,7 +159,8 @@ impl<const N: usize> LoadValueB64 for Public<N> {
             .read_slice_to_end(&mut f)
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f[0..len], &mut v.value)
+        b64_decode(&f[0..len])
+            .to(&mut v.value)
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -174,7 +175,7 @@ impl<const N: usize> StoreValueB64 for Public<N> {
         let p = path.as_ref();
         let mut f = [0u8; F];
         let encoded_str = b64_encode(&self.value, &mut f)
-            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+            .with_context(|| format!("Could not encode secret to base64 for file {p:?}"))?;
         fopen_w(p, Visibility::Public)?
             .write_all(encoded_str.as_bytes())
             .with_context(|| format!("Could not write file {p:?}"))?;
@@ -349,7 +350,8 @@ impl<const N: usize> LoadValueB64 for PublicBox<N> {
             .read_slice_to_end(&mut f)
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f[0..len], v.deref_mut())
+        b64_decode(&f[0..len])
+            .to(v.deref_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)

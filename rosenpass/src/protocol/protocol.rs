@@ -1943,7 +1943,7 @@ impl CryptoServer {
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        host_identification: &H,
+        _host_identification: &H,
     ) -> Result<HandleMsgResult> {
         self.handle_msg(rx_buf, tx_buf)
     }
