@@ -2936,7 +2936,7 @@ impl IniHsPtr {
             .get_mut(srv)
             .as_mut()
             .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
-        cpy_min(msg, &mut *ih.tx_buf);
+        cpy_min(msg).to(&mut ih.tx_buf[..]);
         ih.tx_count = 0;
         ih.tx_len = msg.len();
         self.register_retransmission(srv)?;
@@ -2959,13 +2959,16 @@ impl IniHsPtr {
                 .get_mut(srv)
                 .as_mut()
                 .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
-            cpy_min(&ih.tx_buf[..ih.tx_len], tx_buf);
+            cpy_min(&ih.tx_buf[..ih.tx_len]).to(tx_buf);
             ih_tx_len = ih.tx_len;
         }
 
         // Add cookie to retransmitted message
         let mut envelope = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
         envelope.seal_cookie(self.peer(), srv)?;
+
+
+        envelope.seal(self.peer(), srv)?;
 
         Ok(ih_tx_len)
     }
