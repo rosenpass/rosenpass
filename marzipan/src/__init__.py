@@ -41,7 +41,7 @@ def _run_proverif(file, extra_args=[]):
     try:
         null, p = clean_warnings_init()
         for line in process.stdout:
-            print(f"received a line: {line.strip()}")
+            #print(f"received a line: {line.strip()}")
             # clean warnings
             line = line.rstrip()
             if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
@@ -165,14 +165,27 @@ def pretty_output(file_path):
 
 
 @click.command()
-@click.argument("command")
 @click.argument("path")
-def analyze(command, path):
-    exc([
-        f"{pkgs.pathlib.Path(__file__).resolve().parent}/analyze.sh",
-        command,
-        path
-    ])
+def analyze(path):
+    pkgs.os.chdir(path)
+
+    tmpdir = "target/proverif"
+    pkgs.os.makedirs(tmpdir, exist_ok=True)
+
+    entries = []
+    entries.extend(sorted(pkgs.glob.glob('analysis/*.entry.mpv')))
+
+    with pkgs.concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = {executor.submit(_metaverif, tmpdir, entry): entry for entry in entries}
+        for future in pkgs.concurrent.futures.as_completed(futures):
+            cmd = futures[future]
+            try:
+                #res = future.result()
+                print(f"Metaverif {cmd} finished.", file=pkgs.sys.stderr)
+            except Exception as e:
+                print(f"Metaverif {cmd} generated an exception: {e}")
+
+    print("all processes finished.")
 
 
 @click.command()
@@ -232,6 +245,10 @@ def clean_warnings():
 @click.argument("tmpdir")
 @click.argument("file")
 def metaverif(tmpdir, file):
+    metaverif(tmpdir, file)
+
+def _metaverif(tmpdir, file):
+    print(f"Start metaverif on {file}")
     # Extract the name using regex
     name_match = pkgs.re.search(r'([^/]*)(?=\.mpv)', file)
     if name_match:

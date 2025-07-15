@@ -16,14 +16,13 @@
   * ~~why is everything red in the pretty output? (see line 96 in __init__.py)~~
   * ~~awk RESULT flush in marzipan()~~
   * ~~move the whole metaverif function to Python~~
+* ~move the whole analyze function to Python~
+  * ~find the files~
+  * ~start subprocesses in parallel~
+  * ~wait for them to finish~
 
 ## Next Steps
 
-
-* move the whole analyze function to Python
-  * find the files
-  * start subprocesses in parallel
-  * wait for them to finish
 * think about next steps
   * integrate this upstream, into the CI?
   * “make it beautiful” steps? more resiliency to working directory?
