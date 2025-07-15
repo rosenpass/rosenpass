@@ -18,6 +18,6 @@ fuzz_target!(|input: Blake2b| {
     let mut out = [0u8; 32];
 
     blake2b::Blake2b::keyed_hash_to(&input.key, &input.data)
-        .to(&mut out)
-        .unwrap();
+    .to(&mut out)
+    .unwrap();
 });

@@ -8,6 +8,7 @@ use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use rosenpass_to::To;
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
     fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64,
@@ -317,7 +318,8 @@ impl<const N: usize> LoadValueB64 for Secret<N> {
             .read_slice_to_end(f.secret_mut())
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f.secret()[0..len], v.secret_mut())
+        b64_decode(&f.secret()[0..len])
+            .to(v.secret_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -333,7 +335,7 @@ impl<const N: usize> StoreValueB64 for Secret<N> {
 
         let mut f: Secret<F> = Secret::random();
         let encoded_str = b64_encode(self.secret(), f.secret_mut())
-            .with_context(|| format!("Could not encode base64 file {p:?}"))?;
+            .with_context(|| format!("Could not encode secret to base64 for file {p:?}"))?;
 
         fopen_w(p, Visibility::Secret)?
             .write_all(encoded_str.as_bytes())
