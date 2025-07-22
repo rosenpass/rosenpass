@@ -111,7 +111,6 @@ def _awk(cpp_prep, awk_prep):
         file.write("\nprocess main")
 
 
-
 def pretty_output_line(prefix, mark, color, text):
     # Vulnerable to injection attacks. Use better API. -- karo
     prefix = f"[grey42]{prefix}[/grey42]"

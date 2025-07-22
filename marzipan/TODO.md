@@ -23,6 +23,18 @@
 
 ## Next Steps
 
+* rebase from main
+* see if we still need the `extra_args is None` check in `_run_proverif`
+* set colors differently to prevent injection attack
+  * by calling a function
+  * by prepared statements
+* standalone function parse_result_line is no longer necessary
+* is the clean function still necessary?
+* implement better main function for click
+* return an exit status that is meaningful for CI
+* rewrite marzipan.awk into Python/LARK
+* rewrite cpp into Python/LARK
+* integrate the Nix flake into the main Nix flake
 * think about next steps
   * integrate this upstream, into the CI?
   * “make it beautiful” steps? more resiliency to working directory?
@@ -31,3 +43,6 @@
     * and rewrite the AST within Python
     * reconstruct ProVerif input file for ProVerif
   * rewrite our CPP usages into Python/…?
+
+
+“it replaces the Bash script and is idiomatic Python code”
