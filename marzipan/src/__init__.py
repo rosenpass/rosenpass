@@ -31,9 +31,11 @@ def run_proverif(file, extra_args=[]):
     _run_proverif(file, extra_args)
 
 def _run_proverif(file, extra_args=[]):
+    # Do we need this extra check? -- karo
     if extra_args is None:
         extra_args = []
     params = ["proverif", "-test", *extra_args, file]
+    # This appears to be superfluous printing?
     print(params)
     eprint(params)
 
@@ -41,12 +43,15 @@ def _run_proverif(file, extra_args=[]):
     try:
         null, p = clean_warnings_init()
         for line in process.stdout:
+            # Spurious comment -- karo
             #print(f"received a line: {line.strip()}")
             # clean warnings
             line = line.rstrip()
+            # Maybe we can move this stuff into a function? -- karo
             if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
                 if p != null:
                     yield p
+                    # Spurious comment -- karo
                     #print(p)
                 p = line
             else:
@@ -55,6 +60,7 @@ def _run_proverif(file, extra_args=[]):
             yield p
             #print(p)
     except Exception as e:
+        # When does this happen? Should the error even be ignored? Metaverif should probably just abort here, right? --karo
         print(f"An error occurred: {e}")
     finally:
         process.stdout.close()
@@ -79,6 +85,7 @@ def _cpp(file, cpp_prep):
     return exc(params, stderr=pkgs.sys.stderr)
 
 
+# This appears ti be unused? -- karo
 @click.command()
 def parse_result_line():
     for outp in pkgs.sys.stdin:
@@ -106,6 +113,7 @@ def _awk(cpp_prep, awk_prep):
 
 
 def pretty_output_line(prefix, mark, color, text):
+    # Vulnerable to injection attacks. Use better API. -- karo
     prefix = f"[grey42]{prefix}[/grey42]"
     content = f"[{color}]{mark} {text}[/{color}]"
 
@@ -122,12 +130,14 @@ def pretty_output_init(file_path):
         content = file.read()
         result = pkgs.re.findall(r'@(lemma)(?=\s+\"([^\"]*)\")', content)
         if result:
+            # This is structured like a bash file; lets use python typed variables instead of stuff like 'true' :) -- karo
             expected.extend(['true' if e[0] == 'lemma' else e[0] for e in result])
             descs.extend([e[1] for e in result])
 
         # Then process regular queries
         result = pkgs.re.findall(r'@(query|reachable)(?=\s+"[^\"]*")', content)
         if result:
+            # Same here -- karo
             expected.extend(['true' if e == '@query' else 'false' for e in result])
             reachable_result = pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
             descs.extend([e[1] for e in reachable_result])
@@ -135,6 +145,7 @@ def pretty_output_init(file_path):
     ta = pkgs.time.time()
     res = 0
     ctr = 0
+    # If its a tuple, add some braces -- karo
     return ta, res, ctr, expected, descs
 
 
@@ -167,6 +178,7 @@ def pretty_output(file_path):
 @click.command()
 @click.argument("path")
 def analyze(path):
+    # Use relative paths in here, do not chdir. Chdir was used due to bash limitations -- karo
     pkgs.os.chdir(path)
 
     tmpdir = "target/proverif"
@@ -180,21 +192,24 @@ def analyze(path):
         for future in pkgs.concurrent.futures.as_completed(futures):
             cmd = futures[future]
             try:
+                # Spurious comment -- karo
                 #res = future.result()
                 print(f"Metaverif {cmd} finished.", file=pkgs.sys.stderr)
             except Exception as e:
+                # Should probably affect the exit status -- karo
                 print(f"Metaverif {cmd} generated an exception: {e}")
 
     print("all processes finished.")
 
 
+# What is this? -- karo
 @click.command()
 def clean():
     click.echo("foo")
     pass
 
-
 def clean_warnings_init():
+    # This trick with the sentinel value is very much a bashism -- karo
     null = "0455290a-50d5-4f28-8008-3d69605c2835"
     p = null
     return null, p
@@ -221,6 +236,7 @@ def clean_warnings_finalize(null, p):
 
 @click.command()
 def clean_warnings():
+    # Lots of spurious comments -- karo
     #null = "0455290a-50d5-4f28-8008-3d69605c2835"
     #p = null
     null, p = clean_warnings_init()
@@ -263,6 +279,7 @@ def _metaverif(tmpdir, file):
         print(f"CPP Prep Path: {cpp_prep}")
         print(f"AWK Prep Path: {awk_prep}")
 
+        # These subcommands should probably go -- karo
         _cpp(file, cpp_prep)
         _awk(cpp_prep, awk_prep)
 
@@ -284,6 +301,7 @@ def _metaverif(tmpdir, file):
         print("No match found for the file name.")
 
 
+# Implement sensible main function -- karo
 @export
 @rename("main") # Click seems to erase __name__
 @click.group()
