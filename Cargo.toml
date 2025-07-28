@@ -13,6 +13,7 @@ members = [
   "secret-memory",
   "rp",
   "wireguard-broker",
+  "networkmanager-plugin",
 ]
 
 default-members = ["rosenpass", "rp", "wireguard-broker"]
@@ -31,6 +32,7 @@ rosenpass-to = { path = "to" }
 rosenpass-secret-memory = { path = "secret-memory" }
 rosenpass-oqs = { path = "oqs" }
 rosenpass-wireguard-broker = { path = "wireguard-broker" }
+rosenpass-networkmanager-plugin = { path = "networkmanager-plugin" }
 doc-comment = "0.3.3"
 base64ct = { version = "1.6.0", default-features = false }
 zeroize = "1.8.1"
@@ -101,3 +103,8 @@ rustix = { version = "0.38.42", features = ["net", "fs", "process"] }
 futures = "0.3"
 futures-util = "0.3"
 x25519-dalek = "2"
+
+# NetworkManager plugin dependencies
+zbus = "4.0"
+zvariant = "4.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
