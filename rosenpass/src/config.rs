@@ -364,7 +364,7 @@ impl Rosenpass {
             // check the secret-key file is a valid key
             ensure!(
                 SSk::load(&keypair.secret_key).is_ok(),
-                "could not load public-key file {:?}: invalid key",
+                "could not load secret-key file {:?}: invalid key",
                 keypair.secret_key
             );
         }
