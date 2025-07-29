@@ -150,6 +150,10 @@ jobs:
           fi
           echo "IN_DEPENDABOT_PR_CONTEXT=$IN_DEPENDABOT_PR_CONTEXT" >> $GITHUB_ENV
         shell: bash
+      - uses: actions/checkout@v4
+        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true'
+        with:
+          token: ${{ secrets.CI_BOT_PAT }}
       - name: In case of a dependabot PR, ensure that we are not in a detached HEAD state
         if: env.IN_DEPENDABOT_PR_CONTEXT == 'true'
         run: |
