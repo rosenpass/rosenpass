@@ -1,0 +1,24 @@
+name: "Collect before and after nix-reference"
+description: "A reusable step that collects nix-package references for backwards-compatability tests of the old state and the new state"
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/workflows/
+    - name: Extract the reference of before and after for the integration tests.
+      shell: bash
+      run: |
+        EVENT_NAME="${{ github.event_name }}"
+        REF_BEFORE=""
+        REF_AFTER="path:../../"
+        if [[ "$EVENT_NAME" == "pull_request" ]]; then
+          echo "This CI run was triggered in the context of a pull request."
+          REF_BEFORE="github:rosenpass/rosenpass/main
+        elif [[ "$EVENT_NAME" == "push" ]]; then
+          echo "This CI run was triggered in the context of a push."
+          REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.before }}""
+        else
+          echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
+          exit 1
+        fi
+        echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
+        echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
