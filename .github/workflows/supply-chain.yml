@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CI_BOT_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/cache@v4
         with:
           path: |
@@ -92,6 +92,7 @@ jobs:
           fi
           echo "IS_PR=$IS_PR" >> $GITHUB_ENV
           echo "IS_PUSH=$IS_PUSH" >> $GITHUB_ENV
+        shell: bash
       - name: Check if last commit was by Dependabot
         run: |
           # Depending on the trigger for, the relevant commit has to be deduced differently.
@@ -109,9 +110,7 @@ jobs:
           fi
           echo "Commit SHA is $SHA"
           echo "Branch is $REF"
-
-          git fetch origin $REF # ensure that we are up to date.
-          git switch $REF # ensure that we are NOT in a detached HEAD state. This is important for the commit action in the end.
+          echo "REF=$REF" >> $GITHUB_ENV
 
           COMMIT_AUTHOR=$(gh api repos/${{ github.repository }}/commits/$SHA --jq .author.login) # .author.login might be null, but for dependabot it will always be there and cannot be spoofed in contrast to .commit.author.name
           echo "The author of the last commit is $COMMIT_AUTHOR"
@@ -125,6 +124,7 @@ jobs:
           echo "LAST_COMMIT_IS_BY_DEPENDABOT=$LAST_COMMIT_IS_BY_DEPENDABOT" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
       - name: Check if the last commit's message ends in "--regenerate-exemptions"
         run: |
           # Get commit message
@@ -137,6 +137,7 @@ jobs:
             REGEN_EXEMP=false
           fi
           echo "REGEN_EXEMP=$REGEN_EXEMP" >> $GITHUB_ENV
+        shell: bash
       - name: Check if the CI run happens in the context of a dependabot PR # Even if a PR is created by dependabot, the last commit can, and often should be, the regeneration of the cargo vet exemptions. It could also be from an individual making manual changes.
         run: |
           IN_DEPENDABOT_PR_CONTEXT="false"
@@ -148,14 +149,18 @@ jobs:
             IN_DEPENDABOT_PR_CONTEXT="false"
           fi
           echo "IN_DEPENDABOT_PR_CONTEXT=$IN_DEPENDABOT_PR_CONTEXT" >> $GITHUB_ENV
+        shell: bash
+      - name: In case of a dependabot PR, ensure that we are not in a detached HEAD state
+        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true'
+        run: |
+          git fetch origin $REF # ensure that we are up to date.
+          git switch $REF # ensure that we are NOT in a detached HEAD state. This is important for the commit action in the end
+        shell: bash
       - name: Regenerate cargo vet exemptions if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
         if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true') # Run only for Dependabot PRs or if specifically requested
         run: cargo vet regenerate exemptions
-      - name: Check for changes if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
-        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true') # Run only for Dependabot PRs or if specifically requested
-        run: git diff --exit-code || echo "Changes detected, committing..."
       - name: Commit and push changes if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
-        if: success() && env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true')
+        if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true')
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: Regenerate cargo vet exemptions
