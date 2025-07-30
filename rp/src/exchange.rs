@@ -1,10 +1,7 @@
-use std::{
-    future::Future, net::SocketAddr, path::PathBuf, pin::Pin, process::Command,
-    sync::Arc,
-};
+use std::{future::Future, net::SocketAddr, path::PathBuf, pin::Pin, process::Command, sync::Arc};
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use rosenpass::app_server::AppServerTest;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 
 use std::vec::Vec;
@@ -195,12 +192,11 @@ impl CleanupHandlers {
     /// If any cleanup handler returns an error, the remaining handlers will not be executed
     /// and the error will be returned immediately.
     async fn run(self) -> Result<(), Error> {
-        if self.1.compare_exchange(
-            false,
-            true,
-            Ordering::Acquire,
-            Ordering::Relaxed,
-        ).is_err() {
+        if self
+            .1
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
             return Ok(());
         }
 
@@ -257,7 +253,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         }))
         .await;
 
-     ctrlc_async::set_async_handler(async move {
+    ctrlc_async::set_async_handler(async move {
         if let Err(e) = final_cleanup_handlers.run().await {
             eprintln!("Failed to clean up: {}", e);
         }
@@ -412,10 +408,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
                 .await;
         }
     }
-    
+
     cleanup_handlers
         .enqueue(Box::pin(async move {
-            tx_term.send(()).map_err(|e| anyhow::anyhow!("Failed to send termination signal: {}", e))
+            tx_term
+                .send(())
+                .map_err(|e| anyhow::anyhow!("Failed to send termination signal: {}", e))
         }))
         .await;
 
