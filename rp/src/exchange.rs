@@ -1,7 +1,9 @@
 use std::{
-    future::Future, net::SocketAddr, ops::DerefMut, path::PathBuf, pin::Pin, process::Command,
+    future::Future, net::SocketAddr, path::PathBuf, pin::Pin, process::Command,
     sync::Arc,
 };
+
+use std::vec::Vec;
 
 use anyhow::{Error, Result};
 use serde::Deserialize;
@@ -188,12 +190,15 @@ impl CleanupHandlers {
         self.0.lock().await.push(Box::pin(handler))
     }
 
-    /// Runs all cleanup handlers. Following the documentation of [futures::future::try_join_all]:
-    /// If any cleanup handler returns an error then all other cleanup handlers will be canceled and
-    /// an error will be returned immediately. If all cleanup handlers complete successfully,
-    /// however, then the returned future will succeed with a Vec of all the successful results.
-    async fn run(self) -> Result<Vec<()>, Error> {
-        futures::future::try_join_all(self.0.lock().await.deref_mut()).await
+    /// Runs all cleanup handlers sequentially in a LIFO (Last-In, First-Out) order.
+    /// If any cleanup handler returns an error, the remaining handlers will not be executed
+    /// and the error will be returned immediately.
+    async fn run(self) -> Result<(), Error> {
+        let mut handlers = self.0.lock().await;
+        while let Some(handler) = handlers.pop() {
+            handler.await?;
+        }
+        Ok(())
     }
 }
 
@@ -236,11 +241,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         }))
         .await;
 
-    ctrlc_async::set_async_handler(async move {
-        final_cleanup_handlers
-            .run()
-            .await
-            .expect("Failed to clean up");
+     ctrlc_async::set_async_handler(async move {
+        if let Err(e) = final_cleanup_handlers.run().await {
+            eprintln!("Failed to clean up: {}", e);
+            std::process::exit(1);
+        }
+        std::process::exit(0);
     })?;
 
     // Run `ip address add <ip> dev <dev>` and enqueue `ip address del <ip> dev <dev>` as a cleanup.
