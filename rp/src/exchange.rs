@@ -3,6 +3,10 @@ use std::{
     sync::Arc,
 };
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use rosenpass::app_server::AppServerTest;
+use std::sync::mpsc;
+
 use std::vec::Vec;
 
 use anyhow::{Error, Result};
@@ -108,13 +112,6 @@ mod netlink {
     }
 
     /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-    pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
-        rtnetlink.link().del(index).execute().await?;
-
-        Ok(())
-    }
-
-    /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
     /// In contrast to [link_cleanup], this function create a new socket connection to netlink and
     /// *ignores errors* that occur during deletion.
     pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
@@ -176,13 +173,17 @@ mod netlink {
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 struct CleanupHandlers(
     Arc<::futures::lock::Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>,
+    Arc<AtomicBool>,
 );
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl CleanupHandlers {
     /// Creates a new list of [CleanupHandlers].
     fn new() -> Self {
-        CleanupHandlers(Arc::new(::futures::lock::Mutex::new(vec![])))
+        CleanupHandlers(
+            Arc::new(::futures::lock::Mutex::new(vec![])),
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     /// Enqueues a new cleanup handler in the form of a [Future].
@@ -194,6 +195,15 @@ impl CleanupHandlers {
     /// If any cleanup handler returns an error, the remaining handlers will not be executed
     /// and the error will be returned immediately.
     async fn run(self) -> Result<(), Error> {
+        if self.1.compare_exchange(
+            false,
+            true,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+        ).is_err() {
+            return Ok(());
+        }
+
         let mut handlers = self.0.lock().await;
         while let Some(handler) = handlers.pop() {
             handler.await?;
@@ -230,6 +240,12 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
     let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
+    let (tx_term, rx_term) = mpsc::channel();
+    let test_helpers = Some(AppServerTest {
+        enable_dos_permanently: false,
+        termination_handler: Some(rx_term),
+    });
+
     // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
     let cleanup_handlers = CleanupHandlers::new();
@@ -244,9 +260,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
      ctrlc_async::set_async_handler(async move {
         if let Err(e) = final_cleanup_handlers.run().await {
             eprintln!("Failed to clean up: {}", e);
-            std::process::exit(1);
         }
-        std::process::exit(0);
     })?;
 
     // Run `ip address add <ip> dev <dev>` and enqueue `ip address del <ip> dev <dev>` as a cleanup.
@@ -315,7 +329,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         } else {
             Verbosity::Quiet
         },
-        None,
+        test_helpers,
     )?);
 
     let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
@@ -398,10 +412,16 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
                 .await;
         }
     }
+    
+    cleanup_handlers
+        .enqueue(Box::pin(async move {
+            tx_term.send(()).map_err(|e| anyhow::anyhow!("Failed to send termination signal: {}", e))
+        }))
+        .await;
 
     let out = srv.event_loop();
 
-    netlink::link_cleanup(&rtnetlink, link_index).await?;
+    let _ = cleanup_handlers.run().await;
 
     match out {
         Ok(_) => Ok(()),
