@@ -32,7 +32,7 @@ jobs:
       # Install nix
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v27 # A popular action for installing Nix
+        uses: cachix/install-nix-action@v31 # A popular action for installing Nix
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
