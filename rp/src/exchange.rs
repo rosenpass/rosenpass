@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 use futures_util::{StreamExt as _, TryStreamExt as _};
 use serde::Deserialize;
 
@@ -18,6 +18,7 @@ use rosenpass::{
 };
 use rosenpass_secret_memory::Secret;
 use rosenpass_util::file::{LoadValue as _, LoadValueB64};
+use rosenpass_util::functional::ApplyExt;
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
@@ -34,6 +35,7 @@ mod netlink {
 
     /// Re-exports from [::rtnetlink]
     pub mod rtnl {
+        pub use ::rtnetlink::Error;
         pub use ::rtnetlink::Handle;
     }
 
@@ -95,38 +97,73 @@ pub struct ExchangeOptions {
 /// operations of creating the link or changing its state to up fails.
 pub async fn link_create_and_up(
     rtnetlink: &netlink::rtnl::Handle,
-    link_name: String,
+    device_name: &str,
 ) -> Result<u32> {
-    // Add the link, equivalent to `ip link add <link_name> type wireguard`.
-    rtnetlink
-        .link()
-        .add()
-        .wireguard(link_name.clone())
-        .execute()
-        .await?;
+    let mut rtnl_link = rtnetlink.link();
 
-    // Retrieve the link to be able to up it, equivalent to `ip link show` and then
-    // using the link shown that is identified by `link_name`.
-    let link = rtnetlink
-        .link()
+    // Make sure that there is no device called `device_name` before we start
+    rtnl_link
         .get()
-        .match_name(link_name.clone())
+        .match_name(device_name.to_owned())
         .execute()
-        .into_stream()
-        .into_future()
-        .await
-        .0
-        .unwrap()?;
+        // Count the number of occurences
+        .try_fold(0, |acc, _val| async move {
+            Ok(acc + 1)
+        }).await
+        // Extract the error's raw system error code
+        .map_err(|e| {
+            use netlink::rtnl::Error as E;
+            match e {
+                E::NetlinkError(msg) => {
+                    let raw_code = -msg.raw_code();
+                    (E::NetlinkError(msg), Some(raw_code))
+                },
+                _ => (e, None),
+            }
+        })
+        .apply(|r| {
+            match r {
+                // No such device, which is exactly what we are expecting
+                Ok(0) | Err((_, Some(libc::ENODEV))) => Ok(()),
+                // Device already exists
+                Ok(_) => bail!("\
+                    Trying to create a network device for Rosenpass under the name \"{device_name}\", \
+                    but at least one device under the name aready exists."),
+                // Other error
+                Err((e, _)) => bail!(e),
+            }
+        })?;
 
-    // Up the link, equivalent to `ip link set dev <DEV> up`.
-    rtnetlink
-        .link()
-        .set(link.header.index)
-        .up()
+    // Add the link, equivalent to `ip link add <link_name> type wireguard`.
+    rtnl_link
+        .add()
+        .wireguard(device_name.to_owned())
         .execute()
         .await?;
 
-    Ok(link.header.index)
+    // Retrieve a handle for the newly created device
+    let dev = rtnl_link
+        .get()
+        .match_name(device_name.to_owned())
+        .execute()
+        .err_into::<anyhow::Error>()
+        .try_fold(Option::None, |acc, val| async move {
+            ensure!(acc.is_none(), "\
+                Created a network device for Rosenpass under the name \"{device_name}\", \
+                but upon trying to determine the handle for the device using named-based lookup, we received multiple handles. \
+                We checked beforehand whether the device already exists. \
+                This should not happen. Unsure how to proceed. Terminating.");
+            Ok(Some(val))
+        }).await?
+        .with_context(|| format!("\
+            Created a network device for Rosenpass under the name \"{device_name}\", \
+            but upon trying to determine the handle for the device using named-based lookup, we received no handle. \
+            This should not happen. Unsure how to proceed. Terminating."))?;
+
+    // Activate the link, equivalent to `ip link set dev <DEV> up`.
+    rtnl_link.set(dev.header.index).up().execute().await?;
+
+    Ok(dev.header.index)
 }
 
 /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
@@ -222,7 +259,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     tokio::spawn(connection);
 
     let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
-    let link_index = link_create_and_up(&rtnetlink, link_name.clone()).await?;
+    let link_index = link_create_and_up(&rtnetlink, &link_name).await?;
 
     // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
