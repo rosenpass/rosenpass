@@ -3,12 +3,17 @@ use std::{
     sync::Arc,
 };
 
+use genetlink::GenetlinkHandle;
+use netlink_packet_core::{NLM_F_ACK, NLM_F_REQUEST};
+use netlink_packet_wireguard::nlas::WgDeviceAttrs;
+use rtnetlink::Handle;
+
 use anyhow::{Error, Result};
+use futures_util::{StreamExt as _, TryStreamExt as _};
 use serde::Deserialize;
 
 use rosenpass::config::ProtocolVersion;
 
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::key::WG_B64_LEN;
 
 /// Used to define a peer for the rosenpass connection that consists of
@@ -50,133 +55,111 @@ pub struct ExchangeOptions {
     pub peers: Vec<ExchangePeer>,
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-pub async fn exchange(_: ExchangeOptions) -> Result<()> {
-    use anyhow::anyhow;
+/// Creates a netlink named `link_name` and changes the state to up. It returns the index
+/// of the interface in the list of interfaces as the result or an error if any of the
+/// operations of creating the link or changing its state to up fails.
+pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
+    // Add the link, equivalent to `ip link add <link_name> type wireguard`.
+    rtnetlink
+        .link()
+        .add()
+        .wireguard(link_name.clone())
+        .execute()
+        .await?;
 
-    Err(anyhow!(
-        "Your system {} is not yet supported. We are happy to receive patches to address this :)",
-        std::env::consts::OS
-    ))
+    // Retrieve the link to be able to up it, equivalent to `ip link show` and then
+    // using the link shown that is identified by `link_name`.
+    let link = rtnetlink
+        .link()
+        .get()
+        .match_name(link_name.clone())
+        .execute()
+        .into_stream()
+        .into_future()
+        .await
+        .0
+        .unwrap()?;
+
+    // Up the link, equivalent to `ip link set dev <DEV> up`.
+    rtnetlink
+        .link()
+        .set(link.header.index)
+        .up()
+        .execute()
+        .await?;
+
+    Ok(link.header.index)
 }
 
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
-mod netlink {
-    use anyhow::Result;
-    use futures_util::{StreamExt as _, TryStreamExt as _};
-    use genetlink::GenetlinkHandle;
-    use netlink_packet_core::{NLM_F_ACK, NLM_F_REQUEST};
-    use netlink_packet_wireguard::nlas::WgDeviceAttrs;
-    use rtnetlink::Handle;
+/// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
+pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
+    rtnetlink.link().del(index).execute().await?;
 
-    /// Creates a netlink named `link_name` and changes the state to up. It returns the index
-    /// of the interface in the list of interfaces as the result or an error if any of the
-    /// operations of creating the link or changing its state to up fails.
-    pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
-        // Add the link, equivalent to `ip link add <link_name> type wireguard`.
-        rtnetlink
-            .link()
-            .add()
-            .wireguard(link_name.clone())
-            .execute()
-            .await?;
+    Ok(())
+}
 
-        // Retrieve the link to be able to up it, equivalent to `ip link show` and then
-        // using the link shown that is identified by `link_name`.
-        let link = rtnetlink
-            .link()
-            .get()
-            .match_name(link_name.clone())
-            .execute()
-            .into_stream()
-            .into_future()
-            .await
-            .0
-            .unwrap()?;
+/// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
+/// In contrast to [link_cleanup], this function create a new socket connection to netlink and
+/// *ignores errors* that occur during deletion.
+pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
+    let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
+    tokio::spawn(connection);
 
-        // Up the link, equivalent to `ip link set dev <DEV> up`.
-        rtnetlink
-            .link()
-            .set(link.header.index)
-            .up()
-            .execute()
-            .await?;
+    // We don't care if this fails, as the device may already have been auto-cleaned up.
+    let _ = rtnetlink.link().del(index).execute().await;
 
-        Ok(link.header.index)
-    }
+    Ok(())
+}
 
-    /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-    pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
-        rtnetlink.link().del(index).execute().await?;
+/// This replicates the functionality of the `wg set` command line tool.
+///
+/// It sets the specified WireGuard attributes of the indexed device by
+/// communicating with WireGuard's generic netlink interface, like the
+/// `wg` tool does.
+pub async fn wg_set(
+    genetlink: &mut GenetlinkHandle,
+    index: u32,
+    mut attr: Vec<WgDeviceAttrs>,
+) -> Result<()> {
+    use futures_util::StreamExt as _;
+    use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+    use netlink_packet_generic::GenlMessage;
+    use netlink_packet_wireguard::{Wireguard, WireguardCmd};
 
-        Ok(())
-    }
+    // Scope our `set` command to only the device of the specified index.
+    attr.insert(0, WgDeviceAttrs::IfIndex(index));
 
-    /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-    /// In contrast to [link_cleanup], this function create a new socket connection to netlink and
-    /// *ignores errors* that occur during deletion.
-    pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
-        let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
-        tokio::spawn(connection);
+    // Construct the WireGuard-specific netlink packet
+    let wgc = Wireguard {
+        cmd: WireguardCmd::SetDevice,
+        nlas: attr,
+    };
 
-        // We don't care if this fails, as the device may already have been auto-cleaned up.
-        let _ = rtnetlink.link().del(index).execute().await;
+    // Construct final message.
+    let genl = GenlMessage::from_payload(wgc);
+    let mut nlmsg = NetlinkMessage::from(genl);
+    nlmsg.header.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-        Ok(())
-    }
-
-    /// This replicates the functionality of the `wg set` command line tool.
-    ///
-    /// It sets the specified WireGuard attributes of the indexed device by
-    /// communicating with WireGuard's generic netlink interface, like the
-    /// `wg` tool does.
-    pub async fn wg_set(
-        genetlink: &mut GenetlinkHandle,
-        index: u32,
-        mut attr: Vec<WgDeviceAttrs>,
-    ) -> Result<()> {
-        use futures_util::StreamExt as _;
-        use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
-        use netlink_packet_generic::GenlMessage;
-        use netlink_packet_wireguard::{Wireguard, WireguardCmd};
-
-        // Scope our `set` command to only the device of the specified index.
-        attr.insert(0, WgDeviceAttrs::IfIndex(index));
-
-        // Construct the WireGuard-specific netlink packet
-        let wgc = Wireguard {
-            cmd: WireguardCmd::SetDevice,
-            nlas: attr,
-        };
-
-        // Construct final message.
-        let genl = GenlMessage::from_payload(wgc);
-        let mut nlmsg = NetlinkMessage::from(genl);
-        nlmsg.header.flags = NLM_F_REQUEST | NLM_F_ACK;
-
-        // Send and wait for the ACK or error.
-        let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
-        if let Some(res) = res {
-            let res = res?;
-            if let NetlinkPayload::Error(err) = res.payload {
-                return Err(err.to_io().into());
-            }
+    // Send and wait for the ACK or error.
+    let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
+    if let Some(res) = res {
+        let res = res?;
+        if let NetlinkPayload::Error(err) = res.payload {
+            return Err(err.to_io().into());
         }
-
-        Ok(())
     }
+
+    Ok(())
 }
 
 /// A wrapper for a list of cleanup handlers that can be used in an asynchronous context
 /// to clean up after the usage of rosenpass or if the `rp` binary is interrupted with ctrl+c
 /// or a `SIGINT` signal in general.
 #[derive(Clone)]
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 struct CleanupHandlers(
     Arc<::futures::lock::Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>,
 );
 
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl CleanupHandlers {
     /// Creates a new list of [CleanupHandlers].
     fn new() -> Self {
@@ -199,7 +182,6 @@ impl CleanupHandlers {
 
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
 /// `options`.
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     use std::fs;
 
@@ -223,7 +205,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     tokio::spawn(connection);
 
     let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
-    let link_index = netlink::link_create_and_up(&rtnetlink, link_name.clone()).await?;
+    let link_index = link_create_and_up(&rtnetlink, link_name.clone()).await?;
 
     // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
@@ -232,7 +214,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     cleanup_handlers
         .enqueue(Box::pin(async move {
-            netlink::link_cleanup_standalone(link_index).await
+            link_cleanup_standalone(link_index).await
         }))
         .await;
 
@@ -288,7 +270,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
     }
 
-    netlink::wg_set(&mut genetlink, link_index, attr).await?;
+    wg_set(&mut genetlink, link_index, attr).await?;
 
     // set up the rosenpass AppServer
     let pqsk = options.private_keys_dir.join("pqsk");
@@ -395,7 +377,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     let out = srv.event_loop();
 
-    netlink::link_cleanup(&rtnetlink, link_index).await?;
+    link_cleanup(&rtnetlink, link_index).await?;
 
     match out {
         Ok(_) => Ok(()),
