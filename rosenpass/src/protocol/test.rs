@@ -1,6 +1,7 @@
 use std::{borrow::BorrowMut, fmt::Display, net::SocketAddrV4, ops::DerefMut};
 
 use anyhow::{Context, Result};
+use assert_tv::TestVectorNOP;
 use serial_test::serial;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -92,7 +93,10 @@ fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
         let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
 
         // Process the entire handshake
-        let mut msglen = Some(me.initiate_handshake(PEER0, &mut *resbuf).unwrap());
+        let mut msglen = Some(
+            me.initiate_handshake::<TestVectorNOP>(PEER0, &mut *resbuf)
+                .unwrap(),
+        );
         while let Some(l) = msglen {
             std::mem::swap(&mut me, &mut they);
             std::mem::swap(&mut msgbuf, &mut resbuf);
@@ -122,13 +126,15 @@ fn test_incorrect_sizes_for_msg(
             continue;
         }
 
-        let res = srv.handle_msg(&msgbuf[..l], resbuf);
+        let res = srv.handle_msg::<TestVectorNOP>(&msgbuf[..l], resbuf);
         assert!(res.is_err()); // handle_msg should raise an error
         assert!(!resbuf.iter().any(|x| *x != 0)); // resbuf should not have been changed
     }
 
     // Apply the proper handle_msg operation
-    srv.handle_msg(&msgbuf[..msglen], resbuf).unwrap().resp
+    srv.handle_msg::<TestVectorNOP>(&msgbuf[..msglen], resbuf)
+        .unwrap()
+        .resp
 }
 
 fn keygen() -> Result<(SSk, SPk)> {
@@ -189,14 +195,16 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
 
         let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
-        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let init_hello_len = a
+            .initiate_handshake::<TestVectorNOP>(PeerPtr(0), &mut *a_to_b_buf)
+            .unwrap();
 
         let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
         assert_eq!(init_msg_type, MsgType::InitHello);
 
         //B handles InitHello, sends RespHello
         let HandleMsgResult { resp, .. } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
             .unwrap();
 
         let resp_hello_len = resp.unwrap();
@@ -208,7 +216,7 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
             resp,
             exchanged_with,
         } = a
-            .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+            .handle_msg::<TestVectorNOP>(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
             .unwrap();
 
         let init_conf_len = resp.unwrap();
@@ -222,7 +230,7 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
             resp: _,
             exchanged_with,
         } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
             .unwrap();
 
         let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
@@ -260,14 +268,16 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
 
         let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
-        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let init_hello_len = a
+            .initiate_handshake::<TestVectorNOP>(PeerPtr(0), &mut *a_to_b_buf)
+            .unwrap();
 
         let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
         assert_eq!(init_msg_type, MsgType::InitHello);
 
         //B handles InitHello, sends RespHello
         let HandleMsgResult { resp, .. } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
             .unwrap();
 
         let resp_hello_len = resp.unwrap();
@@ -280,7 +290,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
             resp,
             exchanged_with,
         } = a
-            .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+            .handle_msg::<TestVectorNOP>(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
             .unwrap();
 
         let init_conf_len = resp.unwrap();
@@ -294,7 +304,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
             resp: _,
             exchanged_with,
         } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
             .unwrap();
 
         let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
@@ -307,7 +317,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
             resp: _,
             exchanged_with,
         } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
             .unwrap();
 
         let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
@@ -352,7 +362,9 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
 
         let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
-        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let init_hello_len = a
+            .initiate_handshake::<TestVectorNOP>(PeerPtr(0), &mut *a_to_b_buf)
+            .unwrap();
         let socket_addr_a = std::net::SocketAddr::V4(ip_a);
         let mut ip_addr_port_a = match socket_addr_a.ip() {
             std::net::IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
@@ -375,7 +387,7 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
         let cookie_reply_len = resp.unwrap();
 
         //A handles cookie reply message
-        a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
+        a.handle_msg::<TestVectorNOP>(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
             .unwrap();
 
         assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
@@ -463,11 +475,13 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
         let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
         //A initiates handshake
-        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let init_hello_len = a
+            .initiate_handshake::<TestVectorNOP>(PeerPtr(0), &mut *a_to_b_buf)
+            .unwrap();
 
         //B handles InitHello message, should respond with RespHello
         let HandleMsgResult { resp, .. } = b
-            .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+            .handle_msg::<TestVectorNOP>(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
             .unwrap();
 
         let resp_hello_len = resp.unwrap();
@@ -527,7 +541,7 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
 
     fn proc_initiation(srv: &mut CryptoServer, peer: PeerPtr) -> Result<Envelope<InitHello>> {
         let mut buf = MsgBuf::zero();
-        srv.initiate_handshake(peer, buf.as_mut_slice())?
+        srv.initiate_handshake::<TestVectorNOP>(peer, buf.as_mut_slice())?
             .discard_result();
         let msg = truncating_cast_into::<Envelope<InitHello>>(buf.borrow_mut())?;
         Ok(msg.read())
@@ -538,7 +552,7 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
         rx: &Envelope<Rx>,
     ) -> anyhow::Result<Envelope<Tx>> {
         let mut buf = MsgBuf::zero();
-        srv.handle_msg(rx.as_bytes(), buf.as_mut_slice())?
+        srv.handle_msg::<TestVectorNOP>(rx.as_bytes(), buf.as_mut_slice())?
             .resp
             .context("Failed to produce RespHello message")?
             .discard_result();
@@ -591,7 +605,7 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
 
     fn check_faulty_proc_init_conf(srv: &mut CryptoServer, ic_broken: &Envelope<InitConf>) {
         let mut buf = MsgBuf::zero();
-        let res = srv.handle_msg(ic_broken.as_bytes(), buf.as_mut_slice());
+        let res = srv.handle_msg::<TestVectorNOP>(ic_broken.as_bytes(), buf.as_mut_slice());
         assert!(res.is_err());
     }
 

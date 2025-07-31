@@ -21,6 +21,7 @@ pub mod config;
 pub mod hash_domains;
 pub mod msgs;
 pub mod protocol;
+pub mod test_vector_sets;
 
 /// Error types used in diverse places across Rosenpass
 #[derive(thiserror::Error, Debug)]

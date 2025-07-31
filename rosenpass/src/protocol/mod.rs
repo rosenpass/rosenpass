@@ -34,6 +34,7 @@
 //! use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 //!
 //! # fn main() -> anyhow::Result<()> {
+//! use assert_tv::TestVectorNOP;
 //! // Set security policy for storing secrets
 //!
 //! use rosenpass::protocol::ProtocolVersion;
@@ -60,11 +61,11 @@
 //! let (mut a_buf, mut b_buf) = (MsgBuf::zero(), MsgBuf::zero());
 //!
 //! // let a initiate a handshake
-//! let mut maybe_len = Some(a.initiate_handshake(PeerPtr(0), a_buf.as_mut_slice())?);
+//! let mut maybe_len = Some(a.initiate_handshake::<TestVectorNOP>(PeerPtr(0), a_buf.as_mut_slice())?);
 //!
 //! // let a and b communicate
 //! while let Some(len) = maybe_len {
-//!    maybe_len = b.handle_msg(&a_buf[..len], &mut b_buf[..])?.resp;
+//!    maybe_len = b.handle_msg::<TestVectorNOP>(&a_buf[..len], &mut b_buf[..])?.resp;
 //!    std::mem::swap(&mut a, &mut b);
 //!    std::mem::swap(&mut a_buf, &mut b_buf);
 //! }

@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 
 use anyhow::{bail, Context, Result};
+use assert_tv::TestVectorNOP;
 use derive_builder::Builder;
 use log::{error, info, warn};
 use mio::{Interest, Token};
@@ -1161,7 +1162,7 @@ impl AppServer {
                 (CryptoSrv::Missing, SendInitiation(_)) => {}
                 (CryptoSrv::Avail, SendInitiation(peer)) => tx_maybe_with!(peer, || self
                     .crypto_server_mut()?
-                    .initiate_handshake(peer.lower(), &mut *tx))?,
+                    .initiate_handshake::<TestVectorNOP>(peer.lower(), &mut *tx))?,
 
                 (CryptoSrv::Missing, SendRetransmission(_)) => {}
                 (CryptoSrv::Avail, SendRetransmission(peer)) => tx_maybe_with!(peer, || self
@@ -1189,9 +1190,9 @@ impl AppServer {
                         DoSOperation::UnderLoad => {
                             self.handle_msg_under_load(&endpoint, &rx[..len], &mut *tx)
                         }
-                        DoSOperation::Normal => {
-                            self.crypto_server_mut()?.handle_msg(&rx[..len], &mut *tx)
-                        }
+                        DoSOperation::Normal => self
+                            .crypto_server_mut()?
+                            .handle_msg::<TestVectorNOP>(&rx[..len], &mut *tx),
                     };
                     match msg_result {
                         Err(ref e) => {

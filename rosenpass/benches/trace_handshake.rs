@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use std::{collections::HashMap, hint::black_box, ops::DerefMut};
 
 use anyhow::Result;
-
+use assert_tv::TestVectorNOP;
 use libcrux_test_utils::tracing::{EventType, Trace as _};
 
 use rosenpass_cipher_traits::primitives::Kem;
@@ -31,7 +31,7 @@ fn handle(
     let HandleMsgResult {
         exchanged_with: xch,
         resp,
-    } = rx.handle_msg(&msgb[..msgl], &mut **resb)?;
+    } = rx.handle_msg::<TestVectorNOP>(&msgb[..msgl], &mut **resb)?;
 
     assert!(matches!(xch, None | Some(PeerPtr(0))));
 
@@ -53,7 +53,7 @@ fn handle(
 /// Ensures that both parties compute the same keys.
 fn hs(ini: &mut CryptoServer, res: &mut CryptoServer) -> Result<()> {
     let (mut inib, mut resb) = (MsgBuf::zero(), MsgBuf::zero());
-    let sz = ini.initiate_handshake(PeerPtr(0), &mut *inib)?;
+    let sz = ini.initiate_handshake::<TestVectorNOP>(PeerPtr(0), &mut *inib)?;
     let (kini, kres) = handle(ini, &mut inib, sz, res, &mut resb)?;
     assert!(kini.unwrap().secret() == kres.unwrap().secret());
     Ok(())

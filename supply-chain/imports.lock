@@ -59,6 +59,17 @@ who = "Nick Fitzgerald <fitzgen@gmail.com>"
 criteria = "safe-to-deploy"
 version = "1.4.1"
 
+[[audits.bytecode-alliance.audits.base64]]
+who = "Pat Hickey <phickey@fastly.com>"
+criteria = "safe-to-deploy"
+version = "0.21.0"
+notes = "This crate has no dependencies, no build.rs, and contains no unsafe code."
+
+[[audits.bytecode-alliance.audits.base64]]
+who = "Andrew Brown <andrew.brown@intel.com>"
+criteria = "safe-to-deploy"
+delta = "0.21.3 -> 0.22.1"
+
 [[audits.bytecode-alliance.audits.bitflags]]
 who = "Jamey Sharp <jsharp@fastly.com>"
 criteria = "safe-to-deploy"
@@ -729,6 +740,35 @@ delta = "1.0.92 -> 1.0.93"
 notes = "No `unsafe`-related changes."
 aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
 
+[[audits.google.audits.proc-macro2]]
+who = "Liza Burakova <liza@chromium.org"
+criteria = "safe-to-deploy"
+delta = "1.0.87 -> 1.0.89"
+notes = """
+Biggest change is adding error handling in build.rs.
+Some config related changes in wrapper.rs.
+"""
+aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
+
+[[audits.google.audits.proc-macro2]]
+who = "Lukasz Anforowicz <lukasza@chromium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.89 -> 1.0.92"
+notes = """
+I looked at the delta and the previous discussion at
+https://chromium-review.googlesource.com/c/chromium/src/+/5385745/3#message-a8e2813129fa3779dab15acede408ee26d67b7f3
+and the changes look okay to me (including the `unsafe fn from_str_unchecked`
+changes in `wrapper.rs`).
+"""
+aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
+
+[[audits.google.audits.proc-macro2]]
+who = "Lukasz Anforowicz <lukasza@chromium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.92 -> 1.0.93"
+notes = "No `unsafe`-related changes."
+aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
+
 [[audits.google.audits.quote]]
 who = "Lukasz Anforowicz <lukasza@chromium.org>"
 criteria = "safe-to-deploy"
@@ -1145,6 +1185,44 @@ who = "Ying Hsu <yinghsu@chromium.org>"
 criteria = "safe-to-run"
 version = "1.2.1"
 aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
+
+[[audits.google.audits.unicode-ident]]
+who = "Lukasz Anforowicz <lukasza@chromium.org>"
+criteria = "safe-to-deploy"
+version = "1.0.12"
+notes = '''
+I grepped for \"crypt\", \"cipher\", \"fs\", \"net\" - there were no hits.
+
+All two functions from the public API of this crate use `unsafe` to avoid bound
+checks for an array access.  Cross-module analysis shows that the offsets can
+be statically proven to be within array bounds.  More details can be found in
+the unsafe review CL at https://crrev.com/c/5350386.
+
+This crate has been added to Chromium in https://crrev.com/c/3891618.
+'''
+aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
+
+[[audits.google.audits.unicode-ident]]
+who = "Dustin J. Mitchell <djmitche@chromium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.12 -> 1.0.13"
+notes = "Lots of table updates, and tables are assumed correct with unsafe `.get_unchecked()`, so ub-risk-2 is appropriate"
+aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_party/rust/chromium_crates_io/supply-chain/audits.toml?format=TEXT"
+
+[[audits.isrg.audits.base64]]
+who = "Tim Geoghegan <timg@letsencrypt.org>"
+criteria = "safe-to-deploy"
+delta = "0.21.0 -> 0.21.1"
+
+[[audits.isrg.audits.base64]]
+who = "Brandon Pitman <bran@bran.land>"
+criteria = "safe-to-deploy"
+delta = "0.21.1 -> 0.21.2"
+
+[[audits.isrg.audits.base64]]
+who = "David Cook <dcook@divviup.org>"
+criteria = "safe-to-deploy"
+delta = "0.21.2 -> 0.21.3"
 
 [[audits.isrg.audits.block-buffer]]
 who = "David Cook <dcook@divviup.org>"
