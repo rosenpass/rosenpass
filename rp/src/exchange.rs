@@ -228,7 +228,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
     let cleanup_handlers = CleanupHandlers::new();
-    let final_cleanup_handlers = (&cleanup_handlers).clone();
+    let final_cleanup_handlers = cleanup_handlers.clone();
 
     cleanup_handlers
         .enqueue(Box::pin(async move {
