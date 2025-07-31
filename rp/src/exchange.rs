@@ -3,18 +3,53 @@ use std::{
     sync::Arc,
 };
 
-use genetlink::GenetlinkHandle;
-use netlink_packet_core::{NLM_F_ACK, NLM_F_REQUEST};
-use netlink_packet_wireguard::nlas::WgDeviceAttrs;
-use rtnetlink::Handle;
-
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Error, Result};
 use futures_util::{StreamExt as _, TryStreamExt as _};
 use serde::Deserialize;
 
 use rosenpass::config::ProtocolVersion;
+use rosenpass::{
+    app_server::{AppServer, BrokerPeer},
+    config::Verbosity,
+    protocol::{
+        basic_types::{SPk, SSk, SymKey},
+        osk_domain_separator::OskDomainSeparator,
+    },
+};
+use rosenpass_secret_memory::Secret;
+use rosenpass_util::file::{LoadValue as _, LoadValueB64};
+use rosenpass_wireguard_broker::brokers::native_unix::{
+    NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
+};
 
 use crate::key::WG_B64_LEN;
+
+/// Extra-special measure to structure imports from the various
+/// netlink related crates used in [super]
+mod netlink {
+    /// Re-exports from [::netlink_packet_core]
+    pub mod core {
+        pub use ::netlink_packet_core::{NetlinkMessage, NetlinkPayload, NLM_F_ACK, NLM_F_REQUEST};
+    }
+
+    /// Re-exports from [::rtnetlink]
+    pub mod rtnl {
+        pub use ::rtnetlink::Handle;
+    }
+
+    /// Re-exports from [::genetlink] and [::netlink_packet_generic]
+    pub mod genl {
+        pub use ::genetlink::GenetlinkHandle as Handle;
+        pub use ::netlink_packet_generic::GenlMessage as Message;
+    }
+
+    /// Re-exports from [::netlink_packet_wireguard]
+    pub mod wg {
+        pub use ::netlink_packet_wireguard::constants::WG_KEY_LEN as KEY_LEN;
+        pub use ::netlink_packet_wireguard::nlas::WgDeviceAttrs as DeviceAttrs;
+        pub use ::netlink_packet_wireguard::{Wireguard, WireguardCmd};
+    }
+}
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
@@ -58,7 +93,10 @@ pub struct ExchangeOptions {
 /// Creates a netlink named `link_name` and changes the state to up. It returns the index
 /// of the interface in the list of interfaces as the result or an error if any of the
 /// operations of creating the link or changing its state to up fails.
-pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result<u32> {
+pub async fn link_create_and_up(
+    rtnetlink: &netlink::rtnl::Handle,
+    link_name: String,
+) -> Result<u32> {
     // Add the link, equivalent to `ip link add <link_name> type wireguard`.
     rtnetlink
         .link()
@@ -92,7 +130,7 @@ pub async fn link_create_and_up(rtnetlink: &Handle, link_name: String) -> Result
 }
 
 /// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-pub async fn link_cleanup(rtnetlink: &Handle, index: u32) -> Result<()> {
+pub async fn link_cleanup(rtnetlink: &netlink::rtnl::Handle, index: u32) -> Result<()> {
     rtnetlink.link().del(index).execute().await?;
 
     Ok(())
@@ -117,34 +155,31 @@ pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
 /// communicating with WireGuard's generic netlink interface, like the
 /// `wg` tool does.
 pub async fn wg_set(
-    genetlink: &mut GenetlinkHandle,
+    genetlink: &mut netlink::genl::Handle,
     index: u32,
-    mut attr: Vec<WgDeviceAttrs>,
+    mut attr: Vec<netlink::wg::DeviceAttrs>,
 ) -> Result<()> {
-    use futures_util::StreamExt as _;
-    use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
-    use netlink_packet_generic::GenlMessage;
-    use netlink_packet_wireguard::{Wireguard, WireguardCmd};
+    use netlink as nl;
 
     // Scope our `set` command to only the device of the specified index.
-    attr.insert(0, WgDeviceAttrs::IfIndex(index));
+    attr.insert(0, nl::wg::DeviceAttrs::IfIndex(index));
 
     // Construct the WireGuard-specific netlink packet
-    let wgc = Wireguard {
-        cmd: WireguardCmd::SetDevice,
+    let wgc = nl::wg::Wireguard {
+        cmd: nl::wg::WireguardCmd::SetDevice,
         nlas: attr,
     };
 
     // Construct final message.
-    let genl = GenlMessage::from_payload(wgc);
-    let mut nlmsg = NetlinkMessage::from(genl);
-    nlmsg.header.flags = NLM_F_REQUEST | NLM_F_ACK;
+    let genl = nl::genl::Message::from_payload(wgc);
+    let mut nlmsg = nl::core::NetlinkMessage::from(genl);
+    nlmsg.header.flags = nl::core::NLM_F_REQUEST | nl::core::NLM_F_ACK;
 
     // Send and wait for the ACK or error.
     let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
     if let Some(res) = res {
         let res = res?;
-        if let NetlinkPayload::Error(err) = res.payload {
+        if let nl::core::NetlinkPayload::Error(err) = res.payload {
             return Err(err.to_io().into());
         }
     }
@@ -183,24 +218,6 @@ impl CleanupHandlers {
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
 /// `options`.
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
-    use std::fs;
-
-    use anyhow::anyhow;
-    use netlink_packet_wireguard::{constants::WG_KEY_LEN, nlas::WgDeviceAttrs};
-    use rosenpass::{
-        app_server::{AppServer, BrokerPeer},
-        config::Verbosity,
-        protocol::{
-            basic_types::{SPk, SSk, SymKey},
-            osk_domain_separator::OskDomainSeparator,
-        },
-    };
-    use rosenpass_secret_memory::Secret;
-    use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-    use rosenpass_wireguard_broker::brokers::native_unix::{
-        NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
-    };
-
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
 
@@ -257,17 +274,17 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
 
-    let wgsk = Secret::<WG_KEY_LEN>::load_b64::<WG_B64_LEN, _>(wgsk_path)?;
+    let wgsk = Secret::<{ netlink::wg::KEY_LEN }>::load_b64::<WG_B64_LEN, _>(wgsk_path)?;
 
-    let mut attr: Vec<WgDeviceAttrs> = Vec::with_capacity(2);
-    attr.push(WgDeviceAttrs::PrivateKey(*wgsk.secret()));
+    let mut attr: Vec<netlink::wg::DeviceAttrs> = Vec::with_capacity(2);
+    attr.push(netlink::wg::DeviceAttrs::PrivateKey(*wgsk.secret()));
 
     if let Some(listen) = options.listen {
         if listen.port() == u16::MAX {
             return Err(anyhow!("You may not use {} as the listen port.", u16::MAX));
         }
 
-        attr.push(WgDeviceAttrs::ListenPort(listen.port() + 1));
+        attr.push(netlink::wg::DeviceAttrs::ListenPort(listen.port() + 1));
     }
 
     wg_set(&mut genetlink, link_index, attr).await?;
@@ -324,7 +341,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         }
 
         let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
-            .peer_id_b64(&fs::read_to_string(wgpk)?)?
+            .peer_id_b64(&std::fs::read_to_string(wgpk)?)?
             .interface(link_name.clone())
             .extra_params_ser(&extra_params)?
             .build()
