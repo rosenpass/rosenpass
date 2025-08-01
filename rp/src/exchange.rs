@@ -258,8 +258,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
     tokio::spawn(connection);
 
-    let link_name = options.dev.clone().unwrap_or("rosenpass0".to_string());
-    let link_index = link_create_and_up(&rtnetlink, &link_name).await?;
+    let link_name = options.dev.as_deref().unwrap_or("rosenpass0");
+    let link_index = link_create_and_up(&rtnetlink, link_name).await?;
 
     // Set up a list of (initiallc empty) cleanup handlers that are to be run if
     // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
@@ -379,7 +379,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
         let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
             .peer_id_b64(&std::fs::read_to_string(wgpk)?)?
-            .interface(link_name.clone())
+            .interface(link_name.to_owned())
             .extra_params_ser(&extra_params)?
             .build()
             .map_err(cfg_err_map)?;
