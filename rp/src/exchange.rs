@@ -1,9 +1,6 @@
-use std::{
-    future::Future, net::SocketAddr, ops::DerefMut, path::PathBuf, pin::Pin, process::Command,
-    sync::Arc,
-};
+use std::{borrow::Borrow, net::SocketAddr, path::PathBuf, process::Command};
 
-use anyhow::{anyhow, bail, ensure, Context, Error, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use futures_util::{StreamExt as _, TryStreamExt as _};
 use serde::Deserialize;
 
@@ -18,7 +15,9 @@ use rosenpass::{
 };
 use rosenpass_secret_memory::Secret;
 use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-use rosenpass_util::functional::ApplyExt;
+use rosenpass_util::functional::{ApplyExt, MutatingExt};
+use rosenpass_util::result::OkExt;
+use rosenpass_util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
@@ -92,98 +91,228 @@ pub struct ExchangeOptions {
     pub peers: Vec<ExchangePeer>,
 }
 
-/// Creates a netlink named `link_name` and changes the state to up. It returns the index
-/// of the interface in the list of interfaces as the result or an error if any of the
-/// operations of creating the link or changing its state to up fails.
-pub async fn link_create_and_up(
-    rtnetlink: &netlink::rtnl::Handle,
-    device_name: &str,
-) -> Result<u32> {
-    let mut rtnl_link = rtnetlink.link();
+/// Manage the lifetime of WireGuard devices uses for rp
+#[derive(Debug, Default)]
+struct WireGuardDeviceImpl {
+    netlink_handle_cache: Option<netlink::rtnl::Handle>,
+    /// Handle and name of the device
+    device: Option<(u32, String)>,
+}
 
-    // Make sure that there is no device called `device_name` before we start
-    rtnl_link
-        .get()
-        .match_name(device_name.to_owned())
-        .execute()
-        // Count the number of occurences
-        .try_fold(0, |acc, _val| async move {
-            Ok(acc + 1)
-        }).await
-        // Extract the error's raw system error code
-        .map_err(|e| {
-            use netlink::rtnl::Error as E;
-            match e {
-                E::NetlinkError(msg) => {
-                    let raw_code = -msg.raw_code();
-                    (E::NetlinkError(msg), Some(raw_code))
-                },
-                _ => (e, None),
-            }
-        })
-        .apply(|r| {
-            match r {
-                // No such device, which is exactly what we are expecting
-                Ok(0) | Err((_, Some(libc::ENODEV))) => Ok(()),
-                // Device already exists
-                Ok(_) => bail!("\
-                    Trying to create a network device for Rosenpass under the name \"{device_name}\", \
-                    but at least one device under the name aready exists."),
-                // Other error
-                Err((e, _)) => bail!(e),
-            }
-        })?;
+impl WireGuardDeviceImpl {
+    fn take(&mut self) -> WireGuardDeviceImpl {
+        Self::default().mutating(|nu| std::mem::swap(self, nu))
+    }
 
-    // Add the link, equivalent to `ip link add <link_name> type wireguard`.
-    rtnl_link
-        .add()
-        .wireguard(device_name.to_owned())
-        .execute()
-        .await?;
+    async fn open(&mut self, device_name: String) -> anyhow::Result<()> {
+        let mut rtnl_link = self.netlink_handle()?.link();
+        let device_name_ref = &device_name;
 
-    // Retrieve a handle for the newly created device
-    let dev = rtnl_link
-        .get()
-        .match_name(device_name.to_owned())
-        .execute()
-        .err_into::<anyhow::Error>()
-        .try_fold(Option::None, |acc, val| async move {
-            ensure!(acc.is_none(), "\
+        // Make sure that there is no device called `device_name` before we start
+        rtnl_link
+            .get()
+            .match_name(device_name.to_owned())
+            .execute()
+            // Count the number of occurences
+            .try_fold(0, |acc, _val| async move {
+                Ok(acc + 1)
+            }).await
+            // Extract the error's raw system error code
+            .map_err(|e| {
+                use netlink::rtnl::Error as E;
+                match e {
+                    E::NetlinkError(msg) => {
+                        let raw_code = -msg.raw_code();
+                        (E::NetlinkError(msg), Some(raw_code))
+                    },
+                    _ => (e, None),
+                }
+            })
+            .apply(|r| {
+                match r {
+                    // No such device, which is exactly what we are expecting
+                    Ok(0) | Err((_, Some(libc::ENODEV))) => Ok(()),
+                    // Device already exists
+                    Ok(_) => bail!("\
+                        Trying to create a network device for Rosenpass under the name \"{device_name}\", \
+                        but at least one device under the name aready exists."),
+                    // Other error
+                    Err((e, _)) => bail!(e),
+                }
+            })?;
+
+        // Add the link, equivalent to `ip link add <link_name> type wireguard`.
+        rtnl_link
+            .add()
+            .wireguard(device_name.to_owned())
+            .execute()
+            .await?;
+        log::info!("Created network device!");
+
+        // Retrieve a handle for the newly created device
+        let device_handle = rtnl_link
+            .get()
+            .match_name(device_name.to_owned())
+            .execute()
+            .err_into::<anyhow::Error>()
+            .try_fold(Option::None, |acc, val| async move {
+                ensure!(acc.is_none(), "\
+                    Created a network device for Rosenpass under the name \"{device_name_ref}\", \
+                    but upon trying to determine the handle for the device using named-based lookup, we received multiple handles. \
+                    We checked beforehand whether the device already exists. \
+                    This should not happen. Unsure how to proceed. Terminating.");
+                Ok(Some(val))
+            }).await?
+            .with_context(|| format!("\
                 Created a network device for Rosenpass under the name \"{device_name}\", \
-                but upon trying to determine the handle for the device using named-based lookup, we received multiple handles. \
-                We checked beforehand whether the device already exists. \
-                This should not happen. Unsure how to proceed. Terminating.");
-            Ok(Some(val))
-        }).await?
-        .with_context(|| format!("\
-            Created a network device for Rosenpass under the name \"{device_name}\", \
-            but upon trying to determine the handle for the device using named-based lookup, we received no handle. \
-            This should not happen. Unsure how to proceed. Terminating."))?;
+                but upon trying to determine the handle for the device using named-based lookup, we received no handle. \
+                This should not happen. Unsure how to proceed. Terminating."))?
+            .apply(|msg| msg.header.index);
 
-    // Activate the link, equivalent to `ip link set dev <DEV> up`.
-    rtnl_link.set(dev.header.index).up().execute().await?;
+        // Now we can actually start to mark the device as initialized.
+        // Note that if the handle retrieval above does not work, the destructor
+        // will not run and the device will not be erased.
+        // This is, for now, the desired behavior as we need the handle to erase
+        // the device anyway.
+        self.device = Some((device_handle, device_name));
 
-    Ok(dev.header.index)
+        // Activate the link, equivalent to `ip link set dev <DEV> up`.
+        rtnl_link.set(device_handle).up().execute().await?;
+
+        Ok(())
+    }
+
+    async fn close(mut self) {
+        // Check if the device is properly initialized and retrieve the device info
+        let (device_handle, device_name) = match self.device.take() {
+            Some(val) => val,
+            // Nothing to do, not yet properly initialized
+            None => return,
+        };
+
+        // Erase the network device; the rest of the function is just error handling
+        let res = async move {
+            self.netlink_handle()?
+                .link()
+                .del(device_handle)
+                .execute()
+                .await?;
+            log::debug!("Erased network interface!");
+            anyhow::Ok(())
+        }
+        .await;
+
+        // Here we test if the error needs printing at all
+        let res = 'do_print: {
+            // Short-circuit if the deletion was successful
+            let err = match res {
+                Ok(()) => break 'do_print Ok(()),
+                Err(err) => err,
+            };
+
+            // Extract the rtnetlink error, so we can inspect it
+            let err = match err.downcast::<netlink::rtnl::Error>() {
+                Ok(rtnl_err) => rtnl_err,
+                Err(other_err) => break 'do_print Err(other_err),
+            };
+
+            // TODO: This is a bit brittle, as the rtnetlink error enum looks like
+            //       E::NetlinkError is a sort of "unknown error" case. If they explicitly
+            //       add support for the "no such device" errors or other ones we check for in
+            //       this block, then this code may no longer filter these errors
+            // Extract the raw netlink error code
+            use netlink::rtnl::Error as E;
+            let error_code = match err {
+                E::NetlinkError(ref msg) => -msg.raw_code(),
+                err => break 'do_print Err(err.into()),
+            };
+
+            // Check whether its just the "no such device" error
+            #[allow(clippy::single_match)]
+            match error_code {
+                libc::ENODEV => break 'do_print Ok(()),
+                _ => {}
+            }
+
+            // Otherwise, we just print the error
+            Err(err.into())
+        };
+
+        if let Err(err) = res {
+            log::warn!("Could not remove network device `{device_name}`: {err:?}");
+        }
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.device.is_some()
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.device.as_ref().map(|slot| slot.1.borrow())
+    }
+
+    /// Return the raw handle for this device
+    pub fn raw_handle(&self) -> Option<u32> {
+        self.device.as_ref().map(|slot| slot.0)
+    }
+
+    fn take_netlink_handle(&mut self) -> Result<netlink::rtnl::Handle> {
+        if let Some(netlink_handle) = self.netlink_handle_cache.take() {
+            Ok(netlink_handle)
+        } else {
+            let (connection, netlink_handle, _) = rtnetlink::new_connection()?;
+
+            // Making sure that the connection has a chance to terminate before the
+            // application exits
+            try_spawn_daemon(async move {
+                connection.await;
+                Ok(())
+            })?;
+
+            Ok(netlink_handle)
+        }
+    }
+
+    fn netlink_handle(&mut self) -> Result<&mut netlink::rtnl::Handle> {
+        let netlink_handle = self.take_netlink_handle()?;
+        self.netlink_handle_cache.insert(netlink_handle).ok()
+    }
 }
 
-/// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-pub async fn link_cleanup(rtnetlink: &netlink::rtnl::Handle, index: u32) -> Result<()> {
-    rtnetlink.link().del(index).execute().await?;
-
-    Ok(())
+struct WireGuardDevice {
+    _impl: WireGuardDeviceImpl,
 }
 
-/// Deletes a link using rtnetlink. The link is specified using its index in the list of links.
-/// In contrast to [link_cleanup], this function create a new socket connection to netlink and
-/// *ignores errors* that occur during deletion.
-pub async fn link_cleanup_standalone(index: u32) -> Result<()> {
-    let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
-    tokio::spawn(connection);
+impl WireGuardDevice {
+    /// Creates a netlink named `link_name` and changes the state to up. It returns the index
+    /// of the interface in the list of interfaces as the result or an error if any of the
+    /// operations of creating the link or changing its state to up fails.
+    pub async fn create_device(device_name: String) -> Result<Self> {
+        let mut _impl = WireGuardDeviceImpl::default();
+        _impl.open(device_name).await?;
+        assert!(_impl.is_open()); // Sanity check
+        Ok(WireGuardDevice { _impl })
+    }
 
-    // We don't care if this fails, as the device may already have been auto-cleaned up.
-    let _ = rtnetlink.link().del(index).execute().await;
+    pub fn name(&self) -> &str {
+        self._impl.name().unwrap()
+    }
 
-    Ok(())
+    /// Return the raw handle for this device
+    #[allow(dead_code)]
+    pub fn raw_handle(&self) -> u32 {
+        self._impl.raw_handle().unwrap()
+    }
+}
+
+impl Drop for WireGuardDevice {
+    fn drop(&mut self) {
+        let _impl = self._impl.take();
+        spawn_cleanup_job(async move {
+            _impl.close().await;
+            Ok(())
+        });
+    }
 }
 
 /// This replicates the functionality of the `wg set` command line tool.
@@ -224,60 +353,12 @@ pub async fn wg_set(
     Ok(())
 }
 
-/// A wrapper for a list of cleanup handlers that can be used in an asynchronous context
-/// to clean up after the usage of rosenpass or if the `rp` binary is interrupted with ctrl+c
-/// or a `SIGINT` signal in general.
-#[derive(Clone)]
-struct CleanupHandlers(
-    Arc<::futures::lock::Mutex<Vec<Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>>>>,
-);
-
-impl CleanupHandlers {
-    /// Creates a new list of [CleanupHandlers].
-    fn new() -> Self {
-        CleanupHandlers(Arc::new(::futures::lock::Mutex::new(vec![])))
-    }
-
-    /// Enqueues a new cleanup handler in the form of a [Future].
-    async fn enqueue(&self, handler: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>) {
-        self.0.lock().await.push(Box::pin(handler))
-    }
-
-    /// Runs all cleanup handlers. Following the documentation of [futures::future::try_join_all]:
-    /// If any cleanup handler returns an error then all other cleanup handlers will be canceled and
-    /// an error will be returned immediately. If all cleanup handlers complete successfully,
-    /// however, then the returned future will succeed with a Vec of all the successful results.
-    async fn run(self) -> Result<Vec<()>, Error> {
-        futures::future::try_join_all(self.0.lock().await.deref_mut()).await
-    }
-}
-
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
 /// `options`.
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
-    let (connection, rtnetlink, _) = rtnetlink::new_connection()?;
-    tokio::spawn(connection);
-
-    let link_name = options.dev.as_deref().unwrap_or("rosenpass0");
-    let link_index = link_create_and_up(&rtnetlink, link_name).await?;
-
-    // Set up a list of (initiallc empty) cleanup handlers that are to be run if
-    // ctrl-c is hit or generally a `SIGINT` signal is received and always in the end.
-    let cleanup_handlers = CleanupHandlers::new();
-    let final_cleanup_handlers = cleanup_handlers.clone();
-
-    cleanup_handlers
-        .enqueue(Box::pin(async move {
-            link_cleanup_standalone(link_index).await
-        }))
-        .await;
-
-    ctrlc_async::set_async_handler(async move {
-        final_cleanup_handlers
-            .run()
-            .await
-            .expect("Failed to clean up");
-    })?;
+    let device = options.dev.as_deref().unwrap_or("rosenpass0");
+    let device = WireGuardDevice::create_device(device.to_owned()).await?;
+    let device_handle = device.raw_handle();
 
     // Run `ip address add <ip> dev <dev>` and enqueue `ip address del <ip> dev <dev>` as a cleanup.
     if let Some(ip) = options.ip {
@@ -290,19 +371,6 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .arg(dev.clone())
             .status()
             .expect("failed to configure ip");
-        cleanup_handlers
-            .enqueue(Box::pin(async move {
-                Command::new("ip")
-                    .arg("address")
-                    .arg("del")
-                    .arg(ip)
-                    .arg("dev")
-                    .arg(dev)
-                    .status()
-                    .expect("failed to remove ip");
-                Ok(())
-            }))
-            .await;
     }
 
     // Deploy the classic wireguard private key.
@@ -324,7 +392,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         attr.push(netlink::wg::DeviceAttrs::ListenPort(listen.port() + 1));
     }
 
-    wg_set(&mut genetlink, link_index, attr).await?;
+    wg_set(&mut genetlink, device_handle, attr).await?;
 
     // set up the rosenpass AppServer
     let pqsk = options.private_keys_dir.join("pqsk");
@@ -379,7 +447,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
         let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
             .peer_id_b64(&std::fs::read_to_string(wgpk)?)?
-            .interface(link_name.to_owned())
+            .interface(device.name().to_owned())
             .extra_params_ser(&extra_params)?
             .build()
             .map_err(cfg_err_map)?;
@@ -415,23 +483,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
                 .arg(options.dev.clone().unwrap_or("rosenpass0".to_string()))
                 .status()
                 .expect("failed to configure route");
-            cleanup_handlers
-                .enqueue(Box::pin(async move {
-                    Command::new("ip")
-                        .arg("route")
-                        .arg("del")
-                        .arg(allowed_ips)
-                        .status()
-                        .expect("failed to remove ip");
-                    Ok(())
-                }))
-                .await;
         }
     }
 
+    log::info!("Starting to perform rosenpass key exchanges!");
     let out = srv.event_loop();
-
-    link_cleanup(&rtnetlink, link_index).await?;
 
     match out {
         Ok(_) => Ok(()),

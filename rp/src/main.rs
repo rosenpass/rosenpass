@@ -1,9 +1,12 @@
 use std::{fs, process::exit};
 
-use cli::{Cli, Command};
-use exchange::exchange;
-use key::{genkey, pubkey};
+use rosenpass_util::tokio::janitor::ensure_janitor;
+
 use rosenpass_secret_memory::policy;
+
+use crate::cli::{Cli, Command};
+use crate::exchange::exchange;
+use crate::key::{genkey, pubkey};
 
 mod cli;
 mod exchange;
@@ -16,6 +19,10 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(not(feature = "experiment_memfd_secret"))]
     policy::secret_policy_use_only_malloc_secrets();
 
+    ensure_janitor(async move { main_impl().await }).await
+}
+
+async fn main_impl() -> anyhow::Result<()> {
     let cli = match Cli::parse(std::env::args().peekable()) {
         Ok(cli) => cli,
         Err(err) => {
