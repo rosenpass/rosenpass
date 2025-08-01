@@ -30,6 +30,8 @@ pub mod option;
 pub mod result;
 /// Time and duration utilities.
 pub mod time;
+#[cfg(feature = "tokio")]
+pub mod tokio;
 /// Trace benchmarking utilities
 #[cfg(feature = "trace_bench")]
 pub mod trace_bench;
