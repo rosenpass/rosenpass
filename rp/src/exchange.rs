@@ -443,6 +443,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     device
         .set_private_key_and_listen_addr(&wgsk, options.listen.map(|ip| ip.port() + 1))
         .await?;
+    std::mem::drop(wgsk);
 
     // Assign the public IP address for the interface
     if let Some(ref ip) = options.ip {
