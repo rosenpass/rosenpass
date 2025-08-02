@@ -332,7 +332,7 @@ fn cookie_reply_mechanism_responder_under_load_v03() {
 }
 
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
+fn _cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
     use std::{thread::sleep, time::Duration};
 
     use super::{Lifecycle, MortalExt};
@@ -584,7 +584,8 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
         msg: &Envelope<Msg>,
     ) -> anyhow::Result<Envelope<Msg>> {
         let mut msg = clone_msg(msg)?;
-        msg.as_bytes_mut()[memoffset::offset_of!(Envelope<Msg>, payload)] ^= 0x01;
+        let offset = std::mem::offset_of!(Envelope<Msg>, payload); //using thin pointer optimization
+        msg.as_bytes_mut()[offset] ^= 0x01;
         msg.seal(peer, srv)?; // Recalculate seal; we do not want to focus on "seal broken" errs
         Ok(msg)
     }
