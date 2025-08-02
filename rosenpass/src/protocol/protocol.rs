@@ -2110,6 +2110,7 @@ impl CryptoServer {
     /// See the example on how to use this function without [Self::poll] in [crate::protocol].
     ///
     /// See [Self::poll] on how to use this function with poll.
+    #[allow(non_snake_case)]
     pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
         let seal_broken = "Message seal broken!";
         // length of the response. We assume no response, so None for now
@@ -2372,6 +2373,7 @@ impl Wait {
     /// assert_eq!(Wait::or_hibernate(None).0, UNENDING);
     /// assert_eq!(Wait::or_hibernate(Some(20.0)).0, 20.0);
     /// ```
+    #[allow(non_snake_case)]
     pub fn or_hibernate(t: Option<Timing>) -> Self {
         match t {
             Some(u) => Wait(u),
@@ -2389,6 +2391,7 @@ impl Wait {
     /// assert_eq!(Wait::or_immediate(None).0, 0.0);
     /// assert_eq!(Wait::or_immediate(Some(20.0)).0, 20.0);
     /// ```
+    #[allow(non_snake_case)]
     pub fn or_immediate(t: Option<Timing>) -> Self {
         match t {
             Some(u) => Wait(u),
@@ -2827,6 +2830,7 @@ impl CryptoServer {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/poll_example.rs")]
     #[doc = "```"]
+    #[allow(non_snake_case)]
     pub fn poll(&mut self) -> Result<PollResult> {
         let r = begin_poll() // Poll each biscuit and peer until an event is found
             .poll_children(self, self.biscuit_key_ptrs())?
