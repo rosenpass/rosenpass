@@ -428,13 +428,16 @@ impl Drop for WireGuardDevice {
 /// `options`.
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     // Load the server parameter files
-    // TODO: Should be async, but right now its now
-    let wgsk = options
-        .private_keys_dir
-        .join("wgsk")
-        .apply(WgSecretKey::load_b64::<WG_B64_LEN, _>)?;
-    let rpsk = options.private_keys_dir.join("pqsk").apply(SSk::load)?;
-    let rppk = options.private_keys_dir.join("pqpk").apply(SPk::load)?;
+    let wgsk = options.private_keys_dir.join("wgsk");
+    let rpsk = options.private_keys_dir.join("pqsk");
+    let rppk = options.private_keys_dir.join("pqpk");
+    let (wgsk, rpsk, rppk) = spawn_blocking(move || {
+        let wgsk = WgSecretKey::load_b64::<WG_B64_LEN, _>(wgsk)?;
+        let rpsk = SSk::load(rpsk)?;
+        let wgpk = SPk::load(rppk)?;
+        anyhow::Ok((wgsk, rpsk, wgpk))
+    })
+    .await??;
 
     // Setup the WireGuard device
     let device = options.dev.as_deref().unwrap_or("rosenpass0");
@@ -471,12 +474,17 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             .join("wgpk")
             .apply(tokio::fs::read_to_string)
             .await?;
-        let pqpk = peer.public_keys_dir.join("pqpk").apply(SPk::load)?;
+        let pqpk = peer.public_keys_dir.join("pqpk");
         let psk = peer.public_keys_dir.join("psk");
-        let psk = psk
-            .exists()
-            .then(|| SymKey::load_b64::<WG_B64_LEN, _>(psk))
-            .transpose()?;
+        let (pqpk, psk) = spawn_blocking(move || {
+            let pqpk = SPk::load(pqpk)?;
+            let psk = psk
+                .exists()
+                .then(|| SymKey::load_b64::<WG_B64_LEN, _>(psk))
+                .transpose()?;
+            anyhow::Ok((pqpk, psk))
+        })
+        .await??;
 
         let mut extra_params: Vec<String> = Vec::with_capacity(6);
         if let Some(endpoint) = peer.endpoint {
