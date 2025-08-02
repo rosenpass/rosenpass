@@ -426,41 +426,35 @@ impl Drop for WireGuardDevice {
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
 /// `options`.
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
+    // Load the server parameter files
     // TODO: Should be async, but right now its now
     let wgsk = options
         .private_keys_dir
         .join("wgsk")
         .apply(WgSecretKey::load_b64::<WG_B64_LEN, _>)?;
+    let rpsk = options.private_keys_dir.join("pqsk").apply(SSk::load)?;
+    let rppk = options.private_keys_dir.join("pqpk").apply(SPk::load)?;
 
+    // Setup the WireGuard device
     let device = options.dev.as_deref().unwrap_or("rosenpass0");
     let mut device = WireGuardDevice::create_device(device.to_owned()).await?;
 
+    // Assign WG secret key & port
     device
         .set_private_key_and_listen_addr(&wgsk, options.listen.map(|ip| ip.port() + 1))
         .await?;
 
+    // Assign the public IP address for the interface
     if let Some(ref ip) = options.ip {
         device.add_ip_address(ip).await?;
     }
 
-    // set up the rosenpass AppServer
-    let pqsk = options.private_keys_dir.join("pqsk");
-    let pqpk = options.private_keys_dir.join("pqpk");
-
-    let sk = SSk::load(&pqsk)?;
-    let pk = SPk::load(&pqpk)?;
-
     let mut srv = Box::new(AppServer::new(
-        Some((sk, pk)),
-        if let Some(listen) = options.listen {
-            vec![listen]
-        } else {
-            Vec::with_capacity(0)
-        },
-        if options.verbose {
-            Verbosity::Verbose
-        } else {
-            Verbosity::Quiet
+        Some((rpsk, rppk)),
+        Vec::from_iter(options.listen),
+        match options.verbose {
+            true => Verbosity::Verbose,
+            false => Verbosity::Quiet,
         },
         None,
     )?);
