@@ -1,4 +1,7 @@
-use std::{borrow::Borrow, net::SocketAddr, path::PathBuf, process::Command};
+use std::any::type_name;
+use std::{borrow::Borrow, net::SocketAddr, path::PathBuf};
+
+use tokio::process::Command;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use futures_util::{StreamExt as _, TryStreamExt as _};
@@ -243,17 +246,37 @@ impl WireGuardDeviceImpl {
         }
     }
 
+    pub async fn add_ip_address(&self, addr: &str) -> anyhow::Result<()> {
+        // TODO: Migrate to using netlink
+        Command::new("ip")
+            .args(["address", "add", addr, "dev", self.name()?])
+            .status()
+            .await?;
+        Ok(())
+    }
+
     pub fn is_open(&self) -> bool {
         self.device.is_some()
     }
 
-    pub fn name(&self) -> Option<&str> {
+    pub fn maybe_name(&self) -> Option<&str> {
         self.device.as_ref().map(|slot| slot.1.borrow())
     }
 
     /// Return the raw handle for this device
-    pub fn raw_handle(&self) -> Option<u32> {
+    pub fn maybe_raw_handle(&self) -> Option<u32> {
         self.device.as_ref().map(|slot| slot.0)
+    }
+
+    pub fn name(&self) -> anyhow::Result<&str> {
+        self.maybe_name()
+            .with_context(|| format!("{} has not been initialized!", type_name::<Self>()))
+    }
+
+    /// Return the raw handle for this device
+    pub fn raw_handle(&self) -> anyhow::Result<u32> {
+        self.maybe_raw_handle()
+            .with_context(|| format!("{} has not been initialized!", type_name::<Self>()))
     }
 
     fn take_netlink_handle(&mut self) -> Result<netlink::rtnl::Handle> {
@@ -302,6 +325,10 @@ impl WireGuardDevice {
     #[allow(dead_code)]
     pub fn raw_handle(&self) -> u32 {
         self._impl.raw_handle().unwrap()
+    }
+
+    pub async fn add_ip_address(&self, addr: &str) -> anyhow::Result<()> {
+        self._impl.add_ip_address(addr).await
     }
 }
 
@@ -360,17 +387,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     let device = WireGuardDevice::create_device(device.to_owned()).await?;
     let device_handle = device.raw_handle();
 
-    // Run `ip address add <ip> dev <dev>` and enqueue `ip address del <ip> dev <dev>` as a cleanup.
-    if let Some(ip) = options.ip {
-        let dev = options.dev.clone().unwrap_or("rosenpass0".to_string());
-        Command::new("ip")
-            .arg("address")
-            .arg("add")
-            .arg(ip.clone())
-            .arg("dev")
-            .arg(dev.clone())
-            .status()
-            .expect("failed to configure ip");
+    if let Some(ref ip) = options.ip {
+        device.add_ip_address(ip).await?;
     }
 
     // Deploy the classic wireguard private key.
@@ -475,7 +493,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
         // the cleanup as `ip route del <allowed_ips>`.
         if let Some(allowed_ips) = peer.allowed_ips {
-            Command::new("ip")
+            std::process::Command::new("ip")
                 .arg("route")
                 .arg("replace")
                 .arg(allowed_ips.clone())
