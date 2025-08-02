@@ -393,7 +393,10 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     // Deploy the classic wireguard private key.
     let (connection, mut genetlink, _) = genetlink::new_connection()?;
-    tokio::spawn(connection);
+    try_spawn_daemon(async move {
+        connection.await;
+        Ok(())
+    })?;
 
     let wgsk_path = options.private_keys_dir.join("wgsk");
 
