@@ -24,6 +24,10 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // init logging
+    // TODO: Taken from rosenpass; we should deduplicate the code.
+    env_logger::Builder::from_default_env().init(); // sets log level filter from environment (or defaults)
+
     let command = cli.command.unwrap();
 
     match command {
