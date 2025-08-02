@@ -462,15 +462,20 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
 
     let broker_store_ptr = srv.register_broker(Box::new(NativeUnixBroker::new()))?;
 
-    fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
-        anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
-    }
-
     // Configure everything per peer.
     for peer in options.peers {
-        let wgpk = peer.public_keys_dir.join("wgpk");
-        let pqpk = peer.public_keys_dir.join("pqpk");
+        // TODO: Some of this is sync but should be async
+        let wgpk = peer
+            .public_keys_dir
+            .join("wgpk")
+            .apply(tokio::fs::read_to_string)
+            .await?;
+        let pqpk = peer.public_keys_dir.join("pqpk").apply(SPk::load)?;
         let psk = peer.public_keys_dir.join("psk");
+        let psk = psk
+            .exists()
+            .then(|| SymKey::load_b64::<WG_B64_LEN, _>(psk))
+            .transpose()?;
 
         let mut extra_params: Vec<String> = Vec::with_capacity(6);
         if let Some(endpoint) = peer.endpoint {
@@ -490,11 +495,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         }
 
         let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
-            .peer_id_b64(&std::fs::read_to_string(wgpk)?)?
+            .peer_id_b64(&wgpk)?
             .interface(device.name().to_owned())
             .extra_params_ser(&extra_params)?
             .build()
-            .map_err(cfg_err_map)?;
+            .with_context(|| format!("Could not configure broker to supply keys from Rosenpass to WireGuard for peer {wgpk}."))?;
 
         let broker_peer = Some(BrokerPeer::new(
             broker_store_ptr.clone(),
@@ -502,13 +507,8 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         ));
 
         srv.add_peer(
-            if psk.exists() {
-                Some(SymKey::load_b64::<WG_B64_LEN, _>(psk))
-            } else {
-                None
-            }
-            .transpose()?,
-            SPk::load(&pqpk)?,
+            psk,
+            pqpk,
             None,
             broker_peer,
             peer.endpoint.map(|x| x.to_string()),
@@ -519,14 +519,11 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
         // the cleanup as `ip route del <allowed_ips>`.
         if let Some(allowed_ips) = peer.allowed_ips {
-            std::process::Command::new("ip")
-                .arg("route")
-                .arg("replace")
-                .arg(allowed_ips.clone())
-                .arg("dev")
-                .arg(options.dev.clone().unwrap_or("rosenpass0".to_string()))
+            Command::new("ip")
+                .args(["route", "replace", &allowed_ips, "dev", device.name()])
                 .status()
-                .expect("failed to configure route");
+                .await
+                .with_context(|| format!("Could not configure routes for peer {wgpk}"))?;
         }
     }
 
