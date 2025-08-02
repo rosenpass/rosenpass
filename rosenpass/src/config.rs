@@ -196,6 +196,7 @@ pub struct RosenpassPeerOskDomainSeparator {
     pub osk_label: Option<Vec<String>>,
 }
 
+#[allow(non_snake_case)]
 impl RosenpassPeerOskDomainSeparator {
     pub fn org_and_label(&self) -> anyhow::Result<Option<(&String, &Vec<String>)>> {
         match (&self.osk_organization, &self.osk_label) {
@@ -215,6 +216,7 @@ impl RosenpassPeerOskDomainSeparator {
 impl TryFrom<RosenpassPeerOskDomainSeparator> for OskDomainSeparator {
     type Error = anyhow::Error;
 
+    #[allow(non_snake_case)]
     fn try_from(val: RosenpassPeerOskDomainSeparator) -> anyhow::Result<Self> {
         match val.org_and_label()? {
             None => Ok(OskDomainSeparator::default()),
@@ -245,7 +247,7 @@ impl Default for Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_new.rs")]
     #[doc = "```"]
     fn default() -> Self {
         Self::empty()
@@ -266,7 +268,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_store.rs")]
     #[doc = "```"]
     pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
         // read file and deserialize
@@ -300,7 +302,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_store.rs")]
     #[doc = "```"]
     pub fn store<P: AsRef<Path>>(&self, p: P) -> anyhow::Result<()> {
         let serialized_config =
@@ -314,7 +316,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_store.rs")]
     #[doc = "```"]
     pub fn commit(&self) -> anyhow::Result<()> {
         let mut f = fopen_w(&self.config_file_path, Visibility::Public)?;
@@ -336,7 +338,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_validate.rs")]
     #[doc = "```"]
     pub fn validate(&self) -> anyhow::Result<()> {
         if let Some(ref keypair) = self.keypair {
@@ -431,7 +433,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_validate.rs")]
     #[doc = "```"]
     pub fn check_usefullness(&self) -> anyhow::Result<()> {
         #[cfg(not(feature = "experiment_api"))]
@@ -453,7 +455,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_new.rs")]
     #[doc = "```"]
     pub fn empty() -> Self {
         Self::new(None)
@@ -466,7 +468,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
         Self::new(Some(Keypair::new(pk, sk)))
@@ -478,7 +480,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_new.rs")]
     #[doc = "```"]
     pub fn new(keypair: Option<Keypair>) -> Self {
         Self {
@@ -499,7 +501,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_add_if_any.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_add_if_any.rs")]
     #[doc = "```"]
     pub fn add_if_any(&mut self, port: u16) {
         let ipv4_any = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
@@ -525,8 +527,9 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
+    #[doc = include_str!("../tests/config_rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
+    #[allow(non_snake_case)]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
         let mut config = Self::new(Some(Keypair::new("", "")));
 
