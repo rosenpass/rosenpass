@@ -335,7 +335,7 @@ impl<const N: usize> StoreValueB64 for Secret<N> {
 
         let mut f: Secret<F> = Secret::random();
         let encoded_str = b64_encode(self.secret(), f.secret_mut())
-            .with_context(|| format!("Could not encode secret to base64 for file {p:?}"))?;
+            .with_context(|| format!("Could not encode secret to base64 for the file {p:?}"))?;
 
         fopen_w(p, Visibility::Secret)?
             .write_all(encoded_str.as_bytes())
