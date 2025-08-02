@@ -150,6 +150,7 @@ impl SecretMemoryPool {
     /// chunk is found in the inventory.
     ///
     /// The secret is guaranteed to be full of nullbytes.
+    #[allow(non_snake_case)]
     pub fn take<const N: usize>(&mut self) -> ZeroizingSecretBox<[u8; N]> {
         let entry = self.pool.entry(N).or_default();
         let inner = match entry.pop() {
