@@ -515,7 +515,7 @@ impl CliArgs {
     fn create_broker(
         broker_interface: Option<BrokerInterface>,
     ) -> Result<
-        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
+        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error> + Send>,
         anyhow::Error,
     > {
         if let Some(interface) = broker_interface {

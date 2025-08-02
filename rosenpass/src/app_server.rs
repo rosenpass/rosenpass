@@ -129,7 +129,7 @@ pub struct BrokerStore {
     /// The collection of WireGuard brokers. See [Self].
     pub store: HashMap<
         Public<BROKER_ID_BYTES>,
-        Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error>>,
+        Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>,
     >,
 }
 
@@ -146,12 +146,12 @@ pub struct BrokerPeer {
     ///
     /// This is woefully overengineered and there is very little reason why the broker
     /// configuration should not live in the particular WireGuard broker.
-    peer_cfg: Box<dyn WireguardBrokerCfg>,
+    peer_cfg: Box<dyn WireguardBrokerCfg + Send>,
 }
 
 impl BrokerPeer {
     /// Create a broker peer
-    pub fn new(ptr: BrokerStorePtr, peer_cfg: Box<dyn WireguardBrokerCfg>) -> Self {
+    pub fn new(ptr: BrokerStorePtr, peer_cfg: Box<dyn WireguardBrokerCfg + Send>) -> Self {
         Self { ptr, peer_cfg }
     }
 
@@ -977,7 +977,7 @@ impl AppServer {
     /// Register a new WireGuard PSK broker
     pub fn register_broker(
         &mut self,
-        broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error>>,
+        broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>,
     ) -> Result<BrokerStorePtr> {
         let ptr = Public::from_slice((self.brokers.store.len() as u64).as_bytes());
         if self.brokers.store.insert(ptr, broker).is_some() {

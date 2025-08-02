@@ -22,8 +22,9 @@ use rosenpass_util::functional::{ApplyExt, MutatingExt};
 use rosenpass_util::result::OkExt;
 use rosenpass_util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
 use rosenpass_wireguard_broker::brokers::native_unix::{
-    NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
+    NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
 };
+use tokio::task::spawn_blocking;
 
 use crate::key::WG_B64_LEN;
 
@@ -528,5 +529,5 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     }
 
     log::info!("Starting to perform rosenpass key exchanges!");
-    srv.event_loop()
+    spawn_blocking(move || srv.event_loop()).await?
 }
