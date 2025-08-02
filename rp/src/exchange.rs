@@ -3,8 +3,8 @@ use std::{borrow::Borrow, net::SocketAddr, path::PathBuf};
 
 use tokio::process::Command;
 
-use anyhow::{anyhow, bail, ensure, Context, Result};
-use futures_util::{StreamExt as _, TryStreamExt as _};
+use anyhow::{bail, ensure, Context, Result};
+use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
 use rosenpass::config::ProtocolVersion;
@@ -32,7 +32,7 @@ use crate::key::WG_B64_LEN;
 mod netlink {
     /// Re-exports from [::netlink_packet_core]
     pub mod core {
-        pub use ::netlink_packet_core::{NetlinkMessage, NetlinkPayload, NLM_F_ACK, NLM_F_REQUEST};
+        pub use ::netlink_packet_core::{NetlinkMessage, NLM_F_ACK, NLM_F_REQUEST};
     }
 
     /// Re-exports from [::rtnetlink]
@@ -54,6 +54,8 @@ mod netlink {
         pub use ::netlink_packet_wireguard::{Wireguard, WireguardCmd};
     }
 }
+
+type WgSecretKey = Secret<{ netlink::wg::KEY_LEN }>;
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
@@ -97,7 +99,9 @@ pub struct ExchangeOptions {
 /// Manage the lifetime of WireGuard devices uses for rp
 #[derive(Debug, Default)]
 struct WireGuardDeviceImpl {
-    netlink_handle_cache: Option<netlink::rtnl::Handle>,
+    // TODO: Can we merge these two somehow?
+    rtnl_netlink_handle_cache: Option<netlink::rtnl::Handle>,
+    genl_netlink_handle_cache: Option<netlink::genl::Handle>,
     /// Handle and name of the device
     device: Option<(u32, String)>,
 }
@@ -108,7 +112,7 @@ impl WireGuardDeviceImpl {
     }
 
     async fn open(&mut self, device_name: String) -> anyhow::Result<()> {
-        let mut rtnl_link = self.netlink_handle()?.link();
+        let mut rtnl_link = self.rtnl_netlink_handle()?.link();
         let device_name_ref = &device_name;
 
         // Make sure that there is no device called `device_name` before we start
@@ -195,7 +199,7 @@ impl WireGuardDeviceImpl {
 
         // Erase the network device; the rest of the function is just error handling
         let res = async move {
-            self.netlink_handle()?
+            self.rtnl_netlink_handle()?
                 .link()
                 .del(device_handle)
                 .execute()
@@ -279,11 +283,56 @@ impl WireGuardDeviceImpl {
             .with_context(|| format!("{} has not been initialized!", type_name::<Self>()))
     }
 
-    fn take_netlink_handle(&mut self) -> Result<netlink::rtnl::Handle> {
-        if let Some(netlink_handle) = self.netlink_handle_cache.take() {
-            Ok(netlink_handle)
+    pub async fn set_private_key_and_listen_addr(
+        &mut self,
+        wgsk: &WgSecretKey,
+        listen_port: Option<u16>,
+    ) -> anyhow::Result<()> {
+        use netlink as nl;
+
+        // The attributes to set
+        // TODO: This exposes the secret key; we should probably run this in a separate process
+        //       or on a separate stack and have zeroizing allocator globally.
+        let mut attrs = vec![
+            nl::wg::DeviceAttrs::IfIndex(self.raw_handle()?),
+            nl::wg::DeviceAttrs::PrivateKey(*wgsk.secret()),
+        ];
+
+        // Optional listen port for WireGuard
+        if let Some(port) = listen_port {
+            attrs.push(nl::wg::DeviceAttrs::ListenPort(port));
+        }
+
+        // The netlink request we are trying to send
+        let req = nl::wg::Wireguard {
+            cmd: nl::wg::WireguardCmd::SetDevice,
+            nlas: attrs,
+        };
+
+        // Boilerplate; wrap the request into more structures
+        let req = req
+            .apply(nl::genl::Message::from_payload)
+            .apply(nl::core::NetlinkMessage::from)
+            .mutating(|req| {
+                req.header.flags = nl::core::NLM_F_REQUEST | nl::core::NLM_F_ACK;
+            });
+
+        // Send the request
+        self.genl_netlink_handle()?
+            .request(req)
+            .await?
+            // Collect all errors (let try_fold do all the work)
+            .try_fold((), |_, _| async move { Ok(()) })
+            .await?;
+
+        Ok(())
+    }
+
+    fn take_rtnl_netlink_handle(&mut self) -> Result<netlink::rtnl::Handle> {
+        if let Some(handle) = self.rtnl_netlink_handle_cache.take() {
+            Ok(handle)
         } else {
-            let (connection, netlink_handle, _) = rtnetlink::new_connection()?;
+            let (connection, handle, _) = rtnetlink::new_connection()?;
 
             // Making sure that the connection has a chance to terminate before the
             // application exits
@@ -292,13 +341,35 @@ impl WireGuardDeviceImpl {
                 Ok(())
             })?;
 
-            Ok(netlink_handle)
+            Ok(handle)
         }
     }
 
-    fn netlink_handle(&mut self) -> Result<&mut netlink::rtnl::Handle> {
-        let netlink_handle = self.take_netlink_handle()?;
-        self.netlink_handle_cache.insert(netlink_handle).ok()
+    fn rtnl_netlink_handle(&mut self) -> Result<&mut netlink::rtnl::Handle> {
+        let netlink_handle = self.take_rtnl_netlink_handle()?;
+        self.rtnl_netlink_handle_cache.insert(netlink_handle).ok()
+    }
+
+    fn take_genl_netlink_handle(&mut self) -> Result<netlink::genl::Handle> {
+        if let Some(handle) = self.genl_netlink_handle_cache.take() {
+            Ok(handle)
+        } else {
+            let (connection, handle, _) = genetlink::new_connection()?;
+
+            // Making sure that the connection has a chance to terminate before the
+            // application exits
+            try_spawn_daemon(async move {
+                connection.await;
+                Ok(())
+            })?;
+
+            Ok(handle)
+        }
+    }
+
+    fn genl_netlink_handle(&mut self) -> Result<&mut netlink::genl::Handle> {
+        let netlink_handle = self.take_genl_netlink_handle()?;
+        self.genl_netlink_handle_cache.insert(netlink_handle).ok()
     }
 }
 
@@ -330,6 +401,16 @@ impl WireGuardDevice {
     pub async fn add_ip_address(&self, addr: &str) -> anyhow::Result<()> {
         self._impl.add_ip_address(addr).await
     }
+
+    pub async fn set_private_key_and_listen_addr(
+        &mut self,
+        wgsk: &WgSecretKey,
+        listen_port: Option<u16>,
+    ) -> anyhow::Result<()> {
+        self._impl
+            .set_private_key_and_listen_addr(wgsk, listen_port)
+            .await
+    }
 }
 
 impl Drop for WireGuardDevice {
@@ -342,78 +423,25 @@ impl Drop for WireGuardDevice {
     }
 }
 
-/// This replicates the functionality of the `wg set` command line tool.
-///
-/// It sets the specified WireGuard attributes of the indexed device by
-/// communicating with WireGuard's generic netlink interface, like the
-/// `wg` tool does.
-pub async fn wg_set(
-    genetlink: &mut netlink::genl::Handle,
-    index: u32,
-    mut attr: Vec<netlink::wg::DeviceAttrs>,
-) -> Result<()> {
-    use netlink as nl;
-
-    // Scope our `set` command to only the device of the specified index.
-    attr.insert(0, nl::wg::DeviceAttrs::IfIndex(index));
-
-    // Construct the WireGuard-specific netlink packet
-    let wgc = nl::wg::Wireguard {
-        cmd: nl::wg::WireguardCmd::SetDevice,
-        nlas: attr,
-    };
-
-    // Construct final message.
-    let genl = nl::genl::Message::from_payload(wgc);
-    let mut nlmsg = nl::core::NetlinkMessage::from(genl);
-    nlmsg.header.flags = nl::core::NLM_F_REQUEST | nl::core::NLM_F_ACK;
-
-    // Send and wait for the ACK or error.
-    let (res, _) = genetlink.request(nlmsg).await?.into_future().await;
-    if let Some(res) = res {
-        let res = res?;
-        if let nl::core::NetlinkPayload::Error(err) = res.payload {
-            return Err(err.to_io().into());
-        }
-    }
-
-    Ok(())
-}
-
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
 /// `options`.
 pub async fn exchange(options: ExchangeOptions) -> Result<()> {
+    // TODO: Should be async, but right now its now
+    let wgsk = options
+        .private_keys_dir
+        .join("wgsk")
+        .apply(WgSecretKey::load_b64::<WG_B64_LEN, _>)?;
+
     let device = options.dev.as_deref().unwrap_or("rosenpass0");
-    let device = WireGuardDevice::create_device(device.to_owned()).await?;
-    let device_handle = device.raw_handle();
+    let mut device = WireGuardDevice::create_device(device.to_owned()).await?;
+
+    device
+        .set_private_key_and_listen_addr(&wgsk, options.listen.map(|ip| ip.port() + 1))
+        .await?;
 
     if let Some(ref ip) = options.ip {
         device.add_ip_address(ip).await?;
     }
-
-    // Deploy the classic wireguard private key.
-    let (connection, mut genetlink, _) = genetlink::new_connection()?;
-    try_spawn_daemon(async move {
-        connection.await;
-        Ok(())
-    })?;
-
-    let wgsk_path = options.private_keys_dir.join("wgsk");
-
-    let wgsk = Secret::<{ netlink::wg::KEY_LEN }>::load_b64::<WG_B64_LEN, _>(wgsk_path)?;
-
-    let mut attr: Vec<netlink::wg::DeviceAttrs> = Vec::with_capacity(2);
-    attr.push(netlink::wg::DeviceAttrs::PrivateKey(*wgsk.secret()));
-
-    if let Some(listen) = options.listen {
-        if listen.port() == u16::MAX {
-            return Err(anyhow!("You may not use {} as the listen port.", u16::MAX));
-        }
-
-        attr.push(netlink::wg::DeviceAttrs::ListenPort(listen.port() + 1));
-    }
-
-    wg_set(&mut genetlink, device_handle, attr).await?;
 
     // set up the rosenpass AppServer
     let pqsk = options.private_keys_dir.join("pqsk");
