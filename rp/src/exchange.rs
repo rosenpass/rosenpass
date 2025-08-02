@@ -530,24 +530,5 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     }
 
     log::info!("Starting to perform rosenpass key exchanges!");
-    let out = srv.event_loop();
-
-    match out {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            // Check if the returned error is actually EINTR, in which case, the run actually
-            // succeeded.
-            let is_ok = if let Some(e) = e.root_cause().downcast_ref::<std::io::Error>() {
-                matches!(e.kind(), std::io::ErrorKind::Interrupted)
-            } else {
-                false
-            };
-
-            if is_ok {
-                Ok(())
-            } else {
-                Err(e)
-            }
-        }
-    }
+    srv.event_loop()
 }
