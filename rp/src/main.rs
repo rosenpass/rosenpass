@@ -10,7 +10,7 @@ mod exchange;
 mod key;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "experiment_memfd_secret")]
     policy::secret_policy_try_use_memfd_secrets();
     #[cfg(not(feature = "experiment_memfd_secret"))]
@@ -26,7 +26,7 @@ async fn main() {
 
     let command = cli.command.unwrap();
 
-    let res = match command {
+    match command {
         Command::GenKey { private_keys_dir } => genkey(&private_keys_dir),
         Command::PubKey {
             private_keys_dir,
@@ -46,14 +46,6 @@ async fn main() {
         Command::Help => {
             println!("Usage: rp [verbose] genkey|pubkey|exchange [ARGS]...");
             Ok(())
-        }
-    };
-
-    match res {
-        Ok(_) => {}
-        Err(err) => {
-            eprintln!("An error occurred: {}", err);
-            exit(1);
         }
     }
 }
