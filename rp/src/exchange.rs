@@ -90,7 +90,7 @@ pub struct ExchangeOptions {
     pub dev: Option<String>,
     /// The IP-address rosenpass should run under.
     pub ip: Option<String>,
-    /// The IP-address and port that the rosenpass [AppServer](rosenpass::app_server::AppServer)
+    /// The IP-address and port that the rosenpass [AppServer]
     /// should use.
     pub listen: Option<SocketAddr>,
     /// Other peers a connection should be initialized to
