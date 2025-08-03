@@ -2153,6 +2153,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosenpass-rp"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "ctrlc-async",
+ "env_logger",
+ "futures",
+ "futures-util",
+ "genetlink",
+ "libc",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-wireguard",
+ "rosenpass",
+ "rosenpass-cipher-traits",
+ "rosenpass-ciphers",
+ "rosenpass-secret-memory",
+ "rosenpass-util",
+ "rosenpass-wireguard-broker",
+ "rtnetlink",
+ "serde",
+ "stacker",
+ "tempfile",
+ "tokio",
+ "toml",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
 name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
@@ -2219,38 +2251,6 @@ dependencies = [
  "tokio",
  "wireguard-uapi",
  "zerocopy 0.7.35",
-]
-
-[[package]]
-name = "rp"
-version = "0.2.1"
-dependencies = [
- "anyhow",
- "base64ct",
- "ctrlc-async",
- "env_logger",
- "futures",
- "futures-util",
- "genetlink",
- "libc",
- "log",
- "netlink-packet-core",
- "netlink-packet-generic",
- "netlink-packet-wireguard",
- "rosenpass",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
- "rosenpass-secret-memory",
- "rosenpass-util",
- "rosenpass-wireguard-broker",
- "rtnetlink",
- "serde",
- "stacker",
- "tempfile",
- "tokio",
- "toml",
- "x25519-dalek",
- "zeroize",
 ]
 
 [[package]]

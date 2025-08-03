@@ -1,5 +1,5 @@
 [package]
-name = "rp"
+name = "rosenpass-rp"
 version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -8,7 +8,9 @@ homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 rust-version = "1.77.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "rp"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
