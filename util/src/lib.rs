@@ -14,6 +14,7 @@ pub mod controlflow;
 pub mod fd;
 /// File system operations and handling.
 pub mod file;
+pub mod fmt;
 /// Functional programming utilities.
 pub mod functional;
 /// Input/output operations.

@@ -7,17 +7,20 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSoc
 use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 
+use mio::{Interest, Token};
+use signal_hook_mio::v1_0 as signal_hook_mio;
+
 use anyhow::{bail, Context, Result};
 use derive_builder::Builder;
 use log::{error, info, warn};
-use mio::{Interest, Token};
 use zerocopy::AsBytes;
 
 use rosenpass_util::attempt;
+use rosenpass_util::fmt::debug::NullDebug;
 use rosenpass_util::functional::{run, ApplyExt};
 use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
 use rosenpass_util::{
-    b64::B64Display, build::ConstructionSite, file::StoreValueB64, option::SomeExt, result::OkExt,
+    b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
 use rosenpass_secret_memory::{Public, Secret};
@@ -286,10 +289,18 @@ pub enum AppServerIoSource {
     Socket(usize),
     /// IO source refers to a PSK broker in [AppServer::brokers]
     PskBroker(Public<BROKER_ID_BYTES>),
+    /// IO source refers to our signal handlers
+    SignalHandler,
     /// IO source refers to some IO sources used in the API;
     /// see [AppServer::api_manager]
     #[cfg(feature = "experiment_api")]
     MioManager(crate::api::mio::MioManagerIoSource),
+}
+
+pub enum AppServerTryRecvResult {
+    None,
+    Terminate,
+    NetworkMessage(usize, Endpoint),
 }
 
 /// Number of epoll(7) events Rosenpass can receive at a time
@@ -332,6 +343,8 @@ pub struct AppServer {
     /// MIO associates IO sources with numeric tokens. This struct takes care of generating these
     /// tokens
     pub mio_token_dispenser: MioTokenDispenser,
+    /// Mio-based handler for signals
+    pub signal_handler: NullDebug<signal_hook_mio::Signals>,
     /// Helpers handling communication with WireGuard; these take a generated key and forward it to
     /// WireGuard
     pub brokers: BrokerStore,
@@ -357,16 +370,6 @@ pub struct AppServer {
     /// Used by integration tests to force [Self] into DoS condition
     /// and to terminate the AppServer after the test is complete
     pub test_helpers: Option<AppServerTest>,
-    /// Helper for integration tests running rosenpass as a subprocess
-    /// to terminate properly upon receiving an appropriate system signal.
-    ///
-    /// This is primarily needed for coverage testing, since llvm-cov does not
-    /// write coverage reports to disk when a process is stopped by the default
-    /// signal handler.
-    ///
-    /// See <https://github.com/rosenpass/rosenpass/issues/385>
-    #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
-    pub term_signal: terminate::TerminateRequested,
     #[cfg(feature = "experiment_api")]
     /// The Rosenpass unix socket API handler; this is an experimental
     /// feature that can be used to embed Rosenpass in external applications
@@ -456,6 +459,8 @@ impl AppPeerPtr {
 /// Instructs [AppServer::event_loop_without_error_handling] on how to proceed.
 #[derive(Debug)]
 pub enum AppPollResult {
+    /// Received request to terminate the application
+    Terminate,
     /// Erase the key for a given peer. Corresponds to [crate::protocol::PollResult::DeleteKey]
     DeleteKey(AppPeerPtr),
     /// Send an initiation to the given peer. Corresponds to [crate::protocol::PollResult::SendInitiation]
@@ -802,10 +807,27 @@ impl AppServer {
         verbosity: Verbosity,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<Self> {
-        // setup mio
+        // Setup Mio itself
         let mio_poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(EVENT_CAPACITY);
+
+        // And helpers to map mio tokens to internal event types
         let mut mio_token_dispenser = MioTokenDispenser::default();
+        let mut io_source_index = HashMap::new();
+
+        // Setup signal handling
+        let signal_handler = attempt!({
+            let mut handler =
+                signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
+            let mio_token = mio_token_dispenser.dispense();
+            mio_poll
+                .registry()
+                .register(&mut handler, mio_token, Interest::READABLE)?;
+            let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
+            assert!(prev.is_none());
+            Ok(NullDebug(handler))
+        })
+        .context("Failed to set up signal (user triggered program termination) handler")?;
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
@@ -879,7 +901,6 @@ impl AppServer {
         }
 
         // register all sockets to mio
-        let mut io_source_index = HashMap::new();
         for (idx, socket) in sockets.iter_mut().enumerate() {
             let mio_token = mio_token_dispenser.dispense();
             mio_poll
@@ -895,8 +916,6 @@ impl AppServer {
         };
 
         Ok(Self {
-            #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
-            term_signal: terminate::TerminateRequested::new()?,
             crypto_site,
             peers: Vec::new(),
             verbosity,
@@ -907,6 +926,7 @@ impl AppServer {
             io_source_index,
             mio_poll,
             mio_token_dispenser,
+            signal_handler,
             brokers: BrokerStore::default(),
             all_sockets_drained: false,
             under_load: DoSOperation::Normal,
@@ -1049,7 +1069,7 @@ impl AppServer {
         Ok(AppPeerPtr(pn))
     }
 
-    /// Main IO handler; this generally does not terminate
+    /// Main IO handler; this generally does not terminate other than through unix signals
     ///
     /// # Examples
     ///
@@ -1065,23 +1085,6 @@ impl AppServer {
                 Ok(()) => return Ok(()),
                 Err(e) => e,
             };
-
-            #[cfg(feature = "internal_signal_handling_for_coverage_reports")]
-            {
-                let terminated_by_signal = err
-                    .downcast_ref::<std::io::Error>()
-                    .filter(|e| e.kind() == std::io::ErrorKind::Interrupted)
-                    .filter(|_| self.term_signal.value())
-                    .is_some();
-                if terminated_by_signal {
-                    log::warn!(
-                        "\
-                        Terminated by signal; this signal handler is correct during coverage testing \
-                        but should be otherwise disabled"
-                    );
-                    return Ok(());
-                }
-            }
 
             // This should not happen…
             failure_cnt = if msgs_processed > 0 {
@@ -1135,6 +1138,7 @@ impl AppServer {
             use AppPollResult::*;
             use KeyOutputReason::*;
 
+            // TODO: We should read from this using a mio channel
             if let Some(AppServerTest {
                 termination_handler: Some(terminate),
                 ..
@@ -1158,6 +1162,8 @@ impl AppServer {
 
             #[allow(clippy::redundant_closure_call)]
             match (have_crypto, poll_result) {
+                (_, Terminate) => return Ok(()),
+
                 (CryptoSrv::Missing, SendInitiation(_)) => {}
                 (CryptoSrv::Avail, SendInitiation(peer)) => tx_maybe_with!(peer, || self
                     .crypto_server_mut()?
@@ -1305,6 +1311,7 @@ impl AppServer {
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         use crate::protocol::PollResult as C;
         use AppPollResult as A;
+        use AppServerTryRecvResult as R;
         let res = loop {
             // Call CryptoServer's poll (if available)
             let crypto_poll = self
@@ -1325,8 +1332,10 @@ impl AppServer {
             };
 
             // Perform IO (look for a message)
-            if let Some((len, addr)) = self.try_recv(rx_buf, io_poll_timeout)? {
-                break A::ReceivedMessage(len, addr);
+            match self.try_recv(rx_buf, io_poll_timeout)? {
+                R::None => {}
+                R::Terminate => break A::Terminate,
+                R::NetworkMessage(len, addr) => break A::ReceivedMessage(len, addr),
             }
         };
 
@@ -1344,12 +1353,12 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         timeout: Timing,
-    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
+    ) -> anyhow::Result<AppServerTryRecvResult> {
         let timeout = Duration::from_secs_f64(timeout);
 
         // if there is no time to wait on IO, well, then, lets not waste any time!
         if timeout.is_zero() {
-            return Ok(None);
+            return Ok(AppServerTryRecvResult::None);
         }
 
         // NOTE when using mio::Poll, there are some particularities (taken from
@@ -1459,10 +1468,17 @@ impl AppServer {
         // blocking poll, we go through all available IO sources to see if we missed anything.
         {
             while let Some(ev) = self.short_poll_queue.pop_front() {
-                if let Some(v) = self.try_recv_from_mio_token(buf, ev.token())? {
-                    return Ok(Some(v));
+                match self.try_recv_from_mio_token(buf, ev.token())? {
+                    AppServerTryRecvResult::None => continue,
+                    res => return Ok(res),
                 }
             }
+        }
+
+        // Drain operating system signals
+        match self.try_recv_from_signal_handler()? {
+            AppServerTryRecvResult::None => {} // Nop
+            res => return Ok(res),
         }
 
         // drain all sockets
@@ -1472,11 +1488,11 @@ impl AppServer {
                 .try_recv_from_listen_socket(buf, sock_no)
                 .io_err_kind_hint()
             {
-                Ok(None) => continue,
-                Ok(Some(v)) => {
+                Ok(AppServerTryRecvResult::None) => continue,
+                Ok(res) => {
                     // at least one socket was not drained...
                     self.all_sockets_drained = false;
-                    return Ok(Some(v));
+                    return Ok(res);
                 }
                 Err((_, ErrorKind::WouldBlock)) => {
                     would_block_count += 1;
@@ -1504,12 +1520,24 @@ impl AppServer {
 
         self.performed_long_poll = true;
 
-        Ok(None)
+        Ok(AppServerTryRecvResult::None)
     }
 
     /// Internal helper for [Self::try_recv]
     fn perform_mio_poll_and_register_events(&mut self, timeout: Duration) -> io::Result<()> {
-        self.mio_poll.poll(&mut self.events, Some(timeout))?;
+        loop {
+            use std::io::ErrorKind as IOE;
+            match self
+                .mio_poll
+                .poll(&mut self.events, Some(timeout))
+                .io_err_kind_hint()
+            {
+                Ok(()) => break,
+                Err((_, IOE::Interrupted)) => continue,
+                Err((err, _)) => return Err(err),
+            }
+        }
+
         // Fill the short poll buffer with the acquired events
         self.events
             .iter()
@@ -1523,12 +1551,12 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         token: mio::Token,
-    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
+    ) -> anyhow::Result<AppServerTryRecvResult> {
         let io_source = match self.io_source_index.get(&token) {
             Some(io_source) => *io_source,
             None => {
                 log::warn!("No IO source assiociated with mio token ({token:?}). Polling using mio tokens directly is an experimental feature and IO handler should recover when all available io sources are polled. This is a developer error. Please report it.");
-                return Ok(None);
+                return Ok(AppServerTryRecvResult::None);
             }
         };
 
@@ -1540,11 +1568,13 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         io_source: AppServerIoSource,
-    ) -> anyhow::Result<Option<(usize, Endpoint)>> {
+    ) -> anyhow::Result<AppServerTryRecvResult> {
         match io_source {
+            AppServerIoSource::SignalHandler => self.try_recv_from_signal_handler()?.ok(),
+
             AppServerIoSource::Socket(idx) => self
                 .try_recv_from_listen_socket(buf, idx)
-                .substitute_for_ioerr_wouldblock(None)?
+                .substitute_for_ioerr_wouldblock(AppServerTryRecvResult::None)?
                 .ok(),
 
             AppServerIoSource::PskBroker(key) => self
@@ -1553,7 +1583,7 @@ impl AppServer {
                 .get_mut(&key)
                 .with_context(|| format!("No PSK broker under key {key:?}"))?
                 .process_poll()
-                .map(|_| None),
+                .map(|_| AppServerTryRecvResult::None),
 
             #[cfg(feature = "experiment_api")]
             AppServerIoSource::MioManager(mmio_src) => {
@@ -1561,9 +1591,20 @@ impl AppServer {
 
                 MioManagerFocus(self)
                     .poll_particular(mmio_src)
-                    .map(|_| None)
+                    .map(|_| AppServerTryRecvResult::None)
             }
         }
+    }
+
+    /// Internal helper for [Self::try_recv]
+    fn try_recv_from_signal_handler(&mut self) -> io::Result<AppServerTryRecvResult> {
+        #[allow(clippy::never_loop)]
+        for signal in self.signal_handler.pending() {
+            log::debug!("Received operating system signal no {signal}.");
+            log::info!("Received termination request; exiting.");
+            return Ok(AppServerTryRecvResult::Terminate);
+        }
+        Ok(AppServerTryRecvResult::None)
     }
 
     /// Internal helper for [Self::try_recv]
@@ -1571,7 +1612,7 @@ impl AppServer {
         &mut self,
         buf: &mut [u8],
         idx: usize,
-    ) -> io::Result<Option<(usize, Endpoint)>> {
+    ) -> io::Result<AppServerTryRecvResult> {
         use std::io::ErrorKind as K;
         let (n, addr) = loop {
             match self.sockets[idx].recv_from(buf).io_err_kind_hint() {
@@ -1583,8 +1624,7 @@ impl AppServer {
         SocketPtr(idx)
             .apply(|sp| SocketBoundEndpoint::new(sp, addr))
             .apply(Endpoint::SocketBoundAddress)
-            .apply(|ep| (n, ep))
-            .some()
+            .apply(|ep| AppServerTryRecvResult::NetworkMessage(n, ep))
             .ok()
     }
 
@@ -1634,50 +1674,5 @@ impl crate::api::mio::MioManagerContext for MioManagerFocus<'_> {
 
     fn app_server_mut(&mut self) -> &mut AppServer {
         self.0
-    }
-}
-
-/// These signal handlers are used exclusively used during coverage testing
-/// to ensure that the llvm-cov can produce reports during integration tests
-/// with multiple processes where subprocesses are terminated via kill(2).
-///
-/// llvm-cov does not support producing coverage reports when the process exits
-/// through a signal, so this is necessary.
-///
-/// The functionality of exiting gracefully upon reception of a terminating signal
-/// is desired for the production variant of Rosenpass, but we should make sure
-/// to use a higher quality implementation; in particular, we should use signalfd(2).
-///
-#[cfg(feature = "internal_signal_handling_for_coverage_reports")]
-mod terminate {
-    use signal_hook::flag::register as sig_register;
-    use std::sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    };
-
-    /// Automatically register a signal handler for common termination signals;
-    /// whether one of these signals was issued can be polled using [Self::value].
-    ///
-    /// The signal handler is not removed when this struct goes out of scope.
-    #[derive(Debug)]
-    pub struct TerminateRequested {
-        value: Arc<AtomicBool>,
-    }
-
-    impl TerminateRequested {
-        /// Register signal handlers watching for common termination signals
-        pub fn new() -> anyhow::Result<Self> {
-            let value = Arc::new(AtomicBool::new(false));
-            for sig in signal_hook::consts::TERM_SIGNALS.iter().copied() {
-                sig_register(sig, Arc::clone(&value))?;
-            }
-            Ok(Self { value })
-        }
-
-        /// Check whether a termination signal has been set
-        pub fn value(&self) -> bool {
-            self.value.load(Ordering::Relaxed)
-        }
     }
 }

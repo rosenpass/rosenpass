@@ -64,6 +64,8 @@ clap = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
 mio = { workspace = true }
+signal-hook = { workspace = true }
+signal-hook-mio = { workspace = true }
 rand = { workspace = true }
 zerocopy = { workspace = true }
 home = { workspace = true }
@@ -76,7 +78,6 @@ heck = { workspace = true, optional = true }
 command-fds = { workspace = true, optional = true }
 rustix = { workspace = true, optional = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
-signal-hook = { workspace = true, optional = true }
 libcrux-test-utils = { workspace = true, optional = true }
 
 [build-dependencies]
@@ -109,7 +110,6 @@ experiment_api = [
   "rosenpass-util/experiment_file_descriptor_passing",
   "rosenpass-wireguard-broker/experiment_api",
 ]
-internal_signal_handling_for_coverage_reports = ["signal-hook"]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
 trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
