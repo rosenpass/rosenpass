@@ -39,7 +39,7 @@ use crate::fd::{claim_fd_inplace, IntoStdioErr};
 ///	&io_stream,
 ///	&mut read_fd_buffer,
 /// );
-////
+///
 /// // Simulated reads; the actual operations will depend on the protocol (implementation details)
 /// let mut recv_buffer = Vec::<u8>::new();
 /// let bytes_read = fd_passing_sock.read(&mut recv_buffer[..]).expect("error reading from socket");

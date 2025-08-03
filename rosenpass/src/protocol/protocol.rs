@@ -1943,7 +1943,7 @@ impl CryptoServer {
         &mut self,
         rx_buf: &[u8],
         tx_buf: &mut [u8],
-        host_identification: &H,
+        _host_identification: &H,
     ) -> Result<HandleMsgResult> {
         self.handle_msg(rx_buf, tx_buf)
     }
@@ -3231,7 +3231,7 @@ impl HandshakeState {
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
-        XAead.encrypt_with_nonce_in_ctxt(biscuit_ct, k, &*n, &ad, pt)?;
+        XAead.encrypt_with_nonce_in_ctxt(biscuit_ct, k, &n, &ad, pt)?;
 
         self.mix(biscuit_ct)
     }
@@ -3421,7 +3421,7 @@ impl CryptoServer {
 
         // IHI3
         protocol_section!("IHI3", {
-            EphemeralKem.keygen(hs.eski.secret_mut(), &mut *hs.epki)?;
+            EphemeralKem.keygen(hs.eski.secret_mut(), &mut hs.epki)?;
             ih.epki.copy_from_slice(&hs.epki.value);
         });
 
