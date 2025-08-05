@@ -3,9 +3,10 @@ name = "rosenpass-fuzzing"
 version = "0.0.1"
 publish = false
 edition = "2021"
+rust-version = "1.77.0"
 
 [features]
-experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
+experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux_all"]
 
 [package.metadata]
 cargo-fuzz = true

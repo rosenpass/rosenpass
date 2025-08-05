@@ -1,55 +1,34 @@
-/// This contains the bulk of the rosenpass server IO handling code whereas
-/// the actual cryptographic code lives in the [crate::protocol] module
-use anyhow::bail;
+//! This contains the bulk of the rosenpass server IO handling code whereas
+//! the actual cryptographic code lives in the [crate::protocol] module
 
-use anyhow::Context;
-use anyhow::Result;
+use std::collections::{HashMap, VecDeque};
+use std::io::{stdout, ErrorKind, Write};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::time::{Duration, Instant};
+use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
+
+use anyhow::{bail, Context, Result};
 use derive_builder::Builder;
 use log::{error, info, warn};
-use mio::Interest;
-use mio::Token;
-use rosenpass_secret_memory::Public;
-use rosenpass_secret_memory::Secret;
-use rosenpass_util::build::ConstructionSite;
-use rosenpass_util::file::StoreValueB64;
-use rosenpass_util::functional::run;
-use rosenpass_util::functional::ApplyExt;
-use rosenpass_util::io::IoResultKindHintExt;
-use rosenpass_util::io::SubstituteForIoErrorKindExt;
-use rosenpass_util::option::SomeExt;
-use rosenpass_util::result::OkExt;
-use rosenpass_wireguard_broker::WireguardBrokerMio;
-use rosenpass_wireguard_broker::{WireguardBrokerCfg, WG_KEY_LEN};
+use mio::{Interest, Token};
 use zerocopy::AsBytes;
 
-use std::cell::Cell;
-
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::fmt::Debug;
-use std::io;
-use std::io::stdout;
-use std::io::ErrorKind;
-use std::io::Write;
-use std::net::Ipv4Addr;
-use std::net::Ipv6Addr;
-use std::net::SocketAddr;
-use std::net::SocketAddrV4;
-use std::net::SocketAddrV6;
-use std::net::ToSocketAddrs;
-use std::path::PathBuf;
-use std::slice;
-use std::time::Duration;
-use std::time::Instant;
-
-use crate::protocol::BuildCryptoServer;
-use crate::protocol::HostIdentification;
-use crate::{
-    config::Verbosity,
-    protocol::{CryptoServer, MsgBuf, PeerPtr, SPk, SSk, SymKey, Timing},
-};
 use rosenpass_util::attempt;
-use rosenpass_util::b64::B64Display;
+use rosenpass_util::functional::{run, ApplyExt};
+use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
+use rosenpass_util::{
+    b64::B64Display, build::ConstructionSite, file::StoreValueB64, option::SomeExt, result::OkExt,
+};
+
+use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_wireguard_broker::{WireguardBrokerCfg, WireguardBrokerMio, WG_KEY_LEN};
+
+use crate::config::{ProtocolVersion, Verbosity};
+
+use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
+use crate::protocol::osk_domain_separator::OskDomainSeparator;
+use crate::protocol::timing::Timing;
+use crate::protocol::{BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr};
 
 /// The maximum size of a base64 encoded symmetric key (estimate)
 pub const MAX_B64_KEY_SIZE: usize = 32 * 5 / 3;
@@ -332,7 +311,7 @@ pub struct AppServer {
     ///
     /// Because the API supports initializing the server with a keypair
     /// and CryptoServer needs to be initialized with a keypair, the struct
-    /// struct is wrapped in a ConstructionSite
+    /// is wrapped in a ConstructionSite
     pub crypto_site: ConstructionSite<BuildCryptoServer, CryptoServer>,
     /// The UDP sockets used to send and receive protocol messages
     pub sockets: Vec<mio::net::UdpSocket>,
@@ -1035,6 +1014,7 @@ impl AppServer {
     /// # Examples
     ///
     /// See [Self::new].
+    #[allow(clippy::too_many_arguments)]
     pub fn add_peer(
         &mut self,
         psk: Option<SymKey>,
@@ -1042,11 +1022,17 @@ impl AppServer {
         outfile: Option<PathBuf>,
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),
-            ConstructionSite::Builder(builder) => builder.add_peer(psk, pk),
-            ConstructionSite::Product(srv) => srv.add_peer(psk, pk)?,
+            ConstructionSite::Builder(builder) => {
+                builder.add_peer(psk, pk, protocol_version, osk_domain_separator)
+            }
+            ConstructionSite::Product(srv) => {
+                srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?
+            }
         };
         assert!(pn == self.peers.len());
 
@@ -1262,7 +1248,7 @@ impl AppServer {
     }
 
     /// Used as a helper by [Self::event_loop_without_error_handling] when
-    /// a new output key has been echanged
+    /// a new output key has been exchanged
     pub fn output_key(
         &mut self,
         peer: AppPeerPtr,
@@ -1335,7 +1321,7 @@ impl AppServer {
                     break A::SendRetransmission(AppPeerPtr(no))
                 }
                 Some(C::Sleep(timeout)) => timeout, // No event from crypto-server, do IO
-                None => crate::protocol::UNENDING,  // Crypto server is uninitialized, do IO
+                None => crate::protocol::timing::UNENDING, // Crypto server is uninitialized, do IO
             };
 
             // Perform IO (look for a message)

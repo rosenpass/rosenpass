@@ -14,6 +14,8 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
+use rosenpass::config::ProtocolVersion;
+use rosenpass::protocol::basic_types::SymKey;
 use rosenpass_util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -26,8 +28,6 @@ use rosenpass_util::{
 use std::os::fd::{AsFd, AsRawFd};
 use tempfile::TempDir;
 use zerocopy::AsBytes;
-
-use rosenpass::protocol::SymKey;
 
 struct KillChild(std::process::Child);
 
@@ -48,7 +48,16 @@ impl Drop for KillChild {
 }
 
 #[test]
-fn api_integration_api_setup() -> anyhow::Result<()> {
+fn api_integration_api_setup_v02() -> anyhow::Result<()> {
+    api_integration_api_setup(ProtocolVersion::V02)
+}
+
+#[test]
+fn api_integration_api_setup_v03() -> anyhow::Result<()> {
+    api_integration_api_setup(ProtocolVersion::V03)
+}
+
+fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
@@ -96,6 +105,8 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
                 peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
                 extra_params: vec![],
             }),
+            protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 
@@ -116,6 +127,8 @@ fn api_integration_api_setup() -> anyhow::Result<()> {
             endpoint: Some(peer_a_endpoint.to_owned()),
             pre_shared_key: None,
             wg: None,
+            protocol_version: protocol_version.clone(),
+            osk_domain_separator: Default::default(),
         }],
     };
 

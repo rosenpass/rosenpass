@@ -302,6 +302,6 @@ mod test_forgetting {
         drop_was_called.store(false, SeqCst);
         let forgetting = Forgetting::new(SetFlagOnDrop(drop_was_called.clone()));
         drop(forgetting);
-        assert_eq!(drop_was_called.load(SeqCst), false);
+        assert!(!drop_was_called.load(SeqCst));
     }
 }

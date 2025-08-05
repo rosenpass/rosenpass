@@ -1,13 +1,53 @@
-{ stdenvNoCC, texlive, ncurses, python3Packages, which }:
+{
+  stdenvNoCC,
+  texlive,
+  ncurses,
+  python3Packages,
+  which,
+}:
 
 let
-  customTexLiveSetup = (texlive.combine {
-    inherit (texlive) acmart amsfonts biber biblatex biblatex-software
-      biblatex-trad ccicons csquotes csvsimple doclicense eso-pic fancyvrb
-      fontspec gitinfo2 gobble ifmtarg koma-script latexmk lm lualatex-math
-      markdown mathtools minted noto nunito paralist pgf scheme-basic soul
-      unicode-math upquote xifthen xkeyval xurl;
-  });
+  customTexLiveSetup = (
+    texlive.combine {
+      inherit (texlive)
+        acmart
+        amsfonts
+        biber
+        biblatex
+        biblatex-software
+        biblatex-trad
+        ccicons
+        csquotes
+        csvsimple
+        doclicense
+        eso-pic
+        fancyvrb
+        fontspec
+        gitinfo2
+        gobble
+        ifmtarg
+        koma-script
+        latexmk
+        lm
+        lualatex-math
+        markdown
+        mathtools
+        minted
+        noto
+        nunito
+        paralist
+        pgf
+        scheme-basic
+        soul
+        unicode-math
+        upquote
+        xifthen
+        xkeyval
+        xurl
+        dirtytalk
+        ;
+    }
+  );
 in
 stdenvNoCC.mkDerivation {
   name = "whitepaper";

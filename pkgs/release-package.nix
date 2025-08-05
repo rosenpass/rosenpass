@@ -1,21 +1,24 @@
-{ lib, stdenvNoCC, runCommandNoCC, pkgsStatic, rosenpass, rosenpass-oci-image, rp } @ args:
+{
+  lib,
+  stdenvNoCC,
+  runCommandNoCC,
+  pkgsStatic,
+  rosenpass,
+  rosenpass-oci-image,
+  rp,
+}@args:
 
 let
   version = rosenpass.version;
 
   # select static packages on Linux, default packages otherwise
-  package =
-    if stdenvNoCC.hostPlatform.isLinux then
-      pkgsStatic.rosenpass
-    else args.rosenpass;
-  rp =
-    if stdenvNoCC.hostPlatform.isLinux then
-      pkgsStatic.rp
-    else args.rp;
+  package = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rosenpass else args.rosenpass;
+  rp = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rp else args.rp;
   oci-image =
     if stdenvNoCC.hostPlatform.isLinux then
       pkgsStatic.rosenpass-oci-image
-    else args.rosenpass-oci-image;
+    else
+      args.rosenpass-oci-image;
 in
 runCommandNoCC "lace-result" { } ''
   mkdir {bin,$out}

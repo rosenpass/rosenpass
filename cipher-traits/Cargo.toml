@@ -8,10 +8,13 @@ description = "Rosenpass internal traits for cryptographic primitives"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
+rust-version = "1.77.0"
 
 [dependencies]
+thiserror = { workspace = true }
+rosenpass-to = { workspace = true }
 
 [dev-dependencies]
 rosenpass-oqs = { workspace = true }
 rosenpass-secret-memory = { workspace = true }
-anyhow = {workspace = true}
+anyhow = { workspace = true }

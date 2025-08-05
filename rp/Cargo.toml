@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
+rust-version = "1.77.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,7 +15,7 @@ anyhow = { workspace = true }
 base64ct = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
-x25519-dalek = { version = "2", features = ["static_secrets"] }
+x25519-dalek = { workspace = true, features = ["static_secrets"] }
 zeroize = { workspace = true }
 
 rosenpass = { workspace = true }
@@ -26,8 +27,8 @@ rosenpass-wireguard-broker = { workspace = true }
 
 tokio = { workspace = true }
 
-futures = "0.3"
-futures-util = "0.3"
+futures = { workspace = true }
+futures-util = { workspace = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 ctrlc-async = "3.2"
@@ -43,4 +44,4 @@ stacker = { workspace = true }
 
 [features]
 experiment_memfd_secret = []
-experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux"]
+experiment_libcrux = ["rosenpass-ciphers/experiment_libcrux_all"]

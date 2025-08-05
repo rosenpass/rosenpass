@@ -1,0 +1,9 @@
+dev = "rp-example"
+ip = "fc00::1/64"
+listen = "[::]:51821"
+private_keys_dir = "/run/credentials/rp@example.service"
+verbose = true
+
+[[peers]]
+public_keys_dir = "/etc/rosenpass/example/peers/client"
+allowed_ips = "fc00::2"

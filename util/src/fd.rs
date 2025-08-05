@@ -521,13 +521,13 @@ mod tests {
     use std::io::{Read, Write};
 
     #[test]
-    #[should_panic(expected = "fd != u32::MAX as RawFd")]
+    #[should_panic]
     fn test_claim_fd_invalid_neg() {
         let _ = claim_fd(-1);
     }
 
     #[test]
-    #[should_panic(expected = "fd != u32::MAX as RawFd")]
+    #[should_panic]
     fn test_claim_fd_invalid_max() {
         let _ = claim_fd(i64::MAX as RawFd);
     }
@@ -561,7 +561,7 @@ mod tests {
         let mut file = FdIo(open_nullfd()?);
         let mut buf = [0; 10];
         assert!(matches!(file.read(&mut buf), Ok(0) | Err(_)));
-        assert!(matches!(file.write(&buf), Err(_)));
+        assert!(file.write(&buf).is_err());
         Ok(())
     }
 

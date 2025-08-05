@@ -8,6 +8,7 @@ description = "Rosenpass internal broker that runs as root and supplies exchange
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
+rust-version = "1.77.0"
 
 [dependencies]
 thiserror = { workspace = true }
@@ -19,7 +20,7 @@ wireguard-uapi = { workspace = true }
 
 # Socket handler only
 rosenpass-to = { workspace = true }
-tokio = { version = "1.42.0", features = ["sync", "full", "mio"] }
+tokio = { workspace = true, features = ["sync", "full", "mio"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
@@ -28,8 +29,8 @@ derive_builder = { workspace = true }
 postcard = { workspace = true }
 # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use
 # Maybe something about the combination of features and optional crates?
-rustix = { version = "0.38.42", optional = true }
-libc = { version = "0.2", optional = true }
+rustix = { workspace = true, optional = true }
+libc = { workspace = true, optional = true }
 
 # Mio broker client
 mio = { workspace = true }

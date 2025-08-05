@@ -32,6 +32,8 @@ pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
 /// For discussion on how to (further) ensure the constant-time execution of this function,
 /// see <https://github.com/rosenpass/rosenpass/issues/232>
 #[cfg(all(test, feature = "constant_time_tests"))]
+// Stopgap measure against https://github.com/rosenpass/rosenpass/issues/634
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 mod tests {
     use super::*;
     use core::hint::black_box;

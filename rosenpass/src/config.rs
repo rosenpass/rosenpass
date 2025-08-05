@@ -7,19 +7,18 @@
 //! - TODO: support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
 //! - TODO: provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
 
-use crate::protocol::{SPk, SSk};
-use rosenpass_util::file::LoadValue;
-use std::{
-    collections::HashSet,
-    fs,
-    io::Write,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs},
-    path::{Path, PathBuf},
-};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::path::{Path, PathBuf};
+use std::{collections::HashSet, fs, io::Write};
 
 use anyhow::{bail, ensure};
-use rosenpass_util::file::{fopen_w, Visibility};
+
 use serde::{Deserialize, Serialize};
+
+use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
+
+use crate::protocol::basic_types::{SPk, SSk};
+use crate::protocol::osk_domain_separator::OskDomainSeparator;
 
 use crate::app_server::AppServer;
 
@@ -36,6 +35,7 @@ fn empty_api_config() -> crate::api::config::ApiConfig {
 ///
 /// i.e. configuration for the `rosenpass exchange` and `rosenpass exchange-config` commands
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
@@ -77,6 +77,7 @@ pub struct Rosenpass {
 
 /// Public key and secret key locations.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Keypair {
     /// path to the public key file
     pub public_key: PathBuf,
@@ -104,13 +105,24 @@ impl Keypair {
 ///
 /// - TODO: replace this type with [`log::LevelFilter`], also see <https://github.com/rosenpass/rosenpass/pull/246>
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
+#[serde(deny_unknown_fields)]
 pub enum Verbosity {
     Quiet,
     Verbose,
 }
 
+/// The protocol version to be used by a peer.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub enum ProtocolVersion {
+    #[default]
+    V02,
+    V03,
+}
+
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RosenpassPeer {
     /// path to the public key of the peer
     pub public_key: PathBuf,
@@ -138,10 +150,82 @@ pub struct RosenpassPeer {
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
     pub wg: Option<WireGuard>,
+
+    #[serde(default)]
+    /// The protocol version to use for the exchange
+    pub protocol_version: ProtocolVersion,
+
+    /// Allows using a custom domain separator
+    #[serde(flatten)]
+    pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
+}
+
+/// Configuration for [crate::protocol::osk_domain_separator::OskDomainSeparator]
+///
+/// Refer to its documentation for more information and examples of how to use this.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RosenpassPeerOskDomainSeparator {
+    /// If Rosenpass is used for purposes other then securing WireGuard,
+    /// a custom domain separator and domain separator must be specified.
+    ///
+    /// Use `osk_organization` to indicate the organization who specifies the use case
+    /// and `osk_label` for a specific purpose within that organization.
+    ///
+    /// ```toml
+    /// [[peer]]
+    /// public_key = "my_public_key"
+    /// ...
+    /// osk_organization = "myorg.com"
+    /// osk_label = ["My Custom Messenger app"]
+    /// ```
+    pub osk_organization: Option<String>,
+    // If Rosenpass is used for purposes other then securing WireGuard,
+    /// a custom domain separator and domain separator must be specified.
+    ///
+    /// Use `osk_organization` to indicate the organization who specifies the use case
+    /// and `osk_label` for a specific purpose within that organization.
+    ///
+    /// ```toml
+    /// [[peer]]
+    /// public_key = "my_public_key"
+    /// ...
+    /// osk_namespace = "myorg.com"
+    /// osk_label = ["My Custom Messenger app"]
+    /// ```
+    pub osk_label: Option<Vec<String>>,
+}
+
+impl RosenpassPeerOskDomainSeparator {
+    pub fn org_and_label(&self) -> anyhow::Result<Option<(&String, &Vec<String>)>> {
+        match (&self.osk_organization, &self.osk_label) {
+            (None, None) => Ok(None),
+            (Some(org), Some(label)) => Ok(Some((&org, &label))),
+            (Some(_), None) => bail!("Specified osk_organization but not osk_label in config file. You need to specify both, or none."),
+            (None, Some(_)) =>  bail!("Specified osk_label but not osk_organization in config file. You need to specify both, or none."),
+        }
+    }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let _org_and_label: Option<(_, _)> = self.org_and_label()?;
+        Ok(())
+    }
+}
+
+impl TryFrom<RosenpassPeerOskDomainSeparator> for OskDomainSeparator {
+    type Error = anyhow::Error;
+
+    fn try_from(val: RosenpassPeerOskDomainSeparator) -> anyhow::Result<Self> {
+        match val.org_and_label()? {
+            None => Ok(OskDomainSeparator::default()),
+            Some((org, label)) => Ok(OskDomainSeparator::custom_utf8(org, label)),
+        }
+    }
 }
 
 /// Information for supplying exchanged keys directly to WireGuard
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WireGuard {
     /// Name of the WireGuard interface to supply with pre-shared keys generated by the Rosenpass
     /// key exchange
@@ -280,7 +364,7 @@ impl Rosenpass {
             // check the secret-key file is a valid key
             ensure!(
                 SSk::load(&keypair.secret_key).is_ok(),
-                "could not load public-key file {:?}: invalid key",
+                "could not load secret-key file {:?}: invalid key",
                 keypair.secret_key
             );
         }
@@ -324,6 +408,10 @@ impl Rosenpass {
                         "peer {i} has neither `key_out` nor valid wireguard config defined"
                     );
                 }
+            }
+
+            if let Err(e) = peer.osk_domain_separator.validate() {
+                bail!("Invalid OSK domain separation configuration for peer {i}: {e}");
             }
         }
 
@@ -768,6 +856,53 @@ mod test {
         )?;
 
         Ok(())
+    }
+
+    #[test]
+    fn test_protocol_version() {
+        let mut rosenpass = Rosenpass::empty();
+        let mut peer_v_02 = RosenpassPeer::default();
+        peer_v_02.protocol_version = ProtocolVersion::V02;
+        rosenpass.peers.push(peer_v_02);
+        let mut peer_v_03 = RosenpassPeer::default();
+        peer_v_03.protocol_version = ProtocolVersion::V03;
+        rosenpass.peers.push(peer_v_03);
+        #[cfg(feature = "experiment_api")]
+        {
+            rosenpass.api.listen_fd = vec![];
+            rosenpass.api.listen_path = vec![];
+            rosenpass.api.stream_fd = vec![];
+        }
+        #[cfg(feature = "experiment_api")]
+        let expected_toml = r#"listen = []
+          verbosity = "Quiet"
+          
+          [api]
+          listen_fd = []
+          listen_path = []
+          stream_fd = []
+
+          [[peers]]
+          protocol_version = "V02"
+          public_key = ""
+
+          [[peers]]
+          protocol_version = "V03"
+          public_key = ""
+          "#;
+        #[cfg(not(feature = "experiment_api"))]
+        let expected_toml = r#"listen = []
+          verbosity = "Quiet"
+
+          [[peers]]
+          protocol_version = "V02"
+          public_key = ""
+
+          [[peers]]
+          protocol_version = "V03"
+          public_key = ""
+          "#;
+        assert_toml_round(rosenpass, expected_toml).unwrap()
     }
 
     #[test]
