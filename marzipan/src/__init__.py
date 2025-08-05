@@ -1,10 +1,14 @@
 from .util import pkgs, setup_exports, export, rename
-from rich import print as rich_print
+#from rich.console import Console
 import click
 
 
 (__all__, export) = setup_exports()
 export(setup_exports)
+
+
+console = pkgs.rich.console.Console()
+logger = pkgs.logging.getLogger(__name__)
 
 
 def eprint(*args, **kwargs):
@@ -31,13 +35,8 @@ def run_proverif(file, extra_args=[]):
     _run_proverif(file, extra_args)
 
 def _run_proverif(file, extra_args=[]):
-    # Do we need this extra check? -- karo
-    if extra_args is None:
-        extra_args = []
     params = ["proverif", "-test", *extra_args, file]
-    # This appears to be superfluous printing?
-    print(params)
-    eprint(params)
+    logger.debug(params)
 
     process = exc_piped(params, stderr=pkgs.subprocess.PIPE, stdout=pkgs.subprocess.PIPE, text=True, bufsize=1)
     try:
@@ -61,7 +60,7 @@ def _run_proverif(file, extra_args=[]):
             #print(p)
     except Exception as e:
         # When does this happen? Should the error even be ignored? Metaverif should probably just abort here, right? --karo
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     finally:
         process.stdout.close()
         process.wait()
@@ -75,7 +74,7 @@ def cpp(file, cpp_prep):
 
 
 def _cpp(file, cpp_prep):
-    print(f"_cpp: {file}, {cpp_prep}")
+    logger.debug(f"_cpp: {file}, {cpp_prep}")
     file_path = pkgs.pathlib.Path(file)
 
     dirname = file_path.parent
@@ -106,18 +105,15 @@ def awk(cpp_prep, awk_prep):
 
 def _awk(cpp_prep, awk_prep):
     params = ["awk", "-f", "marzipan/marzipan.awk", cpp_prep]
-    with open(awk_prep, 'w') as file:
+    with open(awk_prep, 'a+') as file:
         exc(params, stderr=pkgs.sys.stderr, stdout=file)
         file.write("\nprocess main")
 
 
 def pretty_output_line(prefix, mark, color, text):
-    # Vulnerable to injection attacks. Use better API. -- karo
-    prefix = f"[grey42]{prefix}[/grey42]"
-    content = f"[{color}]{mark} {text}[/{color}]"
-
-    output = prefix + content
-    rich_print(output)
+    content = f"{mark} {text}"
+    console.print(prefix, style="grey42", end="", no_wrap=True)
+    console.print(content, style=color)
 
 
 def pretty_output_init(file_path):
@@ -306,6 +302,7 @@ def _metaverif(tmpdir, file):
 @click.group()
 def main():
     #pkgs.IPython.embed()
+    pkgs.logging.basicConfig(level=pkgs.logging.DEBUG)
     pass
 
 
