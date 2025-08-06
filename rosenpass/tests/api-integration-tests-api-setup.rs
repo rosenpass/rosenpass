@@ -105,7 +105,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
                 peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
                 extra_params: vec![],
             }),
-            protocol_version: protocol_version.clone(),
+            protocol_version: protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
@@ -127,7 +127,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             endpoint: Some(peer_a_endpoint.to_owned()),
             pre_shared_key: None,
             wg: None,
-            protocol_version: protocol_version.clone(),
+            protocol_version: protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };

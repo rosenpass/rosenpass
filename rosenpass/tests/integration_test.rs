@@ -144,7 +144,7 @@ fn check_example_config() {
 
     let tmp_dir = tempdir().unwrap();
     let config_path = tmp_dir.path().join("config.toml");
-    let mut config_file = File::create(config_path.to_owned()).unwrap();
+    let mut config_file = File::create(&config_path).unwrap();
 
     config_file
         .write_all(

@@ -2070,6 +2070,7 @@ dependencies = [
  "serde",
  "serial_test",
  "signal-hook",
+ "signal-hook-mio",
  "stacker",
  "static_assertions",
  "tempfile",
@@ -2153,6 +2154,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosenpass-rp"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "ctrlc-async",
+ "env_logger",
+ "futures",
+ "futures-util",
+ "genetlink",
+ "libc",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-wireguard",
+ "rosenpass",
+ "rosenpass-cipher-traits",
+ "rosenpass-ciphers",
+ "rosenpass-secret-memory",
+ "rosenpass-util",
+ "rosenpass-wireguard-broker",
+ "rtnetlink",
+ "serde",
+ "stacker",
+ "tempfile",
+ "tokio",
+ "toml",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
 name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
@@ -2184,11 +2217,13 @@ dependencies = [
  "anyhow",
  "base64ct",
  "libcrux-test-utils",
+ "log",
  "mio",
  "rustix",
  "static_assertions",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "typenum",
  "uds",
  "zerocopy 0.7.35",
@@ -2217,35 +2252,6 @@ dependencies = [
  "tokio",
  "wireguard-uapi",
  "zerocopy 0.7.35",
-]
-
-[[package]]
-name = "rp"
-version = "0.2.1"
-dependencies = [
- "anyhow",
- "base64ct",
- "ctrlc-async",
- "futures",
- "futures-util",
- "genetlink",
- "netlink-packet-core",
- "netlink-packet-generic",
- "netlink-packet-wireguard",
- "rosenpass",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
- "rosenpass-secret-memory",
- "rosenpass-util",
- "rosenpass-wireguard-broker",
- "rtnetlink",
- "serde",
- "stacker",
- "tempfile",
- "tokio",
- "toml",
- "x25519-dalek",
- "zeroize",
 ]
 
 [[package]]
@@ -2432,12 +2438,23 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signal-hook"
-version = "0.3.17"
+version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8621587d4798caf8eb44879d42e56b9a93ea5dcd315a6487c357130095b62801"
+checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
 dependencies = [
  "libc",
  "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-mio"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34db1a06d485c9142248b7a054f034b349b212551f3dfd19c94d45a754a217cd"
+dependencies = [
+ "libc",
+ "mio",
+ "signal-hook",
 ]
 
 [[package]]

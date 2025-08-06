@@ -490,7 +490,7 @@ impl CliArgs {
                 cfg_peer.key_out,
                 broker_peer,
                 cfg_peer.endpoint.clone(),
-                cfg_peer.protocol_version.into(),
+                cfg_peer.protocol_version,
                 cfg_peer.osk_domain_separator.try_into()?,
             )?;
         }
@@ -515,7 +515,7 @@ impl CliArgs {
     fn create_broker(
         broker_interface: Option<BrokerInterface>,
     ) -> Result<
-        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error>>,
+        Box<dyn WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error> + Send>,
         anyhow::Error,
     > {
         if let Some(interface) = broker_interface {
