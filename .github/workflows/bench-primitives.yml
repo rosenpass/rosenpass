@@ -21,7 +21,7 @@ jobs:
       matrix:
         system: ["x86_64-linux", "i686-linux"]
 
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     defaults:
       run:
         shell: bash
@@ -93,7 +93,7 @@ jobs:
   ciphers-primitives-bench-status:
     if: ${{ always() }}
     needs: [prim-benchmark]
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - name: Successful
         if: ${{ !(contains(needs.*.result, 'failure')) }}
