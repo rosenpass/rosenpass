@@ -1,5 +1,6 @@
 use std::process::Command;
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 #[test]
 fn smoketest() -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
