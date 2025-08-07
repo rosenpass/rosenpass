@@ -91,9 +91,9 @@ serial_test = { workspace = true }
 procspawn = { workspace = true }
 tempfile = { workspace = true }
 rustix = { workspace = true }
+serde_json = { workspace = true }
 
 [features]
-#default = ["experiment_libcrux_all"]
 experiment_cookie_dos_mitigation = []
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_libcrux_all = ["rosenpass-ciphers/experiment_libcrux_all"]
