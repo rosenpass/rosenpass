@@ -9,7 +9,6 @@ let
   wgPort = 51820;
   rpPort = 51821;
 
-  demoRosenpassKeys = ./rosenpass-keys;
   rosenpassKeyFolder = "/var/secrets";
   keyExchangePathAB = "/root/peer-ab.osk";
   keyExchangePathBA = "/root/peer-ba.osk";
@@ -26,8 +25,8 @@ let
       privateKey = pkgs.runCommand "wg-private-${name}" { } ''
         ${pkgs.wireguard-tools}/bin/wg genkey | tr -d '\n' > $out
       '';
-      publicKey = pkgs.runCommand "wg-public-${name}" { buildInputs = [ pkgs.wireguard-tools ]; } ''
-        cat ${privateKey} | wg pubkey | tr -d '\n' > $out
+      publicKey = pkgs.runCommand "wg-public-${name}" { } ''
+        cat ${privateKey} | ${pkgs.wireguard-tools}/bin/wg pubkey | tr -d '\n' > $out
       '';
     in
     {
@@ -37,6 +36,23 @@ let
   peerAWgKeys = generateWgKeys "peerA";
   peerBWgKeys = generateWgKeys "peerB";
   peerCWgKeys = if multiPeer then generateWgKeys "peerC" else null;
+
+  generateRPKeys =
+    name: rosenpassVersion:
+    let
+      keyPair = pkgs.runCommand "rp-genkeys-${name}" { } ''
+        mkdir $out
+        ${rosenpassVersion}/bin/rosenpass gen-keys -p $out/key.pk -s $out/key.sk
+      '';
+    in
+    {
+      publicKey = "${keyPair}/key.pk";
+      privateKey = "${keyPair}/key.sk";
+    };
+
+  peerARpKeys = generateRPKeys "peerA" pkgs.rosenpass-peer-a;
+  peerBRpKeys = generateRPKeys "peerB" pkgs.rosenpass-peer-b;
+  peerCRpKeys = if multiPeer then generateRPKeys "peerC" pkgs.rosenpass-peer-c else null;
 
   staticConfig =
     {
@@ -330,20 +346,20 @@ in
 
         (pkgs.writeSellScriptBin "install-rosenpass-keys" (
           ''
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-a.sk peerakeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-a.pk peerakeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-b.pk peerakeyexchanger:${rosenpassKeyFolder}/peer-b.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-b.sk peerbkeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-b.pk peerbkeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-a.pk peerbkeyexchanger:${rosenpassKeyFolder}/peer-a.pk
+            ${pkgs.openssh}/bin/scp ${peerARpKeys.privateKey} peerakeyexchanger:${rosenpassKeyFolder}/self.sk
+            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/self.pk
+            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/peer-b.pk
+            ${pkgs.openssh}/bin/scp ${peerBRpKeys.privateKey} peerbkeyexchanger:${rosenpassKeyFolder}/self.sk
+            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/self.pk
+            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/peer-a.pk
           ''
           + lib.optionalString multiPeer ''
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-c.sk peerckeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-c.pk peerckeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-a.pk peerckeyexchanger:${rosenpassKeyFolder}/peer-a.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-b.pk peerckeyexchanger:${rosenpassKeyFolder}/peer-b.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-c.pk peerakeyexchanger:${rosenpassKeyFolder}/peer-c.pk
-            ${pkgs.openssh}/bin/scp ${demoRosenpassKeys}/peer-c.pk peerbkeyexchanger:${rosenpassKeyFolder}/peer-c.pk
+            ${pkgs.openssh}/bin/scp ${peerCRpKeys.privateKey} peerckeyexchanger:${rosenpassKeyFolder}/self.sk
+            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/self.pk
+            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/peer-a.pk
+            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/peer-b.pk
+            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/peer-c.pk
+            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/peer-c.pk
           ''
         ))
 
@@ -407,41 +423,41 @@ in
     # In admin-reality, this should be done with your favorite secret
     # provisioning/deployment tool
     peerakeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-a.sk ${rosenpassKeyFolder}/self.sk"
+      "cp ${peerARpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
     )
     peerakeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-a.pk ${rosenpassKeyFolder}/self.pk"
+      "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
     )
     peerakeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-b.pk ${rosenpassKeyFolder}/peer-b.pk"
+      "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/peer-b.pk"
     )
     peerbkeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-b.sk ${rosenpassKeyFolder}/self.sk"
+      "cp ${peerBRpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
     )
     peerbkeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-b.pk ${rosenpassKeyFolder}/self.pk"
+      "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
     )
     peerbkeyexchanger.succeed(
-      "cp ${demoRosenpassKeys}/peer-a.pk ${rosenpassKeyFolder}/peer-a.pk"
+      "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/peer-a.pk"
     )
     ${lib.optionalString multiPeer ''
       peerakeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-c.pk ${rosenpassKeyFolder}/peer-c.pk"
+        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/peer-c.pk"
       )
       peerbkeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-c.pk ${rosenpassKeyFolder}/peer-c.pk"
+        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/peer-c.pk"
       )
       peerckeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-c.sk ${rosenpassKeyFolder}/self.sk"
+        "cp ${peerCRpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
       )
       peerckeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-c.pk ${rosenpassKeyFolder}/self.pk"
+        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
       )
       peerckeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-a.pk ${rosenpassKeyFolder}/peer-a.pk"
+        "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/peer-a.pk"
       )
       peerckeyexchanger.succeed(
-        "cp ${demoRosenpassKeys}/peer-b.pk ${rosenpassKeyFolder}/peer-b.pk"
+        "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/peer-b.pk"
       )
     ''}
 
