@@ -780,6 +780,28 @@ Changes, in particular:
 4. Added an explaining paragraph to section "Live Session State".
 5. Added a section about protocol roles.
 6. Brief section about endianness.
+7. In Fig. 5: Rosenpass Message Handling Code; in IHR5 we replace
+
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        decaps_and_mix<SKEM>(sskr, spkr, ct1)
+        \end{minted}
+    \end{quote}
+
+    ```
+
+    by
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        decaps_and_mix<SKEM>(sskr, spkr, sctr)
+        \end{minted}
+    \end{quote}
+    ```
+
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
