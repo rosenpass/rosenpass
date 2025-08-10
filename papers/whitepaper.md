@@ -658,6 +658,24 @@ fn on_key_timeout() {
 
 ### 0.3.x
 
+#### 2025-08-10 – Applying fixes from Steffen Vogel proof reading of the whitepaper
+
+\vspace{0.5em}
+
+Author: Karolin varner
+
+Issue: [#68](https://github.com/rosenpass/rosenpass/issues/68)
+
+PR: [#664](https://github.com/rosenpass/rosenpass/)
+
+\vspace{0.5em}
+
+Early in the project lifetime, Steffen Vogel successfully implemented a [port of the Rosenpass protocol in [go](https://github.com/cunicu/go-rosenpass).
+This implementation has not received an in-depth review from a cryptography implementation perspective, which is why we (the Rosenpass project) are not yet recommending this implementation for production usage;
+still, creating this implementation was a great achievement.
+
+During the process, Steffen discovered a large number of possible improvements for the whitepaper. With this update, we are addressing those issues.
+
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
 \vspace{0.5em}
