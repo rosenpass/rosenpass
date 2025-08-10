@@ -142,6 +142,10 @@ The packages, their contents, and their type IDs are graphically represented in 
 * \textbf{CookieReply} – Used for proof-of-IP-ownership-based denial-of-service mitigation (see Sec. \ref{dos-mitigation}).
 * \textbf{biscuit} – This is not a stand-alone package; instead, it is an encrypted fragment present in \textbf{RespHello} and \textbf{InitConf}.
 
+## Endianness {#endianess}
+
+Unless otherwise specified, all integer values in the Rosenpass protocol use little-endian encoding.
+
 ## Variables and Domain Separators {#variables}
 
 ### KEM Keypairs and Ciphertexts
@@ -775,6 +779,7 @@ Changes, in particular:
 3. Added a comprehensive reference about packages used.
 4. Added an explaining paragraph to section "Live Session State".
 5. Added a section about protocol roles.
+6. Brief section about endianness.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
