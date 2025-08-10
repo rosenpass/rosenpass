@@ -118,6 +118,17 @@ Using a combination of two KEMs – Classic McEliece for static keys and Kyber f
 
 Rosenpass uses libsodium [@libsodium] as cryptographic backend for hash, AEAD, and XAEAD, and liboqs [@liboqs] for the post-quantum-secure KEMs.
 
+## Protocol Roles {#roles}
+
+The protocol specifies two roles: initiator and responder.
+
+* initiator – The party that starts a handshake.
+* responder – The party that does not start a handshake.
+
+There is no particular mechanism to negotiate which party acts in which role; just like the WireGuard protocol, the Rosenpass protocol uses no distinction between client and server. In this vein, the initiator is not the protocol client; instead, the initiator is whichever party happened to start the key exchange.
+
+Implementations should be careful to ensure that having two ongoing key exchanges—one in the initiator role and one in the responder role—does not lead to implementation bugs.
+
 ## Packages {#packages}
 
 The packages, their contents, and their type IDs are graphically represented in Fig. \ref{img:MessageTypes}. Their purposes are:
@@ -763,6 +774,7 @@ Changes, in particular:
 2. Added a comprehensive reference about symmetric keys and nonces used for encryption/decryption (`txki`, `txni`, `ini_enc`, `hs_enc`, …)
 3. Added a comprehensive reference about packages used.
 4. Added an explaining paragraph to section "Live Session State".
+5. Added a section about protocol roles.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
