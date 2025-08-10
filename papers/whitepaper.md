@@ -344,6 +344,10 @@ The `biscuit_key` used to encrypt biscuits should be rotated every two minutes. 
 
 ### Live Session State {#live-session-state}
 
+These variables are used after the handshake terminates for encryption of the \textbf{Data} and \textbf{EmptyData} packages.
+\textbf{EmptyData} is used as an acknowledgement package to terminate package retransmission (see Sec. \ref{packet-loss}).
+\textbf{Data} would be used for transmission of actual payload, but this feature is currently not specified for Rosenpass. Despite this, we do specify the however as it is also part of WireGuard.
+
 * `ck` – The chaining key
 * `sidm` – Our session ID (“mine”)
 * `txkm` – Our transmission key
@@ -758,6 +762,7 @@ Changes, in particular:
 1. Added a comprehensive reference about labels used in the protocol
 2. Added a comprehensive reference about symmetric keys and nonces used for encryption/decryption (`txki`, `txni`, `ini_enc`, `hs_enc`, …)
 3. Added a comprehensive reference about packages used.
+4. Added an explaining paragraph to section "Live Session State".
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
