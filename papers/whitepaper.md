@@ -257,7 +257,7 @@ The different labels are:
 * `"mix"` – Mixing further values into the chaining key; i.e. into the protocol state.
 * `"user"` – Labels for external uses; these are what generate the `osk` (output shared key). See Sec. \ref{symmetric-keys}.
 * `"handshake encryption"` – Used when encrypting data using a shared key as part of the protocol execution; e.g. used to generate the `auth` (authentication tag) fields in protocol packages.
-* `"initiator session encryption"` and `"responder session encryption"` – For transmission of data after the key-exchange finishes. See Sec. \ref{symmetric-keys}.
+* `"initiator handshake encryption"` and `"responder handshake encryption"` – For transmission of data after the key-exchange finishes. See Sec. \ref{symmetric-keys}.
 
 ## Hashes
 
@@ -822,6 +822,8 @@ Changes, in particular:
         \end{minted}
     \end{quote}
     ```
+
+9. In the whitepaper we used the labels `"initiator session encryption"` and `"responder session encryption"`, but in the implementation we used `"initiator handshake encryption"` and `"responder handshake encryption"`. While the whitepaper was correct and the implementation was not, we opt to harmonize the whitepaper with the implementation to avoid a breaking change.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
