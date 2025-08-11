@@ -46,14 +46,16 @@ memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec
 ] }
 rand = "0.8.5"
 typenum = "1.17.0"
-log = { version = "0.4.22" }
+log = { version = "0.4.27" }
 clap = { version = "4.5.23", features = ["derive"] }
 clap_mangen = "0.2.29"
 clap_complete = "4.5.40"
 serde = { version = "1.0.217", features = ["derive"] }
 arbitrary = { version = "1.4.1", features = ["derive"] }
-anyhow = { version = "1.0.95", features = ["backtrace", "std"] }
+anyhow = { version = "1.0.98", features = ["backtrace", "std"] }
 mio = { version = "1.0.3", features = ["net", "os-poll"] }
+signal-hook-mio = { version = "0.2.4", features = ["support-v1_0"] }
+signal-hook = "0.3.17"
 oqs-sys = { version = "0.9.1", default-features = false, features = [
   'classic_mceliece',
   'kyber',
@@ -79,7 +81,6 @@ hex = { version = "0.4.3" }
 heck = { version = "0.5.0" }
 libc = { version = "0.2" }
 uds = { git = "https://github.com/rosenpass/uds" }
-signal-hook = "0.3.17"
 lazy_static = "1.5"
 
 #Dev dependencies
@@ -91,6 +92,7 @@ test_bin = "0.4.0"
 criterion = "0.5.1"
 allocator-api2-tests = "0.2.15"
 procspawn = { version = "1.0.1", features = ["test-support"] }
+serde_json = { version = "1.0.140" }
 
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }

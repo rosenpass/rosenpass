@@ -1,6 +1,9 @@
-use std::io::{self, Write};
-use std::time::{Duration, Instant};
-use std::{collections::HashMap, hint::black_box, ops::DerefMut};
+use std::{
+    collections::HashMap,
+    hint::black_box,
+    ops::DerefMut,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 
@@ -9,11 +12,12 @@ use libcrux_test_utils::tracing::{EventType, Trace as _};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
-use rosenpass_util::trace_bench::RpEventType;
+use rosenpass_util::trace_bench::RpEvent;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
+use serde::ser::SerializeStruct;
 
 const ITERATIONS: usize = 100;
 
@@ -124,15 +128,30 @@ fn main() {
         (v02, &v03_with_marker[1..])
     };
 
-    // Perform statistical analysis on both trace sections and write results as JSON
-    write_json_arrays(
-        &mut std::io::stdout(), // Write to standard output
-        vec![
-            ("V02", statistical_analysis(trace_v02.to_vec())),
-            ("V03", statistical_analysis(trace_v03.to_vec())),
-        ],
-    )
-    .expect("error writing json data");
+    // Perform statistical analysis on both trace sections
+    let analysis_v02 = statistical_analysis(trace_v02);
+    let analysis_v03 = statistical_analysis(trace_v03);
+
+    // Transform analysis results to JSON-encodable data type
+    let stats_v02 = analysis_v02
+        .iter()
+        .map(|(label, agg_stat)| JsonAggregateStat {
+            protocol_version: "V02",
+            label,
+            agg_stat,
+        });
+    let stats_v03 = analysis_v03
+        .iter()
+        .map(|(label, agg_stat)| JsonAggregateStat {
+            protocol_version: "V03",
+            label,
+            agg_stat: &agg_stat,
+        });
+
+    // Write results as JSON
+    let stats_all: Vec<_> = stats_v02.chain(stats_v03).collect();
+    let stats_json = serde_json::to_string_pretty(&stats_all).expect("error encoding to json");
+    println!("{stats_json}");
 }
 
 /// Performs a simple statistical analysis:
@@ -140,51 +159,13 @@ fn main() {
 /// - extracts durations of spamns
 /// - filters out empty bins
 /// - calculates aggregate statistics (mean, std dev)
-fn statistical_analysis(trace: Vec<RpEventType>) -> Vec<(&'static str, AggregateStat<Duration>)> {
+fn statistical_analysis(trace: &[RpEvent]) -> Vec<(&'static str, AggregateStat<Duration>)> {
     bin_events(trace)
         .into_iter()
         .map(|(label, spans)| (label, extract_span_durations(label, spans.as_slice())))
         .filter(|(_, durations)| !durations.is_empty())
         .map(|(label, durations)| (label, AggregateStat::analyze_durations(&durations)))
         .collect()
-}
-
-/// Takes an iterator of ("protocol_version", iterator_of_stats) pairs and writes them
-/// as a single flat JSON array to the provided writer.
-///
-/// # Arguments
-/// * `w` - The writer to output JSON to (e.g., stdout, file).
-/// * `item_groups` - An iterator producing tuples `(version, stats): (&'static str, II)`.
-///    Here `II` is itself an iterator producing `(label, agg_stat): (&'static str, AggregateStat<Duration>)`,
-///    where the label is the label of the span, e.g. "IHI2".
-///
-/// # Type Parameters
-/// * `W` - A type that implements `std::io::Write`.
-/// * `II` - An iterator type yielding (`&'static str`, `AggregateStat<Duration>`).
-fn write_json_arrays<W: Write, II: IntoIterator<Item = (&'static str, AggregateStat<Duration>)>>(
-    w: &mut W,
-    item_groups: impl IntoIterator<Item = (&'static str, II)>,
-) -> io::Result<()> {
-    // Flatten the groups into a single iterator of (protocol_version, label, stats)
-    let iter = item_groups.into_iter().flat_map(|(version, items)| {
-        items
-            .into_iter()
-            .map(move |(label, agg_stat)| (version, label, agg_stat))
-    });
-    let mut delim = ""; // Start with no delimiter
-
-    // Start the JSON array
-    write!(w, "[")?;
-
-    // Write the flattened statistics as JSON objects, separated by commas.
-    for (version, label, agg_stat) in iter {
-        write!(w, "{delim}")?; // Write delimiter (empty for first item, "," for subsequent)
-        agg_stat.write_json_ns(label, version, w)?; // Write the JSON object for the stat entry
-        delim = ","; // Set delimiter for the next iteration
-    }
-
-    // End the JSON array
-    write!(w, "]")
 }
 
 /// Used to group benchmark results in visualizations
@@ -239,13 +220,13 @@ enum StatEntry {
 
 /// Takes a flat list of events and organizes them into a HashMap where keys
 /// are event labels and values are vectors of events with that label.
-fn bin_events(events: Vec<RpEventType>) -> HashMap<&'static str, Vec<RpEventType>> {
+fn bin_events(events: &[RpEvent]) -> HashMap<&'static str, Vec<RpEvent>> {
     let mut spans = HashMap::<_, Vec<_>>::new();
     for event in events {
         // Get the vector for the event's label, or create a new one
         let spans_for_label = spans.entry(event.label).or_default();
         // Add the event to the vector
-        spans_for_label.push(event);
+        spans_for_label.push(event.clone());
     }
     spans
 }
@@ -253,7 +234,7 @@ fn bin_events(events: Vec<RpEventType>) -> HashMap<&'static str, Vec<RpEventType
 /// Processes a list of events (assumed to be for the same label), matching
 /// `SpanOpen` and `SpanClose` events to calculate the duration of each span.
 /// It handles potentially interleaved spans correctly.
-fn extract_span_durations(label: &str, events: &[RpEventType]) -> Vec<Duration> {
+fn extract_span_durations(label: &str, events: &[RpEvent]) -> Vec<Duration> {
     let mut processing_list: Vec<StatEntry> = vec![]; // List to track open spans and final durations
 
     for entry in events {
@@ -313,6 +294,7 @@ fn extract_span_durations(label: &str, events: &[RpEventType]) -> Vec<Duration> 
 /// Stores the mean, standard deviation, relative standard deviation (sd/mean),
 /// and the number of samples used for calculation.
 #[derive(Debug)]
+#[allow(dead_code)]
 struct AggregateStat<T> {
     /// Average duration.
     mean_duration: T,
@@ -362,32 +344,33 @@ impl AggregateStat<Duration> {
             sample_size,
         }
     }
+}
 
-    /// Writes the statistics as a JSON object to the provided writer.
-    /// Includes metadata like label, protocol_version, OS, architecture, and run time group.
-    ///
-    /// # Arguments
-    /// * `label` - The specific benchmark/span label.
-    /// * `protocol_version` - Version of the protocol that is benchmarked.
-    /// * `w` - The output writer (must implement `std::io::Write`).
-    fn write_json_ns(
-        &self,
-        label: &str,
-        protocol_version: &str,
-        w: &mut impl io::Write,
-    ) -> io::Result<()> {
-        // Format the JSON string using measured values and environment constants
-        writeln!(
-            w,
-            r#"{{"name":"{name}", "unit":"ns/iter", "value":"{value}", "range":"± {range}", "protocol version":"{protocol_version}", "sample size":"{sample_size}", "operating system":"{os}", "architecture":"{arch}", "run time":"{run_time}"}}"#,
-            name = label,                          // Benchmark name
-            value = self.mean_duration.as_nanos(), // Mean duration in nanoseconds
-            range = self.sd_duration.as_nanos(),   // Standard deviation in nanoseconds
-            sample_size = self.sample_size,        // Number of samples
-            os = std::env::consts::OS,             // Operating system
-            arch = std::env::consts::ARCH,         // CPU architecture
-            run_time = run_time_group(label),      // Run time group category (long, medium, etc.)
-            protocol_version = protocol_version // Overall protocol_version (e.g., protocol version)
-        )
+struct JsonAggregateStat<'a, T> {
+    agg_stat: &'a AggregateStat<T>,
+    label: &'a str,
+    protocol_version: &'a str,
+}
+
+impl<'a> serde::Serialize for JsonAggregateStat<'a, Duration> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut stat = serializer.serialize_struct("AggregateStat", 9)?;
+        stat.serialize_field("name", self.label)?;
+        stat.serialize_field("unit", "ns/iter")?;
+        stat.serialize_field("value", &self.agg_stat.mean_duration.as_nanos().to_string())?;
+        stat.serialize_field(
+            "range",
+            &format!("± {}", self.agg_stat.sd_duration.as_nanos()),
+        )?;
+        stat.serialize_field("protocol version", self.protocol_version)?;
+        stat.serialize_field("sample size", &self.agg_stat.sample_size)?;
+        stat.serialize_field("operating system", std::env::consts::OS)?;
+        stat.serialize_field("architecture", std::env::consts::ARCH)?;
+        stat.serialize_field("run time", &run_time_group(self.label).to_string())?;
+
+        stat.end()
     }
 }

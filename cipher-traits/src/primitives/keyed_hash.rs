@@ -40,7 +40,7 @@ pub struct InferKeyedHash<Static, const KEY_LEN: usize, const HASH_LEN: usize>
 where
     Static: KeyedHash<KEY_LEN, HASH_LEN>,
 {
-    pub _phantom_keyed_hasher: PhantomData<*const Static>,
+    pub _phantom_keyed_hasher: PhantomData<Static>,
 }
 
 impl<Static, const KEY_LEN: usize, const HASH_LEN: usize> InferKeyedHash<Static, KEY_LEN, HASH_LEN>

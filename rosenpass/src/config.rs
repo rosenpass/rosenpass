@@ -201,7 +201,7 @@ impl RosenpassPeerOskDomainSeparator {
     pub fn org_and_label(&self) -> anyhow::Result<Option<(&String, &Vec<String>)>> {
         match (&self.osk_organization, &self.osk_label) {
             (None, None) => Ok(None),
-            (Some(org), Some(label)) => Ok(Some((&org, &label))),
+            (Some(org), Some(label)) => Ok(Some((org, label))),
             (Some(_), None) => bail!("Specified osk_organization but not osk_label in config file. You need to specify both, or none."),
             (None, Some(_)) =>  bail!("Specified osk_label but not osk_organization in config file. You need to specify both, or none."),
         }

@@ -26,7 +26,15 @@ tempfile = { workspace = true }
 uds = { workspace = true, optional = true, features = ["mio_1xx"] }
 libcrux-test-utils = { workspace = true, optional = true }
 rosenpass-to = { workspace = true }
+tokio = { workspace = true, optional = true, features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }
+log = { workspace = true }
 
 [features]
 experiment_file_descriptor_passing = ["uds"]
 trace_bench = ["dep:libcrux-test-utils"]
+tokio = ["dep:tokio"]

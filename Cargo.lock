@@ -110,9 +110,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.96"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b964d184e89d9b6b67dd2715bc8e74cf3107fb2b529990c90cf517326150bf4"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 dependencies = [
  "backtrace",
 ]
@@ -1394,9 +1394,9 @@ dependencies = [
 
 [[package]]
 name = "libfuzzer-sys"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf78f52d400cf2d84a3a973a78a592b4adc535739e0a5597a0da6f0c357adc75"
+checksum = "5037190e1f70cbeef565bd267599242926f724d3b8a9f510fd7e0b540cfa4404"
 dependencies = [
  "arbitrary",
  "cc",
@@ -1440,9 +1440,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.26"
+version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
+checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "memchr"
@@ -2068,8 +2068,10 @@ dependencies = [
  "rosenpass-wireguard-broker",
  "rustix",
  "serde",
+ "serde_json",
  "serial_test",
  "signal-hook",
+ "signal-hook-mio",
  "stacker",
  "static_assertions",
  "tempfile",
@@ -2153,6 +2155,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosenpass-rp"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "ctrlc-async",
+ "env_logger",
+ "futures",
+ "futures-util",
+ "genetlink",
+ "libc",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-wireguard",
+ "rosenpass",
+ "rosenpass-cipher-traits",
+ "rosenpass-ciphers",
+ "rosenpass-secret-memory",
+ "rosenpass-util",
+ "rosenpass-wireguard-broker",
+ "rtnetlink",
+ "serde",
+ "stacker",
+ "tempfile",
+ "tokio",
+ "toml",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
 name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
@@ -2184,12 +2218,14 @@ dependencies = [
  "anyhow",
  "base64ct",
  "libcrux-test-utils",
+ "log",
  "mio",
  "rosenpass-to",
  "rustix",
  "static_assertions",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "typenum",
  "uds",
  "zerocopy 0.7.35",
@@ -2218,35 +2254,6 @@ dependencies = [
  "tokio",
  "wireguard-uapi",
  "zerocopy 0.7.35",
-]
-
-[[package]]
-name = "rp"
-version = "0.2.1"
-dependencies = [
- "anyhow",
- "base64ct",
- "ctrlc-async",
- "futures",
- "futures-util",
- "genetlink",
- "netlink-packet-core",
- "netlink-packet-generic",
- "netlink-packet-wireguard",
- "rosenpass",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
- "rosenpass-secret-memory",
- "rosenpass-util",
- "rosenpass-wireguard-broker",
- "rtnetlink",
- "serde",
- "stacker",
- "tempfile",
- "tokio",
- "toml",
- "x25519-dalek",
- "zeroize",
 ]
 
 [[package]]
@@ -2371,9 +2378,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.139"
+version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44f86c3acccc9c65b153fe1b85a3be07fe5515274ec9f0653b4a0875731c72a6"
+checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
  "itoa",
  "memchr",
@@ -2433,12 +2440,23 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signal-hook"
-version = "0.3.17"
+version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8621587d4798caf8eb44879d42e56b9a93ea5dcd315a6487c357130095b62801"
+checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
 dependencies = [
  "libc",
  "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-mio"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34db1a06d485c9142248b7a054f034b349b212551f3dfd19c94d45a754a217cd"
+dependencies = [
+ "libc",
+ "mio",
+ "signal-hook",
 ]
 
 [[package]]
