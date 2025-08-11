@@ -281,10 +281,16 @@ Each tree node $\circ{}$ in Figure \ref{img:HashingTree} represents the applicat
 The protocol identifier depends on the hash function used with the respective peer is defined as follows if BLAKE2s [@rfc_blake2] is used:
 
 ```pseudorust
-PROTOCOL = "rosenpass 1 rosenpass.eu aead=chachapoly1305 hash=blake2s ekem=kyber512 skem=mceliece460896 xaead=xchachapoly1305"
+PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s"
 ```
 
-If SHAKE256 [@SHAKE256] is used, `blake2s` is replaced by `shake256` in `PROTOCOL`. Since every tree node represents a sequence of `hash` calls, the node beneath `"handshake encryption"` called `hs_enc` can be written as follows:
+If SHAKE256 [@SHAKE256] is used, then `BLAKE2s` is substituted with `SHAKE256`:
+
+```pseudorust
+PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256"
+```
+
+Since every tree node represents a sequence of `hash` calls, the node beneath `"handshake encryption"` called `hs_enc` can be written as follows:
 
 ```pseudorust
 hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryption")
@@ -824,6 +830,37 @@ Changes, in particular:
     ```
 
 9. In the whitepaper we used the labels `"initiator session encryption"` and `"responder session encryption"`, but in the implementation we used `"initiator handshake encryption"` and `"responder handshake encryption"`. While the whitepaper was correct and the implementation was not, we opt to harmonize the whitepaper with the implementation to avoid a breaking change.
+10. The protocol strings used in the whitepaper where different to the ones used in the implementation. We harmonize the two by updating the whitepaper to reflect the protocol identifier used in the implementation. We substitute
+
+    ``` {=tex}
+    \begin{quote}
+        The protocol identifier depends on the hash function used with the respective peer is defined as follows if BLAKE2s is used:
+
+        \begin{minted}{pseudorust}
+        PROTOCOL = "rosenpass 1 rosenpass.eu aead=chachapoly1305 hash=blake2s ekem=kyber512 skem=mceliece460896 xaead=xchachapoly1305"
+        \end{minted}
+
+        If SHAKE256 is used, \texttt{blake2s} is replaced by \texttt{shake256} in \texttt{PROTOCOL}.
+    \end{quote}
+    ```
+
+    with
+
+    ``` {=tex}
+    \begin{quote}
+        The protocol identifier depends on the hash function used with the respective peer is defined as follows if BLAKE2s is used:
+
+        \begin{minted}{pseudorust}
+        PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s"
+        \end{minted}
+
+        If SHAKE256 is used, then \texttt{BLAKE2s} is substituted with \texttt{SHAKE256}:
+
+        \begin{minted}{pseudorust}
+        PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256"
+        \end{minted}
+    \end{quote}
+    ```
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
