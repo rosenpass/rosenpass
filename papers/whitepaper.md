@@ -70,8 +70,10 @@ All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we offer two options that can be configured on a peer-basis, with Blake2b being the default:
 
-1. the HMAC construction [@rfc_hmac] with BLAKE2b [@rfc_blake2] as the inner hash function.
+1. an **incorrect** HMAC construction [@rfc_hmac] with BLAKE2b [@rfc_blake2] as the inner hash function. See Sec. \ref{incorrect-hmac} for details.
 2. the SHAKE256 extendable output function (XOF) [@SHAKE256] truncated to a 32-byte output. The result is produced be concatenating the 32-byte input with the variable-size input in this order.
+
+The use of BLAKE2b is being phased out.
 
 ```pseudorust
 hash(key, data) -> key
@@ -758,6 +760,67 @@ fn on_key_timeout() {
 \setupimage{label=img:ExtWireguardPSKHybridSecurity,fullpage}
 ![Rosenpass + WireGuard: Hybrid Security](graphics/rosenpass-wireguard-hybrid-security.pdf)
 
+# Errata {#errata}
+
+## Incorrect HMAC, Hash Function Choice {#incorrect-hmac}
+
+Initially, we chose to use `HMAC+BLAKE2s` for our message authentication code, mostly as a form of cargo cult. WireGuard used BLAKE2s, so we should use it too. BLAKE2 supports a directly keyed mode, so there is not much reason to prefer rolling your own using HMAC from a security standpoint.
+
+It seems likely that WireGuard used HMAC as a heuristic security measure. Message authentication codes, keyed hash functions, had long been constructed by combining HMAC with a hash function; why change that? And there actually is a good reason to use HMAC: Merkle-Damgard constructions have long been the norm for hash functions; their usage was even standardized as MD5 or SHA-2. But Merkle-Damgard constructions are susceptible to extension attacks, where you can calculate `H(message || suffix)` assuming `H(message)` is known to you. HMAC fixes this issue[@boneh_shoup_graduate][@hmac].
+
+
+But SHA-3 (or SHAKE) and BLAKE2 depart from this long-standing status quo: these hash functions are not based on Merkle-Damgard and they are deliberately designed so they are not susceptible to length extension attacks. On top of this, both schemes provide a keyed mode as a feature of the hash function. At this point it makes much more sense to require a keyed hash function, satisfying the PRF ("pseudo random function") security property and the PRF-SWAP security property[@pqwg] instead of building our own keyed hash from a hash function. HMAC can still be used; if someone wanted to operate Rosenpass with SHA2, the best way to do it would be using `HMAC-SHA512` as the underlying keyed hash. We just also allow using `SHAKE256` without an extra application of HMAC.
+
+Unfortunately, there were a couple of errors in the implementation: we should have used BLAKE2s like WireGuard; instead, we used BLAKE2b. We should have implemented HMAC properly, but we failed to do so. For a fixed-length, 32 byte key and a 32 byte block size, the HMAC function is specified as:
+
+```pseudorust
+type Key = [u8; 32];
+type HashFunction = Fn(&[u8]) -> Key;
+
+const INNER_PAD: [u8; KEY_LEN] = [0x36u8; KEY_LEN];
+const OUTER_PAD: [u8; KEY_LEN] = [0x5Cu8; KEY_LEN];
+
+fn hmac<Hash: HashFunction>(h: Hash, key: Key, data: &[u8]) -> Key {
+    // `^` denotes XOR, `||` denotes concatenation
+
+    let inner_key = key ^ INNER_PAD; 
+    let outer_key = key ^ OUTER_PAD;
+
+    let inner_hash = h(inner_key || data);
+    let outer_hash = h(outer_key || inner_hash);
+
+    return outer_hash;
+} 
+```
+
+Instead of implementing this function, we somehow lost track of the fact that HMAC uses concatenation to combine the keys with its data, and instead we built a construction around BLAKE2b in keyed hash mode. That is, we replaced the concatenation with calls to the keyed version of our hash:
+
+```pseudorust
+type Key = [u8; 32];
+type KeyedHashFunction = Fn(Key, &[u8]) -> Key;
+
+const INNER_PAD: [u8; KEY_LEN] = [0x36u8; KEY_LEN];
+const OUTER_PAD: [u8; KEY_LEN] = [0x5Cu8; KEY_LEN];
+
+fn incorrect_rosenpass_hmac<KeyedHash: KeyedHashFunction>(kh: KeyedHashFunction, key: Key, data: &[u8]) -> Key {
+    // `^` denotes XOR, `||` denotes concatenation
+
+    let inner_key = key ^ INNER_PAD; 
+    let outer_key = key ^ OUTER_PAD;
+
+    let inner_hash = kh(inner_key, data);
+    let outer_hash = kh(outer_key, inner_hash);
+
+    return outer_hash;
+} 
+```
+
+We therefore add this section explaining our incorrect HMAC usage to harmonize the white paper with the implementation.
+To ensure compatibility with the existing versions of Rosenpass, you have to replicate this incorrect variant of HMAC.
+
+Neither mistake is assumed to cause security issues. BLAKE2b is a secure hash function.
+There is no reason to assume that our incorrect variant of HMAC-BLAKE2b would be insecure; it is, however, non-standard and needlessly complicates the protocol. We are therefore phasing out usage of HMAC-BLAKE2b in favor of us using SHAKE256 as our keyed hash of choice.
+
 # Changelog
 
 ### 0.3.x
@@ -872,6 +935,7 @@ Changes, in particular:
     reality, we use BLAKE2b. The reason for this is an implementation error. Since fixing this would have led to a breaking change in the Rosenpass reference implementation, and all other known implementations of Rosenpass simply reproduced this error, we chose to harmonize the white paper with the implementation instead of fixing the implementation.
     \end{quote}
     ```
+12. Added a section to explain and specify our incorrect implementation of HMAC-BLAKE2b.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
