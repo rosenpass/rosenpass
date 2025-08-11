@@ -68,9 +68,9 @@ All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 ### Hash {#hash}
 
-A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we offer two options that can be configured on a peer-basis, with Blake2s being the default:
+A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we offer two options that can be configured on a peer-basis, with Blake2b being the default:
 
-1. the HMAC construction [@rfc_hmac] with BLAKE2s [@rfc_blake2] as the inner hash function.
+1. the HMAC construction [@rfc_hmac] with BLAKE2b [@rfc_blake2] as the inner hash function.
 2. the SHAKE256 extendable output function (XOF) [@SHAKE256] truncated to a 32-byte output. The result is produced be concatenating the 32-byte input with the variable-size input in this order.
 
 ```pseudorust
@@ -269,7 +269,7 @@ Rosenpass uses a cryptographic hash function for multiple purposes:
 * Key derivation during and after the handshake
 * Computing the additional data for the biscuit encryption, to provide some privacy for its contents
 
-Recall from Section \ref{hash} that rosenpass supports using either BLAKE2s or SHAKE256 as hash function, which can be configured for each peer ID. However, as noted above, rosenpass uses a hash function to compute the peer ID and thus also to access the configuration for a peer ID. This is an issue when receiving an `InitHello`-message, because the correct hash function is not known when a responder receives this message and at the same the responders needs it in order to compute the peer ID and by that also identfy the hash function for that peer. The reference implementation resolves this issue by first trying to derive the peer ID using SHAKE256. If that does not work (i.e. leads to an AEAD decryption error), the reference implementation tries again with BLAKE2s. The reference implementation verifies that the hash function matches the one confgured for the peer. Similarly, if the correct peer ID is not cached when receiving an InitConf message, the reference implementation proceeds in the same manner.
+Recall from Section \ref{hash} that rosenpass supports using either BLAKE2b or SHAKE256 as hash function, which can be configured for each peer ID. However, as noted above, rosenpass uses a hash function to compute the peer ID and thus also to access the configuration for a peer ID. This is an issue when receiving an `InitHello`-message, because the correct hash function is not known when a responder receives this message and at the same the responders needs it in order to compute the peer ID and by that also identfy the hash function for that peer. The reference implementation resolves this issue by first trying to derive the peer ID using SHAKE256. If that does not work (i.e. leads to an AEAD decryption error), the reference implementation tries again with BLAKE2b. The reference implementation verifies that the hash function matches the one confgured for the peer. Similarly, if the correct peer ID is not cached when receiving an InitConf message, the reference implementation proceeds in the same manner.
 
 Using one hash function for multiple purposes can cause real-world security issues and even key recovery attacks [@oraclecloning]. We choose a tree-based domain separation scheme based on a keyed hash function – the previously introduced primitive `hash` – to make sure all our hash function calls can be seen as distinct.
 
@@ -278,11 +278,13 @@ Using one hash function for multiple purposes can cause real-world security issu
 
 Each tree node $\circ{}$ in Figure \ref{img:HashingTree} represents the application of the keyed hash function, using the previous chaining key value as first parameter. The root of the tree is the zero key. In level one, the `PROTOCOL` identifier is applied to the zero key to generate a label unique across cryptographic protocols (unless the same label is deliberately used elsewhere). In level two, purpose identifiers are applied to the protocol label to generate labels to use with each separate hash function application within the Rosenpass protocol. The following layers contain the inputs used in each separate usage of the hash function: Beneath the identifiers `"mac"`, `"cookie"`, `"peer id"`, and `"biscuit additional data"` are hash functions or message authentication codes with a small number of inputs. The second, third, and fourth column in Figure \ref{img:HashingTree} cover the long sequential branch beneath the identifier `"chaining key init"` representing the entire protocol execution, one column for each message processed during the handshake. The leaves beneath `"chaining key extract"` in the left column represent pseudo-random labels for use when extracting values from the chaining key during the protocol execution. These values such as `mix >` appear as outputs in the left column, and then as inputs `< mix` in the other three columns.
 
-The protocol identifier depends on the hash function used with the respective peer is defined as follows if BLAKE2s [@rfc_blake2] is used:
+The protocol identifier depends on the hash function used with the respective peer is defined as follows if BLAKE2b [@rfc_blake2] is used:
 
 ```pseudorust
 PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s"
 ```
+Note that the domain separator used here maintains that BLAKE2s is used, while in
+reality, we use BLAKE2b. The reason for this is an implementation error. Since fixing this would have led to a breaking change in the Rosenpass reference implementation, and all other known implementations of Rosenpass simply reproduced this error, we chose to harmonize the white paper with the implementation instead of fixing the implementation.
 
 If SHAKE256 [@SHAKE256] is used, then `BLAKE2s` is substituted with `SHAKE256`:
 
@@ -338,7 +340,7 @@ For each peer, the server stores:
 * `psk` – The pre-shared key used with the peer
 * `spkt` – The peer's public key
 * `biscuit_used` – The `biscuit_no` from the last biscuit accepted for the peer as part of InitConf processing
-* `hash_function` – The hash function, SHAKE256 or BLAKE2s, used with the peer.
+* `hash_function` – The hash function, SHAKE256 or BLAKE2b, used with the peer.
 
 ### Handshake State and Biscuits {#hs-state-and-biscuits}
 
@@ -778,6 +780,8 @@ still, creating this implementation was a great achievement.
 
 During the process, Steffen discovered a large number of possible improvements for the whitepaper. With this update, we are addressing those issues.
 
+This process also ensures that the world knows, that I have ADHD and makes me fix all the little mistakes I could not spot even on the seventh review of the whitepaper.
+
 Changes, in particular:
 
 1. Added a comprehensive reference about labels used in the protocol
@@ -859,6 +863,13 @@ Changes, in particular:
         \begin{minted}{pseudorust}
         PROTOCOL = "Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256"
         \end{minted}
+    \end{quote}
+    ```
+11. The whitepaper stated that Rosenpass uses BLAKE2s, while the implementation used BLAKE2b; we update the whitepaper to reflect that reality. The places where this substitution happened are a bit too numerous to count them all here. On top of this, we added the following paragraph to explain the discrepancy between `PROTOCOL` and actual hash function used:
+    ``` {=tex}
+    \begin{quote}
+    Note that the domain separator used here maintains that BLAKE2s is used, while in
+    reality, we use BLAKE2b. The reason for this is an implementation error. Since fixing this would have led to a breaking change in the Rosenpass reference implementation, and all other known implementations of Rosenpass simply reproduced this error, we chose to harmonize the white paper with the implementation instead of fixing the implementation.
     \end{quote}
     ```
 
