@@ -497,7 +497,7 @@ fn load_biscuit(nct) {
     // -- 2024-11-30, Karolin Varner
     if (protocol_version!(< "0.3.0")) {
         // Ensure that the biscuit is used only once
-        assert(pt.biscuit_no <= peer.biscuit_used);
+        assert(pt.biscuit_no >= peer.biscuit_used);
     }
 
     // Restore the chaining key
@@ -802,6 +802,26 @@ Changes, in particular:
     \end{quote}
     ```
 
+8. In `load_biscuit()`, there was a typo doing an incorrect comparison between `biscuit_no` and `biscuit_used`. This is not a security issue, as a verbatim implementation would simply have lead to a non-functional implementation. We replace
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        assert(pt.biscuit_no <= peer.biscuit_used);
+        \end{minted}
+    \end{quote}
+
+    ```
+
+    by
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        assert(pt.biscuit_no >= peer.biscuit_used);
+        \end{minted}
+    \end{quote}
+    ```
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
