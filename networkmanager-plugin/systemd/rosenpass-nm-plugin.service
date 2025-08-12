@@ -1,0 +1,53 @@
+[Unit]
+Description=Rosenpass NetworkManager Plugin
+Documentation=https://rosenpass.eu/docs
+After=NetworkManager.service dbus.service
+Wants=NetworkManager.service
+BindsTo=dbus.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/rosenpass-nm-plugin --system --config-dir /etc/NetworkManager/rosenpass
+Restart=always
+RestartSec=5
+
+# Security settings
+DynamicUser=true
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+LockPersonality=true
+MemoryDenyWriteExecute=true
+PrivateDevices=true
+PrivateTmp=true
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=noaccess
+RestrictAddressFamilies=AF_NETLINK AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+SystemCallFilter=~@clock
+SystemCallFilter=~@cpu-emulation
+SystemCallFilter=~@debug
+SystemCallFilter=~@module
+SystemCallFilter=~@mount
+SystemCallFilter=~@obsolete
+SystemCallFilter=~@privileged
+SystemCallFilter=~@raw-io
+SystemCallFilter=~@reboot
+SystemCallFilter=~@swap
+UMask=0077
+
+# Configuration directory access
+ReadWritePaths=/etc/NetworkManager/rosenpass
+ReadOnlyPaths=/etc/rosenpass
+
+[Install]
+WantedBy=multi-user.target
+Also=rosenpass.target

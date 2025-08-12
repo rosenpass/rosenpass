@@ -1,0 +1,34 @@
+# Example Rosenpass NetworkManager configuration
+# Save this as /etc/NetworkManager/rosenpass/{connection-uuid}.toml
+
+# NetworkManager connection UUID
+connection_uuid = "12345678-1234-5678-9abc-123456789abc"
+
+# Path to our public key file
+public_key = "/etc/rosenpass/public.key"
+
+# Path to our secret key file
+secret_key = "/etc/rosenpass/secret.key"
+
+# Port to listen on for incoming connections
+listen_port = 9999
+
+# WireGuard interface name
+wireguard_interface = "wg0"
+
+# Optional: path to output shared key for WireGuard
+key_output = "/tmp/rosenpass-key"
+
+# Optional: enable verbose logging
+verbose = false
+
+# Peer configurations
+[[peers]]
+# Peer's public key file
+public_key = "/etc/rosenpass/peer.pub"
+
+# Peer's endpoint (IP:port) - optional for responder-only mode
+endpoint = "peer.example.com:9999"
+
+# WireGuard peer public key (base64 encoded)
+wireguard_peer = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
