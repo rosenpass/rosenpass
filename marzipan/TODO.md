@@ -20,21 +20,28 @@
   * ~find the files~
   * ~start subprocesses in parallel~
   * ~wait for them to finish~
+* ~~rebase from main~~
+* ~~see if we still need the `extra_args is None` check in `_run_proverif`~`
+* ~~set colors differently to prevent injection attack~~
+  * ~~by calling a function~~
+  * ~~by prepared statements~~
+* ~~standalone function parse_result_line is no longer necessary~~
+* ~~is the clean function still necessary?~~
+* ~~implement better main function for click~~
 
 ## Next Steps
 
-* ~~rebase from main~~
-* see if we still need the `extra_args is None` check in `_run_proverif`
-* set colors differently to prevent injection attack
-  * by calling a function
-  * by prepared statements
-* standalone function parse_result_line is no longer necessary
-* is the clean function still necessary?
-* implement better main function for click
+* why does analyze fail when the target/proverif directory is not empty?
 * return an exit status that is meaningful for CI
+* exception handling in analyze() and in run_proverif()
+* refactor filtering in run_proverif (see karo's comment)
+* configurable target directory
+* do not assume that the repo path has subdir analysis and marzipan
+* integrate marzipan.awk into Python, somehow
 * rewrite marzipan.awk into Python/LARK
 * rewrite cpp into Python/LARK
 * integrate the Nix flake into the main Nix flake
+  * pull the gawk dependency into the Nix flake
 * think about next steps
   * integrate this upstream, into the CI?
   * “make it beautiful” steps? more resiliency to working directory?
