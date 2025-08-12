@@ -3,6 +3,9 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
 
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
@@ -23,6 +26,7 @@
       nix-vm-test,
       rust-overlay,
       treefmt-nix,
+      flake-parts,
       ...
     }@inputs:
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
@@ -183,7 +187,16 @@
             };
 
             checks =
-              {
+              import ./tests/integration/integration-checks.nix {
+                inherit system;
+                pkgs = inputs.nixpkgs;
+                lib = nixpkgs.lib;
+                rosenpassNew = self.packages.${system}.default;
+                rosenpassOld =
+                  (builtins.getFlake "github:rosenpass/rosenpass?rev=916a9ebb7133f0b22057fb097a473217f261928a")
+                  .packages.${system}.default;
+              }
+              // {
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
                 systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
                 formatting = treefmtEval.config.build.check self;
