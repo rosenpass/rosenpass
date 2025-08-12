@@ -16,7 +16,7 @@ jobs:
   prettier:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actionsx/prettier@v3
         with:
           args: --check .
@@ -25,7 +25,7 @@ jobs:
     name: Shellcheck
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
@@ -33,7 +33,7 @@ jobs:
     name: Rust code formatting
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -56,7 +56,7 @@ jobs:
   cargo-bench:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -77,14 +77,14 @@ jobs:
     steps:
       - name: Install mandoc
         run: sudo apt-get install -y mandoc
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check rp.1
         run: doc/check.sh doc/rp.1
 
   cargo-audit:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -92,7 +92,7 @@ jobs:
   cargo-clippy:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -111,7 +111,7 @@ jobs:
   cargo-doc:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -130,7 +130,7 @@ jobs:
   cargo-test:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -149,7 +149,7 @@ jobs:
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -171,7 +171,7 @@ jobs:
   cargo-fuzz:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -206,7 +206,7 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
