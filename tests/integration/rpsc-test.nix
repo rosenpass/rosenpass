@@ -17,6 +17,21 @@ let
   keyExchangePathBC = "/root/peer-bc.osk";
   keyExchangePathCB = "/root/peer-cb.osk";
 
+  getConfigFileVersion =
+    rosenpassVersion:
+    let
+      configFileVersion =
+        if builtins.hasAttr "configFileVersion" rosenpassVersion then
+          rosenpassVersion.configFileVersion
+        else
+          "0";
+    in
+    configFileVersion;
+
+  peerAConfigFileVersion = getConfigFileVersion pkgs.rosenpass-peer-a;
+  peerBConfigFileVersion = getConfigFileVersion pkgs.rosenpass-peer-b;
+  peerCConfigFileVersion = if multiPeer then getConfigFileVersion pkgs.rosenpass-peer-c else null;
+
   generateWgKeys =
     name:
     let
@@ -400,6 +415,14 @@ in
 
   testScript = (''
     start_all()
+
+    print("""Config file versions supported by peers
+      peerA: ${peerAConfigFileVersion}
+      peerB: ${peerBConfigFileVersion}
+      ${lib.optionalString multiPeer ''
+        peerC: ${peerCConfigFileVersion}
+      ''}
+    """)
 
     for m in [peerA, peerB, peerakeyexchanger, peerbkeyexchanger]:
       m.wait_for_unit("network-online.target")
