@@ -19,7 +19,7 @@ jobs:
     needs:
       - aarch64-darwin---rosenpass
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -38,7 +38,7 @@ jobs:
       - aarch64-darwin---rp
       - aarch64-darwin---rosenpass-oci-image
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -54,7 +54,7 @@ jobs:
       - warp-macos-13-arm64-6x
     needs: []
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -70,7 +70,7 @@ jobs:
       - warp-macos-13-arm64-6x
     needs: []
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -87,7 +87,7 @@ jobs:
     needs:
       - aarch64-darwin---rosenpass
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -102,7 +102,7 @@ jobs:
     runs-on:
       - warp-macos-13-arm64-6x
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable

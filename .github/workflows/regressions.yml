@@ -16,7 +16,7 @@ jobs:
   multi-peer:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: cargo build --bin rosenpass --release
       - run: python misc/generate_configs.py
       - run: chmod +x .ci/run-regression.sh
@@ -27,7 +27,7 @@ jobs:
   boot-race:
     runs-on: ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: cargo build --bin rosenpass --release
       - run: chmod +x .ci/boot_race/run.sh
       - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/a.toml
