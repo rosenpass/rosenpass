@@ -42,7 +42,7 @@ fn api_integration_test_v02() -> anyhow::Result<()> {
     api_integration_test(ProtocolVersion::V02)
 }
 
-fn api_integration_test_v03() -> anyhow::Result<()> {
+fn _api_integration_test_v03() -> anyhow::Result<()> { //unused function, kept for reference
     api_integration_test(ProtocolVersion::V03)
 }
 

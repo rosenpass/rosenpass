@@ -531,6 +531,7 @@ impl ServerPtr {
     }
 
     /// Returns and applies the first upcoming event
+    #[allow(non_snake_case)]
     fn flush_upcoming_events(self, sim: &mut RosenpassSimulator) -> TranscriptEvent {
         use UpcomingPollResult as R;
         match self.get_mut(sim).upcoming_poll_results.pop_front() {
@@ -557,7 +558,9 @@ impl ServerPtr {
         loop {
             match self.srv_mut(sim).poll()? {
                 // Poll just told us to immediately call poll again
-                P::Sleep(0.0) => continue,
+                // changing the hard coded floating pattern to avoid future phasing out error in pattern matching
+                // see issue for more information: https://github.com/rust-lang/rust/issues/41620
+                P::Sleep(wait_time) if wait_time == 0.0 => continue,
 
                 // No event to handle immediately. We can now check to see if there are some
                 // messages to be handled
@@ -612,6 +615,7 @@ impl ServerPtr {
         }
     }
 
+    #[allow(non_snake_case)]
     fn process_incoming_messages(
         self,
         sim: &mut RosenpassSimulator,
@@ -669,6 +673,7 @@ impl ServerPtr {
         self.flush_upcoming_events(sim).ok()
     }
 
+    #[allow(non_snake_case)]
     fn enqueue_on_exchanged_events(self, sim: &mut RosenpassSimulator) -> anyhow::Result<()> {
         use ServerEvent as SE;
         use TranscriptEvent as TE;
