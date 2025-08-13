@@ -3,9 +3,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
 
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
     nix-vm-test.inputs.flake-utils.follows = "flake-utils";
@@ -30,7 +27,6 @@
       nix-vm-test,
       rust-overlay,
       treefmt-nix,
-      flake-parts,
       rosenpassOld,
       ...
     }@inputs:
