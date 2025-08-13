@@ -501,6 +501,19 @@ in
     ${lib.optionalString multiPeer ''
       peerC.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
     ''}
+
+    # Dump current state of WireGuard tunnels
+    peerA.succeed("wg show all 1>&2")
+    peerB.succeed("wg show all 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all 1>&2")
+    ''}
+    peerA.succeed("wg show all preshared-keys 1>&2")
+    peerB.succeed("wg show all preshared-keys 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all preshared-keys 1>&2")
+    ''}
+
     for m in [peerbkeyexchanger, peerakeyexchanger]:
       m.wait_for_unit("rp-exchange.service")
 
@@ -527,5 +540,18 @@ in
       peerC.succeed("ping -c 1 ${staticConfig.peerA.innerIp}")
       peerC.succeed("ping -c 1 ${staticConfig.peerB.innerIp}")
     ''}
+
+    # Dump current state of WireGuard tunnels
+    peerA.succeed("wg show all 1>&2")
+    peerB.succeed("wg show all 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all 1>&2")
+    ''}
+    peerA.succeed("wg show all preshared-keys 1>&2")
+    peerB.succeed("wg show all preshared-keys 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all preshared-keys 1>&2")
+    ''}
+
   '');
 }
