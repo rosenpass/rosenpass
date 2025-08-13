@@ -16,6 +16,10 @@
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Older version of rosenpass, referenced here for backwards compatibility
+    rosenpassOld.url = "github:rosenpass/rosenpass?rev=916a9ebb7133f0b22057fb097a473217f261928a";
+    rosenpassOld.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -27,6 +31,7 @@
       rust-overlay,
       treefmt-nix,
       flake-parts,
+      rosenpassOld,
       ...
     }@inputs:
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
@@ -192,9 +197,7 @@
                 pkgs = inputs.nixpkgs;
                 lib = nixpkgs.lib;
                 rosenpassNew = self.packages.${system}.default;
-                rosenpassOld =
-                  (builtins.getFlake "github:rosenpass/rosenpass?rev=916a9ebb7133f0b22057fb097a473217f261928a")
-                  .packages.${system}.default;
+                rosenpassOld = rosenpassOld.packages.${system}.default;
               }
               // {
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
