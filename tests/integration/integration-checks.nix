@@ -24,8 +24,6 @@ let
     };
   };
 
-  # Since other parts of the CI are already doing the unit tests, we deactivate them here.
-
   basicConnectivityOverlay = final: prev: {
     rosenpass-peer-a = rosenpassNew;
     rosenpass-peer-b = rosenpassNew;
