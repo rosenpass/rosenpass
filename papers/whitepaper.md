@@ -365,7 +365,7 @@ The responder stores no state. While the responder has access to all of the abov
 
 The biscuit is encrypted with the `XAEAD` primitive and a randomly chosen nonce. The values `sidi` and `sidr` are transmitted publicly as part of InitConf, so they do not need to be present in the biscuit, but they are added to the biscuit's additional data to make sure the correct values are transmitted as part of InitConf.
 
-The `biscuit_key` used to encrypt biscuits should be rotated every two minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated.
+The `biscuit_key` used to encrypt biscuits should be rotated frequently. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated. The Rosenpass reference implementation retires biscuits after five minutes and erases them after ten.
 
 ### Live Session State {#live-session-state}
 
@@ -938,6 +938,21 @@ Changes, in particular:
 12. Added a section to explain and specify our incorrect implementation of HMAC-BLAKE2b.
 13. In `encaps_and_mix()`/`decaps_and_mix()` the whitepaper stated that public key, ciphertext, and shared key are mixed into the chaining key in that order, but the implementation used a different order: public key, shared key, and ciphertext (shared key and ciphertext are swapped). We harmonize the white paper with the implementation.
 14. In the white paper, in package `RespHello` the field `auth` was indicated to come after `biscuit`, but in the implementation, `auth` came first and `biscuit` was last. The semantics of how fields in Rosenpass messages are processed generally demand that fields are processed in the order they appear in the message, so having `biscuit` first and `auth` second—as was done in the white paper—would be correct; still, we harmonize the white paper with the implementation.
+15. Fix a discrepancy with regard to biscuit key life times.
+
+    ``` {=tex}
+    \begin{quote}
+    The \texttt{biscuit\textunderscore{}key} used to encrypt biscuits should be rotated every two minutes. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when \texttt{biscuit\textunderscore{}key} is rotated.
+    \end{quote}
+    ```
+
+    by
+
+    ``` {=tex}
+    \begin{quote}
+    The \texttt{biscuit\textunderscore{}key} used to encrypt biscuits should be rotated frequently. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when \texttt{biscuit\textunderscore{}key} is rotated. The Rosenpass reference implementation retires biscuits after five minutes and erases them after ten.
+    \end{quote}
+    ```
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
