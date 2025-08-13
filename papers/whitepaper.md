@@ -937,6 +937,7 @@ Changes, in particular:
     ```
 12. Added a section to explain and specify our incorrect implementation of HMAC-BLAKE2b.
 13. In `encaps_and_mix()`/`decaps_and_mix()` the whitepaper stated that public key, ciphertext, and shared key are mixed into the chaining key in that order, but the implementation used a different order: public key, shared key, and ciphertext (shared key and ciphertext are swapped). We harmonize the white paper with the implementation.
+14. In the white paper, in package `RespHello` the field `auth` was indicated to come after `biscuit`, but in the implementation, `auth` came first and `biscuit` was last. The semantics of how fields in Rosenpass messages are processed generally demand that fields are processed in the order they appear in the message, so having `biscuit` first and `auth` second—as was done in the white paper—would be correct; still, we harmonize the white paper with the implementation.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
