@@ -26,7 +26,7 @@
           rosenpassOld = inputs.rosenpass-old.packages.${system}.default.overrideAttrs (old: {
             doCheck = false;
           });
-          rosenpassNew = inputs.rosenpass-old.packages.${system}.default.overrideAttrs (old: {
+          rosenpassNew = inputs.rosenpass-new.packages.${system}.default.overrideAttrs (new: {
             doCheck = false;
           });
           defaultChecks = import ./integration-checks.nix {
