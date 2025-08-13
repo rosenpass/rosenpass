@@ -451,13 +451,13 @@ Rosenpass is built with KEMs, not with NIKEs (Diffie-Hellman-style operations); 
 ```pseudorust
 fn encaps_and_mix<T: KEM>(pk) {
     let (ct, shk) = T::enc(pk);
-    mix(pk, ct, shk);
+    mix(pk, shk, ct);
     ct
 }
 
 fn decaps_and_mix<T: KEM>(sk, pk, ct) {
     let shk = T::dec(sk, ct);
-    mix(pk, ct, shk);
+    mix(pk, shk, ct);
 }
 ```
 
@@ -936,6 +936,7 @@ Changes, in particular:
     \end{quote}
     ```
 12. Added a section to explain and specify our incorrect implementation of HMAC-BLAKE2b.
+13. In `encaps_and_mix()`/`decaps_and_mix()` the whitepaper stated that public key, ciphertext, and shared key are mixed into the chaining key in that order, but the implementation used a different order: public key, shared key, and ciphertext (shared key and ciphertext are swapped). We harmonize the white paper with the implementation.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
