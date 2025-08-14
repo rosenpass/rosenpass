@@ -492,7 +492,7 @@ Note that the `mix(biscuit_ct)` call updates the chaining key, but that update d
 fn load_biscuit(biscuit_ct) {
     // Decrypt the biscuit
     let k = biscuit_key;
-    let (n, ct) = biscuit_ct;
+    let concat(n, ct) = biscuit_ct;
     let ad = lhash(
       "biscuit additional data",
       spkr, sidi, sidr);
@@ -957,6 +957,25 @@ Changes, in particular:
 17. Consistent naming convention. Always use the term `secret key`, never  `private key`.
 18. `pidiC` -> `pidi_ct`; to make it clearer that this is a cipher text
 19. Where we refer to the biscuit ciphertext, we now use the term `biscuit_ct`. Previously we had used various variable names such as `nct` (nonce followed by cipher text) or just plain `biscuit`.
+20. In `load_biscuit`, we make it clear that destructuring of `biscuit_ct` destructures a concatenation.
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        let (n, ct) = biscuit_ct;
+        \end{minted}
+    \end{quote}
+    ```
+
+    with
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        let concat(n, ct) = biscuit_ct;
+        \end{minted}
+    \end{quote}
+    ```
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
