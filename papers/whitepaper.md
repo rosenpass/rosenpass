@@ -127,9 +127,20 @@ The protocol specifies two roles: initiator and responder.
 * initiator – The party that starts a handshake.
 * responder – The party that does not start a handshake.
 
-There is no particular mechanism to negotiate which party acts in which role; just like the WireGuard protocol, the Rosenpass protocol uses no distinction between client and server. In this vein, the initiator is not the protocol client; instead, the initiator is whichever party happened to start the key exchange. We sometimes use the term "server". In these cases, we generally refer to the "Rosenpass Server," as in the application that implements the Rosenpass protocol, not to a server/client distinction.
+All Rosenpass instances operate in either mode; the traditional "client"/"server" distinction does not apply to the Rosenpass protocol. We sometimes use the term "server". In these cases, we generally refer to the "Rosenpass Server," as in the application that implements the Rosenpass protocol, not to a server/client distinction.
 
-Implementations should be careful to ensure that having two ongoing key exchanges—one in the initiator role and one in the responder role—does not lead to implementation bugs.
+The initiator is stateful, and directs the handshake process. The responder is stateless for most of the protocol and reacts to the initiator's messages; this is important to protect our protocol against state disruption (protocol level denial of service) attacks. Since the responder does require some state to complete the protocol, this state is moved into an encrypted cookie, called "biscuit".
+
+The number of concurrent responder-role handshakes with another client is unlimited to account for the possibility of an imposter trying to execute a handshake: before completion of said handshake, there is no way to figure out which peer is an imposter and which peer is a legitimate party; any attempt to do so might lead to a state-disruption attack -- denial of service on the protocol level.
+
+There is no particular mechanism to negotiate which party acts as initiator and which acts as responder. At startup and when a key exchange is timer-triggered, Rosenpass will *initiate* a key exchange in initiator mode. At startup of another peer, and when they start a timer-triggered key exchange, the local server will *respond* in responder mode.
+
+Implementations must account for one ongoing initiator-role key exchange and many ongoing responder-role key exchanges. Upon receiving a well-formed InitConf package and successfully completing a responder-role key exchange, implementations should abort any ongoing initiator-role key exchange. Implementations should also use different back-off periods depending on whether the handshake was completed in initiator role or in responder role. The following values are used in the Rust reference implementation:
+
+- Initiator rekey interval: 130s
+- Responder rekey interval: 120s
+
+In practice these delays cause participants to take turns acting as initiator and acting as responder, since the ten-second difference is usually enough for the handshake with switched roles to complete before the old initiator's rekey timer goes to zero.
 
 ## Packages {#packages}
 
