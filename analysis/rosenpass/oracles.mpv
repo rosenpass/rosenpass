@@ -86,8 +86,8 @@ MTX_EV( event RHRjct(RespHello_t, key, kem_sk, kem_pk). )
 MTX_EV( event ICSent(RespHello_t, InitConf_t, key, kem_sk, kem_pk). )
 SES_EV( event InitiatorSession(RespHello_t, key). )
 let Oresp_hello(HS_DECL_ARGS) =
-  in(C, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit, auth)));
-  rh <- RespHello(sidr, sidi, ecti, scti, biscuit, auth);
+  in(C, Cresp_hello(RespHello(sidr, =sidi, ecti, scti, biscuit_ct, auth)));
+  rh <- RespHello(sidr, sidi, ecti, scti, biscuit_ct, auth);
   /* try */ let ic = (
     ck_ini <- ck;
     RESPHELLO_CONSUME()
@@ -124,7 +124,7 @@ let Oinit_hello() =
   call <- Cinit_hello(sidr, biscuit_no, Ssskm, Spsk, Sspkt, Septi, Sspti, ih);
 #endif
   // TODO: This is ugly
-  let InitHello(sidi, epki, sctr, pidiC, auth) = ih in
+  let InitHello(sidi, epki, sctr, pidi_ct, auth) = ih in
   SETUP_HANDSHAKE_STATE()
   eski <- kem_sk0;
   epti <- rng_key(setup_seed(Septi)); // RHR4

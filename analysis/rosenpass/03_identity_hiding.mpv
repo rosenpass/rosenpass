@@ -58,7 +58,7 @@ let secure_init_hello(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, r
 
   new epkit:kem_pk;    // epki
   new sctrt:bits;      // sctr 
-  new pidiCt:bits;      // pidiC
+  new pidi_ct:bits;      // pidi_ct
   new autht:bits;       // auth
 
   NEW_TRUSTED_SEED(seski_trusted_seed)
@@ -70,9 +70,9 @@ let secure_init_hello(initiator: kem_sk_tmpl, sidi : SessionId, psk: key_tmpl, r
 
 let secure_resp_hello(initiator: kem_sk_tmpl, responder: kem_sk_tmpl, sidi:SessionId, sidr:SessionId, biscuit_no:Atom, psk:key_tmpl) =
 
-  in(D, InitHello(=secure_sidi, epki, sctr, pidiC, auth));
+  in(D, InitHello(=secure_sidi, epki, sctr, pidi_ct, auth));
 
-  ih <- InitHello(sidi, epki, sctr, pidiC, auth);
+  ih <- InitHello(sidi, epki, sctr, pidi_ct, auth);
   NEW_TRUSTED_SEED(septi_trusted_seed)
   NEW_TRUSTED_SEED(sspti_trusted_seed)
   new last_cookie:key;
