@@ -61,10 +61,10 @@ pub struct HandleInitiationTestValues {
     #[test_vec(name = "hs.core.ck 2")]
     pub init_handshake_mix_2: TestValue<Secret<KEY_LEN>>,
 
-    #[test_vec(name = "ih.pidic")]
+    #[test_vec(name = "ih.pidi_ct")]
     #[test_vec(serialize_with = "serialize_byte_arr")]
     #[test_vec(deserialize_with = "deserialize_byte_arr")]
-    pub init_hello_pidic: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN + 32]>,
+    pub init_hello_pidi_ct: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN + 32]>,
 
     #[test_vec(name = "hs.core.ck 3")]
     pub init_handshake_mix_3: TestValue<Secret<KEY_LEN>>,

@@ -3612,7 +3612,7 @@ impl CryptoServer {
                 self.pidm(peer.get(self).protocol_version.keyed_hash())?
                     .as_ref(),
             )?;
-            TV::check_value(&test_values.init_hello_pidic, &ih.pidic);
+            TV::check_value(&test_values.init_hello_pidi_ct, &ih.pidi_ct);
             TV::check_value(
                 &test_values.init_handshake_mix_3,
                 &hs.core.ck.clone().danger_into_secret(),
