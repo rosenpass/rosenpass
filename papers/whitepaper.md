@@ -100,7 +100,7 @@ XAEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### SKEM {#skem}
 
-“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896 [@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
+“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896\footnote{The exact Classic McEliece version is from the NIST-Competition, Round 3: \par https://classic.mceliece.org/nist/mceliece-20201010.tar.gz}[@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
 
 ```pseudorust
 SKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -109,7 +109,7 @@ SKEM::dec(secret_key, ciphertext) -> shared_key
 
 ### EKEM
 
-Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512 [@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
+Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512\footnote{The exact Kyber version is from the NIST-Competition, Round 3: \par https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip \par https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf}[@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
 ```pseudorust
 EKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -953,6 +953,7 @@ Changes, in particular:
     The \texttt{biscuit\textunderscore{}key} used to encrypt biscuits should be rotated frequently. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when \texttt{biscuit\textunderscore{}key} is rotated. The Rosenpass reference implementation retires biscuits after five minutes and erases them after ten.
     \end{quote}
     ```
+16. Point out explicitly that we use KEMs from NIST-Competition Round 3. Include links to the competition submission packages. Update citations to reflect the exact specification version.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
