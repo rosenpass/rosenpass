@@ -661,6 +661,40 @@ When a responder is under load and it receives an InitHello handshake message, t
 
 When the responder is under load and it recieves an InitConf message, the message will be directly processed without checking the validity of the cookie field.
 
+## Timers
+
+The Rosenpass protocol uses various timer-triggered events during its operation. This section provides a listing of the timers used and gives the values used in the reference implementation. Other implementations may choose different values.
+
+### Rekeying
+
+Period after which the previous responder starts a new handshake in initiator role; period after which the previous initiator starts a new handshake in initiator role again; period after which a peer rejects an existing shared key.
+
+```pseudorust
+REKEY_AFTER_TIME_RESPONDER = 120s
+REKEY_AFTER_TIME_INITIATOR = 130s
+REJECT_AFTER_TIME = 180s
+```
+
+### Biscuits
+
+Period after which the biscuit key is rotated.
+
+```pseudorust
+BISCUIT_EPOCH = 300s
+```
+
+### Retransmission
+
+Delay after which all retransmission attempts are aborted; exponential backoff factor for retransmission delay; initial (minimum) retransmission delay; final (maximum) retransmission delay; retransmission jitter/variance factor.
+
+```pseudorust
+RETRANSMIT_ABORT        = 120s
+RETRANSMIT_DELAY_GROWTH = 2
+RETRANSMIT_DELAY_BEGIN  = 500ms
+RETRANSMIT_DELAY_END    = 10s
+RETRANSMIT_DELAY_JITTER = 0.5
+```
+
 # Protocol extensions {#protocol-extensions}
 
 The main extension point for the Rosenpass protocol is to generate `osk`s (speak output shared keys, see Sec. \ref{symmetric-keys}) for purposes other than using them to secure WireGuard. By default, the Rosenpass application generates keys for the WireGuard PSK (see \ref{protocol-extension-wireguard-psk}). It would not be impossible to use the keys generated for WireGuard in other use cases, but this might lead to attacks[@oraclecloning]. Specifying a custom protocol extension in practice just means settling on alternative domain separators (see Sec. \ref{symmetric-keys}, Fig. \ref{img:HashingTree}).
@@ -768,8 +802,10 @@ fn on_key_timeout() {
 }
 ```
 
+\begin{minipage}{\textwidth}
 \setupimage{label=img:ExtWireguardPSKHybridSecurity,fullpage}
 ![Rosenpass + WireGuard: Hybrid Security](graphics/rosenpass-wireguard-hybrid-security.pdf)
+\end{minipage}
 
 # Errata {#errata}
 
@@ -987,6 +1023,7 @@ Changes, in particular:
         \end{minted}
     \end{quote}
     ```
+21. Added a section about timers used in the Rosenpass protocol
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
@@ -1110,4 +1147,3 @@ PR: [#142](https://github.com/rosenpass/rosenpass/pull/142)
 
 \setupimage{landscape,fullpage,label=img:HandlingCode}
 ![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
-
