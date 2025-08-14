@@ -166,7 +166,7 @@ hash_domain_ns!(
     protocol, cookie_key, "cookie-key");
 hash_domain_ns!(
     /// Hash domain based on [protocol] for calculating the peer id as transmitted (encrypted)
-    /// in [crate::msgs::InitHello::pidic].
+    /// in [crate::msgs::InitHello::pidi_ct].
     ///
     /// # Examples
     ///
@@ -179,7 +179,7 @@ hash_domain_ns!(
 hash_domain_ns!(
     /// Hash domain based on [protocol] for calculating the additional data
     /// during [crate::msgs::Biscuit] encryption, storing the biscuit into
-    /// [crate::msgs::RespHello::biscuit].
+    /// [crate::msgs::RespHello::biscuit_ct].
     ///
     /// # Examples
     ///

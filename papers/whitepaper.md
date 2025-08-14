@@ -479,20 +479,20 @@ fn store_biscuit() {
       "biscuit additional data",
       spkr, sidi, sidr);
     let ct = XAEAD::enc(k, n, pt, ad);
-    let nct = concat(n, ct);
+    let biscuit_ct = concat(n, ct);
 
-    mix(nct)
-    nct
+    mix(biscuit_ct)
+    biscuit_ct
 }
 ```
-Note that the `mix(nct)` call updates the chaining key, but that update does not make it into the biscuit. Therefore, `mix(nct)` is reapplied in `load_biscuit`. The responder handshake code also needs to reapply any other operations modifying `ck` after calling `store_biscuit`. The handshake code on the initiator's side also needs to call `mix(nct)`.
+Note that the `mix(biscuit_ct)` call updates the chaining key, but that update does not make it into the biscuit. Therefore, `mix(biscuit_ct)` is reapplied in `load_biscuit`. The responder handshake code also needs to reapply any other operations modifying `ck` after calling `store_biscuit`. The handshake code on the initiator's side also needs to call `mix(biscuit_ct)`.
 
 
 ```pseudorust
-fn load_biscuit(nct) {
+fn load_biscuit(biscuit_ct) {
     // Decrypt the biscuit
     let k = biscuit_key;
-    let (n, ct) = nct;
+    let (n, ct) = biscuit_ct;
     let ad = lhash(
       "biscuit additional data",
       spkr, sidi, sidr);
@@ -512,7 +512,7 @@ fn load_biscuit(nct) {
 
     // Restore the chaining key
     ck ← pt.ck;
-    mix(nct);
+    mix(biscuit_ct);
 
     // Expose the biscuit no,
     // so the handshake code can differentiate
@@ -955,6 +955,8 @@ Changes, in particular:
     ```
 16. Point out explicitly that we use KEMs from NIST-Competition Round 3. Include links to the competition submission packages. Update citations to reflect the exact specification version.
 17. Consistent naming convention. Always use the term `secret key`, never  `private key`.
+18. `pidiC` -> `pidi_ct`; to make it clearer that this is a cipher text
+19. Where we refer to the biscuit ciphertext, we now use the term `biscuit_ct`. Previously we had used various variable names such as `nct` (nonce followed by cipher text) or just plain `biscuit`.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 

@@ -19,7 +19,7 @@ fun CookieMsg(
   COOKIE_EV(event MCAT(eventLbl, _UnderLoadEV) (spkm, spkt, last_cookie);)	\
   msgB <- Envelope(mac1, RH2b(rh));	\
   mac2_key <- create_mac2_key(sskm, spkt)	\
-  let RespHello(sidi, sidr, ecti, scti, biscuit, auth) = rh in \
+  let RespHello(sidi, sidr, ecti, scti, biscuit_ct, auth) = rh in \
   if Envelope(mac2_key, msgB) = mac2 then	\
     COOKIE_EV(event MCAT(eventLbl, _CookieValidated) (spkm, last_cookie);)	\
     innerFunc	\
