@@ -277,7 +277,7 @@ The different labels are:
 Rosenpass uses a cryptographic hash function for multiple purposes:
 
 * Computing the message authentication code in the message envelope as in WireGuard
-* Computing the cookie to guard against denial of service attacks. This is a feature adopted from WireGuard, but not yet included in the implementation of Rosenpass.
+* Computing the cookie to guard against denial of service attacks.
 * Computing the peer ID
 * Key derivation during and after the handshake
 * Computing the additional data for the biscuit encryption, to provide some privacy for its contents
@@ -589,6 +589,8 @@ ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This i
 ### Denial of Service Mitigation and Cookies {#dos-mitigation}
 
 Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from Wireguard [@wg].
+
+**This is currently implemented in the Rosenpass implementation but still considered an experimental feature and not enabled by default.**
 
 When the responder is under load, it may choose to not process further InitHello handshake messages, but instead to respond with a cookie reply message (see Figure \ref{img:MessageTypes}).
 
@@ -1055,6 +1057,7 @@ Additional changes (also motivated by a close review, but not reported by Steffe
         \end{minted}
     \end{quote}
     ```
+4. Remove reference to the proof-of-IP-ownership-based DoS mitigation feature not being implemented. Add a notice, that the feature is currently experimental.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
