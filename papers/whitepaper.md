@@ -517,7 +517,7 @@ fn load_biscuit(biscuit_ct) {
     let pt : Biscuit = XAEAD::dec(k, n, ct, ad);
 
     // Find the peer and apply retransmission protection
-    lookup_peer(pt.peerid);
+    lookup_peer(pt.pidi);
 
     // In December 2024, the InitConf retransmission mechanisim was redesigned
     // in a backwards-compatible way. See the changelog.
@@ -1036,6 +1036,25 @@ Additional changes (also motivated by a close review, but not reported by Steffe
 
 1. Fig. 2 "Rosenpass Message Types", CookieReply package. Renamed the length sum from payload to package.
 2. Fig. 2 "Rosenpass Message Types", Envelope package. Renamed the length sum from envelope to package.
+3. In `load_biscuit()` fix a naming typo:
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        lookup_peer(pt.peerid);
+        \end{minted}
+    \end{quote}
+    ```
+
+    with
+
+    ``` {=tex}
+    \begin{quote}
+        \begin{minted}{pseudorust}
+        lookup_peer(pt.pidi);
+        \end{minted}
+    \end{quote}
+    ```
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
