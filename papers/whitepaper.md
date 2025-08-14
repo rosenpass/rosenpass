@@ -1032,6 +1032,11 @@ Changes, in particular:
     ```
 21. Added a section about timers used in the Rosenpass protocol
 
+Additional changes (also motivated by a close review, but not reported by Steffen):
+
+1. Fig. 2 "Rosenpass Message Types", CookieReply package. Renamed the length sum from payload to package.
+2. Fig. 2 "Rosenpass Message Types", Envelope package. Renamed the length sum from envelope to package.
+
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
 \vspace{0.5em}
