@@ -392,6 +392,13 @@ These variables are used after the handshake terminates for encryption of the \t
 * `txkt` – Peer's transmission key
 * `txnt` – Peer's transmission nonce
 
+## Protocol Code {#functions}
+
+The main reference for how messages are processed in the Rosenpass protocol can be found in Fig. \ref{img:HandlingCode}. The figure uses Rust-like pseudo code.
+
+\setupimage{landscape,fullpage,label=img:HandlingCode}
+![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
+
 ## Helper Functions {#functions}
 
 Given the peer ID, look up the peer and load the peer's variables.
@@ -1144,6 +1151,3 @@ PR: [#142](https://github.com/rosenpass/rosenpass/pull/142)
 - Added section "Denial of Service Mitigation and Cookies", and modify "Dealing with Packet Loss" for DoS cookie mechanism
 
 \printbibliography
-
-\setupimage{landscape,fullpage,label=img:HandlingCode}
-![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
