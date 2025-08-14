@@ -100,7 +100,7 @@ XAEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 
 ### SKEM {#skem}
 
-“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896\footnote{The exact Classic McEliece version is from the NIST-Competition, Round 3: \par https://classic.mceliece.org/nist/mceliece-20201010.tar.gz}[@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and private keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
+“Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896\footnote{The exact Classic McEliece version is from the NIST-Competition, Round 3: \par https://classic.mceliece.org/nist/mceliece-20201010.tar.gz}[@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and secret keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
 
 ```pseudorust
 SKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -109,7 +109,7 @@ SKEM::dec(secret_key, ciphertext) -> shared_key
 
 ### EKEM
 
-Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512\footnote{The exact Kyber version is from the NIST-Competition, Round 3: \par https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip \par https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf}[@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and private keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
+Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512\footnote{The exact Kyber version is from the NIST-Competition, Round 3: \par https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip \par https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf}[@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and secret keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
 ```pseudorust
 EKEM::enc(public_key) -> (ciphertext, shared_key)
@@ -127,7 +127,7 @@ The protocol specifies two roles: initiator and responder.
 * initiator – The party that starts a handshake.
 * responder – The party that does not start a handshake.
 
-There is no particular mechanism to negotiate which party acts in which role; just like the WireGuard protocol, the Rosenpass protocol uses no distinction between client and server. In this vein, the initiator is not the protocol client; instead, the initiator is whichever party happened to start the key exchange.
+There is no particular mechanism to negotiate which party acts in which role; just like the WireGuard protocol, the Rosenpass protocol uses no distinction between client and server. In this vein, the initiator is not the protocol client; instead, the initiator is whichever party happened to start the key exchange. We sometimes use the term "server". In these cases, we generally refer to the "Rosenpass Server," as in the application that implements the Rosenpass protocol, not to a server/client distinction.
 
 Implementations should be careful to ensure that having two ongoing key exchanges—one in the initiator role and one in the responder role—does not lead to implementation bugs.
 
@@ -168,7 +168,7 @@ Rosenpass uses multiple keypairs, ciphertexts, and plaintexts for key encapsulat
 
 These values use a naming scheme consisting of four lower-case characters. The first character indicates whether the key is static `s` or ephemeral `e`. The second character is an `s` or a `p` for secret or public. The third character is always a `k`. The fourth and final character is an `i`, `r`, `m`, or `t`, for `initiator`, `responder`, `mine`, or `theirs`. The initiator's static public key for instance is `spki`. During execution of the protocol, three KEM ciphertexts are produced: `scti`, `sctr`, and `ecti`.
 
-Besides the initiator and responder roles, we define the roles `mine` and `theirs` (`m`/`t`). These are sometimes used in the code when the assignment to initiator or responder roles is flexible. As an example, “this server's” static secret key is `sskm`, and the peer's public key is `spkt`.
+Besides the initiator and responder roles, we define the roles `mine` and `theirs` (`m`/`t`). These are sometimes used in the code when the assignment to initiator or responder roles is flexible. As an example, our static secret key is `sskm`, and the peer's public key is `spkt`.
 
 
 ### IDs {#peer-ids}
@@ -318,7 +318,7 @@ hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryp
        = lhash("chaining key extract", "handshake encryption")
 ```
 
-## Server State
+## Rosenpass Server State
 
 ### Global
 
@@ -954,6 +954,7 @@ Changes, in particular:
     \end{quote}
     ```
 16. Point out explicitly that we use KEMs from NIST-Competition Round 3. Include links to the competition submission packages. Update citations to reflect the exact specification version.
+17. Consistent naming convention. Always use the term `secret key`, never  `private key`.
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
