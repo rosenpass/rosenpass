@@ -519,7 +519,7 @@ fn load_biscuit(biscuit_ct) {
     // Find the peer and apply retransmission protection
     lookup_peer(pt.pidi);
 
-    // In December 2024, the InitConf retransmission mechanisim was redesigned
+    // In December 2024, the InitConf retransmission mechanism was redesigned
     // in a backwards-compatible way. See the changelog.
     //
     // -- 2024-11-30, Karolin Varner
@@ -588,13 +588,13 @@ ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This i
 
 ### Denial of Service Mitigation and Cookies {#dos-mitigation}
 
-Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from Wireguard [@wg].
+Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from WireGuard [@wg].
 
 **This is currently implemented in the Rosenpass implementation but still considered an experimental feature and not enabled by default.**
 
 When the responder is under load, it may choose to not process further InitHello handshake messages, but instead to respond with a cookie reply message (see Figure \ref{img:MessageTypes}).
 
-The sender of the exchange then uses this cookie in order to resend the message and have it accepted the following time by the reciever.
+The sender of the exchange then uses this cookie in order to resend the message and have it accepted the following time by the receiver.
 
 For an initiator, Rosenpass ignores all messages when under load.
 
@@ -611,7 +611,7 @@ where `cookie_secret` is a secret variable that changes every two minutes to a r
 
 #### Envelope `mac` Field {#envelope-mac-field}
 
-Similar to `mac.1` in Wireguard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
+Similar to `mac.1` in WireGuard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
 
 ```pseudorust
 mac = lhash("mac", spkt, MAC_WIRE_DATA)[0..16]
@@ -634,7 +634,7 @@ else {
 }
 ```
 
-Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds ellapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
+Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds elapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
 
 The inititator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
 However, when the responder is under load, it may reject InitHello messages with the invalid `cookie` value, and issue a cookie reply message.
@@ -643,11 +643,11 @@ However, when the responder is under load, it may reject InitHello messages with
 
 This whitepaper does not mandate any specific mechanism to detect responder contention (also mentioned as the under load condition) that would trigger use of the cookie mechanism.
 
-For the reference implemenation, Rosenpass has derived inspiration from the Linux implementation of Wireguard.  This implementation suggests that the reciever keep track of the number of messages it is processing at a given time.
+For the reference implemenation, Rosenpass has derived inspiration from the Linux implementation of WireGuard.  This implementation suggests that the receiver keep track of the number of messages it is processing at a given time.
 
-On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When recieving subsequent messages, if the client is still in an under load state, the client will check if the time ellpased since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
+On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When recieving subsequent messages, if the client is still in an under load state, the client will check if the time elapsed since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
 
-Currently, the following constants are derived from the Linux kernel implementation of Wireguard:
+Currently, the following constants are derived from the Linux kernel implementation of WireGuard:
 
 ```pseudorust
 MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD = 4096
@@ -1058,6 +1058,7 @@ Additional changes (also motivated by a close review, but not reported by Steffe
     \end{quote}
     ```
 4. Remove reference to the proof-of-IP-ownership-based DoS mitigation feature not being implemented. Add a notice, that the feature is currently experimental.
+5. Fixed a few typos and capitalization issues
 
 #### 2025-06-24 – Specifying the `osk` used for WireGuard as a protocol extension
 
@@ -1150,7 +1151,7 @@ By removing all retransmission handling code from the cryptographic protocol, we
     ``` {=tex}
     \begin{quote}
         \begin{minted}{pseudorust}
-        // In December 2024, the InitConf retransmission mechanisim was redesigned
+        // In December 2024, the InitConf retransmission mechanism was redesigned
         // in a backwards-compatible way. See the changelog.
         //
         // -- 2024-11-30, Karolin Varner
