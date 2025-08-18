@@ -59,6 +59,17 @@ who = "Nick Fitzgerald <fitzgen@gmail.com>"
 criteria = "safe-to-deploy"
 version = "1.4.1"
 
+[[audits.bytecode-alliance.audits.base64]]
+who = "Pat Hickey <phickey@fastly.com>"
+criteria = "safe-to-deploy"
+version = "0.21.0"
+notes = "This crate has no dependencies, no build.rs, and contains no unsafe code."
+
+[[audits.bytecode-alliance.audits.base64]]
+who = "Andrew Brown <andrew.brown@intel.com>"
+criteria = "safe-to-deploy"
+delta = "0.21.3 -> 0.22.1"
+
 [[audits.bytecode-alliance.audits.bitflags]]
 who = "Jamey Sharp <jsharp@fastly.com>"
 criteria = "safe-to-deploy"
@@ -1138,6 +1149,21 @@ criteria = "safe-to-run"
 version = "1.2.1"
 aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
 
+[[audits.isrg.audits.base64]]
+who = "Tim Geoghegan <timg@letsencrypt.org>"
+criteria = "safe-to-deploy"
+delta = "0.21.0 -> 0.21.1"
+
+[[audits.isrg.audits.base64]]
+who = "Brandon Pitman <bran@bran.land>"
+criteria = "safe-to-deploy"
+delta = "0.21.1 -> 0.21.2"
+
+[[audits.isrg.audits.base64]]
+who = "David Cook <dcook@divviup.org>"
+criteria = "safe-to-deploy"
+delta = "0.21.2 -> 0.21.3"
+
 [[audits.isrg.audits.block-buffer]]
 who = "David Cook <dcook@divviup.org>"
 criteria = "safe-to-deploy"
@@ -1566,6 +1592,24 @@ criteria = "safe-to-deploy"
 version = "1.1.0"
 notes = "Straightforward crate with no unsafe code, does what it says on the tin."
 aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.ryu]]
+who = "Mike Hommey <mh+mozilla@glandium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.10 -> 1.0.11"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.ryu]]
+who = "Mike Hommey <mh+mozilla@glandium.org>"
+criteria = "safe-to-deploy"
+delta = "1.0.11 -> 1.0.12"
+aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.ryu]]
+who = "Jan-Erik Rediger <jrediger@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "1.0.12 -> 1.0.19"
+aggregated-from = "https://raw.githubusercontent.com/mozilla/glean/main/supply-chain/audits.toml"
 
 [[audits.mozilla.audits.semver]]
 who = "Jan-Erik Rediger <jrediger@mozilla.com>"
