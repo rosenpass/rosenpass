@@ -24,6 +24,7 @@ let
       "service"
       "target"
       "toml"
+      "zstd" # used for offloaded test vector values
     ];
     # Files to explicitly include
     files = [ "to/README.md" ];

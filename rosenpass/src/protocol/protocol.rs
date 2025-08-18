@@ -15,6 +15,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context, Result};
+use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
 use zerocopy::{AsBytes, FromBytes, Ref};
 
@@ -33,6 +34,10 @@ use rosenpass_util::{
     time::Timebase,
 };
 
+use crate::protocol::test_vector_sets::{
+    CycledBiscuitSecretKeyTestValues, EncapsAndMixTestValues, HandleInitHelloTestValues,
+    HandleInitiationTestValues, StoreBiscuitTestValues,
+};
 use crate::{hash_domains, msgs::*, RosenpassError};
 
 use super::basic_types::{
@@ -1392,6 +1397,20 @@ impl CryptoServer {
     ///
     /// Swap the biscuit keys, also advancing both biscuit key's mortality
     pub fn active_biscuit_key(&mut self) -> BiscuitKeyPtr {
+        self.active_biscuit_key_with_test_vector::<TestVectorNOP>()
+    }
+
+    /// Generic variant of [`Self::active_biscuit_key`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::active_biscuit_key`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn active_biscuit_key_with_test_vector<TV: TestVector>(&mut self) -> BiscuitKeyPtr {
         let (a, b) = (BiscuitKeyPtr(0), BiscuitKeyPtr(1));
         let (t, u) = (a.get(self).created_at, b.get(self).created_at);
 
@@ -1407,6 +1426,11 @@ impl CryptoServer {
         let r = if t < u { a } else { b };
         let tb = self.timebase.clone();
         r.get_mut(self).randomize(&tb);
+        let test_values: CycledBiscuitSecretKeyTestValues = TV::initialize_values();
+        TV::expose_mut_value(
+            &test_values.cycled_biscuit_secret_key,
+            &mut self.biscuit_keys[r.0].value,
+        );
         r
     }
 
@@ -1725,6 +1749,7 @@ impl Mortal for KnownInitConfResponsePtr {
 /// # Examples
 ///
 /// ```
+/// use assert_tv::TestVector;
 /// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
@@ -1865,13 +1890,31 @@ impl CryptoServer {
     ///
     /// See [Self::poll] on how to use this function with poll.
     pub fn initiate_handshake(&mut self, peer: PeerPtr, tx_buf: &mut [u8]) -> Result<usize> {
+        self.initiate_handshake_with_test_vector::<TestVectorNOP>(peer, tx_buf)
+    }
+
+    /// Generic variant of [`Self::initiate_handshake`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::initiate_handshake`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn initiate_handshake_with_test_vector<TV: TestVector>(
+        &mut self,
+        peer: PeerPtr,
+        tx_buf: &mut [u8],
+    ) -> Result<usize> {
         // NOTE retransmission? yes if initiator, no if responder
         // TODO remove unnecessary copying between global tx_buf and per-peer buf
         // TODO move retransmission storage to io server
         //
         // Envelope::<InitHello>::default(); // TODO
         let mut msg = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
-        self.handle_initiation(peer, &mut msg.payload)?;
+        self.handle_initiation_with_test_vector::<TV>(peer, &mut msg.payload)?;
         let len = self.seal_and_commit_msg(peer, MsgType::InitHello, &mut msg)?;
         peer.hs()
             .store_msg_for_retransmission(self, msg.as_bytes())?;
@@ -2111,6 +2154,24 @@ impl CryptoServer {
     ///
     /// See [Self::poll] on how to use this function with poll.
     pub fn handle_msg(&mut self, rx_buf: &[u8], tx_buf: &mut [u8]) -> Result<HandleMsgResult> {
+        self.handle_msg_with_test_vector::<TestVectorNOP>(rx_buf, tx_buf)
+    }
+
+    /// Generic message handler that allows selecting a [`TestVector`]
+    /// implementation.
+    ///
+    /// This function is primarily intended for **testing** with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::handle_msg`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn handle_msg_with_test_vector<TV: TestVector>(
+        &mut self,
+        rx_buf: &[u8],
+        tx_buf: &mut [u8],
+    ) -> Result<HandleMsgResult> {
         let seal_broken = "Message seal broken!";
         // length of the response. We assume no response, so None for now
         let mut len = 0;
@@ -2131,7 +2192,7 @@ impl CryptoServer {
 
                 // At this point, we do not know the hash functon used by the peer, thus we try both,
                 // with a preference for SHAKE256.
-                let peer_shake256 = self.handle_init_hello(
+                let peer_shake256 = self.handle_init_hello_with_test_vector::<TV>(
                     &msg_in.payload,
                     &mut msg_out.payload,
                     KeyedHash::keyed_shake256(),
@@ -2139,7 +2200,7 @@ impl CryptoServer {
                 let (peer, peer_hash_choice) = match peer_shake256 {
                     Ok(peer) => (peer, KeyedHash::keyed_shake256()),
                     Err(_) => {
-                        let peer_blake2b = self.handle_init_hello(
+                        let peer_blake2b = self.handle_init_hello_with_test_vector::<TV>(
                             &msg_in.payload,
                             &mut msg_out.payload,
                             KeyedHash::incorrect_hmac_blake2b(),
@@ -3159,8 +3220,48 @@ impl HandshakeState {
         ct: &mut [u8; KEM_CT_LEN],
         pk: &[u8; KEM_PK_LEN],
     ) -> Result<&mut Self> {
+        self.encaps_and_mix_with_test_vector(kem, ct, pk, std::marker::PhantomData::<TestVectorNOP>)
+    }
+
+    /// Generic variant of [`Self::encaps_and_mix`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::encaps_and_mix`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example.
+    ///
+    /// Note on `_tv: PhantomData<TV>` parameter:
+    /// - Rust’s type inference ties generic parameter specification together;
+    ///   explicitly selecting `TV` with turbofish can force you to also spell
+    ///   out the const generics.
+    /// - By adding a value parameter of type `PhantomData<TV>`, you can choose
+    ///   `TV` at the call site while allowing the compiler to infer `KEM_*`
+    ///    const generics from `ct` and `pk`.
+    /// - Call like: `encaps_and_mix_with_test_vector(&StaticKem, &mut ct, pk,
+    ///   PhantomData::<TestVectorActive>)?;`
+    pub fn encaps_and_mix_with_test_vector<
+        const KEM_SK_LEN: usize,
+        const KEM_PK_LEN: usize,
+        const KEM_CT_LEN: usize,
+        const KEM_SHK_LEN: usize,
+        KemImpl: Kem<KEM_SK_LEN, KEM_PK_LEN, KEM_CT_LEN, KEM_SHK_LEN>,
+        TV: TestVector,
+    >(
+        &mut self,
+        kem: &KemImpl,
+        ct: &mut [u8; KEM_CT_LEN],
+        pk: &[u8; KEM_PK_LEN],
+        _tv: std::marker::PhantomData<TV>,
+    ) -> Result<&mut Self> {
+        let test_values: EncapsAndMixTestValues<KEM_CT_LEN, KEM_SHK_LEN> = TV::initialize_values();
         let mut shk = Secret::<KEM_SHK_LEN>::zero();
         kem.encaps(shk.secret_mut(), ct, pk)?;
+        TV::expose_mut_value(&test_values.shk, &mut shk);
+        TV::expose_mut_value(&test_values.ct, ct);
         self.mix(pk)?.mix(shk.secret())?.mix(ct)
     }
 
@@ -3199,6 +3300,26 @@ impl HandshakeState {
         peer: PeerPtr,
         biscuit_ct: &mut [u8],
     ) -> Result<&mut Self> {
+        self.store_biscuit_with_test_vector::<TestVectorNOP>(srv, peer, biscuit_ct)
+    }
+
+    /// Generic variant of [`Self::store_biscuit`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::store_biscuit`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn store_biscuit_with_test_vector<TV: TestVector>(
+        &mut self,
+        srv: &mut CryptoServer,
+        peer: PeerPtr,
+        biscuit_ct: &mut [u8],
+    ) -> Result<&mut Self> {
+        let test_values: StoreBiscuitTestValues = TV::initialize_values();
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
         let mut biscuit: Ref<&mut [u8], Biscuit> =
             Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
@@ -3212,6 +3333,8 @@ impl HandshakeState {
             .ck
             .copy_from_slice(self.ck.clone().danger_into_secret().secret());
 
+        TV::check_value(&test_values.biscuit, &biscuit.as_bytes().to_vec());
+
         // calculate ad contents
         let ad = hash_domains::biscuit_ad(peer.get(srv).protocol_version.keyed_hash())?
             .mix(srv.spkm.deref())?
@@ -3224,14 +3347,18 @@ impl HandshakeState {
 
         // The first bit of the nonce indicates which biscuit key was used
         // TODO: This is premature optimization. Remove!
-        let bk = srv.active_biscuit_key();
+        let bk = srv.active_biscuit_key_with_test_vector::<TV>();
         let mut n = XAEADNonce::random();
+
+        TV::expose_mut_value(&test_values.n, &mut n);
+
         n[0] &= 0b0111_1111;
         n[0] |= (bk.0 as u8 & 0x1) << 7;
 
         let k = bk.get(srv).value.secret();
         let pt = biscuit.as_bytes();
         XAead.encrypt_with_nonce_in_ctxt(biscuit_ct, k, &n, &ad, pt)?;
+        TV::check_value(&test_values.biscuit_ct, &biscuit_ct.to_vec());
 
         self.mix(biscuit_ct)
     }
@@ -3400,12 +3527,38 @@ impl CryptoServer {
     /// Core cryptographic protocol implementation: Kicks of the handshake
     /// on the initiator side, producing the InitHello message.
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
+        self.handle_initiation_with_test_vector::<TestVectorNOP>(peer, ih)
+    }
+
+    /// Generic variant of [`Self::handle_initiation`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::handle_initiation`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn handle_initiation_with_test_vector<TV: TestVector>(
+        &mut self,
+        peer: PeerPtr,
+        ih: &mut InitHello,
+    ) -> Result<PeerPtr> {
+        let test_values: HandleInitiationTestValues = TV::initialize_values();
+
         #[cfg(feature = "trace_bench")]
         let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_initiation");
 
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
             peer.get(self).protocol_version.keyed_hash(),
+        );
+
+        // hs.cookie_value.created_at = tv_const!(hs.cookie_value.created_at, "init_handshake-cookie-created_at");
+        TV::expose_mut_value(
+            &test_values.init_handshake_cookie,
+            &mut hs.cookie_value.value,
         );
 
         // IHI1
@@ -3416,24 +3569,40 @@ impl CryptoServer {
         // IHI2
         protocol_section!("IHI2", {
             hs.core.sidi.randomize();
+            TV::expose_mut_value(&test_values.init_handshake_sidi, &mut hs.core.sidi);
             ih.sidi.copy_from_slice(&hs.core.sidi.value);
         });
 
         // IHI3
         protocol_section!("IHI3", {
             EphemeralKem.keygen(hs.eski.secret_mut(), &mut hs.epki)?;
+            TV::expose_mut_value(&test_values.init_handshake_eski, &mut hs.eski);
+            TV::expose_mut_value(&test_values.init_handshake_epki, &mut hs.epki);
             ih.epki.copy_from_slice(&hs.epki.value);
         });
 
         // IHI4
         protocol_section!("IHI4", {
             hs.core.mix(ih.sidi.as_slice())?.mix(ih.epki.as_slice())?;
+            TV::check_value(
+                &test_values.init_handshake_mix_1,
+                &hs.core.ck.clone().danger_into_secret(),
+            );
         });
 
         // IHI5
         protocol_section!("IHI5", {
-            hs.core
-                .encaps_and_mix(&StaticKem, &mut ih.sctr, peer.get(self).spkt.deref())?;
+            use std::marker::PhantomData;
+            hs.core.encaps_and_mix_with_test_vector(
+                &StaticKem,
+                &mut ih.sctr,
+                peer.get(self).spkt.deref(),
+                PhantomData::<TV>,
+            )?;
+            TV::check_value(
+                &test_values.init_handshake_mix_2,
+                &hs.core.ck.clone().danger_into_secret(),
+            );
         });
 
         // IHI6
@@ -3443,6 +3612,11 @@ impl CryptoServer {
                 self.pidm(peer.get(self).protocol_version.keyed_hash())?
                     .as_ref(),
             )?;
+            TV::check_value(&test_values.init_hello_pidic, &ih.pidic);
+            TV::check_value(
+                &test_values.init_handshake_mix_3,
+                &hs.core.ck.clone().danger_into_secret(),
+            );
         });
 
         // IHI7
@@ -3450,16 +3624,24 @@ impl CryptoServer {
             hs.core
                 .mix(self.spkm.deref())?
                 .mix(peer.get(self).psk.secret())?;
+            TV::check_value(
+                &test_values.init_handshake_mix_4,
+                &hs.core.ck.clone().danger_into_secret(),
+            );
         });
 
         // IHI8
         protocol_section!("IHI8", {
             hs.core.encrypt_and_mix(ih.auth.as_mut_slice(), &[])?;
+            TV::check_value(&test_values.init_hello_auth, &ih.auth);
+            TV::check_value(
+                &test_values.init_handshake_mix_5,
+                &hs.core.ck.clone().danger_into_secret(),
+            );
         });
 
         // Update the handshake hash last (not changing any state on prior error
         peer.hs().insert(self, hs)?;
-
         Ok(peer)
     }
 
@@ -3471,6 +3653,27 @@ impl CryptoServer {
         rh: &mut RespHello,
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
+        self.handle_init_hello_with_test_vector::<TestVectorNOP>(ih, rh, keyed_hash)
+    }
+
+    /// Generic variant of [`Self::handle_init_hello`] that allows selecting
+    /// a [`TestVector`] implementation.
+    ///
+    /// This function is primarily intended for testing with different
+    /// test vector strategies. In production code, prefer using
+    /// [`Self::handle_init_hello`], which defaults to [`assert_tv::TestVectorNOP`].
+    ///
+    /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
+    /// applying actual test vectors. See the `tests::test_vector_crypto_server`
+    /// test for an example
+    pub fn handle_init_hello_with_test_vector<TV: TestVector>(
+        &mut self,
+        ih: &InitHello,
+        rh: &mut RespHello,
+        keyed_hash: KeyedHash,
+    ) -> Result<PeerPtr> {
+        let test_values: HandleInitHelloTestValues = TV::initialize_values();
+
         #[cfg(feature = "trace_bench")]
         let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_hello");
 
@@ -3487,11 +3690,19 @@ impl CryptoServer {
         protocol_section!("IHR4", {
             core.mix(&ih.sidi)?.mix(&ih.epki)?;
         });
+        TV::check_value(
+            &test_values.chaining_key_ihr_4,
+            &core.ck.clone().danger_into_secret(),
+        );
 
         // IHR5
         protocol_section!("IHR5", {
             core.decaps_and_mix(&StaticKem, self.sskm.secret(), self.spkm.deref(), &ih.sctr)?;
         });
+        TV::check_value(
+            &test_values.chaining_key_ihr_5,
+            &core.ck.clone().danger_into_secret(),
+        );
 
         // IHR6
         let peer = protocol_section!("IHR6", {
@@ -3500,21 +3711,34 @@ impl CryptoServer {
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
         });
+        TV::check_value(
+            &test_values.chaining_key_ihr_6,
+            &core.ck.clone().danger_into_secret(),
+        );
 
         // IHR7
         protocol_section!("IHR7", {
             core.mix(peer.get(self).spkt.deref())?
                 .mix(peer.get(self).psk.secret())?;
         });
+        TV::check_value(
+            &test_values.chaining_key_ihr_7,
+            &core.ck.clone().danger_into_secret(),
+        );
 
         // IHR8
         protocol_section!("IHR8", {
             core.decrypt_and_mix(&mut [0u8; 0], &ih.auth)?;
         });
+        TV::check_value(
+            &test_values.chaining_key_ihr_8,
+            &core.ck.clone().danger_into_secret(),
+        );
 
         // RHR1
         protocol_section!("RHR1", {
             core.sidr.randomize();
+            TV::expose_mut_value(&test_values.session_id, &mut core.sidr);
             rh.sidi.copy_from_slice(core.sidi.as_ref());
             rh.sidr.copy_from_slice(core.sidr.as_ref());
         });
@@ -3522,28 +3746,59 @@ impl CryptoServer {
         // RHR3
         protocol_section!("RHR3", {
             core.mix(&rh.sidr)?.mix(&rh.sidi)?;
+            TV::check_value(
+                &test_values.chaining_key_rhr_3,
+                &core.ck.clone().danger_into_secret(),
+            );
         });
 
         // RHR4
         protocol_section!("RHR4", {
-            core.encaps_and_mix(&EphemeralKem, &mut rh.ecti, &ih.epki)?;
+            use std::marker::PhantomData;
+            core.encaps_and_mix_with_test_vector(
+                &EphemeralKem,
+                &mut rh.ecti,
+                &ih.epki,
+                PhantomData::<TV>,
+            )?;
+            TV::check_value(
+                &test_values.chaining_key_rhr_4,
+                &core.ck.clone().danger_into_secret(),
+            );
         });
 
         // RHR5
         protocol_section!("RHR5", {
-            core.encaps_and_mix(&StaticKem, &mut rh.scti, peer.get(self).spkt.deref())?;
+            use std::marker::PhantomData;
+            core.encaps_and_mix_with_test_vector(
+                &StaticKem,
+                &mut rh.scti,
+                peer.get(self).spkt.deref(),
+                PhantomData::<TV>,
+            )?;
+            TV::check_value(
+                &test_values.chaining_key_rhr_5,
+                &core.ck.clone().danger_into_secret(),
+            );
         });
 
         // RHR6
         protocol_section!("RHR6", {
-            core.store_biscuit(self, peer, &mut rh.biscuit)?;
+            core.store_biscuit_with_test_vector::<TV>(self, peer, &mut rh.biscuit)?;
+            TV::check_value(
+                &test_values.chaining_key_rhr_6,
+                &core.ck.clone().danger_into_secret(),
+            );
         });
 
         // RHR7
         protocol_section!("RHR7", {
             core.encrypt_and_mix(&mut rh.auth, &[])?;
+            TV::check_value(
+                &test_values.chaining_key_rhr_7,
+                &core.ck.clone().danger_into_secret(),
+            );
         });
-
         Ok(peer)
     }
 
