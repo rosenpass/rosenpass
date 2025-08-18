@@ -531,6 +531,18 @@ in
       peerC.wait_for_unit("rp-key-sync-CB.service")
     ''}
 
+    # Dump current state of WireGuard tunnels
+    peerA.succeed("wg show all 1>&2")
+    peerB.succeed("wg show all 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all 1>&2")
+    ''}
+    peerA.succeed("wg show all preshared-keys 1>&2")
+    peerB.succeed("wg show all preshared-keys 1>&2")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("wg show all preshared-keys 1>&2")
+    ''}
+
     # Voila!
     peerA.succeed("ping -c 1 ${staticConfig.peerB.innerIp}")
     peerB.succeed("ping -c 1 ${staticConfig.peerA.innerIp}")
