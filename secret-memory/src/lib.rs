@@ -47,4 +47,6 @@ mod secret;
 pub use crate::secret::Secret;
 
 pub mod policy;
+mod serialization;
+
 pub use crate::policy::*;
