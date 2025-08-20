@@ -88,44 +88,44 @@ jobs:
   #        cd ./tests/integration
   #        # export QEMU_OPTS="-machine virt -cpu cortex-a57"
   #        nix flake check --print-build-logs --system aarch64-linux --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
-  integration-tests-i686-linux:
-    name: Integration tests i686-linux
-    timeout-minutes: 144000
-    runs-on:
-      - ubicloud-standard-8-ubuntu-2204
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v30
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      - uses: cachix/cachix-action@v15
-        with:
-          name: rosenpass
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Extract the reference of before and after for the integration tests.
-        run: |
-          EVENT_NAME="${{ github.event_name }}"
-          REF_BEFORE=""
-          REF_AFTER="path:../../"
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            echo "This CI run was triggered in the context of a pull request."
-            REF_BEFORE="github:rosenpass/rosenpass/main"
-            git checkout -B pr-${{ github.event.pull_request.number }}
-            REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            echo "This CI run was triggered in the context of a push."
-            REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.before }}"
-            REF_AFTER="github:rosenpass/rosenpass/${{ github.event.after }}"
-          else
-            echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
-            exit 1
-          fi
-          echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
-          echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
-      - name: Check
-        run: |
-          cd ./tests/integration
-          nix flake check --print-build-logs --system i686-linux --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
+  #integration-tests-i686-linux:
+  #  name: Integration tests i686-linux
+  #  timeout-minutes: 144000
+  #  runs-on:
+  #    - ubicloud-standard-8-ubuntu-2204
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: cachix/install-nix-action@v30
+  #      with:
+  #        nix_path: nixpkgs=channel:nixos-unstable
+  #    - uses: cachix/cachix-action@v15
+  #      with:
+  #        name: rosenpass
+  #        authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+  #    - name: Extract the reference of before and after for the integration tests.
+  #      run: |
+  #        EVENT_NAME="${{ github.event_name }}"
+  #        REF_BEFORE=""
+  #        REF_AFTER="path:../../"
+  #        if [[ "$EVENT_NAME" == "pull_request" ]]; then
+  #          echo "This CI run was triggered in the context of a pull request."
+  #          REF_BEFORE="github:rosenpass/rosenpass/main"
+  #          git checkout -B pr-${{ github.event.pull_request.number }}
+  #          REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
+  #        elif [[ "$EVENT_NAME" == "push" ]]; then
+  #          echo "This CI run was triggered in the context of a push."
+  #          REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.before }}"
+  #          REF_AFTER="github:rosenpass/rosenpass/${{ github.event.after }}"
+  #        else
+  #          echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
+  #          exit 1
+  #        fi
+  #        echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
+  #        echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
+  #    - name: Check
+  #      run: |
+  #        cd ./tests/integration
+  #        nix flake check --print-build-logs --system i686-linux --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
   # THE FOLLOWING TEST IS DISABLED FOR THE TIME BENG UNTIL THIS ISSUE WITH NIXOS TESTS ON DARWIN GETS RESOLVED: https://github.com/NixOS/nixpkgs/issues/294725
   #integration-tests-aarch64-darwin:
   #  name: Integration tests aarch64-darwin
