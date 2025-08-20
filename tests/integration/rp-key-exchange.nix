@@ -10,7 +10,12 @@ let
 in
 {
   options.services.rosenpassKeyExchange = {
-    enable = lib.mkEnableOption "rosenpass key-exchange";
+    create = lib.mkEnableOption "rosenpass key-exchange";
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      description = "Should the service be enabled";
+      default = true;
+    };
     config = lib.mkOption {
       type = lib.types.path;
       description = "Path to rosenpass configuration";
@@ -21,10 +26,10 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf cfg.create {
     systemd.services.rp-exchange = {
       description = "Rosenpass Key Exchanger";
-      wantedBy = [ "multi-user.target" ];
+      wantedBy = [ ] ++ lib.optional cfg.enable "multi-user.target"; # If we set enable to this, then the service will be masked and cannot be enabled. Doing it this way allows us to enable it.
       requires = [ "network-online.target" ];
       script = ''
         ${cfg.rosenpassVersion}/bin/rosenpass exchange-config ${cfg.config}

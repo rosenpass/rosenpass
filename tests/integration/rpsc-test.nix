@@ -198,7 +198,8 @@ in
         services.rosenpassKeySync.instances =
           {
             AB = {
-              enable = true;
+              create = true;
+              enable = false;
               inherit wgInterface;
               rpHost = "peerakeyexchanger";
               peerPubkey = staticConfig.peerB.publicKey;
@@ -207,7 +208,8 @@ in
           }
           // lib.optionalAttrs multiPeer {
             AC = {
-              enable = true;
+              create = true;
+              enable = false;
               inherit wgInterface;
               rpHost = "peerakeyexchanger";
               peerPubkey = staticConfig.peerC.publicKey;
@@ -243,7 +245,8 @@ in
         services.rosenpassKeySync.instances =
           {
             BA = {
-              enable = true;
+              create = true;
+              enable = false;
               inherit wgInterface;
               rpHost = "peerbkeyexchanger";
               peerPubkey = staticConfig.peerA.publicKey;
@@ -252,7 +255,8 @@ in
           }
           // lib.optionalAttrs multiPeer {
             BC = {
-              enable = true;
+              create = true;
+              enable = false;
               inherit wgInterface;
               rpHost = "peerbkeyexchanger";
               peerPubkey = staticConfig.peerC.publicKey;
@@ -269,7 +273,8 @@ in
         networking.firewall.allowedUDPPorts = [ rpPort ];
 
         services.rosenpassKeyExchange = {
-          enable = true;
+          create = true;
+          enable = false;
           config = staticConfig.peerA.rosenpassConfig;
           rosenpassVersion = pkgs.rosenpass-peer-a;
         };
@@ -282,7 +287,8 @@ in
         users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
 
         services.rosenpassKeyExchange = {
-          enable = true;
+          create = true;
+          enable = false;
           config = staticConfig.peerB.rosenpassConfig;
           rosenpassVersion = pkgs.rosenpass-peer-b;
         };
@@ -314,14 +320,16 @@ in
         # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
         services.rosenpassKeySync.instances = {
           CA = {
-            enable = true;
+            create = true;
+            enable = false;
             inherit wgInterface;
             rpHost = "peerckeyexchanger";
             peerPubkey = staticConfig.peerA.publicKey;
             remoteKeyPath = keyExchangePathCA;
           };
           CB = {
-            enable = true;
+            create = true;
+            enable = false;
             inherit wgInterface;
             rpHost = "peerckeyexchanger";
             peerPubkey = staticConfig.peerB.publicKey;
@@ -338,7 +346,8 @@ in
         networking.firewall.allowedUDPPorts = [ rpPort ];
 
         services.rosenpassKeyExchange = {
-          enable = true;
+          create = true;
+          enable = false;
           config = staticConfig.peerC.rosenpassConfig;
           rosenpassVersion = pkgs.rosenpass-peer-c;
         };
@@ -484,12 +493,20 @@ in
       )
     ''}
 
-    # Until now, the services must have failed due to lack of keys
-    peerakeyexchanger.succeed("systemctl restart rp-exchange.service")
-    peerbkeyexchanger.succeed("systemctl restart rp-exchange.service")
+    # Until now, the services were disbaled and didn't start (using the enable option of the services)
+    peerakeyexchanger.succeed("systemctl start rp-exchange.service")
+    peerbkeyexchanger.succeed("systemctl start rp-exchange.service")
 
     ${lib.optionalString multiPeer ''
-      peerckeyexchanger.succeed("systemctl restart rp-exchange.service")
+      peerckeyexchanger.succeed("systemctl start rp-exchange.service")
+    ''}
+
+    # Wait for the service to have started.
+    for m in [peerbkeyexchanger, peerakeyexchanger]:
+      m.wait_for_unit("rp-exchange.service")
+
+    ${lib.optionalString multiPeer ''
+      peerckeyexchanger.wait_for_unit("rp-exchange.service")
     ''}
 
 
@@ -514,11 +531,15 @@ in
       peerC.succeed("wg show all preshared-keys 1>&2")
     ''}
 
-    for m in [peerbkeyexchanger, peerakeyexchanger]:
-      m.wait_for_unit("rp-exchange.service")
+    # Start key sync services and wait for them to start.
+    peerA.succeed("systemctl start rp-key-sync-AB.service")
+    peerB.succeed("systemctl start rp-key-sync-BA.service")
 
     ${lib.optionalString multiPeer ''
-      peerckeyexchanger.wait_for_unit("rp-exchange.service")
+      peerA.succeed("systemctl start rp-key-sync-AC.service")
+      peerB.succeed("systemctl start rp-key-sync-BC.service")
+      peerC.succeed("systemctl start rp-key-sync-CA.service")
+      peerC.succeed("systemctl start rp-key-sync-CB.service")
     ''}
 
     peerA.wait_for_unit("rp-key-sync-AB.service")
