@@ -519,6 +519,24 @@ in
       peerC.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
     ''}
 
+    # Dump current network config
+    peerA.succeed("ip addr 1>&2")
+    peerA.succeed("ip route 1>&2")
+    peerakeyexchanger.succeed("ip addr 1>&2")
+    peerakeyexchanger.succeed("ip route 1>&2")
+
+    peerB.succeed("ip addr 1>&2")
+    peerB.succeed("ip route 1>&2")
+    peerbkeyexchanger.succeed("ip addr 1>&2")
+    peerbkeyexchanger.succeed("ip route 1>&2")
+
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("ip addr 1>&2")
+      peerC.succeed("ip route 1>&2")
+      peerckeyexchanger.succeed("ip addr 1>&2")
+      peerckeyexchanger.succeed("ip route 1>&2")
+    ''}
+
     # Dump current state of WireGuard tunnels
     peerA.succeed("wg show all 1>&2")
     peerB.succeed("wg show all 1>&2")
@@ -550,6 +568,24 @@ in
       peerB.wait_for_unit("rp-key-sync-BC.service")
       peerC.wait_for_unit("rp-key-sync-CA.service")
       peerC.wait_for_unit("rp-key-sync-CB.service")
+    ''}
+
+    # Dump current network config
+    peerA.succeed("ip addr 1>&2")
+    peerA.succeed("ip route 1>&2")
+    peerakeyexchanger.succeed("ip addr 1>&2")
+    peerakeyexchanger.succeed("ip route 1>&2")
+
+    peerB.succeed("ip addr 1>&2")
+    peerB.succeed("ip route 1>&2")
+    peerbkeyexchanger.succeed("ip addr 1>&2")
+    peerbkeyexchanger.succeed("ip route 1>&2")
+
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("ip addr 1>&2")
+      peerC.succeed("ip route 1>&2")
+      peerckeyexchanger.succeed("ip addr 1>&2")
+      peerckeyexchanger.succeed("ip route 1>&2")
     ''}
 
     # Dump current state of WireGuard tunnels
