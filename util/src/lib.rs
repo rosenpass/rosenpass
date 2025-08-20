@@ -42,3 +42,4 @@ pub mod typenum;
 pub mod zerocopy;
 /// Memory wiping utilities.
 pub mod zeroize;
+pub mod shm;
