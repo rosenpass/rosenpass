@@ -601,14 +601,14 @@ in
     ''}
 
     # Voila!
-    peerA.succeed("ping -c 1 -W 10 ${staticConfig.peerB.innerIp}")
     peerB.succeed("ping -c 1 -W 10 ${staticConfig.peerA.innerIp}")
     ${lib.optionalString multiPeer ''
-      peerA.succeed("ping -c 1 -W 10 ${staticConfig.peerC.innerIp}")
-      peerB.succeed("ping -c 1 -W 10 ${staticConfig.peerC.innerIp}")
       peerC.succeed("ping -c 1 -W 10 ${staticConfig.peerA.innerIp}")
       peerC.succeed("ping -c 1 -W 10 ${staticConfig.peerB.innerIp}")
+      peerA.succeed("ping -c 1 -W 10 ${staticConfig.peerC.innerIp}")
+      peerB.succeed("ping -c 1 -W 10 ${staticConfig.peerC.innerIp}")
     ''}
+    peerA.succeed("ping -c 1 -W 10 ${staticConfig.peerB.innerIp}")
 
     # Dump current state of WireGuard tunnels
     peerA.succeed("wg show all 1>&2")
