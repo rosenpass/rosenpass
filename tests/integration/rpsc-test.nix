@@ -182,12 +182,14 @@ in
               {
                 inherit (staticConfig.peerB) publicKey;
                 allowedIPs = [ "${staticConfig.peerB.innerIp}/32" ];
+                endpoint = "peerB:${builtins.toString wgPort}";
                 presharedKey = "AR/yvSvMAzW6eS27PsRHUMWwC8cLhaD96t42cysxrb0=";
               } # NOTE: We use mismatching preshared keys on purpose to make the wireguard key exchange fail until the rosenpass key exchange succeeded.
             ]
             ++ (lib.optional multiPeer {
               inherit (staticConfig.peerC) publicKey;
               allowedIPs = [ "${staticConfig.peerC.innerIp}/32" ];
+              endpoint = "peerC:${builtins.toString wgPort}";
               presharedKey = "LfWvJCN8h7NhS+JWRG7GMIY20JxUV4WUs7MJ45ZGoCE=";
             } # NOTE: We use mismatching preshared keys on purpose to make the wireguard key exchange fail until the rosenpass key exchange succeeded.
             );
@@ -235,6 +237,7 @@ in
             ++ (lib.optional multiPeer {
               inherit (staticConfig.peerC) publicKey;
               allowedIPs = [ "${staticConfig.peerC.innerIp}/32" ];
+              endpoint = "peerC:${builtins.toString wgPort}";
               presharedKey = "GsYTUd/4Ph7wMy5r+W1no9yGe0UeZlmCPeiyu4tb6yM=";
               # NOTE: We use mismatching preshared keys on purpose to make the wireguard key exchange fail until the rosenpass key exchange succeeded.
             });
