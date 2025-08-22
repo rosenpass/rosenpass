@@ -207,6 +207,8 @@ in
               rpHost = "peerakeyexchanger";
               peerPubkey = staticConfig.peerB.publicKey;
               remoteKeyPath = keyExchangePathAB;
+              endpoint = "peerB:${builtins.toString wgPort}";
+              allowedIps = "${staticConfig.peerB.innerIp}/24";
             };
           }
           // lib.optionalAttrs multiPeer {
@@ -217,6 +219,8 @@ in
               rpHost = "peerakeyexchanger";
               peerPubkey = staticConfig.peerC.publicKey;
               remoteKeyPath = keyExchangePathAC;
+              endpoint = "peerC:${builtins.toString wgPort}";
+              allowedIps = "${staticConfig.peerC.innerIp}/24";
             };
           };
       };
@@ -255,6 +259,8 @@ in
               rpHost = "peerbkeyexchanger";
               peerPubkey = staticConfig.peerA.publicKey;
               remoteKeyPath = keyExchangePathBA;
+              endpoint = "peerA:${builtins.toString wgPort}";
+              allowedIps = "${staticConfig.peerB.innerIp}/24";
             };
           }
           // lib.optionalAttrs multiPeer {
@@ -265,6 +271,8 @@ in
               rpHost = "peerbkeyexchanger";
               peerPubkey = staticConfig.peerC.publicKey;
               remoteKeyPath = keyExchangePathBC;
+              endpoint = "peerC:${builtins.toString wgPort}";
+              allowedIps = "${staticConfig.peerC.innerIp}/24";
             };
           };
       };
@@ -330,6 +338,8 @@ in
             rpHost = "peerckeyexchanger";
             peerPubkey = staticConfig.peerA.publicKey;
             remoteKeyPath = keyExchangePathCA;
+            endpoint = "peerA:${builtins.toString wgPort}";
+            allowedIps = "${staticConfig.peerA.innerIp}/24";
           };
           CB = {
             create = true;
@@ -338,6 +348,8 @@ in
             rpHost = "peerckeyexchanger";
             peerPubkey = staticConfig.peerB.publicKey;
             remoteKeyPath = keyExchangePathCB;
+            endpoint = "peerB:${builtins.toString wgPort}";
+            allowedIps = "${staticConfig.peerB.innerIp}/24";
           };
         };
       };

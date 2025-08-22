@@ -41,6 +41,16 @@ let
           type = lib.types.path;
           description = "Location of the .osk file on the key exchange server";
         };
+
+        endpoint = lib.mkOption {
+          type = lib.types.str;
+          description = "IP address of the peer to connect via.";
+        };
+
+        allowedIps = lib.mkOption {
+          type = lib.types.str;
+          description = "IP addresses on the WireGuard VPN the peer is allowed to use";
+        };
       };
     };
 in
@@ -67,6 +77,8 @@ in
             | ${pkgs.wireguard-tools}/bin/wg \
               set ${instanceCfg.wgInterface} \
               peer ${instanceCfg.peerPubkey} \
+              endpoint ${instanceCfg.endpoint} \
+              allowed-ips ${instanceCfg.allowedIps} \
               preshared-key /dev/stdin
         '';
         serviceConfig = {
