@@ -260,7 +260,7 @@ in
               peerPubkey = staticConfig.peerA.publicKey;
               remoteKeyPath = keyExchangePathBA;
               endpoint = "peerA:${builtins.toString wgPort}";
-              allowedIps = "${staticConfig.peerB.innerIp}/32";
+              allowedIps = "${staticConfig.peerA.innerIp}/32";
             };
           }
           // lib.optionalAttrs multiPeer {
