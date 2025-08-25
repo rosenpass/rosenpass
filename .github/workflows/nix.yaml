@@ -76,9 +76,7 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
-        run: |
-          nix flake check . --print-build-logs
-          nix log /nix/store/3yvnay268gr9jpx3k1y2g3490j6ybssk-vm-test-run-rosenpass-with-key-exchangers.drv
+        run: nix flake check . --print-build-logs
   x86_64-linux---default:
     name: Build x86_64-linux.default
     runs-on:
