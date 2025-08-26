@@ -53,23 +53,6 @@ let
   peerCWgKeys =
     if multiPeer then generateWgKeys "peerC" "COOk7sSt34r3xtwCvOdqQiv2Pf4auKI+Btgyce2fw1w=" else null;
 
-  generateRPKeys =
-    name: rosenpassVersion:
-    let
-      keyPair = pkgs.runCommand "rp-genkeys-${name}" { } ''
-        mkdir $out
-        ${rosenpassVersion}/bin/rosenpass gen-keys -p $out/key.pk -s $out/key.sk
-      '';
-    in
-    {
-      publicKey = "${keyPair}/key.pk";
-      privateKey = "${keyPair}/key.sk";
-    };
-
-  peerARpKeys = generateRPKeys "peerA" pkgs.rosenpass-peer-a;
-  peerBRpKeys = generateRPKeys "peerB" pkgs.rosenpass-peer-b;
-  peerCRpKeys = if multiPeer then generateRPKeys "peerC" pkgs.rosenpass-peer-c else null;
-
   staticConfig =
     {
       peerA = {
@@ -383,26 +366,6 @@ in
       security.pam.services.sshd.allowNullPassword = true;
       environment.systemPackages = [
         prepareSshLogin
-
-        (pkgs.writeSellScriptBin "install-rosenpass-keys" (
-          ''
-            ${pkgs.openssh}/bin/scp ${peerARpKeys.privateKey} peerakeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/peer-b.pk
-            ${pkgs.openssh}/bin/scp ${peerBRpKeys.privateKey} peerbkeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/peer-a.pk
-          ''
-          + lib.optionalString multiPeer ''
-            ${pkgs.openssh}/bin/scp ${peerCRpKeys.privateKey} peerckeyexchanger:${rosenpassKeyFolder}/self.sk
-            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/self.pk
-            ${pkgs.openssh}/bin/scp ${peerARpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/peer-a.pk
-            ${pkgs.openssh}/bin/scp ${peerBRpKeys.publicKey} peerckeyexchanger:${rosenpassKeyFolder}/peer-b.pk
-            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerakeyexchanger:${rosenpassKeyFolder}/peer-c.pk
-            ${pkgs.openssh}/bin/scp ${peerCRpKeys.publicKey} peerbkeyexchanger:${rosenpassKeyFolder}/peer-c.pk
-          ''
-        ))
-
         (pkgs.writeShellScriptBin "watch-wg" ''
           ${pkgs.procps}/bin/watch -n1 \
             ${pkgs.wireguard-tools}/bin/wg show all preshared-keys
@@ -470,42 +433,53 @@ in
 
     # In admin-reality, this should be done with your favorite secret
     # provisioning/deployment tool
+    # In reality, admins would carefully manage known SSH host keys with
+    # their favorite secret provisioning/deployment tool
+    peerA.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerakeyexchanger")
+    peerB.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerbkeyexchanger")
+    ${lib.optionalString multiPeer ''
+      peerC.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
+    ''}
+    peerakeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerbkeyexchanger")
+    peerbkeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerakeyexchanger")
+    ${lib.optionalString multiPeer ''
+      peerakeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
+      peerbkeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
+      peerckeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerakeyexchanger")
+      peerckeyexchanger.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerbkeyexchanger")
+    ''}
+
+    # Generate the rosenpass key pairs.
     peerakeyexchanger.succeed(
-      "cp ${peerARpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
-    )
-    peerakeyexchanger.succeed(
-      "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
-    )
-    peerakeyexchanger.succeed(
-      "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/peer-b.pk"
+      "${pkgs.rosenpass-peer-a}/bin/rosenpass gen-keys -p ${rosenpassKeyFolder}/self.pk -s ${rosenpassKeyFolder}/self.sk"
     )
     peerbkeyexchanger.succeed(
-      "cp ${peerBRpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
+      "${pkgs.rosenpass-peer-b}/bin/rosenpass gen-keys -p ${rosenpassKeyFolder}/self.pk -s ${rosenpassKeyFolder}/self.sk"
+    )
+    ${lib.optionalString multiPeer ''
+      peerckeyexchanger.succeed(
+        "${pkgs.rosenpass-peer-c}/bin/rosenpass gen-keys -p ${rosenpassKeyFolder}/self.pk -s ${rosenpassKeyFolder}/self.sk"
+      )
+    ''}
+
+    peerakeyexchanger.succeed(
+      "scp ${rosenpassKeyFolder}/self.pk peerbkeyexchanger:${rosenpassKeyFolder}/peer-a.pk"
     )
     peerbkeyexchanger.succeed(
-      "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
-    )
-    peerbkeyexchanger.succeed(
-      "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/peer-a.pk"
+      "scp ${rosenpassKeyFolder}/self.pk peerakeyexchanger:${rosenpassKeyFolder}/peer-b.pk"
     )
     ${lib.optionalString multiPeer ''
       peerakeyexchanger.succeed(
-        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/peer-c.pk"
+        "scp ${rosenpassKeyFolder}/self.pk peerckeyexchanger:${rosenpassKeyFolder}/peer-a.pk"
       )
       peerbkeyexchanger.succeed(
-        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/peer-c.pk"
+        "scp ${rosenpassKeyFolder}/self.pk peerckeyexchanger:${rosenpassKeyFolder}/peer-b.pk"
       )
       peerckeyexchanger.succeed(
-        "cp ${peerCRpKeys.privateKey} ${rosenpassKeyFolder}/self.sk"
+        "scp ${rosenpassKeyFolder}/self.pk peerakeyexchanger:${rosenpassKeyFolder}/peer-c.pk"
       )
       peerckeyexchanger.succeed(
-        "cp ${peerCRpKeys.publicKey} ${rosenpassKeyFolder}/self.pk"
-      )
-      peerckeyexchanger.succeed(
-        "cp ${peerARpKeys.publicKey} ${rosenpassKeyFolder}/peer-a.pk"
-      )
-      peerckeyexchanger.succeed(
-        "cp ${peerBRpKeys.publicKey} ${rosenpassKeyFolder}/peer-b.pk"
+        "scp ${rosenpassKeyFolder}/self.pk peerbkeyexchanger:${rosenpassKeyFolder}/peer-c.pk"
       )
     ''}
 
@@ -523,16 +497,6 @@ in
 
     ${lib.optionalString multiPeer ''
       peerckeyexchanger.wait_for_unit("rp-exchange.service")
-    ''}
-
-
-    # In reality, admins would carefully manage known SSH host keys with
-    # their favorite secret provisioning/deployment tool
-    peerA.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerakeyexchanger")
-    peerB.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerbkeyexchanger")
-
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${prepareSshLogin}/bin/prepare-ssh-login peerckeyexchanger")
     ''}
 
     # Dump current network config
