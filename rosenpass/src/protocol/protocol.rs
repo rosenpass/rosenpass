@@ -3608,7 +3608,7 @@ impl CryptoServer {
         // IHI6
         protocol_section!("IHI6", {
             hs.core.encrypt_and_mix(
-                ih.pidic.as_mut_slice(),
+                ih.pidi_ct.as_mut_slice(),
                 self.pidm(peer.get(self).protocol_version.keyed_hash())?
                     .as_ref(),
             )?;
@@ -3707,7 +3707,7 @@ impl CryptoServer {
         // IHR6
         let peer = protocol_section!("IHR6", {
             let mut peerid = PeerId::zero();
-            core.decrypt_and_mix(&mut *peerid, &ih.pidic)?;
+            core.decrypt_and_mix(&mut *peerid, &ih.pidi_ct)?;
             self.find_peer(peerid)
                 .with_context(|| format!("No such peer {peerid:?}."))?
         });
@@ -3784,7 +3784,7 @@ impl CryptoServer {
 
         // RHR6
         protocol_section!("RHR6", {
-            core.store_biscuit_with_test_vector::<TV>(self, peer, &mut rh.biscuit)?;
+            core.store_biscuit_with_test_vector::<TV>(self, peer, &mut rh.biscuit_ct)?;
             TV::check_value(
                 &test_values.chaining_key_rhr_6,
                 &core.ck.clone().danger_into_secret(),
@@ -3872,7 +3872,7 @@ impl CryptoServer {
 
         // RHI6
         protocol_section!("RHI6", {
-            core.mix(&rh.biscuit)?;
+            core.mix(&rh.biscuit_ct)?;
         });
 
         // RHI7
@@ -3889,7 +3889,7 @@ impl CryptoServer {
         // ICI3
         protocol_section!("ICI3", {
             core.mix(&ic.sidi)?.mix(&ic.sidr)?;
-            ic.biscuit.copy_from_slice(&rh.biscuit);
+            ic.biscuit_ct.copy_from_slice(&rh.biscuit_ct);
         });
 
         // ICI4
@@ -3937,7 +3937,7 @@ impl CryptoServer {
         let (peer, biscuit_no, mut core) = protocol_section!("ICR1", {
             HandshakeState::load_biscuit(
                 self,
-                &ic.biscuit,
+                &ic.biscuit_ct,
                 SessionId::from_slice(&ic.sidi),
                 SessionId::from_slice(&ic.sidr),
                 keyed_hash,
