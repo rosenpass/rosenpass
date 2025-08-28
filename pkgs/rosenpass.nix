@@ -72,6 +72,8 @@ rustPlatform.buildRustPackage {
     package
   ];
 
+  configFileVersion = "1";
+
   doCheck = true;
 
   cargoLock = {
