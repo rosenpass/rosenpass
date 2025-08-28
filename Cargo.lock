@@ -127,6 +127,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "assert_tv"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a4141926c2544d566b0c5815040151fa6c1e96398810b43951d3c68e13dfc2a"
+dependencies = [
+ "anyhow",
+ "assert_tv_macros",
+ "base64",
+ "log",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "toml",
+ "zstd",
+]
+
+[[package]]
+name = "assert_tv_macros"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49fe5672253d886b06afd14bf16aec6111e2d111cbc83cd094a4f5f69f003332"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -156,6 +184,12 @@ dependencies = [
  "serde",
  "windows-targets 0.52.6",
 ]
+
+[[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "base64ct"
@@ -2041,6 +2075,8 @@ name = "rosenpass"
 version = "0.3.0-dev"
 dependencies = [
  "anyhow",
+ "assert_tv",
+ "base64",
  "clap",
  "clap_complete",
  "clap_mangen",
@@ -2193,6 +2229,8 @@ dependencies = [
  "allocator-api2",
  "allocator-api2-tests",
  "anyhow",
+ "assert_tv",
+ "base64",
  "base64ct",
  "log",
  "memsec",
@@ -2200,6 +2238,8 @@ dependencies = [
  "rand 0.8.5",
  "rosenpass-to",
  "rosenpass-util",
+ "serde",
+ "serde_json",
  "tempfile",
  "zeroize",
 ]
@@ -2394,6 +2434,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -2752,6 +2805,12 @@ dependencies = [
  "crypto-common",
  "subtle",
 ]
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "utf8parse"
@@ -3291,4 +3350,32 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.98",
+]
+
+[[package]]
+name = "zstd"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+dependencies = [
+ "zstd-safe",
+]
+
+[[package]]
+name = "zstd-safe"
+version = "7.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d"
+dependencies = [
+ "zstd-sys",
+]
+
+[[package]]
+name = "zstd-sys"
+version = "2.0.15+zstd.1.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb81183ddd97d0c74cedf1d50d85c8d08c1b8b68ee863bdee9e706eedba1a237"
+dependencies = [
+ "cc",
+ "pkg-config",
 ]
