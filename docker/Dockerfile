@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1
 
 ARG BASE_IMAGE=debian:bookworm-slim
+ARG CHEF_IMAGE=rust:slim-bookworm
 
 # Stage 1: Base image with cargo-chef installed
-FROM rust:latest AS chef
+FROM ${CHEF_IMAGE} AS chef
 RUN cargo install cargo-chef
 # install software required for liboqs-rust
 RUN apt-get update && apt-get install -y clang cmake && rm -rf /var/lib/apt/lists/*
