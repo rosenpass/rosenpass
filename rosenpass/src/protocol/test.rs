@@ -55,12 +55,14 @@ fn setup_logging() {
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn handles_incorrect_size_messages_v02() {
     handles_incorrect_size_messages(ProtocolVersion::V02)
 }
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn handles_incorrect_size_messages_v03() {
     handles_incorrect_size_messages(ProtocolVersion::V03)
 }
@@ -163,12 +165,14 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_regular_exchange_v02() {
     test_regular_exchange(ProtocolVersion::V02)
 }
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_regular_exchange_v03() {
     test_regular_exchange(ProtocolVersion::V03)
 }
@@ -234,12 +238,14 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_regular_init_conf_retransmit_v02() {
     test_regular_init_conf_retransmit(ProtocolVersion::V02)
 }
 
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_regular_init_conf_retransmit_v03() {
     test_regular_init_conf_retransmit(ProtocolVersion::V03)
 }
@@ -507,11 +513,13 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn init_conf_retransmission_v02() -> Result<()> {
     init_conf_retransmission(ProtocolVersion::V02)
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn init_conf_retransmission_v03() -> Result<()> {
     init_conf_retransmission(ProtocolVersion::V03)
 }
