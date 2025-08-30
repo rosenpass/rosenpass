@@ -11,6 +11,10 @@ use std::{
     thread,
 };
 
+struct Foo {
+
+}
+
 use rosenpass_util::functional::MutatingExt;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
