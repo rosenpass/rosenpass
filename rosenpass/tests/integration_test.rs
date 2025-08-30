@@ -182,6 +182,7 @@ fn check_example_config() {
 // check that we can exchange keys
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // TODO investigate why this panicks in miri
 fn check_exchange_under_normal() {
     setup_tests();
     setup_logging();
@@ -255,6 +256,7 @@ fn check_exchange_under_normal() {
 // This test creates a responder (server) with the feature flag "integration_test_always_under_load" to always be under load condition for the test.
 #[test]
 #[serial]
+#[cfg_attr(miri, ignore)] // integer-to-pointer cast
 fn check_exchange_under_dos() {
     setup_tests();
     setup_logging();

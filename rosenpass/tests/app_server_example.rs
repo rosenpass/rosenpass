@@ -10,11 +10,13 @@ use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
 use rosenpass::{config::ProtocolVersion, protocol::osk_domain_separator::OskDomainSeparator};
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn key_exchange_with_app_server_v02() -> anyhow::Result<()> {
     key_exchange_with_app_server(ProtocolVersion::V02)
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn key_exchange_with_app_server_v03() -> anyhow::Result<()> {
     key_exchange_with_app_server(ProtocolVersion::V03)
 }
