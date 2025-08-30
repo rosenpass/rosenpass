@@ -291,4 +291,3 @@ where
         rustix::net::sockopt::get_socket_protocol(self)
     }
 }
-

@@ -280,6 +280,110 @@ impl<T: Sized> MoveExt for T {
     }
 }
 
+/// Explicitly copy a value
+///
+/// This is sometimes useful as an alternative to the deref operator
+/// (`x.copy()` instead of `*x`) to achieve neater method chains.
+///
+/// # Examples
+///
+/// ```
+/// use rosenpass_util::mem::CopyExt;
+/// use rosenpass_util::result::OkExt;
+///
+/// // Without CopyExt
+/// fn boilerplate_1<T: Copy>(v: &T) -> Result<T, ()> {
+///     (*v).ok()
+/// }
+///
+/// // With CopyExt
+/// fn boilerplate_2<T: Copy>(v: &T) -> Result<T, ()> {
+///     v.copy().ok()
+/// }
+///
+/// assert_eq!(boilerplate_1(&32), Ok(32));
+/// assert_eq!(boilerplate_1(&32), boilerplate_2(&32));
+/// ```
+pub trait CopyExt: Copy {
+    /// Copy a value
+    fn copy(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Copy> CopyExt for T {}
+
+/// Helper trait for applying a mutating closure/function to a mutable reference
+///
+/// # Examples
+///
+/// ```rust
+/// use rosenpass_util::mem::MutateRefExt;
+///
+/// fn plus_two_mul_three(v: u64) -> u64 {
+///     (v + 2) * 3
+/// }
+///
+/// fn inconvenient_example(v: &mut u64) {
+///     *v = plus_two_mul_three(*v);
+/// }
+///
+/// fn convenient_example(v: &mut u64) {
+///     v.mutate(plus_two_mul_three);
+/// }
+///
+/// let mut x = 0;
+/// inconvenient_example(&mut x);
+/// assert_eq!(x, 6);
+/// convenient_example(&mut x);
+/// assert_eq!(x, 24);
+///
+/// x = 0;
+///
+/// x.mutate(plus_two_mul_three);
+/// assert_eq!(x, 6);
+/// x.mutate(|v| (v + 2) * 3);
+/// assert_eq!(x, 24);
+///
+/// x = 0;
+///
+/// let y = &mut x;
+/// y.mutate(plus_two_mul_three);
+/// assert_eq!(x, 6);
+///
+/// struct Cont {
+///     x: u64,
+/// }
+///
+/// impl Cont {
+///     fn x_mut(&mut self) -> &mut u64 {
+///         &mut self.x
+///     }
+/// }
+///
+/// let mut s = Cont { x: 0 };
+/// s.x_mut().mutate(|v| (v + 2) * 3);
+/// ```
+pub trait MutateRefExt: DerefMut
+where
+    Self::Target: Sized,
+{
+    /// Directly mutate a reference
+    fn mutate<F: FnOnce(Self::Target) -> Self::Target>(self, f: F) -> Self;
+}
+
+impl<T> MutateRefExt for T
+where
+    T: DerefMut,
+    <T as Deref>::Target: Copy,
+{
+    fn mutate<F: FnOnce(Self::Target) -> Self::Target>(mut self, f: F) -> Self {
+        let v = self.deref_mut();
+        *v = f(*v);
+        self
+    }
+}
+
 #[cfg(test)]
 mod test_forgetting {
     use crate::mem::Forgetting;

@@ -6,12 +6,12 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 use anyhow::Context;
 use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::{
-    rustix::FdIo,
     functional::{run, ApplyExt},
     io::ReadExt,
     mem::DiscardResultExt,
     mio::UnixStreamExt,
     result::OkExt,
+    rustix::FdIo,
 };
 use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
 

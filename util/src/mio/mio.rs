@@ -2,8 +2,8 @@ use mio::net::{UnixListener, UnixStream};
 use std::os::fd::{OwnedFd, RawFd};
 
 use crate::{
-    rustix::{claim_fd, claim_fd_inplace},
     result::OkExt,
+    rustix::{claim_fd, claim_fd_inplace},
 };
 
 /// Module containing I/O interest flags for Unix operations (see also: [mio::Interest])

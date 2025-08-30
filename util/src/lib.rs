@@ -10,14 +10,16 @@ pub mod b64;
 pub mod build;
 /// Control flow abstractions and utilities.
 pub mod controlflow;
-pub mod rustix;
+pub mod convert;
 /// File system operations and handling.
 pub mod file;
 pub mod fmt;
 /// Functional programming utilities.
 pub mod functional;
+pub mod int;
 /// Input/output operations.
 pub mod io;
+pub mod ipc;
 /// Length prefix encoding schemes implementation.
 pub mod length_prefix_encoding;
 /// Memory manipulation and allocation utilities.
@@ -26,8 +28,13 @@ pub mod mem;
 pub mod mio;
 /// Extended Option type functionality.
 pub mod option;
+pub mod ptr;
 /// Extended Result type functionality.
 pub mod result;
+pub mod ringbuf;
+pub mod rustix;
+pub mod secret_memory;
+pub mod sync;
 /// Time and duration utilities.
 pub mod time;
 #[cfg(feature = "tokio")]
@@ -41,4 +48,3 @@ pub mod typenum;
 pub mod zerocopy;
 /// Memory wiping utilities.
 pub mod zeroize;
-pub mod shm;

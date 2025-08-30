@@ -195,7 +195,6 @@ impl<Fd: AsFd> std::io::Write for FdIo<Fd> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

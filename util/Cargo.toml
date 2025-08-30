@@ -13,6 +13,7 @@ rust-version = "1.77.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rosenpass-to = { workspace = true }
 base64ct = { workspace = true }
 anyhow = { workspace = true }
 typenum = { workspace = true }
@@ -34,6 +35,9 @@ tokio = { workspace = true, optional = true, features = [
   "time",
 ] }
 log = { workspace = true }
+bitflags = { workspace = true }
+tinyvec = "1.10.0"
+num-traits = "0.2.19"
 
 [features]
 experiment_file_descriptor_passing = ["uds"]
