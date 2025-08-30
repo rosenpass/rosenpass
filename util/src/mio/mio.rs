@@ -2,7 +2,7 @@ use mio::net::{UnixListener, UnixStream};
 use std::os::fd::{OwnedFd, RawFd};
 
 use crate::{
-    fd::{claim_fd, claim_fd_inplace},
+    rustix::{claim_fd, claim_fd_inplace},
     result::OkExt,
 };
 
@@ -93,7 +93,7 @@ impl UnixStreamExt for UnixStream {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self> {
         use std::os::unix::net::UnixStream as StdUnixStream;
         #[cfg(target_os = "linux")] // TODO: We should support this on other plattforms
-        crate::fd::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
+        crate::rustix::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
         let sock = StdUnixStream::from(fd);
         sock.set_nonblocking(true)?;
         UnixStream::from_std(sock).ok()

@@ -6,7 +6,7 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 use anyhow::Context;
 use rosenpass_to::{ops::copy_slice, To};
 use rosenpass_util::{
-    fd::FdIo,
+    rustix::FdIo,
     functional::{run, ApplyExt},
     io::ReadExt,
     mem::DiscardResultExt,
@@ -243,7 +243,7 @@ where
                 .context("Invalid request – socket missing.")?;
             // TODO: We need to have this outside linux
             #[cfg(target_os = "linux")]
-            rosenpass_util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
+            rosenpass_util::rustix::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
             mio::net::UdpSocket::from_std(sock).ok()

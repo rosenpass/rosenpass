@@ -10,8 +10,7 @@ pub mod b64;
 pub mod build;
 /// Control flow abstractions and utilities.
 pub mod controlflow;
-/// File descriptor utilities.
-pub mod fd;
+pub mod rustix;
 /// File system operations and handling.
 pub mod file;
 pub mod fmt;

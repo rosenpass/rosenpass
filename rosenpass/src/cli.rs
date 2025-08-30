@@ -26,7 +26,7 @@ use {
     command_fds::{CommandFdExt, FdMapping},
     log::{error, info},
     mio::net::UnixStream,
-    rosenpass_util::fd::claim_fd,
+    rosenpass_util::rustix::claim_fd,
     rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
     rosenpass_wireguard_broker::WireguardBrokerMio,
     rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
