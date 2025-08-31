@@ -252,6 +252,7 @@ pub trait LoadValueB64 {
     /// ```
     /// use std::path::Path;
     /// use tempfile::tempdir;
+    /// use rosenpass_to::To;
     /// use rosenpass_util::b64::{b64_decode, b64_encode};
     /// use rosenpass_util::file::{
     ///     fopen_r, fopen_w, LoadValueB64, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
@@ -303,7 +304,7 @@ pub trait LoadValueB64 {
     ///         let b64_dat = &b64_buf[..b64_len];
     ///
     ///         let mut buf = [0u8; 4];
-    ///         b64_decode(b64_dat, &mut buf)?;
+    ///         b64_decode(b64_dat).to(&mut buf)?;
     ///         Ok(MyInt(u32::from_le_bytes(buf)))
     ///     }
     /// }

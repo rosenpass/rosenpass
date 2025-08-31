@@ -1,7 +1,7 @@
 use rosenpass::config::Rosenpass;
 
 #[test]
-fn config_Rosenpass_add_if_any_example() {
+fn config_rosenpass_add_if_any_example() {
     let mut v = Rosenpass::empty();
     v.add_if_any(4000);
 
