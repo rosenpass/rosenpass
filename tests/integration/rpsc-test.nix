@@ -421,35 +421,38 @@ in
       peerC.succeed("ip route add ${staticConfig.peerB.innerIp} dev ${wgInterface} scope link")
     ''}
 
-    # Dump current state of WireGuard tunnels
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ''}
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ''}
+    def debugPrintNetState():
+      # Dump current state of WireGuard tunnels
+      peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
+      peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
+      ${lib.optionalString multiPeer ''
+        peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
+      ''}
+      peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
+      peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
+      ${lib.optionalString multiPeer ''
+        peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
+      ''}
 
-    # Dump current network config
-    peerA.succeed("ip addr 1>&2")
-    peerA.succeed("ip route 1>&2")
-    peerakeyexchanger.succeed("ip addr 1>&2")
-    peerakeyexchanger.succeed("ip route 1>&2")
+      # Dump current network config
+      peerA.succeed("ip addr 1>&2")
+      peerA.succeed("ip route 1>&2")
+      peerakeyexchanger.succeed("ip addr 1>&2")
+      peerakeyexchanger.succeed("ip route 1>&2")
 
-    peerB.succeed("ip addr 1>&2")
-    peerB.succeed("ip route 1>&2")
-    peerbkeyexchanger.succeed("ip addr 1>&2")
-    peerbkeyexchanger.succeed("ip route 1>&2")
+      peerB.succeed("ip addr 1>&2")
+      peerB.succeed("ip route 1>&2")
+      peerbkeyexchanger.succeed("ip addr 1>&2")
+      peerbkeyexchanger.succeed("ip route 1>&2")
 
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("ip addr 1>&2")
-      peerC.succeed("ip route 1>&2")
-      peerckeyexchanger.succeed("ip addr 1>&2")
-      peerckeyexchanger.succeed("ip route 1>&2")
-    ''}
+      ${lib.optionalString multiPeer ''
+        peerC.succeed("ip addr 1>&2")
+        peerC.succeed("ip route 1>&2")
+        peerckeyexchanger.succeed("ip addr 1>&2")
+        peerckeyexchanger.succeed("ip route 1>&2")
+      ''}
+
+    debugPrintNetState()
 
     # The wireguard connection can't work because the sync services fail on
     # non-recognized SSH host keys, we didn't deploy the secrets and because the preshared keyes don't match.
@@ -530,35 +533,7 @@ in
       peerckeyexchanger.wait_for_unit("rp-exchange.service")
     ''}
 
-    # Dump current network config
-    peerA.succeed("ip addr 1>&2")
-    peerA.succeed("ip route 1>&2")
-    peerakeyexchanger.succeed("ip addr 1>&2")
-    peerakeyexchanger.succeed("ip route 1>&2")
-
-    peerB.succeed("ip addr 1>&2")
-    peerB.succeed("ip route 1>&2")
-    peerbkeyexchanger.succeed("ip addr 1>&2")
-    peerbkeyexchanger.succeed("ip route 1>&2")
-
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("ip addr 1>&2")
-      peerC.succeed("ip route 1>&2")
-      peerckeyexchanger.succeed("ip addr 1>&2")
-      peerckeyexchanger.succeed("ip route 1>&2")
-    ''}
-
-    # Dump current state of WireGuard tunnels
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ''}
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ''}
+    debugPrintNetState()
 
     # Start key sync services and wait for them to start.
     peerA.succeed("systemctl start rp-key-sync-AB.service")
@@ -581,35 +556,7 @@ in
       peerC.wait_for_unit("rp-key-sync-CB.service")
     ''}
 
-    # Dump current network config
-    peerA.succeed("ip addr 1>&2")
-    peerA.succeed("ip route 1>&2")
-    peerakeyexchanger.succeed("ip addr 1>&2")
-    peerakeyexchanger.succeed("ip route 1>&2")
-
-    peerB.succeed("ip addr 1>&2")
-    peerB.succeed("ip route 1>&2")
-    peerbkeyexchanger.succeed("ip addr 1>&2")
-    peerbkeyexchanger.succeed("ip route 1>&2")
-
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("ip addr 1>&2")
-      peerC.succeed("ip route 1>&2")
-      peerckeyexchanger.succeed("ip addr 1>&2")
-      peerckeyexchanger.succeed("ip route 1>&2")
-    ''}
-
-    # Dump current state of WireGuard tunnels
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all 1>&2")
-    ''}
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ${lib.optionalString multiPeer ''
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
-    ''}
+    debugPrintNetState()
 
     # Voila!
     peerB.succeed("ping -c 1 -W 10 ${staticConfig.peerA.innerIp}")
