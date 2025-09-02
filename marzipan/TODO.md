@@ -29,13 +29,11 @@
 * ~~is the clean function still necessary?~~
 * ~~implement better main function for click~~
 * ~~why does analyze fail when the target/proverif directory is not empty?~~
+* ~~return an exit status that is meaningful for CI~~
+* ~~exception handling in analyze() and in run_proverif()~~
+* ~~refactor filtering in run_proverif (see karo's comment)~~
 
 ## Next Steps
-
-
-* return an exit status that is meaningful for CI
-* exception handling in analyze() and in run_proverif()
-* refactor filtering in run_proverif (see karo's comment)
 * configurable target directory
 * do not assume that the repo path has subdir analysis and marzipan
 * integrate marzipan.awk into Python, somehow

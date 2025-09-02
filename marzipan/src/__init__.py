@@ -24,8 +24,15 @@ def eprint(*args, **kwargs):
 def exc(argv, **kwargs):
     eprint("$", *argv)
     command = pkgs.subprocess.run(argv, **kwargs)
+
+    if command.returncode != 0:
+        logger.error("subprocess with terminated with non-zero return code.")
+        eprint("", *argv)
+        exit(command.returncode)
+
     if command.stdout is not None:
         return command.stdout.decode("utf-8")
+
     return ""
 
 
@@ -34,31 +41,39 @@ def exc_piped(argv, **kwargs):
     return pkgs.subprocess.Popen(argv, **kwargs)
 
 
+def clean_line(prev_line, line):
+    line = line.rstrip()
+    if pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line) or prev_line is None:
+        return None
+    return prev_line
+
+
 def run_proverif(file, extra_args=[]):
     params = ["proverif", "-test", *extra_args, file]
     logger.debug(params)
 
     process = exc_piped(params, stderr=pkgs.subprocess.PIPE, stdout=pkgs.subprocess.PIPE, text=True, bufsize=1)
     try:
-        null, p = clean_warnings_init()
+        prev_line = None
         for line in process.stdout:
-            # clean warnings
-            line = line.rstrip()
-            # Maybe we can move this stuff into a function? -- karo
-            if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
-                if p != null:
-                    yield p
-                p = line
-            else:
-                p = null
-        if p != null:
-            yield p
+            cleaned_line = clean_line(prev_line, line)
+            prev_line = line
+            if cleaned_line is not None:
+                yield cleaned_line
+        if prev_line is not None:
+            yield prev_line
+
     except Exception as e:
         # When does this happen? Should the error even be ignored? Metaverif should probably just abort here, right? --karo
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"Proverif generated an exception with {params}: {e}")
+        exit(1)
     finally:
         process.stdout.close()
-        process.wait()
+        return_code = process.wait()
+
+        if return_code != 0:
+            logger.error(f"Proverif exited with a non-zero error code {params}: {return_code}")
+            exit(return_code)
 
 
 def cpp(file, cpp_prep):
@@ -157,30 +172,19 @@ def analyze(repo_path):
     analysis_dir = pkgs.os.path.join(repo_path, 'analysis')
     entries.extend(sorted(pkgs.glob.glob(str(analysis_dir) + '/*.entry.mpv')))
 
-    error = False
-
     with pkgs.concurrent.futures.ProcessPoolExecutor() as executor:
         futures = {executor.submit(metaverif, repo_path, target_dir, entry): entry for entry in entries}
         for future in pkgs.concurrent.futures.as_completed(futures):
             cmd = futures[future]
-            # TODO: this does not seem to be the right way to find out whether
-            # the future ended with an exception?
-            try:
-                print(f"Metaverif {cmd} finished.", file=pkgs.sys.stderr)
-            except Exception as e:
-                error = True
-                print(f"Metaverif {cmd} generated an exception: {e}")
+            logger.info(f"Metaverif {cmd} finished.")
 
     print("all processes finished.")
-    if error:
-        exit(1)
-    else:
-        exit(0)
 
 
 @main.command()
 @click.argument("repo_path")
 def clean(repo_path):
+    cleans_failed = 0
     target_dir = get_target_dir(repo_path)
     if pkgs.os.path.isdir(target_dir):
         for filename in pkgs.os.listdir(target_dir):
@@ -190,41 +194,12 @@ def clean(repo_path):
                     pkgs.os.remove(file_path)
                 except Exception as e:
                     print(f"Error deleting {file_path}: {str(e)}")
+                    cleans_failed += 1
 
+    if cleans_failed > 0:
+        print(f"{cleans_failed} could not be deleted.")
+        exit(1)
 
-def clean_warnings_init():
-    # This trick with the sentinel value is very much a bashism -- karo
-    null = "0455290a-50d5-4f28-8008-3d69605c2835"
-    p = null
-    return null, p
-
-
-def clean_warnings_line(null, p, line):
-    line = line.rstrip()
-    if not pkgs.re.match(r"^Warning: identifier \w+ rebound.$", line):
-        if p != null:
-            yield p
-            print(p)
-        p = line
-    else:
-        p = null
-    return p
-
-
-def clean_warnings_finalize(null, p):
-    # print last line after EOF
-    if p != null:
-        yield p
-        print(p)
-
-
-def clean_warnings():
-    null, p = clean_warnings_init()
-
-    for line in pkgs.sys.stdin:
-        p = clean_warnings_line(null, p, line)
-
-    clean_warnings_finalize(null, p)
 
 
 def metaverif(repo_path, tmpdir, file):
@@ -260,7 +235,8 @@ def metaverif(repo_path, tmpdir, file):
                     # pretty-output:
                     res, ctr, ta = pretty_output_step(cpp_prep, result, expected, descs, res, ctr, ta)
     else:
-        print("No match found for the file name.")
+        logger.error(f"No match found for the filename {file}: extension should be .mpv")
+        exit(1)
 
 
 if __name__ == "__main__":
