@@ -82,7 +82,7 @@ struct CryptoServerTestValues {
 }
 
 #[test_vec_case(format = "toml")]
-// TODO find a way to make miri ignore these test cases
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `ZSTD_DStreamInSize` on OS `linux`
 fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     type TV = TestVectorActive;
     let test_values: TestCaseValues = TV::initialize_values();
