@@ -74,7 +74,7 @@ def cpp(file, cpp_prep):
 
 def awk(repo_path, cpp_prep, awk_prep):
     params = ["awk", "-f", str(pkgs.os.path.join(repo_path, "marzipan/marzipan.awk")), cpp_prep]
-    with open(awk_prep, 'a+') as file:
+    with open(awk_prep, 'w') as file:
         exc(params, stderr=pkgs.sys.stderr, stdout=file)
         file.write("\nprocess main")
 

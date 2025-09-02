@@ -28,10 +28,11 @@
 * ~~standalone function parse_result_line is no longer necessary~~
 * ~~is the clean function still necessary?~~
 * ~~implement better main function for click~~
+* ~~why does analyze fail when the target/proverif directory is not empty?~~
 
 ## Next Steps
 
-* why does analyze fail when the target/proverif directory is not empty?
+
 * return an exit status that is meaningful for CI
 * exception handling in analyze() and in run_proverif()
 * refactor filtering in run_proverif (see karo's comment)
