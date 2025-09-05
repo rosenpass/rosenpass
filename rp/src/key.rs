@@ -128,6 +128,7 @@ mod tests {
     use crate::key::{genkey, pubkey, WG_B64_LEN};
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_key_loopback() {
         secret_policy_try_use_memfd_secrets();
         let private_keys_dir = tempdir().unwrap();

@@ -82,6 +82,7 @@ struct CryptoServerTestValues {
 }
 
 #[test_vec_case(format = "toml")]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `ZSTD_DStreamInSize` on OS `linux`
 fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     type TV = TestVectorActive;
     let test_values: TestCaseValues = TV::initialize_values();

@@ -19,16 +19,19 @@ use rosenpass::protocol::{CryptoServer, HostIdentification, PeerPtr, PollResult,
 // rosenpass::protocol::testutils;
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_with_poll_v02() -> anyhow::Result<()> {
     test_successful_exchange_with_poll(ProtocolVersion::V02, OskDomainSeparator::default())
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_with_poll_v03() -> anyhow::Result<()> {
     test_successful_exchange_with_poll(ProtocolVersion::V03, OskDomainSeparator::default())
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_with_poll_v02_custom_domain_separator() -> anyhow::Result<()> {
     test_successful_exchange_with_poll(
         ProtocolVersion::V02,
@@ -37,6 +40,7 @@ fn test_successful_exchange_with_poll_v02_custom_domain_separator() -> anyhow::R
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_with_poll_v03_custom_domain_separator() -> anyhow::Result<()> {
     test_successful_exchange_with_poll(
         ProtocolVersion::V03,
@@ -108,11 +112,13 @@ fn test_successful_exchange_with_poll(
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_under_packet_loss_v02() -> anyhow::Result<()> {
     test_successful_exchange_under_packet_loss(ProtocolVersion::V02)
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_successful_exchange_under_packet_loss_v03() -> anyhow::Result<()> {
     test_successful_exchange_under_packet_loss(ProtocolVersion::V03)
 }
@@ -202,6 +208,7 @@ fn test_successful_exchange_under_packet_loss(
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_osk_label_mismatch() -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();

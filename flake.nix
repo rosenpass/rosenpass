@@ -186,6 +186,25 @@
                 rustfmt
               ];
             };
+            # a devshell to hunt unsafe `unsafe` in the code
+            devShells.miri = pkgs.mkShell {
+              # inputsFrom = [ self.packages.${system}.rosenpass ];
+              nativeBuildInputs = with pkgs; [
+                ((rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)).override {
+                  extensions = [
+                    "rust-analysis"
+                    "rust-src"
+                    "miri-preview"
+                  ];
+                })
+                pkgs.cmake
+                pkgs.rustPlatform.bindgenHook
+              ];
+              # Run this to find unsafe `unsafe`:
+              # MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --no-fail-fast --lib --bins --tests
+              #
+              # - Some test failure is expected.
+            };
 
             checks =
               import ./tests/integration/integration-checks.nix {

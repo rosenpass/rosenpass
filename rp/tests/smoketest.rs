@@ -2,6 +2,7 @@ use std::process::Command;
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 #[test]
+#[cfg_attr(miri, ignore)] // unsupported operation: extern static `pidfd_spawnp` is not supported by Miri
 fn smoketest() -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
 
