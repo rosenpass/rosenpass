@@ -143,10 +143,10 @@ letfun ENCRYPT_AND_MIX(ct, pt) \
 // TODO: Migrate kems to use binary ciphertexts directly
 #define ENCAPS_AND_MIX(ct, pk, shk) \
   ct <- kem_enc(pk, shk);           \
-  MIX3(kem_pk2b(pk), ct, k2b(shk))
+  MIX3(kem_pk2b(pk), k2b(shk), ct)
 #define DECAPS_AND_MIX(sk, pk, ct) \
   DUMMY(shk) <- kem_dec(sk, ct);   \
-  MIX3(kem_pk2b(pk), ct, k2b(DUMMY(shk)))
+  MIX3(kem_pk2b(pk), k2b(DUMMY(shk)), ct)
 
 
 // biscuits

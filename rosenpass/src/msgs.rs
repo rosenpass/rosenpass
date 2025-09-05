@@ -135,7 +135,7 @@ pub struct InitHello {
     /// Classic McEliece Ciphertext
     pub sctr: [u8; StaticKem::CT_LEN],
     /// Encryped: 16 byte hash of McEliece initiator static key
-    pub pidic: [u8; Aead::TAG_LEN + 32],
+    pub pidi_ct: [u8; Aead::TAG_LEN + 32],
     /// Encrypted TAI64N Time Stamp (against replay attacks)
     pub auth: [u8; Aead::TAG_LEN],
 }
@@ -188,7 +188,7 @@ pub struct RespHello {
     /// Empty encrypted message (just an auth tag)
     pub auth: [u8; Aead::TAG_LEN],
     /// Responders handshake state in encrypted form
-    pub biscuit: [u8; BISCUIT_CT_LEN],
+    pub biscuit_ct: [u8; BISCUIT_CT_LEN],
 }
 
 /// This is the third message sent by the initiator to the responder
@@ -233,7 +233,7 @@ pub struct InitConf {
     /// Copied from RespHello
     pub sidr: [u8; 4],
     /// Responders handshake state in encrypted form
-    pub biscuit: [u8; BISCUIT_CT_LEN],
+    pub biscuit_ct: [u8; BISCUIT_CT_LEN],
     /// Empty encrypted message (just an auth tag)
     pub auth: [u8; Aead::TAG_LEN],
 }
