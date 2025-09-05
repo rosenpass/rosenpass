@@ -21,10 +21,10 @@ abstract: |
 
 \enlargethispage{5mm}
 \setupimage{label=img:KeyExchangeProt,width=.9\linewidth}
-![Rosenpass Key Exchange Protocol](graphics/rosenpass-wp-key-exchange-protocol-rgb.svg)
+![Rosenpass Key Exchange Protocol](graphics/rosenpass-wp-key-exchange-protocol.svg)
 
 \setupimage{label=img:MessageTypes}
-![Rosenpass Message Types](graphics/rosenpass-wp-message-types-rgb.svg)
+![Rosenpass Message Types](graphics/rosenpass-wp-message-types.svg)
 
 \clearpage
 
@@ -287,7 +287,7 @@ Recall from Section \ref{hash} that rosenpass supports using either BLAKE2b or S
 Using one hash function for multiple purposes can cause real-world security issues and even key recovery attacks [@oraclecloning]. We choose a tree-based domain separation scheme based on a keyed hash function – the previously introduced primitive `hash` – to make sure all our hash function calls can be seen as distinct.
 
 \setupimage{landscape,fullpage,label=img:HashingTree}
-![Rosenpass Hashing Tree](graphics/rosenpass-wp-hashing-tree-rgb.svg)
+![Rosenpass Hashing Tree](graphics/rosenpass-wp-hashing-tree.svg)
 
 Each tree node $\circ{}$ in Figure \ref{img:HashingTree} represents the application of the keyed hash function, using the previous chaining key value as first parameter. The root of the tree is the zero key. In level one, the `PROTOCOL` identifier is applied to the zero key to generate a label unique across cryptographic protocols (unless the same label is deliberately used elsewhere). In level two, purpose identifiers are applied to the protocol label to generate labels to use with each separate hash function application within the Rosenpass protocol. The following layers contain the inputs used in each separate usage of the hash function: Beneath the identifiers `"mac"`, `"cookie"`, `"peer id"`, and `"biscuit additional data"` are hash functions or message authentication codes with a small number of inputs. The second, third, and fourth column in Figure \ref{img:HashingTree} cover the long sequential branch beneath the identifier `"chaining key init"` representing the entire protocol execution, one column for each message processed during the handshake. The leaves beneath `"chaining key extract"` in the left column represent pseudo-random labels for use when extracting values from the chaining key during the protocol execution. These values such as `mix >` appear as outputs in the left column, and then as inputs `< mix` in the other three columns.
 
@@ -397,7 +397,7 @@ These variables are used after the handshake terminates for encryption of the \t
 The main reference for how messages are processed in the Rosenpass protocol can be found in Fig. \ref{img:HandlingCode}. The figure uses Rust-like pseudo code.
 
 \setupimage{landscape,fullpage,label=img:HandlingCode}
-![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code-rgb.svg)
+![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code.svg)
 
 ## Helper Functions {#functions}
 
