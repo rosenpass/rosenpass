@@ -16,7 +16,7 @@ jobs:
     runs-on:
       - ubicloud-standard-2-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -54,7 +54,7 @@ jobs:
   #  runs-on:
   #    - ubicloud-standard-2-arm-ubuntu-2204
   #  steps:
-  #    - uses: actions/checkout@v4
+  #    - uses: actions/checkout@v5
   #    - uses: cachix/install-nix-action@v30
   #      with:
   #        nix_path: nixpkgs=channel:nixos-unstable
@@ -94,7 +94,7 @@ jobs:
   #  runs-on:
   #    - ubicloud-standard-8-ubuntu-2204
   #  steps:
-  #    - uses: actions/checkout@v4
+  #    - uses: actions/checkout@v5
   #    - uses: cachix/install-nix-action@v30
   #      with:
   #        nix_path: nixpkgs=channel:nixos-unstable
@@ -132,7 +132,7 @@ jobs:
   #  runs-on:
   #    - warp-macos-13-arm64-6x
   #  steps:
-  #    - uses: actions/checkout@v4
+  #    - uses: actions/checkout@v5
   #    - uses: cachix/install-nix-action@v30
   #      with:
   #        nix_path: nixpkgs=channel:nixos-unstable
