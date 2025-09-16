@@ -32,9 +32,10 @@
 * ~~return an exit status that is meaningful for CI~~
 * ~~exception handling in analyze() and in run_proverif()~~
 * ~~refactor filtering in run_proverif (see karo's comment)~~
+* ~configurable target directory~
 
 ## Next Steps
-* configurable target directory
+
 * do not assume that the repo path has subdir analysis and marzipan
 * integrate marzipan.awk into Python, somehow
 * rewrite marzipan.awk into Python/LARK

@@ -158,14 +158,18 @@ def pretty_output(file_path):
         (res, ctr, ta) = pretty_output_step(file_path, line, expected, descs, res, ctr, ta)
 
 
-def get_target_dir(path):
-    return pkgs.os.path.join(path, target_subdir)
+def get_target_dir(path, output):
+    if output is not None and not output == "":
+        return pkgs.pathlib.Path(output)
+    else:
+        return pkgs.os.path.join(path, target_subdir)
 
 
 @main.command()
+@click.option('--output', 'output', required=False)
 @click.argument("repo_path")
-def analyze(repo_path):
-    target_dir = get_target_dir(repo_path)
+def analyze(repo_path, output):
+    target_dir = get_target_dir(repo_path, output)
     pkgs.os.makedirs(target_dir, exist_ok=True)
 
     entries = []
@@ -182,10 +186,11 @@ def analyze(repo_path):
 
 
 @main.command()
+@click.option('--output', 'output', required=False)
 @click.argument("repo_path")
-def clean(repo_path):
+def clean(repo_path, output):
     cleans_failed = 0
-    target_dir = get_target_dir(repo_path)
+    target_dir = get_target_dir(repo_path, output)
     if pkgs.os.path.isdir(target_dir):
         for filename in pkgs.os.listdir(target_dir):
             file_path = pkgs.os.path.join(target_dir, filename)
