@@ -36,10 +36,13 @@
 
 ## Next Steps
 
-* do not assume that the repo path has subdir analysis and marzipan
 * integrate marzipan.awk into Python, somehow
 * rewrite marzipan.awk into Python/LARK
-* rewrite cpp into Python/LARK
+  * define a LARK grammar for marzipan.awk rules
+  * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
+* do not assume that the repo path has subdir marzipan
+* do not assume that the repo path has subdir analysis
+* rewrite cpp into Python/LARK (step: mpv->i.pv)
 * integrate the Nix flake into the main Nix flake
   * pull the gawk dependency into the Nix flake
 * think about next steps
