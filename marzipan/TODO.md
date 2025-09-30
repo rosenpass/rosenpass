@@ -37,6 +37,7 @@
 ## Next Steps
 
 * integrate marzipan.awk into Python, somehow
+  * lark parser: multiline comments, how???
 * rewrite marzipan.awk into Python/LARK
   * define a LARK grammar for marzipan.awk rules
   * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
