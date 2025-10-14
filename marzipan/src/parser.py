@@ -351,7 +351,7 @@ proverif_grammar = Lark(
     phase: "phase" NAT [";" process]
     TAG: IDENT
     sync: "sync" NAT ["[" TAG "]"] [";" process]
-    COMMENT:  "(*" /.*/
+    COMMENT:  /\(\*(\*(?!\))|[^*])*\*\)/
     %import common (WORD, DIGIT, NUMBER, WS) // imports from terminal library
     %ignore WS // Disregard spaces in text
     %ignore COMMENT
@@ -359,6 +359,10 @@ proverif_grammar = Lark(
     debug=True,
     # lexer_callbacks={"COMMENT": comments.append},
 )
+
+# COMMENT:  /\(\*(\*(?!\))|[^*])*\*\)/
+# COMMENT:  "(*" /(\*(?!\))|[^*])*/  "*)"
+# comment: /\(\*(?:(?!\(\*|\*\)).|(?R))*\*\)/
 
 # TODO Open ProVerif compatibility questions
 # TODO * does it allow leading zeros for NAT?
@@ -373,17 +377,8 @@ def parsertest(input):
     return parsetree
 
 
-def main():
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <filename>")
-        sys.exit(1)
-    filename = sys.argv[1]
-
-    with open(filename, "r") as f:
+def parse_main(file_path):
+    with open(file_path, "r") as f:
         content = f.read()
         # print(content)
         parsertest(content)
-
-
-if __name__ == "__main__":
-    main()

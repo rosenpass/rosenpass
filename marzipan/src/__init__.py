@@ -1,5 +1,7 @@
 from .util import pkgs, setup_exports, export, rename
-#from rich.console import Console
+from .parser import *
+
+# from rich.console import Console
 import click
 
 target_subdir = "target/proverif"
@@ -52,7 +54,13 @@ def run_proverif(file, extra_args=[]):
     params = ["proverif", "-test", *extra_args, file]
     logger.debug(params)
 
-    process = exc_piped(params, stderr=pkgs.subprocess.PIPE, stdout=pkgs.subprocess.PIPE, text=True, bufsize=1)
+    process = exc_piped(
+        params,
+        stderr=pkgs.subprocess.PIPE,
+        stdout=pkgs.subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
     try:
         prev_line = None
         for line in process.stdout:
@@ -72,7 +80,9 @@ def run_proverif(file, extra_args=[]):
         return_code = process.wait()
 
         if return_code != 0:
-            logger.error(f"Proverif exited with a non-zero error code {params}: {return_code}")
+            logger.error(
+                f"Proverif exited with a non-zero error code {params}: {return_code}"
+            )
             exit(return_code)
 
 
@@ -88,8 +98,13 @@ def cpp(file, cpp_prep):
 
 
 def awk(repo_path, cpp_prep, awk_prep):
-    params = ["awk", "-f", str(pkgs.os.path.join(repo_path, "marzipan/marzipan.awk")), cpp_prep]
-    with open(awk_prep, 'w') as file:
+    params = [
+        "awk",
+        "-f",
+        str(pkgs.os.path.join(repo_path, "marzipan/marzipan.awk")),
+        cpp_prep,
+    ]
+    with open(awk_prep, "w") as file:
         exc(params, stderr=pkgs.sys.stderr, stdout=file)
         file.write("\nprocess main")
 
@@ -104,11 +119,11 @@ def pretty_output_init(file_path):
     expected = []
     descs = []
 
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         content = file.read()
 
         # Process lemmas first
-        result = pkgs.re.findall(r'@(lemma)(?=\s+\"([^\"]*)\")', content)
+        result = pkgs.re.findall(r"@(lemma)(?=\s+\"([^\"]*)\")", content)
         if result:
             # The regex only returns lemmas. For lemmas, we always expect the result 'true' from ProVerif.
             expected.extend([True for _ in range(len(result))])
@@ -118,8 +133,10 @@ def pretty_output_init(file_path):
         result = pkgs.re.findall(r'@(query|reachable)(?=\s+"[^\"]*")', content)
         if result:
             # For queries, we expect 'true' from ProVerif, for reachable, we expect 'false'.
-            expected.extend([e == '@query' for e in result])
-            reachable_result = pkgs.re.findall(r'@(query|reachable)\s+"([^\"]*)"', content)
+            expected.extend([e == "@query" for e in result])
+            reachable_result = pkgs.re.findall(
+                r'@(query|reachable)\s+"([^\"]*)"', content
+            )
             descs.extend([e[1] for e in reachable_result])
 
     ta = pkgs.time.time()
@@ -133,9 +150,9 @@ def pretty_output_step(file_path, line, expected, descs, res, ctr, ta):
 
     # Output from ProVerif contains a trailing newline, which we do not have in the expected output. Remove it for meaningful matching.
     outp_clean_raw = line.rstrip()
-    if outp_clean_raw == 'true':
+    if outp_clean_raw == "true":
         outp_clean = True
-    elif outp_clean_raw == 'false':
+    elif outp_clean_raw == "false":
         outp_clean = False
     else:
         outp_clean = outp_clean_raw
@@ -155,7 +172,9 @@ def pretty_output_step(file_path, line, expected, descs, res, ctr, ta):
 def pretty_output(file_path):
     (ta, res, ctr, expected, descs) = pretty_output_init(file_path)
     for line in pkgs.sys.stdin:
-        (res, ctr, ta) = pretty_output_step(file_path, line, expected, descs, res, ctr, ta)
+        (res, ctr, ta) = pretty_output_step(
+            file_path, line, expected, descs, res, ctr, ta
+        )
 
 
 def get_target_dir(path, output):
@@ -166,18 +185,21 @@ def get_target_dir(path, output):
 
 
 @main.command()
-@click.option('--output', 'output', required=False)
+@click.option("--output", "output", required=False)
 @click.argument("repo_path")
 def analyze(repo_path, output):
     target_dir = get_target_dir(repo_path, output)
     pkgs.os.makedirs(target_dir, exist_ok=True)
 
     entries = []
-    analysis_dir = pkgs.os.path.join(repo_path, 'analysis')
-    entries.extend(sorted(pkgs.glob.glob(str(analysis_dir) + '/*.entry.mpv')))
+    analysis_dir = pkgs.os.path.join(repo_path, "analysis")
+    entries.extend(sorted(pkgs.glob.glob(str(analysis_dir) + "/*.entry.mpv")))
 
     with pkgs.concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = {executor.submit(metaverif, repo_path, target_dir, entry): entry for entry in entries}
+        futures = {
+            executor.submit(metaverif, repo_path, target_dir, entry): entry
+            for entry in entries
+        }
         for future in pkgs.concurrent.futures.as_completed(futures):
             cmd = futures[future]
             logger.info(f"Metaverif {cmd} finished.")
@@ -186,7 +208,7 @@ def analyze(repo_path, output):
 
 
 @main.command()
-@click.option('--output', 'output', required=False)
+@click.option("--output", "output", required=False)
 @click.argument("repo_path")
 def clean(repo_path, output):
     cleans_failed = 0
@@ -194,7 +216,9 @@ def clean(repo_path, output):
     if pkgs.os.path.isdir(target_dir):
         for filename in pkgs.os.listdir(target_dir):
             file_path = pkgs.os.path.join(target_dir, filename)
-            if pkgs.os.path.isfile(file_path) and pkgs.os.path.splitext(file_path)[1] in [".pv", ".log"]:
+            if pkgs.os.path.isfile(file_path) and pkgs.os.path.splitext(file_path)[
+                1
+            ] in [".pv", ".log"]:
                 try:
                     pkgs.os.remove(file_path)
                 except Exception as e:
@@ -206,11 +230,10 @@ def clean(repo_path, output):
         exit(1)
 
 
-
 def metaverif(repo_path, tmpdir, file):
     print(f"Start metaverif on {file}")
     # Extract the name using regex
-    name_match = pkgs.re.search(r'([^/]*)(?=\.mpv)', file)
+    name_match = pkgs.re.search(r"([^/]*)(?=\.mpv)", file)
     if name_match:
         name = name_match.group(0)  # Get the matched name
 
@@ -229,19 +252,29 @@ def metaverif(repo_path, tmpdir, file):
         log_file = pkgs.os.path.join(tmpdir, f"{name}.log")
 
         ta, res, ctr, expected, descs = pretty_output_init(cpp_prep)
-        with open(log_file, 'a') as log:
+        with open(log_file, "a") as log:
             generator = run_proverif(awk_prep)
             for line in generator:
                 log.write(line)
                 # parse-result-line:
-                match = pkgs.re.search(r'^RESULT .* \b(true|false)\b\.$', line)
+                match = pkgs.re.search(r"^RESULT .* \b(true|false)\b\.$", line)
                 if match:
                     result = match.group(1)
                     # pretty-output:
-                    res, ctr, ta = pretty_output_step(cpp_prep, result, expected, descs, res, ctr, ta)
+                    res, ctr, ta = pretty_output_step(
+                        cpp_prep, result, expected, descs, res, ctr, ta
+                    )
     else:
-        logger.error(f"No match found for the filename {file}: extension should be .mpv")
+        logger.error(
+            f"No match found for the filename {file}: extension should be .mpv"
+        )
         exit(1)
+
+
+@main.command()
+@click.argument("file_path")
+def parse(file_path):
+    parse_main(file_path)
 
 
 if __name__ == "__main__":
