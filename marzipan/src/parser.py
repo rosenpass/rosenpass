@@ -33,7 +33,13 @@ proverif_grammar = Lark(
     _non_empty_seq{x}: x ("," x)*
     _maybe_empty_seq{x}: [ _non_empty_seq{x} ]
 
+    IDENT_FUN_CONST: "data" | "private" | "typeConverter"
+    IDENT_FREE_REDUC: "private"
+    IDENT_PRED: "memberOptim" | "block"
+    IDENT_PROCESS: "precise"
+    IDENT_QUERY_LEMMA_AXIOM: "noneSat" | "discardSat" | "instantiateSat" | "fullSat" | "noneVerif" | "discardVerif" | "instantiateVerif" | "fullVerif"
     options: [ "[" _non_empty_seq{IDENT} "]" ]
+    options{idents}: [ "[" _non_empty_seq{idents} "]" ]
     process: ZERO
            | YIELD
            | IDENT [ "(" _maybe_empty_seq{pterm} ")" ]
@@ -193,6 +199,7 @@ proverif_grammar = Lark(
         | nounif_decl
         | elimtrue_decl
         | clauses_decl
+        | module_decl
         #| param_decl
         #| proba_decl
         #| letproba_decl
@@ -204,7 +211,7 @@ proverif_grammar = Lark(
     channel_decl: "channel" _non_empty_seq{IDENT} "."
     free_decl: "free" _non_empty_seq{IDENT} ":" typeid options "."
     const_decl: "const" _non_empty_seq{IDENT} ":" typeid options "."
-    fun_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid options "."
+    fun_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid options{IDENT_FUN_CONST} "."
     letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
     reduc_decl: "reduc" eqlist options "."
     fun_reduc_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid "reduc" mayfailreduc options "."
@@ -327,6 +334,8 @@ proverif_grammar = Lark(
 
     elimtrue_decl: "elimtrue" [ failtypedecl ";" ] term "."
     clauses_decl: "clauses" clauses "."
+
+    module_decl: "@module" " " IDENT
 
     # TODO: finish defining these (comes from Cryptoverif)
     #param_decl: "param" _non_empty_seq{IDENT} options "."

@@ -33,11 +33,12 @@
 * ~~exception handling in analyze() and in run_proverif()~~
 * ~~refactor filtering in run_proverif (see karo's comment)~~
 * ~configurable target directory~
+* ~lark parser: multiline comments, how???~
 
 ## Next Steps
 
 * integrate marzipan.awk into Python, somehow
-  * lark parser: multiline comments, how???
+  * options term special cases (c.f. manual page 133, starting with "fun" term)
 * rewrite marzipan.awk into Python/LARK
   * define a LARK grammar for marzipan.awk rules
   * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
@@ -54,6 +55,6 @@
     * and rewrite the AST within Python
     * reconstruct ProVerif input file for ProVerif
   * rewrite our CPP usages into Python/…?
-
+* low priority: nested comments in ProVerif code
 
 “it replaces the Bash script and is idiomatic Python code”
