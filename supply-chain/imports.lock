@@ -138,6 +138,12 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 notes = "No `unsafe` code and only uses `std` in ways one would expect the crate to do so."
 
+[[audits.bytecode-alliance.audits.embedded-io]]
+who = "Alex Crichton <alex@alexcrichton.com>"
+criteria = "safe-to-deploy"
+delta = "0.4.0 -> 0.6.1"
+notes = "Major updates, but almost all safe code. Lots of pruning/deletions, nothing out of the ordrinary."
+
 [[audits.bytecode-alliance.audits.errno]]
 who = "Dan Gohman <dev@sunfishcode.online>"
 criteria = "safe-to-deploy"
