@@ -173,7 +173,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: digests-rp-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
@@ -237,7 +237,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: digests-rosenpass-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
