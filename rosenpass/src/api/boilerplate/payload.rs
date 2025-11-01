@@ -1,5 +1,5 @@
 use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-use zerocopy::{SplitByteSliceMut, FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, SplitByteSliceMut};
 
 use super::{Message, RawMsgType, RequestMsgType, ResponseMsgType};
 

@@ -508,7 +508,10 @@ impl KnownResponseHasher {
     /// # Panic & Safety
     ///
     /// Panics in case of a problem with this underlying hash function
-    pub fn hash<Msg: IntoBytes + FromBytes + Immutable>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
+    pub fn hash<Msg: IntoBytes + FromBytes + Immutable>(
+        &self,
+        msg: &Envelope<Msg>,
+    ) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
         // This function is only used internally and results are not propagated
         // to outside the peer. Thus, it uses SHAKE256 exclusively.
@@ -2188,8 +2191,9 @@ impl CryptoServer {
 
         let peer = match msg_type {
             Ok(MsgType::InitHello) => {
-                let msg_in: Ref<&[u8], Envelope<InitHello>> =
-                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<InitHello>> = Ref::from_bytes(rx_buf)
+                    .ok()
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 // At this point, we do not know the hash functon used by the peer, thus we try both,
                 // with a preference for SHAKE256.
@@ -2222,8 +2226,9 @@ impl CryptoServer {
                 peer
             }
             Ok(MsgType::RespHello) => {
-                let msg_in: Ref<&[u8], Envelope<RespHello>> =
-                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<RespHello>> = Ref::from_bytes(rx_buf)
+                    .ok()
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
@@ -2239,8 +2244,9 @@ impl CryptoServer {
                 peer
             }
             Ok(MsgType::InitConf) => {
-                let msg_in: Ref<&[u8], Envelope<InitConf>> =
-                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<InitConf>> = Ref::from_bytes(rx_buf)
+                    .ok()
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
 
@@ -2271,7 +2277,7 @@ impl CryptoServer {
                             &msg_in.payload,
                             &mut msg_out.payload,
                             KeyedHash::keyed_shake256(),
-                       );
+                        );
                         let (peer, peer_hash_choice) = match peer_shake256 {
                             Ok(peer) => (peer, KeyedHash::keyed_shake256()),
                             Err(_) => {
@@ -2307,14 +2313,16 @@ impl CryptoServer {
                 peer
             }
             Ok(MsgType::EmptyData) => {
-                let msg_in: Ref<&[u8], Envelope<EmptyData>> =
-                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], Envelope<EmptyData>> = Ref::from_bytes(rx_buf)
+                    .ok()
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 self.handle_resp_conf(&msg_in, seal_broken.to_string())?
             }
             Ok(MsgType::CookieReply) => {
-                let msg_in: Ref<&[u8], CookieReply> =
-                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in: Ref<&[u8], CookieReply> = Ref::from_bytes(rx_buf)
+                    .ok()
+                    .ok_or(RosenpassError::BufferSizeMismatch)?;
                 let peer = self.handle_cookie_reply(&msg_in)?;
                 len = 0;
                 peer

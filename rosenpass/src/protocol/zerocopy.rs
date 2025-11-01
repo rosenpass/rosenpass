@@ -10,12 +10,16 @@ use crate::RosenpassError;
 pub fn truncating_cast_into<T: FromBytes + KnownLayout + Immutable>(
     buf: &mut [u8],
 ) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ref::from_bytes(&mut buf[..size_of::<T>()]).ok().ok_or(RosenpassError::BufferSizeMismatch)
+    Ref::from_bytes(&mut buf[..size_of::<T>()])
+        .ok()
+        .ok_or(RosenpassError::BufferSizeMismatch)
 }
 
 /// Used to parse a network message using [zerocopy], mutably
 pub fn truncating_cast_into_nomut<T: FromBytes + KnownLayout + Immutable>(
     buf: &[u8],
 ) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ref::from_bytes(&buf[..size_of::<T>()]).ok().ok_or(RosenpassError::BufferSizeMismatch)
+    Ref::from_bytes(&buf[..size_of::<T>()])
+        .ok()
+        .ok_or(RosenpassError::BufferSizeMismatch)
 }

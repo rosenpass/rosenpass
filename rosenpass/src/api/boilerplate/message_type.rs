@@ -1,6 +1,6 @@
 use hex_literal::hex;
 use rosenpass_util::zerocopy::RefMaker;
-use zerocopy::{SplitByteSlice};
+use zerocopy::SplitByteSlice;
 
 use crate::RosenpassError::{self, InvalidApiMessageType};
 

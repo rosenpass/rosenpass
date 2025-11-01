@@ -129,7 +129,8 @@ impl<B: SplitByteSlice> ResponseRefMaker<B> {
         self.ensure_fit()?;
         let point = self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point)
+        let (buf, _) = buf
+            .split_at(point)
             .map_err(|_| anyhow!("Failed to split buffer!"))?;
         Ok(Self { buf, msg_type })
     }
@@ -139,7 +140,8 @@ impl<B: SplitByteSlice> ResponseRefMaker<B> {
         self.ensure_fit()?;
         let point = self.buf.len() - self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point)
+        let (buf, _) = buf
+            .split_at(point)
             .map_err(|_| anyhow!("Failed to split buffer!"))?;
         Ok(Self { buf, msg_type })
     }
