@@ -2042,7 +2042,8 @@ impl CryptoServer {
 
                 let mut expected = [0u8; COOKIE_SIZE];
 
-                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
+                let msg_in = Ref::<&[u8], Envelope<InitHello>>::from_bytes(rx_buf)
+                    .ok()
                     .ok_or(RosenpassError::BufferSizeMismatch)?;
                 expected.copy_from_slice(
                     &hash_domains::cookie(KeyedHash::keyed_shake256())?
@@ -2188,7 +2189,7 @@ impl CryptoServer {
         let peer = match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 // At this point, we do not know the hash functon used by the peer, thus we try both,
                 // with a preference for SHAKE256.
@@ -2222,7 +2223,7 @@ impl CryptoServer {
             }
             Ok(MsgType::RespHello) => {
                 let msg_in: Ref<&[u8], Envelope<RespHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
@@ -2239,7 +2240,7 @@ impl CryptoServer {
             }
             Ok(MsgType::InitConf) => {
                 let msg_in: Ref<&[u8], Envelope<InitConf>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
 
@@ -2258,7 +2259,7 @@ impl CryptoServer {
                             .map(|v| v.response.borrow())
                             // Invalid! Found peer no with cache in index but the cache does not exist
                             .unwrap();
-                        copy_slice(cached.as_bytes()).to(msg_out.as_bytes_mut());
+                        copy_slice(cached.as_bytes()).to(msg_out.as_mut_bytes());
                         peer
                     }
 
@@ -2270,7 +2271,7 @@ impl CryptoServer {
                             &msg_in.payload,
                             &mut msg_out.payload,
                             KeyedHash::keyed_shake256(),
-                        );
+                       );
                         let (peer, peer_hash_choice) = match peer_shake256 {
                             Ok(peer) => (peer, KeyedHash::keyed_shake256()),
                             Err(_) => {
@@ -2307,13 +2308,13 @@ impl CryptoServer {
             }
             Ok(MsgType::EmptyData) => {
                 let msg_in: Ref<&[u8], Envelope<EmptyData>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
 
                 self.handle_resp_conf(&msg_in, seal_broken.to_string())?
             }
             Ok(MsgType::CookieReply) => {
                 let msg_in: Ref<&[u8], CookieReply> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).ok().ok_or(RosenpassError::BufferSizeMismatch)?;
                 let peer = self.handle_cookie_reply(&msg_in)?;
                 len = 0;
                 peer
@@ -3240,7 +3241,7 @@ impl HandshakeState {
     ///   out the const generics.
     /// - By adding a value parameter of type `PhantomData<TV>`, you can choose
     ///   `TV` at the call site while allowing the compiler to infer `KEM_*`
-    ///    const generics from `ct` and `pk`.
+    ///   const generics from `ct` and `pk`.
     /// - Call like: `encaps_and_mix_with_test_vector(&StaticKem, &mut ct, pk,
     ///   PhantomData::<TestVectorActive>)?;`
     pub fn encaps_and_mix_with_test_vector<
@@ -3322,7 +3323,7 @@ impl HandshakeState {
         let test_values: StoreBiscuitTestValues = TV::initialize_values();
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
 
         // calculate pt contents
         biscuit
@@ -3384,9 +3385,9 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
         XAead.decrypt_with_nonce_in_ctxt(
-            biscuit.as_bytes_mut(),
+            biscuit.as_mut_bytes(),
             bk.get(srv).value.secret(),
             &ad,
             biscuit_ct,

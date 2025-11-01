@@ -17,7 +17,7 @@ use assert_tv::TestVectorSet;
 use base64::Engine;
 use rosenpass_cipher_traits::primitives::{Aead, Kem};
 use rosenpass_ciphers::{EphemeralKem, XAead, KEY_LEN};
-use rosenpass_secret_memory::{Public, PublicBox, Secret};
+use rosenpass_secret_memory::{Public, Secret};
 use serde_json::Value;
 
 #[derive(TestVectorSet)]

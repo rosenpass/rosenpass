@@ -1,7 +1,7 @@
 //! Extension traits for converting `Ref<B, T>` into references backed by
 //! standard slices.
 
-use zerocopy::{SplitByteSlice, SplitByteSliceMut, Immutable, KnownLayout, Ref};
+use zerocopy::{Immutable, KnownLayout, Ref, SplitByteSlice, SplitByteSliceMut};
 
 /// A trait for converting a `Ref<B, T>` into a `Ref<&[u8], T>`.
 ///
@@ -68,7 +68,7 @@ where
     T: KnownLayout + Immutable,
 {
     fn emancipate(&self) -> Ref<&[u8], T> {
-        Ref::new(zerocopy::Ref::<B, T>::bytes(&self)).unwrap()
+        Ref::from_bytes(zerocopy::Ref::bytes(self)).unwrap()
     }
 }
 
@@ -78,6 +78,6 @@ where
     T: KnownLayout + Immutable,
 {
     fn emancipate_mut(&mut self) -> Ref<&mut [u8], T> {
-        Ref::new(zerocopy::Ref::<B, T>::bytes_mut(self)).unwrap()
+        Ref::from_bytes(zerocopy::Ref::bytes_mut(self)).unwrap()
     }
 }

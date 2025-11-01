@@ -80,9 +80,9 @@ where
         let msgs::MsgType::SetPsk = typ; // Assert type
 
         let req =
-            zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::new(req).ok_or(InvalidMessage)?;
+            zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::from_bytes(req).ok().ok_or(InvalidMessage)?;
         let mut res =
-            zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::new(res).ok_or(InvalidMessage)?;
+            zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::from_bytes(res).ok().ok_or(InvalidMessage)?;
         res.msg_type = msgs::MsgType::SetPsk as u8;
         self.handle_set_psk(&req.payload, &mut res.payload)?;
 
@@ -139,7 +139,7 @@ mod tests {
     use crate::brokers::netlink::SetPskError;
     use crate::{SerializedBrokerConfig, WireGuardBroker};
     use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
-    use zerocopy::AsBytes;
+    use zerocopy::IntoBytes;
 
     #[derive(Debug, Clone)]
     struct MockWireGuardBroker {
