@@ -13,7 +13,7 @@ use signal_hook_mio::v1_0 as signal_hook_mio;
 use anyhow::{bail, Context, Result};
 use derive_builder::Builder;
 use log::{error, info, warn};
-use zerocopy::AsBytes;
+use zerocopy::IntoBytes;
 
 use rosenpass_util::attempt;
 use rosenpass_util::fmt::debug::NullDebug;

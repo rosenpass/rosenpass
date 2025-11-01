@@ -41,6 +41,7 @@ rand = { workspace = true }
 procspawn = { workspace = true }
 
 [features]
+default = ["experiment_api"]
 experiment_api = ["rustix", "libc"]
 experiment_memfd_secret = []
 

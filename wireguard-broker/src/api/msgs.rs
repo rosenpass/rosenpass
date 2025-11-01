@@ -3,7 +3,7 @@
 
 use std::str::{from_utf8, Utf8Error};
 
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 /// The number of bytes reserved for overhead when packaging data.
 pub const ENVELOPE_OVERHEAD: usize = 1 + 3;
@@ -15,8 +15,8 @@ pub const RESPONSE_MSG_BUFFER_SIZE: usize = ENVELOPE_OVERHEAD + 1;
 
 /// Envelope for messages being passed around.
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
-pub struct Envelope<M: AsBytes + FromBytes> {
+#[derive(IntoBytes, FromBytes, Immutable, KnownLayout)]
+pub struct Envelope<M: IntoBytes + FromBytes> {
     /// [MsgType] of this message
     pub msg_type: u8,
     /// Reserved for future use
@@ -29,7 +29,7 @@ pub struct Envelope<M: AsBytes + FromBytes> {
 /// # Example
 ///
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
+#[derive(IntoBytes, FromBytes, Immutable, KnownLayout)]
 pub struct SetPskRequest {
     /// The pre-shared key.
     pub psk: [u8; 32],
@@ -85,7 +85,7 @@ impl SetPskRequest {
 
 /// Message format for response to the set pre-shared key operation.
 #[repr(packed)]
-#[derive(AsBytes, FromBytes, FromZeroes)]
+#[derive(IntoBytes, FromBytes, Immutable, KnownLayout)]
 pub struct SetPskResponse {
     pub return_code: u8,
 }

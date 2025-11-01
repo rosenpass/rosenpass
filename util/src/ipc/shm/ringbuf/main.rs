@@ -2,6 +2,8 @@
 
 use std::{borrow::Borrow, sync::atomic::AtomicU64};
 
+use zerocopy::{FromBytes, IntoBytes};
+
 use crate::{
     ipc::shm::SharedMemorySegment,
     ringbuf::concurrent::framework::{
@@ -13,7 +15,8 @@ use crate::{
 ///
 /// These values must be shared between the reader/writer in such a way that access to the inner
 /// variables is synchronized and atomic between the two parties.
-#[derive(Debug, Default)]
+#[repr(C)]
+#[derive(Debug, Default, IntoBytes, FromBytes)]
 pub struct ShmPipeVariables {
     /// See [crate::ringbuf::sched::RingBufferScheduler::items_read()]
     pub items_read: AtomicU64,

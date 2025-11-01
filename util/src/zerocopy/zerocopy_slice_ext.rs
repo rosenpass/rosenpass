@@ -1,7 +1,7 @@
 //! Extension traits for parsing slices into [`zerocopy::Ref`] values using the
 //! [`RefMaker`] abstraction.
 
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{Immutable, KnownLayout, Ref, SplitByteSlice, SplitByteSliceMut};
 
 use super::RefMaker;
 
@@ -9,7 +9,7 @@ use super::RefMaker;
 ///
 /// This trait adds methods for creating [`Ref`] references from
 /// slices by using the [`RefMaker`] type internally.
-pub trait ZerocopySliceExt: Sized + ByteSlice {
+pub trait ZerocopySliceExt: Sized + SplitByteSlice {
     /// Creates a new `RefMaker` for the given slice.
     ///
     /// # Example
@@ -52,7 +52,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// assert_eq!(data_ref.0, 0x0201);
     /// assert_eq!(data_ref.1, 0x0403);
     /// ```
-    fn zk_parse<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().parse()
     }
 
@@ -80,7 +83,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// let header_ref = bytes.0.zk_parse_prefix::<Header>().unwrap();
     /// assert_eq!(header_ref.0, 0xDDCCBBAA);
     /// ```
-    fn zk_parse_prefix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse_prefix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().from_prefix()?.parse()
     }
 
@@ -108,18 +114,21 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// let header_ref = bytes.0.zk_parse_suffix::<Header>().unwrap();
     /// assert_eq!(header_ref.0, 0x30201000);
     /// ```
-    fn zk_parse_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse_suffix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().from_suffix()?.parse()
     }
 }
 
-impl<B: ByteSlice> ZerocopySliceExt for B {}
+impl<B: SplitByteSlice> ZerocopySliceExt for B {}
 
 /// Extension trait for zero-copy parsing of mutable slices with zeroization
 /// capabilities.
 ///
 /// Provides convenience methods to create zero-initialized references.
-pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
+pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + SplitByteSliceMut {
     /// Creates a new zeroized reference from the entire slice.
     ///
     /// This zeroizes the slice first, then provides a `Ref`.
@@ -143,7 +152,10 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0, 0, 0, 0]);
     /// ```
-    fn zk_zeroized<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().make_zeroized()
     }
 
@@ -171,7 +183,10 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0, 0, 0, 0, 0xFF, 0xFF]);
     /// ```
-    fn zk_zeroized_from_prefix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized_from_prefix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().from_prefix()?.make_zeroized()
     }
 
@@ -199,9 +214,12 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0xFF, 0xFF, 0, 0, 0, 0]);
     /// ```
-    fn zk_zeroized_from_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized_from_suffix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: Immutable + KnownLayout,
+    {
         self.zk_ref_maker().from_suffix()?.make_zeroized()
     }
 }
 
-impl<B: ByteSliceMut> ZerocopyMutSliceExt for B {}
+impl<B: SplitByteSliceMut> ZerocopyMutSliceExt for B {}

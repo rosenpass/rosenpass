@@ -97,6 +97,7 @@ rustix = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
+default = ["experiment_api"]
 experiment_cookie_dos_mitigation = []
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_libcrux_all = ["rosenpass-ciphers/experiment_libcrux_all"]

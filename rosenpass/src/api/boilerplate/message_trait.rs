@@ -1,4 +1,4 @@
-use zerocopy::{ByteSliceMut, Ref};
+use zerocopy::{Ref, SplitByteSliceMut};
 
 use rosenpass_util::zerocopy::RefMaker;
 
@@ -35,7 +35,7 @@ pub trait Message {
     /// # Examples
     ///
     /// See [crate::api::PingRequest::setup]
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>>;
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>>;
 }
 
 /// Additional convenience functions for working with [rosenpass_util::zerocopy::RefMaker]
@@ -45,7 +45,7 @@ pub trait ZerocopyResponseMakerSetupMessageExt<B, T> {
 
 impl<B, T> ZerocopyResponseMakerSetupMessageExt<B, T> for RefMaker<B, T>
 where
-    B: ByteSliceMut,
+    B: SplitByteSliceMut,
     T: Message,
 {
     /// Initialize the message using [Message::setup].

@@ -1,7 +1,7 @@
 use rosenpass_util::zerocopy::{
     RefMaker, ZerocopyEmancipateExt, ZerocopyEmancipateMutExt, ZerocopySliceExt,
 };
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{Immutable, KnownLayout, Ref, SplitByteSlice, SplitByteSliceMut};
 
 use super::{Message, PingRequest, PingResponse};
 use super::{RequestRef, ResponseRef, ZerocopyResponseMakerSetupMessageExt};
@@ -9,27 +9,27 @@ use super::{RequestRef, ResponseRef, ZerocopyResponseMakerSetupMessageExt};
 /// Extension trait for [Message]s that are requests messages
 pub trait RequestMsg: Sized + Message {
     /// The response message belonging to this request message
-    type ResponseMsg: ResponseMsg;
+    type ResponseMsg: ResponseMsg + Immutable + KnownLayout;
 
     /// Construct a response make for this particular message
-    fn zk_response_maker<B: ByteSlice>(buf: B) -> RefMaker<B, Self::ResponseMsg> {
+    fn zk_response_maker<B: SplitByteSlice>(buf: B) -> RefMaker<B, Self::ResponseMsg> {
         buf.zk_ref_maker()
     }
 
     /// Setup a response maker (through [Message::setup]) for this request message type
-    fn setup_response<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
+    fn setup_response<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
         Self::zk_response_maker(buf).setup_msg()
     }
 
     /// Setup a response maker from a buffer prefix (through [Message::setup]) for this request message type
-    fn setup_response_from_prefix<B: ByteSliceMut>(
+    fn setup_response_from_prefix<B: SplitByteSliceMut>(
         buf: B,
     ) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
         Self::zk_response_maker(buf).from_prefix()?.setup_msg()
     }
 
     /// Setup a response maker from a buffer suffix (through [Message::setup]) for this request message type
-    fn setup_response_from_suffix<B: ByteSliceMut>(
+    fn setup_response_from_suffix<B: SplitByteSliceMut>(
         buf: B,
     ) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
         Self::zk_response_maker(buf).from_prefix()?.setup_msg()
@@ -125,8 +125,8 @@ impl<B1, B2> From<AddPskBrokerPair<B1, B2>> for RequestResponsePair<B1, B2> {
 
 impl<B1, B2> RequestResponsePair<B1, B2>
 where
-    B1: ByteSlice,
-    B2: ByteSlice,
+    B1: SplitByteSlice,
+    B2: SplitByteSlice,
 {
     /// Returns a tuple to both the request and the response message
     pub fn both(&self) -> (RequestRef<&[u8]>, ResponseRef<&[u8]>) {
@@ -167,8 +167,8 @@ where
 
 impl<B1, B2> RequestResponsePair<B1, B2>
 where
-    B1: ByteSliceMut,
-    B2: ByteSliceMut,
+    B1: SplitByteSliceMut,
+    B2: SplitByteSliceMut,
 {
     /// Returns a mutable tuple to both the request and the response message
     pub fn both_mut(&mut self) -> (RequestRef<&mut [u8]>, ResponseRef<&mut [u8]>) {

@@ -8,6 +8,7 @@
 use std::borrow::BorrowMut;
 
 use rosenpass_secret_memory::{Public, Secret};
+use zerocopy::IntoBytes;
 
 use crate::api::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
 use crate::WireGuardBroker;
@@ -85,7 +86,7 @@ where
         res.msg_type = msgs::MsgType::SetPsk as u8;
         self.handle_set_psk(&req.payload, &mut res.payload)?;
 
-        Ok(res.bytes().len())
+        Ok(res.as_bytes().len())
     }
 
     /// Sets the pre-shared key for the interface identified in `req` to the pre-shared key

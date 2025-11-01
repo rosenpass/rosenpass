@@ -1,5 +1,5 @@
 use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-use zerocopy::{AsBytes, ByteSliceMut, FromBytes, FromZeroes, Ref};
+use zerocopy::{SplitByteSliceMut, FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use super::{Message, RawMsgType, RequestMsgType, ResponseMsgType};
 
@@ -12,8 +12,8 @@ pub const MAX_REQUEST_FDS: usize = 2;
 
 /// Message envelope for API messages
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
-pub struct Envelope<M: AsBytes + FromBytes> {
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
+pub struct Envelope<M: IntoBytes + FromBytes + Immutable + KnownLayout> {
     /// Which message this is
     pub msg_type: RawMsgType,
     /// The actual Paylod
@@ -27,7 +27,7 @@ pub type ResponseEnvelope<M> = Envelope<M>;
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct PingRequestPayload {
     /// Randomly generated connection id
     pub echo: [u8; 256],
@@ -55,7 +55,7 @@ impl Message for PingRequest {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -68,7 +68,7 @@ impl Message for PingRequest {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct PingResponsePayload {
     /// Randomly generated connection id
     pub echo: [u8; 256],
@@ -96,7 +96,7 @@ impl Message for PingResponse {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -109,7 +109,7 @@ impl Message for PingResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct SupplyKeypairRequestPayload {}
 
 #[allow(missing_docs)]
@@ -140,7 +140,7 @@ impl Message for SupplyKeypairRequest {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -169,7 +169,7 @@ pub mod supply_keypair_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct SupplyKeypairResponsePayload {
     #[allow(missing_docs)]
     pub status: u128,
@@ -197,7 +197,7 @@ impl Message for SupplyKeypairResponse {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -210,7 +210,7 @@ impl Message for SupplyKeypairResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct AddListenSocketRequestPayload {}
 
 #[allow(missing_docs)]
@@ -241,7 +241,7 @@ impl Message for AddListenSocketRequest {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -264,7 +264,7 @@ pub mod add_listen_socket_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct AddListenSocketResponsePayload {
     pub status: u128,
 }
@@ -291,7 +291,7 @@ impl Message for AddListenSocketResponse {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -304,7 +304,7 @@ impl Message for AddListenSocketResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct AddPskBrokerRequestPayload {}
 
 #[allow(missing_docs)]
@@ -336,7 +336,7 @@ impl Message for AddPskBrokerRequest {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)
@@ -359,7 +359,7 @@ pub mod add_psk_broker_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, AsBytes, FromBytes, FromZeroes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq, Immutable, KnownLayout)]
 pub struct AddPskBrokerResponsePayload {
     pub status: u128,
 }
@@ -386,7 +386,7 @@ impl Message for AddPskBrokerResponse {
         }
     }
 
-    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+    fn setup<B: SplitByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
         let mut r: Ref<B, Self> = buf.zk_zeroized()?;
         r.init();
         Ok(r)

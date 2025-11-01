@@ -1,9 +1,9 @@
 //! A module providing the [`RefMaker`] type and its associated methods for constructing
 //! [`zerocopy::Ref`] references from byte buffers.
 
-use anyhow::{ensure, Context};
+use anyhow::ensure;
 use std::marker::PhantomData;
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{Immutable, KnownLayout, Ref, SplitByteSlice, SplitByteSliceMut};
 use zeroize::Zeroize;
 
 use crate::zeroize::ZeroizedExt;
@@ -82,7 +82,10 @@ impl<B, T> RefMaker<B, T> {
     }
 }
 
-impl<B: ByteSlice, T> RefMaker<B, T> {
+impl<B: SplitByteSlice, T> RefMaker<B, T>
+where
+    T: KnownLayout + Immutable,
+{
     /// Parses the buffer into a [`zerocopy::Ref<B, T>`].
     ///
     /// This will fail if the buffer is smaller than `size_of::<T>`.
@@ -120,7 +123,7 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn parse(self) -> anyhow::Result<Ref<B, T>> {
         self.ensure_fit()?;
-        Ref::<B, T>::new(self.buf).context("Parser error!")
+        Ref::<B, T>::from_bytes(self.buf).map_err(|e| anyhow::anyhow!("Parser error: {e:?}"))
     }
 
     /// Splits the internal buffer into a `RefMaker` containing a buffer with
@@ -142,7 +145,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn from_prefix_with_tail(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self
+            .buf
+            .split_at(Self::target_size())
+            .map_err(|_| anyhow::anyhow!("Failed to split buffer!"))?;
         Ok((Self::new(head), tail))
     }
 
@@ -165,7 +171,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn split_prefix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self
+            .buf
+            .split_at(Self::target_size())
+            .map_err(|_| anyhow::anyhow!("Failed to split buffer!"))?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -204,7 +213,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Failed to split buffer!"))?;
         Ok((Self::new(tail), head))
     }
 
@@ -227,7 +239,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn split_suffix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Failed to split buffer!"))?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -282,7 +297,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     }
 }
 
-impl<B: ByteSliceMut, T> RefMaker<B, T> {
+impl<B: SplitByteSliceMut, T> RefMaker<B, T>
+where
+    T: KnownLayout + Immutable,
+{
     /// Creates a zeroized reference of type `T` from the buffer.
     ///
     /// # Errors
@@ -312,7 +330,10 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     }
 }
 
-impl<B: ByteSliceMut, T> Zeroize for RefMaker<B, T> {
+impl<B: SplitByteSliceMut, T> Zeroize for RefMaker<B, T>
+where
+    T: KnownLayout + Immutable,
+{
     fn zeroize(&mut self) {
         self.bytes_mut().zeroize()
     }

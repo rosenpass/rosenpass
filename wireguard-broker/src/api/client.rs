@@ -38,6 +38,8 @@
 
 use std::{borrow::BorrowMut, fmt::Debug};
 
+use zerocopy::IntoBytes;
+
 use crate::{
     api::{
         config::NetworkBrokerConfig,
@@ -219,7 +221,7 @@ where
         // Send message
         self.io
             .borrow_mut()
-            .send_msg(req.bytes())
+            .send_msg(req.as_bytes())
             .map_err(IoError)?;
 
         Ok(())

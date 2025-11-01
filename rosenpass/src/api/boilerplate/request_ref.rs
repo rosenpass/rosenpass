@@ -1,6 +1,6 @@
-use anyhow::ensure;
+use anyhow::{anyhow, ensure};
 
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{IntoBytes, Ref, SplitByteSlice, SplitByteSliceMut};
 
 use super::{ByteSliceRefExt, MessageAttributes, PingRequest, RequestMsgType};
 
@@ -13,7 +13,7 @@ struct RequestRefMaker<B> {
     msg_type: RequestMsgType,
 }
 
-impl<B: ByteSlice> RequestRef<B> {
+impl<B: SplitByteSlice> RequestRef<B> {
     /// Produce a [RequestRef] from a raw message buffer,
     /// reading the type from the buffer
     ///
@@ -95,7 +95,7 @@ impl<B> From<Ref<B, super::AddPskBrokerRequest>> for RequestRef<B> {
     }
 }
 
-impl<B: ByteSlice> RequestRefMaker<B> {
+impl<B: SplitByteSlice> RequestRefMaker<B> {
     fn new(buf: B) -> anyhow::Result<Self> {
         let msg_type = buf.deref().request_msg_type_from_prefix()?;
         Ok(Self { buf, msg_type })
@@ -125,7 +125,8 @@ impl<B: ByteSlice> RequestRefMaker<B> {
         self.ensure_fit()?;
         let point = self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (buf, _) = buf.split_at(point)
+            .map_err(|_| anyhow!("Failed to split buffer"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -134,7 +135,8 @@ impl<B: ByteSlice> RequestRefMaker<B> {
         self.ensure_fit()?;
         let point = self.buf.len() - self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (buf, _) = buf.split_at(point)
+            .map_err(|_| anyhow!("Failed to split buffer"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -159,7 +161,7 @@ pub enum RequestRef<B> {
 
 impl<B> RequestRef<B>
 where
-    B: ByteSlice,
+    B: SplitByteSlice,
 {
     /// Access the byte data of this reference
     ///
@@ -168,25 +170,25 @@ where
     /// See [Self::parse].
     pub fn bytes(&self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes(),
-            Self::SupplyKeypair(r) => r.bytes(),
-            Self::AddListenSocket(r) => r.bytes(),
-            Self::AddPskBroker(r) => r.bytes(),
+            Self::Ping(r) => r.as_bytes(),
+            Self::SupplyKeypair(r) => r.as_bytes(),
+            Self::AddListenSocket(r) => r.as_bytes(),
+            Self::AddPskBroker(r) => r.as_bytes(),
         }
     }
 }
 
 impl<B> RequestRef<B>
 where
-    B: ByteSliceMut,
+    B: SplitByteSliceMut,
 {
     /// Access the byte data of this reference; mutably
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes_mut(),
-            Self::SupplyKeypair(r) => r.bytes_mut(),
-            Self::AddListenSocket(r) => r.bytes_mut(),
-            Self::AddPskBroker(r) => r.bytes_mut(),
+            Self::Ping(r) => r.as_mut_bytes(),
+            Self::SupplyKeypair(r) => r.as_mut_bytes(),
+            Self::AddListenSocket(r) => r.as_mut_bytes(),
+            Self::AddPskBroker(r) => r.as_mut_bytes(),
         }
     }
 }
