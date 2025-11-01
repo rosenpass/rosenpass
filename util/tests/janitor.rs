@@ -47,7 +47,7 @@ async fn janitor_demo() -> anyhow::Result<()> {
             anyhow::Ok(())
         })
     }
-    .await;
+    .await?;
 
     // At this point, all background jobs have finished, now we can check the result of all our
     // additions

@@ -23,7 +23,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
     /// # Examples
     ///
     /// ```
-    /// use zerocopy::AsBytes;
+    /// use zerocopy::IntoBytes;
     ///
     /// use rosenpass::api::{PingResponse, ResponseRef, ResponseMsgType};
     /// // Produce the original PingResponse

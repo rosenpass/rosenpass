@@ -51,7 +51,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 ///
 /// ```
 /// use rosenpass::msgs::{Envelope, InitHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref};
+/// use zerocopy::{FromZeros, IntoBytes, FromBytes, Ref};
 /// use memoffset::offset_of;
 ///
 /// // Zero-initialization
@@ -106,7 +106,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 ///
 /// ```
 /// use rosenpass::msgs::{Envelope, InitHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref};
+/// use zerocopy::{FromZeros, IntoBytes, FromBytes, Ref};
 /// use memoffset::span_of;
 ///
 /// // Zero initialization
@@ -155,7 +155,7 @@ pub struct InitHello {
 ///
 /// ```
 /// use rosenpass::msgs::{Envelope, RespHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref};
+/// use zerocopy::{FromZeros, IntoBytes, FromBytes, Ref};
 /// use memoffset::span_of;
 ///
 /// // Zero initialization
@@ -206,7 +206,7 @@ pub struct RespHello {
 ///
 /// ```
 /// use rosenpass::msgs::{Envelope, InitConf};
-/// use zerocopy::{IntoBytes, FromBytes, Ref};
+/// use zerocopy::{IntoBytes, FromBytes, FromZeros, Ref};
 /// use memoffset::span_of;
 ///
 /// // Zero initialization
@@ -264,7 +264,7 @@ pub struct InitConf {
 ///
 /// ```
 /// use rosenpass::msgs::{Envelope, EmptyData};
-/// use zerocopy::{IntoBytes, FromBytes, Ref};
+/// use zerocopy::{FromZeros, IntoBytes, FromBytes, Ref};
 /// use memoffset::span_of;
 ///
 /// // Zero initialization
