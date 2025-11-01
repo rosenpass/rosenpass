@@ -19,10 +19,10 @@ use crate::zeroize::ZeroizedExt;
 /// # Example
 ///
 /// ```
-/// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};///
+/// # use zerocopy::{IntoBytes, FromBytes, Ref, Immutable, KnownLayout};
 /// # use rosenpass_util::zerocopy::RefMaker;
 ///
-/// #[derive(FromBytes, FromZeroes, AsBytes)]
+/// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
 /// #[repr(C)]
 /// struct Header {
 ///     field1: u32,
@@ -97,10 +97,10 @@ where
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, FromBytes, Ref, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::RefMaker;
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+    /// #[derive(FromBytes, IntoBytes, Debug, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data(u32);
     ///
@@ -119,7 +119,7 @@ where
     /// let bytes = [1u8, 2, 3, 4, 5, 6, 7, 8];
     /// let parse_error = RefMaker::<_, Data>::new(&bytes[1..5]).parse()
     ///     .expect_err("Should error");
-    /// assert_eq!(parse_error.to_string(), "Parser error!");
+    /// assert_eq!(parse_error.to_string(), "Parser error: Alignment(AlignmentError)");
     /// ```
     pub fn parse(self) -> anyhow::Result<Ref<B, T>> {
         self.ensure_fit()?;
@@ -310,9 +310,9 @@ where
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};    ///
+    /// # use zerocopy::{IntoBytes, FromBytes, Ref, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::RefMaker;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     ///

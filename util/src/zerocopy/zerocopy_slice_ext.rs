@@ -15,10 +15,10 @@ pub trait ZerocopySliceExt: Sized + SplitByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data(u32);
     ///
@@ -39,10 +39,10 @@ pub trait ZerocopySliceExt: Sized + SplitByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data(u16, u16);
     /// #[repr(align(4))]
@@ -70,9 +70,9 @@ pub trait ZerocopySliceExt: Sized + SplitByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Header(u32);
     /// #[repr(align(4))]
@@ -101,9 +101,9 @@ pub trait ZerocopySliceExt: Sized + SplitByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Header(u32);
     /// #[repr(align(4))]
@@ -140,9 +140,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + SplitByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]
@@ -171,9 +171,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + SplitByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]
@@ -202,9 +202,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + SplitByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]

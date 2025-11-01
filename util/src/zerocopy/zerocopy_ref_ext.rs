@@ -16,9 +16,9 @@ pub trait ZerocopyEmancipateExt<B, T> {
     ///
     /// ```
     /// # use std::ops::Deref;
-    /// # use zerocopy::{AsBytes, SplitByteSlice, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, SplitByteSlice, FromBytes, FromZeros, Ref, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::ZerocopyEmancipateExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data(u32);
     /// #[repr(align(4))]
@@ -44,9 +44,9 @@ pub trait ZerocopyEmancipateMutExt<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, FromBytes, Ref, Immutable, KnownLayout};
     /// # use rosenpass_util::zerocopy::{ZerocopyEmancipateMutExt};
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, Immutable, KnownLayout)]
     /// #[repr(C)]
     /// struct Data(u32);
     /// #[repr(align(4))]
