@@ -1,5 +1,6 @@
-from lark import Lark, tree, exceptions, Token, Transformer
 import sys
+
+from lark import Lark, Token, Transformer, exceptions, tree
 
 proverif_grammar = Lark(
     grammar="""
@@ -33,12 +34,21 @@ proverif_grammar = Lark(
     _non_empty_seq{x}: x ("," x)*
     _maybe_empty_seq{x}: [ _non_empty_seq{x} ]
 
-    IDENT_FUN_CONST: "data" | "private" | "typeConverter"
-    IDENT_FREE_REDUC: "private"
-    IDENT_PRED: "memberOptim" | "block"
-    IDENT_PROCESS: "precise"
-    IDENT_QUERY_LEMMA_AXIOM: "noneSat" | "discardSat" | "instantiateSat" | "fullSat" | "noneVerif" | "discardVerif" | "instantiateVerif" | "fullVerif"
-    options: [ "[" _non_empty_seq{IDENT} "]" ]
+    OPTIONS_FUN_CONST: "data" | "private" | "typeConverter"
+    OPTIONS_FUN: OPTIONS_FUN_CONST
+    OPTIONS_CONST: OPTIONS_FUN_CONST
+    OPTIONS_FREE_REDUC: "private"
+    OPTIONS_PRED: "memberOptim" | "block"
+    OPTIONS_PROCESS: "precise"
+    OPTIONS_QUERY_LEMMA_AXIOM: "noneSat" | "discardSat" | "instantiateSat" | "fullSat" | "noneVerif" | "discardVerif" | "instantiateVerif" | "fullVerif"
+    OPTIONS_AXIOM: OPTIONS_QUERY_LEMMA_AXIOM
+    OPTIONS_QUERY_LEMMA: OPTIONS_QUERY_LEMMA_AXIOM | "induction" | "noInduction"
+    OPTIONS_LEMMA: OPTIONS_QUERY_LEMMA_AXIOM | "maxSubset"
+    OPTIONS_QUERY: OPTIONS_QUERY_LEMMA_AXIOM | "proveAll"
+    OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | "/cv_[a-zA-Z0-9À-ÿ'_]*/"
+    OPTIONS_RESTRICTION: "removeEvents" | "keepEvents" | "keep" # transl_option_lemma_query in pitsyntax.ml
+    OPTIONS_EQUATION: "convergent" | "linear" # check_equations in pitsyntax.ml
+    OPTIONS_TYPE: "fixed" | "bounded" # TODO(blipp): complete this. These are only for compatibility with CryptoVerif and are ignored
     options{idents}: [ "[" _non_empty_seq{idents} "]" ]
     process: ZERO
            | YIELD
@@ -66,10 +76,10 @@ proverif_grammar = Lark(
                   | IDENT "<-R" typeid [";" process]
     let_process: "let" pattern "=" pterm ["in" pterm [ "else" pterm ]]
                | IDENT [":" typeid] "<-" pterm [";" process]
-               | "let" typedecl "suchthat" pterm options [ "in" process [ "else" process ] ]
+               | "let" typedecl "suchthat" pterm options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
     if_process: "if" pterm "then" process [ "else" process ]
-    in_process: "(" pterm "," pattern ")" options [ ";" process ]
-    get_process: IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options [ "in" process [ "else" process ] ]
+    in_process: "(" pterm "," pattern ")" options{OPTIONS_PROCESS} [ ";" process ]
+    get_process: IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
     out_process: "out" "(" pterm "," pterm ")" [ ";" process ]
     insert_process: "insert" IDENT "(" _maybe_empty_seq{pterm} ")" [ ";" process ]
     event_process: "event" IDENT [ "(" _maybe_empty_seq{pterm} ")" ] [ ";" process ]
@@ -83,7 +93,7 @@ proverif_grammar = Lark(
           | "not" "(" term ")"
 
     query: gterm ["public_vars" _non_empty_seq{IDENT}] [";" query]
-         | "secret" IDENT ["public_vars" _non_empty_seq{IDENT}] options [";" query]
+         | "secret" IDENT ["public_vars" _non_empty_seq{IDENT}] options{OPTIONS_QUERY_SECRET} [";" query]
          | "putbegin" "event" ":" _non_empty_seq{IDENT} [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
          | "putbegin" "inj-event" ":" _non_empty_seq{IDENT} [";" query]
     lemma: gterm [";" lemma]
@@ -158,7 +168,7 @@ proverif_grammar = Lark(
                 | IDENT "<-R" typeid [";" pterm]
     insert_pterm: "insert" IDENT "(" _maybe_empty_seq{pterm} ")" ";" pterm
     event_pterm: "event" IDENT [ "(" _maybe_empty_seq{pterm} ")" ] ";" pterm
-    get_pterm: IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options [ "in" pterm [ "else" pterm ] ]
+    get_pterm: IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options{OPTIONS_PROCESS} [ "in" pterm [ "else" pterm ] ]
     pattern: IDENT [":" typeid]
            | "_" [ ":" typeid ]
            | NAT
@@ -207,16 +217,16 @@ proverif_grammar = Lark(
         #| def_decl
         #| expand_decl
 
-    type_decl: "type" IDENT options "."
+    type_decl: "type" IDENT options{OPTIONS_TYPE} "."
     channel_decl: "channel" _non_empty_seq{IDENT} "."
-    free_decl: "free" _non_empty_seq{IDENT} ":" typeid options "."
-    const_decl: "const" _non_empty_seq{IDENT} ":" typeid options "."
-    fun_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid options{IDENT_FUN_CONST} "."
+    free_decl: "free" _non_empty_seq{IDENT} ":" typeid options{OPTIONS_FREE_REDUC} "."
+    const_decl: "const" _non_empty_seq{IDENT} ":" typeid options{OPTIONS_FUN_CONST} "."
+    fun_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid options{OPTIONS_FUN_CONST} "."
     letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
-    reduc_decl: "reduc" eqlist options "."
-    fun_reduc_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid "reduc" mayfailreduc options "."
-    equation_decl: "equation" eqlist options "."
-    pred_decl: "pred" IDENT [ "(" [ _maybe_empty_seq{typeid} ] ")" ] options "."
+    reduc_decl: "reduc" eqlist options{OPTIONS_FREE_REDUC} "."
+    fun_reduc_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid "reduc" mayfailreduc options{OPTIONS_FUN_CONST} "."
+    equation_decl: "equation" eqlist options{OPTIONS_EQUATION} "."
+    pred_decl: "pred" IDENT [ "(" [ _maybe_empty_seq{typeid} ] ")" ] options{OPTIONS_PRED} "."
     table_decl: IDENT "(" _maybe_empty_seq{typeid} ")" "."
     let_decl: "let" IDENT [ "(" [ typedecl ] ")" ] "=" process "."
 
@@ -317,11 +327,11 @@ proverif_grammar = Lark(
     set_symb_order: "set" "symbOrder" "=" _symb_ord_seq{FUNC} "."
 
     event_decl: IDENT ["(" _maybe_empty_seq{typeid} ")"] "."
-    query_decl: "query" [ typedecl ";"] query options "."
+    query_decl: "query" [ typedecl ";"] query options{OPTIONS_QUERY} "."
 
-    axiom_decl:       "axiom"       [ typedecl ";"] lemma options "."
-    restriction_decl: "restriction" [ typedecl ";"] lemma options "."
-    lemma_decl:       "lemma"       [ typedecl ";"] lemma options "."
+    axiom_decl:       "axiom"       [ typedecl ";"] lemma options{OPTIONS_AXIOM} "."
+    restriction_decl: "restriction" [ typedecl ";"] lemma options{OPTIONS_RESTRICTION} "."
+    lemma_decl:       "lemma"       [ typedecl ";"] lemma options{OPTIONS_LEMMA} "."
 
     noninterf_decl: [ typedecl ";"] _maybe_empty_seq{nidecl} "."
     weaksecret_decl: "weaksecret" IDENT "."
