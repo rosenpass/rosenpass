@@ -2,6 +2,77 @@ import sys
 
 from lark import Lark, Token, Transformer, exceptions, tree
 
+# taken from Page 17 in the ProVerif manual
+# At the moment, we do not reject a ProVerif model that uses reserved words as identifier,
+# because this caused problems with the LARK grammar. We plan to check this in a later
+# processing step.
+reserved_words = [
+    "among",
+    "axiom",
+    "channel",
+    "choice",
+    "clauses",
+    "const",
+    "def",
+    "diff",
+    "do",
+    "elimtrue",
+    "else",
+    "equation",
+    "equivalence",  # no rule yet
+    "event",
+    "expand",
+    "fail",
+    "for",
+    "forall",
+    "foreach",
+    "free",
+    "fun",
+    "get",
+    "if",
+    "implementation",  # no rule yet
+    "in",
+    "inj-event",
+    "insert",
+    "lemma",
+    "let",
+    "letfun",
+    "letproba",
+    "new",
+    "noninterf",
+    "noselect",
+    "not",
+    "nounif",
+    "or",
+    "otherwise",
+    "out",
+    "param",
+    "phase",
+    "pred",
+    "proba",
+    "process",
+    "proof",
+    "public_vars",
+    "putbegin",
+    "query",
+    "reduc",
+    "restriction",
+    "secret",
+    "select",
+    "set",
+    "suchthat",
+    "sync",
+    "table",
+    "then",
+    "type",
+    "weaksecret",
+    "yield",
+]
+
+ident_regex = (
+    "/^" + "".join(f"(?!{w}$)" for w in reserved_words) + "[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/"
+)
+
 proverif_grammar = Lark(
     grammar="""
     PROCESS: "process"
@@ -10,15 +81,7 @@ proverif_grammar = Lark(
     channel: CHANNEL
     CHANNEL: "channel"
     """
-    + (
-        "IDENT: /(?!(among|axiom|channel|choice|clauses|const|def|diff|"
-        "do|elimtrue|else|equation|equivalence|event|expand|fail|for|forall|"
-        "foreach|free|fun|get|if|implementation|in|inj-event|insert|lemma|let|"
-        "letfun|letproba|new|noninterf|noselect|not|nounif|or|otherwise|out|"
-        "param|phase|pred|proba|process|proof|public vars|putbegin|query|reduc|"
-        "restriction|secret|select|set|suchthat|sync|table|then|type|weaksecret|"
-        "yield))[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/"
-    )
+    + "IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/"
     + """
     ZERO: "0"
     INFIX: "||"
@@ -326,7 +389,7 @@ proverif_grammar = Lark(
     _symb_ord_seq{x}: x (">" x)*
     set_symb_order: "set" "symbOrder" "=" _symb_ord_seq{FUNC} "."
 
-    event_decl: IDENT ["(" _maybe_empty_seq{typeid} ")"] "."
+    event_decl: "event" IDENT ["(" _maybe_empty_seq{typeid} ")"] "."
     query_decl: "query" [ typedecl ";"] query options{OPTIONS_QUERY} "."
 
     axiom_decl:       "axiom"       [ typedecl ";"] lemma options{OPTIONS_AXIOM} "."

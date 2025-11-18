@@ -39,6 +39,10 @@
 
 * integrate marzipan.awk into Python, somehow
   * options term special cases (c.f. manual page 133, starting with "fun" term)
+    * complete with CryptoVerif options
+  * error when trying with: `nix run .# -- parse ../target/proverif/01_secrecy.entry.i.pv`
+    * `in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));`
+    *                                           ^
 * rewrite marzipan.awk into Python/LARK
   * define a LARK grammar for marzipan.awk rules
   * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
