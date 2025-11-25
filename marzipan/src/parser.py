@@ -19,7 +19,7 @@ reserved_words = [
     "elimtrue",
     "else",
     "equation",
-    "equivalence",  # no rule yet
+    "equivalence",  # no rule yet (this is CryptoVerif-specific)
     "event",
     "expand",
     "fail",
@@ -30,7 +30,7 @@ reserved_words = [
     "fun",
     "get",
     "if",
-    "implementation",  # no rule yet
+    "implementation",  # no rule yet (this is CryptoVerif-specific)
     "in",
     "inj-event",
     "insert",
