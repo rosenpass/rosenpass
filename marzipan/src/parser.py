@@ -137,11 +137,11 @@ proverif_grammar = Lark(
                              | "foreach" IDENT "<=" IDENT "do" process
     sample_process: "new" IDENT [ "[" _maybe_empty_seq{IDENT} "]" ] ":" typeid [";" process]
                   | IDENT "<-R" typeid [";" process]
-    let_process: "let" pattern "=" pterm ["in" pterm [ "else" pterm ]]
+    let_process: "let" pattern "=" pterm ["in" process [ "else" process ]]
                | IDENT [":" typeid] "<-" pterm [";" process]
                | "let" typedecl "suchthat" pterm options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
     if_process: "if" pterm "then" process [ "else" process ]
-    in_process: "(" pterm "," pattern ")" options{OPTIONS_PROCESS} [ ";" process ]
+    in_process: "in" "(" pterm "," pattern ")" options{OPTIONS_PROCESS} [ ";" process ]
     get_process: IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
     out_process: "out" "(" pterm "," pterm ")" [ ";" process ]
     insert_process: "insert" IDENT "(" _maybe_empty_seq{pterm} ")" [ ";" process ]
