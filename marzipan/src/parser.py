@@ -208,6 +208,7 @@ proverif_grammar = Lark(
                 | "inductionOn" "=" "{" _non_empty_seq{IDENT} "}"
 
     pterm: IDENT
+          | NAT
           | "(" _maybe_empty_seq{pterm} ")"
           | IDENT "(" _maybe_empty_seq{pterm} ")"
           | choice_pterm
