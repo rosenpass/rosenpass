@@ -1,0 +1,99 @@
+decl: type_decl
+    | channel_decl
+    | free_decl
+    | const_decl
+    | fun_decl
+    | letfun_decl
+    | reduc_decl
+    | fun_reduc_decl
+    | equation_decl
+    | pred_decl
+    | table_decl
+    | let_decl
+    | set_settings_decl
+    | event_decl
+    | query_decl
+    | axiom_decl
+    | restriction_decl
+    | lemma_decl
+    | noninterf_decl
+    | weaksecret_decl
+    | not_decl
+    | select_decl
+    | noselect_decl
+    | nounif_decl
+    | elimtrue_decl
+    | clauses_decl
+    | module_decl
+    #| param_decl
+    #| proba_decl
+    #| letproba_decl
+    #| proof_decl
+    #| def_decl
+    #| expand_decl
+
+type_decl: "type" IDENT options{OPTIONS_TYPE} "."
+channel_decl: "channel" _non_empty_seq{IDENT} "."
+free_decl: "free" _non_empty_seq{IDENT} ":" typeid options{OPTIONS_FREE_REDUC} "."
+const_decl: "const" _non_empty_seq{IDENT} ":" typeid options{OPTIONS_FUN_CONST} "."
+fun_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid options{OPTIONS_FUN_CONST} "."
+letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
+reduc_decl: "reduc" eqlist options{OPTIONS_FREE_REDUC} "."
+fun_reduc_decl: "fun" IDENT "(" _maybe_empty_seq{typeid} ")" ":" typeid "reduc" mayfailreduc options{OPTIONS_FUN_CONST} "."
+equation_decl: "equation" eqlist options{OPTIONS_EQUATION} "."
+pred_decl: "pred" IDENT [ "(" [ _maybe_empty_seq{typeid} ] ")" ] options{OPTIONS_PRED} "."
+table_decl: "table" IDENT "(" _maybe_empty_seq{typeid} ")" "."
+let_decl: "let" IDENT [ "(" [ typedecl ] ")" ] "=" process "."
+
+set_settings_decl: set_settings_boolean_decl
+            | _decl_pair{"ignoreTypes", ignore_types_values}
+            | _decl_pair{"simplifyProcess", simplify_process_values}
+            | _decl_pair{"preciseActions", precise_actions_values}
+            | _decl_pair{"redundantHypElim", redundant_hyp_elim_values}
+            | _decl_pair{"reconstructTrace", reconstruct_trace_values}
+            | _decl_pair{"attacker", attacker_values}
+            | _decl_pair{"keyCompromise", key_compromise_values}
+            | _decl_pair{"predicatesImplementable", predicates_implementable}
+            | _decl_pair{"saturationApplication", application_values}
+            | _decl_pair{"verificationApplication", application_values}
+            | _decl_pair{"maxDepth", max_values}
+            | _decl_pair{"maxHyp", max_values}
+            | _decl_pair{"selFun", sel_fun_values}
+            | _decl_pair{"redundancyElim", redundancy_elim_values}
+            | _decl_pair{"nounifIgnoreAFewTimes", nounif_ignore_a_few_times_values}
+            | _decl_pair{"nounifIgnoreNtimes", nounif_ignore_ntimes_values}
+            | _decl_pair{"traceDisplay", trace_display_values}
+            | _decl_pair{"verboseClauses", verbose_clauses_values}
+            | set_strategy
+            | set_symb_order
+
+_swap_strategy_seq{x}: x ("->" x)*
+set_strategy: "set" "swapping" "=" _swap_strategy_seq{TAG} "."
+_symb_ord_seq{x}: x (">" x)*
+set_symb_order: "set" "symbOrder" "=" _symb_ord_seq{FUNC} "."
+
+event_decl: "event" IDENT ["(" _maybe_empty_seq{typeid} ")"] "."
+select_decl:    "select"    [ typedecl ";"] nounifdecl [ "/" INT ] [ "[" _non_empty_seq{nounifoption} "]" ] "."
+noselect_decl:  "noselect"  [ typedecl ";"] nounifdecl [ "/" INT ] [ "[" _non_empty_seq{nounifoption} "]" ] "."
+nounif_decl:    "nounif"    [ typedecl ";"] nounifdecl [ "/" INT ] [ "["_non_empty_seq{nounifoption} "]" ] "."
+
+elimtrue_decl: "elimtrue" [ failtypedecl ";" ] term "."
+clauses_decl: "clauses" clauses "."
+
+module_decl: "@module" " " IDENT
+
+noninterf_decl: "noninterf" [ typedecl ";"] _maybe_empty_seq{nidecl} "."
+weaksecret_decl: "weaksecret" IDENT "."
+
+nidecl: IDENT [ "among" "(" _non_empty_seq{term} ")" ]
+equality: term "=" term
+        | "let" IDENT "=" term "in" equality
+mayfailequality: IDENT mayfailterm_seq "=" mayfailterm
+eqlist: [ "forall" typedecl ";" ] equality [ ";" eqlist ]
+clause: term
+        | term "->" term
+        | term "<->" term
+        | term "<=>" term
+clauses: [ "forall" failtypedecl ";" ] clause [ ";" clauses ]
+mayfailreduc: [ "forall" failtypedecl ";" ] mayfailequality [ "otherwise" mayfailreduc ]
+NAT: DIGIT+

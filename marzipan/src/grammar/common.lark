@@ -1,0 +1,111 @@
+PROCESS: "process"
+EQUIVALENCE: "equivalence"
+YIELD: "yield"
+channel: CHANNEL
+CHANNEL: "channel"
+IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
+ZERO: "0"
+INFIX: "||"
+        | "&&"
+        | "="
+        | "<>"
+        | "<="
+        | ">="
+        | "<"
+        | ">"
+typeid: channel
+        | IDENT
+_non_empty_seq{x}: x ("," x)*
+_maybe_empty_seq{x}: [ _non_empty_seq{x} ]
+
+OPTIONS_FUN_CONST: "data" | "private" | "typeConverter"
+OPTIONS_FUN: OPTIONS_FUN_CONST
+OPTIONS_CONST: OPTIONS_FUN_CONST
+OPTIONS_FREE_REDUC: "private"
+OPTIONS_PRED: "memberOptim" | "block"
+OPTIONS_PROCESS: "precise"
+OPTIONS_QUERY_LEMMA_AXIOM: "noneSat" | "discardSat" | "instantiateSat" | "fullSat" | "noneVerif" | "discardVerif" | "instantiateVerif" | "fullVerif"
+OPTIONS_AXIOM: OPTIONS_QUERY_LEMMA_AXIOM
+OPTIONS_QUERY_LEMMA: OPTIONS_QUERY_LEMMA_AXIOM | "induction" | "noInduction"
+OPTIONS_LEMMA: OPTIONS_QUERY_LEMMA | "maxSubset"
+OPTIONS_QUERY: OPTIONS_QUERY_LEMMA | "proveAll"
+OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | "/cv_[a-zA-Z0-9À-ÿ'_]*/"
+OPTIONS_RESTRICTION: "removeEvents" | "keepEvents" | "keep" # transl_option_lemma_query in pitsyntax.ml
+OPTIONS_EQUATION: "convergent" | "linear" # check_equations in pitsyntax.ml
+OPTIONS_TYPE: "fixed" | "bounded" | "large" | "nonuniform" | "password" | "size" NAT | "size" NAT "_" NAT | "pcoll" NAT | "small" | "ghost" # from Page 22 in CryptoVerif reference manual
+options{idents}: [ "[" _non_empty_seq{idents} "]" ]
+BOOL : "true" | "false"
+NONE: "none"
+FULL: "full"
+ALL: "all"
+FUNC: IDENT
+ignoretype_options: BOOL | ALL | NONE | "attacker"
+boolean_settings_names: "privateCommOnPublicTerms"
+                        | "rejectChoiceTrueFalse"
+                        | "rejectNoSimplif"
+                        | "allowDiffPatterns"
+                        | "inductionQueries"
+                        | "inductionLemmas"
+                        | "movenew"
+                        | "movelet"
+                        | "stopTerm"
+                        | "removeEventsForLemma"
+                        | "simpEqAll"
+                        | "eqInNames"
+                        | "preciseLetExpand"
+                        | "expandSimplifyIfCst"
+                        | "featureFuns"
+                        | "featureNames"
+                        | "featurePredicates"
+                        | "featureEvents"
+                        | "featureTables"
+                        | "featureDepth"
+                        | "featureWidth"
+                        | "simplifyDerivation"
+                        | "abbreviateDerivation"
+                        | "explainDerivation"
+                        | "unifyDerivation"
+                        | "reconstructDerivation"
+                        | "displayDerivation"
+                        | "traceBacktracking"
+                        | "interactiveSwapping"
+                        | "color"
+                        | "verboseLemmas"
+                        | "abbreviateClauses"
+                        | "removeUselessClausesBeforeDisplay"
+                        | "verboseEq"
+                        | "verboseDestructors"
+                        | "verboseTerm"
+                        | "verboseStatistics"
+                        | "verboseRules"
+                        | "verboseBase"
+                        | "verboseRedundant"
+                        | "verboseCompleted"
+                        | "verboseGoalReachable"
+
+_decl_pair{name, value}: "set" name "=" value "."
+
+set_settings_boolean_decl: _decl_pair{boolean_settings_names, BOOL}
+
+ignore_types_values: BOOL | "all" | "none" | "attacker"
+simplify_process_values: BOOL | "interactive"
+precise_actions_values: BOOL | "trueWithoutArgsInNames"
+redundant_hyp_elim_values: BOOL | "beginOnly"
+reconstruct_trace_values: BOOL | NAT | "yes" | "no" # TODO(blipp): check whether yes/no is always allowed for BOOL
+attacker_values: "active" | "passive"
+key_compromise_values: "none" | "approx" | "strict"
+predicates_implementable: "check" | "nocheck"
+application_values: "instantiate" | "full" | "none" | "discard"
+max_values: "none" | "n"
+sel_fun_values: "TermMaxsize" | "Term"| "NounifsetMaxsize" | "Nounifset"
+redundancy_elim_values: "best" | "simple" | "no"
+nounif_ignore_a_few_times_values: "none" | "auto" | "all"
+nounif_ignore_ntimes_values: "n"
+trace_display_values: "short" | "long" | "none"
+verbose_clauses_values: "none" | "explained" | "short"
+INT: NAT | "-" NAT
+COMMENT:  /\(\*(\*(?!\))|[^*])*\*\)/
+
+%import common (WORD, DIGIT, NUMBER, WS, ESCAPED_STRING) // imports from terminal library
+%ignore WS // Disregard spaces in text
+%ignore COMMENT

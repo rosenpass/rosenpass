@@ -1,0 +1,24 @@
+query: gterm ["public_vars" _non_empty_seq{IDENT}] [";" query]
+        | "secret" IDENT ["public_vars" _non_empty_seq{IDENT}] options{OPTIONS_QUERY_SECRET} [";" query]
+        | "putbegin" "event" ":" _non_empty_seq{IDENT} [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
+        | "putbegin" "inj-event" ":" _non_empty_seq{IDENT} [";" query]
+nounifdecl: "let" IDENT "=" gformat "in" nounifdecl
+            | IDENT ["(" _maybe_empty_seq{gformat} ")" ["phase" NAT]]
+gformat: IDENT
+        | "*" IDENT
+        | IDENT "(" _maybe_empty_seq{gformat} ")"
+        | "choice" "[" gformat "," gformat "]"
+        | "not" "(" _maybe_empty_seq{gformat} ")"
+        | "new" IDENT [ "[" [ fbinding ] "]" ]
+        | "let" IDENT "=" gformat "in" gformat
+fbinding: "!" NAT "=" gformat [";" fbinding]
+        | IDENT "=" gformat [";" fbinding]
+nounifoption: "hypothesis"
+            | "conclusion"
+            | "ignoreAFewTimes"
+            | "inductionOn" "=" IDENT
+            | "inductionOn" "=" "{" _non_empty_seq{IDENT} "}"
+
+query_decl: "query" [ typedecl ";"] query options{OPTIONS_QUERY} "."
+not_decl: "not" [ typedecl ";"] gterm "."
+TAG: IDENT

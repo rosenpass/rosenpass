@@ -1,0 +1,47 @@
+start: line*
+
+line: directive_line NEWLINE
+    | code_line NEWLINE
+    | NEWLINE
+
+directive_line: module_directive
+              | alias_directive
+              | long_alias_start
+              | long_alias_end
+              | query_directive
+              | reachable_directive
+              | lemma_directive
+
+code_line: /[^\n]*/       // Anything not recognized as a directive
+
+module_directive: MODULE NAME
+
+alias_directive: ALIAS alias_pair (alias_pair)*
+
+alias_pair: IDENT "=" TOKEN
+
+long_alias_start: LONG_ALIAS IDENT
+long_alias_end: LONG_ALIAS_END
+
+query_directive: QUERY quoted_string
+reachable_directive: REACHABLE quoted_string
+lemma_directive: LEMMA quoted_string
+
+
+quoted_string: ESCAPED_STRING
+
+NAME: IDENT
+TOKEN: /[^ \t\n]+/
+IDENT: /[A-Za-z_][A-Za-z0-9_']*/
+MODULE: "@module"
+ALIAS: "@alias"
+LONG_ALIAS: "@long-alias"
+LONG_ALIAS_END: "@long-alias-end"
+QUERY: "@query"
+REACHABLE: "@reachable"
+LEMMA: "@lemma"
+NEWLINE: /\r?\n/
+
+%import common.ESCAPED_STRING
+%import common.WS
+%ignore WS

@@ -1,0 +1,10 @@
+start: decl* PROCESS process
+%import .common.*
+%import .process.*
+%import .term.*
+%import .decl.*
+%import .query.*
+
+%import common (WORD, DIGIT, NUMBER, WS) // imports from terminal library
+%ignore WS // Disregard spaces in text
+%ignore COMMENT

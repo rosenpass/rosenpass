@@ -1,0 +1,45 @@
+start: decl* PROCESS process | decl* EQUIVALENCE process process
+process: ZERO
+        | YIELD
+        | IDENT [ "(" _maybe_empty_seq{pterm} ")" ]
+        | bracketed_process
+        | piped_process
+        | replicated_process
+        | replicated_process_bounds
+        | sample_process
+        | if_process
+        | in_process
+        | out_process
+        | let_process
+        | insert_process
+        | get_process
+        | event_process
+        | phase
+        | sync
+bracketed_process: "(" process ")"
+piped_process: process "|" process
+replicated_process: "!" process
+replicated_process_bounds: "!" IDENT "<=" IDENT process
+                            | "foreach" IDENT "<=" IDENT "do" process
+sample_process: "new" IDENT [ "[" _maybe_empty_seq{IDENT} "]" ] ":" typeid [";" process]
+                | IDENT "<-R" typeid [";" process]
+let_process: "let" pattern "=" pterm ["in" process [ "else" process ]]
+            | IDENT [":" typeid] "<-" pterm [";" process]
+            | "let" typedecl "suchthat" pterm options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
+if_process: "if" pterm "then" process [ "else" process ]
+in_process: "in" "(" pterm "," pattern ")" options{OPTIONS_PROCESS} [ ";" process ]
+get_process: "get" IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options{OPTIONS_PROCESS} [ "in" process [ "else" process ] ]
+out_process: "out" "(" pterm "," pterm ")" [ ";" process ]
+insert_process: "insert" IDENT "(" _maybe_empty_seq{pterm} ")" [ ";" process ]
+event_process: "event" IDENT [ "(" _maybe_empty_seq{pterm} ")" ] [ ";" process ]
+term: IDENT
+        | NAT
+        | "(" _maybe_empty_seq{term} ")"
+        | IDENT "(" _maybe_empty_seq{term} ")"
+        | term ( "+" | "-" ) NAT
+        | NAT "+" term
+        | term INFIX term
+        | "not" "(" term ")"
+
+phase: "phase" NAT [";" process]
+sync: "sync" NAT ["[" TAG "]"] [";" process]

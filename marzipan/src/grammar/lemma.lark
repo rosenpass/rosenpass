@@ -1,0 +1,6 @@
+lemma: gterm [";" lemma]
+         | gterm "for" "{" "public_vars" _non_empty_seq{IDENT} "}" [";" lemma]
+         | gterm "for" "{" "secret" IDENT [ "public_vars" _non_empty_seq{IDENT}] "[real_or_random]" "}" [";" lemma]
+axiom_decl:       "axiom"       [ typedecl ";"] lemma options{OPTIONS_AXIOM} "."
+restriction_decl: "restriction" [ typedecl ";"] lemma options{OPTIONS_RESTRICTION} "."
+lemma_decl:       "lemma"       [ typedecl ";"] lemma options{OPTIONS_LEMMA} "."

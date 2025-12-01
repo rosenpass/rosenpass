@@ -1,0 +1,67 @@
+gterm: ident_gterm
+        | fun_gterm
+        | choice_gterm
+        | infix_gterm
+        | arith_gterm
+        | arith2_gterm
+        | event_gterm
+        | injevent_gterm
+        | implies_gterm
+        | paren_gterm
+        | sample_gterm
+        | let_gterm
+ident_gterm: IDENT
+fun_gterm: IDENT "(" _maybe_empty_seq{gterm} ")" ["phase" NAT] ["@" IDENT]
+choice_gterm: "choice" "[" gterm "," gterm "]"
+infix_gterm: gterm INFIX gterm
+arith_gterm: gterm ( "+" | "-" ) NAT
+arith2_gterm: NAT "+" gterm
+event_gterm: "event" "(" _maybe_empty_seq{gterm} ")" ["@" IDENT]
+injevent_gterm: "inj-event" "(" _maybe_empty_seq{gterm} ")" ["@" IDENT]
+implies_gterm: gterm "==>" gterm
+paren_gterm: "(" _maybe_empty_seq{gterm} ")"
+sample_gterm: "new" IDENT [ "[" [ gbinding ] "]" ]
+let_gterm: "let" IDENT "=" gterm "in" gterm
+
+gbinding: "!" NAT "=" gterm [";" gbinding]
+        | IDENT "=" gterm [";" gbinding]
+
+pterm: IDENT
+        | NAT
+        | "(" _maybe_empty_seq{pterm} ")"
+        | IDENT "(" _maybe_empty_seq{pterm} ")"
+        | choice_pterm
+        | pterm ("+" | "-") NAT
+        | NAT "+" pterm
+        | pterm INFIX pterm
+        | not_pterm
+        | sample_pterm
+        | if_pterm
+        | let_pterm
+        | insert_pterm
+        | get_pterm
+        | event_pterm
+choice_pterm: "choice[" pterm "," pterm "]"
+if_pterm: "if" pterm "then" pterm [ "else" pterm ]
+not_pterm: "not" "(" pterm ")"
+let_pterm: "let" pattern "=" pterm "in" pterm [ "else" pterm ]
+            | IDENT [":" typeid] "<-" pterm ";" pterm
+            | "let" typedecl "suchthat" pterm "in" pterm [ "else" pterm ]
+sample_pterm: "new" IDENT [ "[" _maybe_empty_seq{IDENT} "]" ] ":" typeid [";" pterm]
+            | IDENT "<-R" typeid [";" pterm]
+insert_pterm: "insert" IDENT "(" _maybe_empty_seq{pterm} ")" ";" pterm
+event_pterm: "event" IDENT [ "(" _maybe_empty_seq{pterm} ")" ] ";" pterm
+get_pterm: "get" IDENT "(" _maybe_empty_seq{pattern} ")" [ "suchthat" pterm ] options{OPTIONS_PROCESS} [ "in" pterm [ "else" pterm ] ]
+pattern: IDENT [":" typeid]
+        | "_" [ ":" typeid ]
+        | NAT
+        | pattern "+" NAT
+        | NAT "+" pattern
+        | "(" _maybe_empty_seq{pattern} ")"
+        | IDENT "(" _maybe_empty_seq{pattern} ")"
+        | "=" pterm
+mayfailterm: term
+            | "fail"
+mayfailterm_seq: "(" _non_empty_seq{mayfailterm} ")"
+typedecl: _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
+failtypedecl: _non_empty_seq{IDENT} ":" typeid [ "or fail" ] [ "," failtypedecl ]
