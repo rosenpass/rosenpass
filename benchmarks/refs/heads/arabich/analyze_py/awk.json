@@ -1,0 +1,907 @@
+{
+  "lastUpdate": 1765213271561,
+  "repoUrl": "https://github.com/rosenpass/rosenpass",
+  "entries": {
+    "Protocol Benchmarks": [
+      {
+        "commit": {
+          "author": {
+            "email": "a.rabich@uni-luebeck.de",
+            "name": "Anja Rabich",
+            "username": "arabich"
+          },
+          "committer": {
+            "email": "a.rabich@uni-luebeck.de",
+            "name": "Anja Rabich",
+            "username": "arabich"
+          },
+          "distinct": true,
+          "id": "0a945aa152d3f412fdfc9bc751745b9c157ca291",
+          "message": "feat: WIP awk rewrite",
+          "timestamp": "2025-12-08T17:18:42+01:00",
+          "tree_id": "a8ece41f5a94f9120250197b23111bfc33c711f0",
+          "url": "https://github.com/rosenpass/rosenpass/commit/0a945aa152d3f412fdfc9bc751745b9c157ca291"
+        },
+        "date": 1765213270406,
+        "bigger_is_better": false,
+        "benches": [
+          {
+            "name": "ICI7",
+            "unit": "ns/iter",
+            "value": "6740",
+            "range": "± 926",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHI3",
+            "unit": "ns/iter",
+            "value": "7791",
+            "range": "± 541",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR6",
+            "unit": "ns/iter",
+            "value": "1056648",
+            "range": "± 10407",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "handle_init_hello",
+            "unit": "ns/iter",
+            "value": "3270497",
+            "range": "± 116315",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "ICR6",
+            "unit": "ns/iter",
+            "value": "160",
+            "range": "± 841",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "RHI6",
+            "unit": "ns/iter",
+            "value": "3881",
+            "range": "± 730",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI3",
+            "unit": "ns/iter",
+            "value": "11519",
+            "range": "± 2278",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR8",
+            "unit": "ns/iter",
+            "value": "8305",
+            "range": "± 379",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI1",
+            "unit": "ns/iter",
+            "value": "524857",
+            "range": "± 13574",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHR1",
+            "unit": "ns/iter",
+            "value": "1022455",
+            "range": "± 500528",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "handle_initiation",
+            "unit": "ns/iter",
+            "value": "2190773",
+            "range": "± 43963",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHR4",
+            "unit": "ns/iter",
+            "value": "10014",
+            "range": "± 1565",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR6",
+            "unit": "ns/iter",
+            "value": "7110",
+            "range": "± 2023",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICI3",
+            "unit": "ns/iter",
+            "value": "7660",
+            "range": "± 983",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR7",
+            "unit": "ns/iter",
+            "value": "6890",
+            "range": "± 980",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICI4",
+            "unit": "ns/iter",
+            "value": "8368",
+            "range": "± 1300",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR5",
+            "unit": "ns/iter",
+            "value": "569665",
+            "range": "± 20498",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHI8",
+            "unit": "ns/iter",
+            "value": "8214",
+            "range": "± 138",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "handle_resp_conf",
+            "unit": "ns/iter",
+            "value": "525657",
+            "range": "± 5096",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHI7",
+            "unit": "ns/iter",
+            "value": "528111",
+            "range": "± 5342",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHR7",
+            "unit": "ns/iter",
+            "value": "8315",
+            "range": "± 344",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR3",
+            "unit": "ns/iter",
+            "value": "7889",
+            "range": "± 1835",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI2",
+            "unit": "ns/iter",
+            "value": "215",
+            "range": "± 837",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "IHR5",
+            "unit": "ns/iter",
+            "value": "1124941",
+            "range": "± 496296",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "IHI4",
+            "unit": "ns/iter",
+            "value": "8745",
+            "range": "± 619",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHI4",
+            "unit": "ns/iter",
+            "value": "23643",
+            "range": "± 2012",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHI5",
+            "unit": "ns/iter",
+            "value": "627268",
+            "range": "± 6558",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "ICR1",
+            "unit": "ns/iter",
+            "value": "1029610",
+            "range": "± 496218",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "ICR2",
+            "unit": "ns/iter",
+            "value": "9708",
+            "range": "± 9253",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR7",
+            "unit": "ns/iter",
+            "value": "529778",
+            "range": "± 11388",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "ICR4",
+            "unit": "ns/iter",
+            "value": "8311",
+            "range": "± 753",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI6",
+            "unit": "ns/iter",
+            "value": "532549",
+            "range": "± 12605",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "ICR3",
+            "unit": "ns/iter",
+            "value": "7727",
+            "range": "± 1134",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI5",
+            "unit": "ns/iter",
+            "value": "571787",
+            "range": "± 18422",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHI7",
+            "unit": "ns/iter",
+            "value": "8337",
+            "range": "± 881",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR4",
+            "unit": "ns/iter",
+            "value": "27823",
+            "range": "± 2815",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "handle_resp_hello",
+            "unit": "ns/iter",
+            "value": "695042",
+            "range": "± 7567",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "RHR1",
+            "unit": "ns/iter",
+            "value": "135",
+            "range": "± 62",
+            "protocol version": "V02",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "handle_init_conf",
+            "unit": "ns/iter",
+            "value": "1047240",
+            "range": "± 479113",
+            "protocol version": "V02",
+            "sample size": "200",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHI6",
+            "unit": "ns/iter",
+            "value": "4767",
+            "range": "± 29",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI4",
+            "unit": "ns/iter",
+            "value": "11568",
+            "range": "± 4418",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR1",
+            "unit": "ns/iter",
+            "value": "246",
+            "range": "± 1013",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "RHR6",
+            "unit": "ns/iter",
+            "value": "3025498",
+            "range": "± 19035",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHI7",
+            "unit": "ns/iter",
+            "value": "9385",
+            "range": "± 769",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR1",
+            "unit": "ns/iter",
+            "value": "1530784",
+            "range": "± 18597",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHI5",
+            "unit": "ns/iter",
+            "value": "1628045",
+            "range": "± 12386",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "IHI6",
+            "unit": "ns/iter",
+            "value": "1529269",
+            "range": "± 17057",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHI7",
+            "unit": "ns/iter",
+            "value": "1513528",
+            "range": "± 19439",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "ICR2",
+            "unit": "ns/iter",
+            "value": "10669",
+            "range": "± 9147",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR7",
+            "unit": "ns/iter",
+            "value": "1512605",
+            "range": "± 8334",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHI2",
+            "unit": "ns/iter",
+            "value": "113",
+            "range": "± 47",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "IHI8",
+            "unit": "ns/iter",
+            "value": "9464",
+            "range": "± 1218",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI5",
+            "unit": "ns/iter",
+            "value": "1558708",
+            "range": "± 17406",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHR3",
+            "unit": "ns/iter",
+            "value": "8735",
+            "range": "± 738",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR7",
+            "unit": "ns/iter",
+            "value": "9386",
+            "range": "± 1108",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICI7",
+            "unit": "ns/iter",
+            "value": "8154",
+            "range": "± 1808",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "handle_init_conf",
+            "unit": "ns/iter",
+            "value": "1569828",
+            "range": "± 23692",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "handle_initiation",
+            "unit": "ns/iter",
+            "value": "6147510",
+            "range": "± 46872",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "handle_resp_hello",
+            "unit": "ns/iter",
+            "value": "1707996",
+            "range": "± 13233",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "RHI3",
+            "unit": "ns/iter",
+            "value": "9154",
+            "range": "± 1993",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR1",
+            "unit": "ns/iter",
+            "value": "1518794",
+            "range": "± 14812",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHR5",
+            "unit": "ns/iter",
+            "value": "1619181",
+            "range": "± 13654",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "ICI4",
+            "unit": "ns/iter",
+            "value": "9151",
+            "range": "± 56",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR7",
+            "unit": "ns/iter",
+            "value": "7872",
+            "range": "± 1083",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR4",
+            "unit": "ns/iter",
+            "value": "9551",
+            "range": "± 1714",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI3",
+            "unit": "ns/iter",
+            "value": "12780",
+            "range": "± 2941",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "handle_resp_conf",
+            "unit": "ns/iter",
+            "value": "1510081",
+            "range": "± 8067",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHR4",
+            "unit": "ns/iter",
+            "value": "11382",
+            "range": "± 1533",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR3",
+            "unit": "ns/iter",
+            "value": "8652",
+            "range": "± 48",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "RHR5",
+            "unit": "ns/iter",
+            "value": "1558399",
+            "range": "± 18178",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "IHR6",
+            "unit": "ns/iter",
+            "value": "9983",
+            "range": "± 1620",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHR8",
+            "unit": "ns/iter",
+            "value": "9386",
+            "range": "± 1062",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "IHI1",
+            "unit": "ns/iter",
+            "value": "1508417",
+            "range": "± 16798",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "medium"
+          },
+          {
+            "name": "RHR4",
+            "unit": "ns/iter",
+            "value": "33023",
+            "range": "± 3755",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "ICR6",
+            "unit": "ns/iter",
+            "value": "41",
+            "range": "± 8",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1us"
+          },
+          {
+            "name": "RHI4",
+            "unit": "ns/iter",
+            "value": "28837",
+            "range": "± 1568",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          },
+          {
+            "name": "handle_init_hello",
+            "unit": "ns/iter",
+            "value": "9318499",
+            "range": "± 34956",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "long"
+          },
+          {
+            "name": "ICI3",
+            "unit": "ns/iter",
+            "value": "8972",
+            "range": "± 1521",
+            "protocol version": "V03",
+            "sample size": "100",
+            "operating system": "linux",
+            "architecture": "x86_64",
+            "run time": "below 1ms"
+          }
+        ]
+      }
+    ]
+  },
+  "groupBy": {
+    "Protocol Benchmarks": [
+      "operating system",
+      "architecture",
+      "protocol version",
+      "run time"
+    ]
+  },
+  "schema": {
+    "Protocol Benchmarks": [
+      "operating system",
+      "architecture",
+      "protocol version",
+      "run time",
+      "name"
+    ]
+  }
+}
