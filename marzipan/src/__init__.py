@@ -14,6 +14,23 @@ console = pkgs.rich.console.Console()
 logger = pkgs.logging.getLogger(__name__)
 
 
+def set_logging_logrecordfactory(filename):
+    old_factory = pkgs.logging.getLogRecordFactory()
+
+    def record_factory(*args, **kwargs):
+        record = old_factory(*args, **kwargs)
+        record.filename = filename
+        return record
+
+    pkgs.logging.setLogRecordFactory(record_factory)
+
+
+#def set_logging_format(max_length):
+#    pass
+#    #format_str = "{levelname:<8} {filename:<" + str(max_length + 2) + "} {message}"
+#    #pkgs.logging.basicConfig(level=pkgs.logging.DEBUG, style="{", format=format_str)
+
+
 @click.group()
 def main():
     pkgs.logging.basicConfig(level=pkgs.logging.DEBUG)
@@ -50,7 +67,7 @@ def clean_line(prev_line, line):
     return prev_line
 
 
-def run_proverif(file, extra_args=[]):
+def run_proverif(file, log_file, extra_args=[]):
     params = ["proverif", "-test", *extra_args, file]
     logger.debug(params)
 
@@ -63,13 +80,15 @@ def run_proverif(file, extra_args=[]):
     )
     try:
         prev_line = None
-        for line in process.stdout:
-            cleaned_line = clean_line(prev_line, line)
-            prev_line = line
-            if cleaned_line is not None:
-                yield cleaned_line
-        if prev_line is not None:
-            yield prev_line
+        with open(log_file, "a") as log:
+            for line in process.stdout:
+                log.write(line)
+                cleaned_line = clean_line(prev_line, line)
+                prev_line = line
+                if cleaned_line is not None:
+                    yield cleaned_line
+            if prev_line is not None:
+                yield prev_line
 
     except Exception as e:
         # When does this happen? Should the error even be ignored? Metaverif should probably just abort here, right? --karo
@@ -83,6 +102,9 @@ def run_proverif(file, extra_args=[]):
             logger.error(
                 f"Proverif exited with a non-zero error code {params}: {return_code}"
             )
+            if prev_line is not None:
+                logger.error(f"Last line of log file {log_file}:")
+                logger.error(f"> {prev_line.rstrip()}")
             exit(return_code)
 
 
@@ -193,7 +215,12 @@ def analyze(repo_path, output):
 
     entries = []
     analysis_dir = pkgs.os.path.join(repo_path, "analysis")
-    entries.extend(sorted(pkgs.glob.glob(str(analysis_dir) + "/*.entry.mpv")))
+    full_paths = sorted(pkgs.glob.glob(str(analysis_dir) + "/*.entry.mpv"))
+    entries.extend(full_paths)
+
+    #modelnames = [pkgs.os.path.basename(path).replace('.entry.mpv', '') for path in full_paths]
+    #max_length = max(len(modelname) for modelname in modelnames) if modelnames else 0
+    #set_logging_format(max_length)
 
     with pkgs.concurrent.futures.ProcessPoolExecutor() as executor:
         futures = {
@@ -231,11 +258,13 @@ def clean(repo_path, output):
 
 
 def metaverif(repo_path, tmpdir, file):
-    print(f"Start metaverif on {file}")
     # Extract the name using regex
-    name_match = pkgs.re.search(r"([^/]*)(?=\.mpv)", file)
+    name_match = pkgs.re.search(r"([^/]*)(?=\.entry\.mpv)", file)
     if name_match:
         name = name_match.group(0)  # Get the matched name
+
+        set_logging_logrecordfactory(name)
+        logger.info(f"Start metaverif on {file}")
 
         # Create the file paths
         cpp_prep = pkgs.os.path.join(tmpdir, f"{name}.i.pv")
@@ -253,9 +282,8 @@ def metaverif(repo_path, tmpdir, file):
 
         ta, res, ctr, expected, descs = pretty_output_init(cpp_prep)
         with open(log_file, "a") as log:
-            generator = run_proverif(awk_prep)
+            generator = run_proverif(awk_prep, log_file)
             for line in generator:
-                log.write(line)
                 # parse-result-line:
                 match = pkgs.re.search(r"^RESULT .* \b(true|false)\b\.$", line)
                 if match:

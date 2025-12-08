@@ -34,15 +34,17 @@
 * ~~refactor filtering in run_proverif (see karo's comment)~~
 * ~configurable target directory~
 * ~lark parser: multiline comments, how???~
+* ~parse errors~
+  * ~error when trying with: `nix run .# -- parse ../target/proverif/01_secrecy.entry.i.pv`~
+    * ~`in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));`~
+    * ~                                          ^~
+  * ~04_dos… has a syntax error (see below)~
 
 ## Next Steps
 
 * integrate marzipan.awk into Python, somehow
   * options term special cases (c.f. manual page 133, starting with "fun" term)
     * complete with CryptoVerif options
-  * error when trying with: `nix run .# -- parse ../target/proverif/01_secrecy.entry.i.pv`
-    * `in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));`
-    *                                           ^
 * rewrite marzipan.awk into Python/LARK
   * define a LARK grammar for marzipan.awk rules
   * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
