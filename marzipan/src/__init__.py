@@ -302,7 +302,10 @@ def metaverif(repo_path, tmpdir, file):
 @main.command()
 @click.argument("file_path")
 def parse(file_path):
-    parse_main(file_path)
+    try:
+        parse_main(file_path)
+    except pkgs.lark.exceptions.UnexpectedCharacters as e:
+        logger.error(f"Error {type(e).__name__} parsing {file_path}: {e}")
 
 
 if __name__ == "__main__":
