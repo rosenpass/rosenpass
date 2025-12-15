@@ -1,8 +1,8 @@
-from .util import pkgs, setup_exports, export, rename
-from .parser import *
-
 # from rich.console import Console
 import click
+
+from .parser import *
+from .util import export, pkgs, rename, setup_exports
 
 target_subdir = "target/proverif"
 
@@ -25,7 +25,7 @@ def set_logging_logrecordfactory(filename):
     pkgs.logging.setLogRecordFactory(record_factory)
 
 
-#def set_logging_format(max_length):
+# def set_logging_format(max_length):
 #    pass
 #    #format_str = "{levelname:<8} {filename:<" + str(max_length + 2) + "} {message}"
 #    #pkgs.logging.basicConfig(level=pkgs.logging.DEBUG, style="{", format=format_str)
@@ -218,9 +218,9 @@ def analyze(repo_path, output):
     full_paths = sorted(pkgs.glob.glob(str(analysis_dir) + "/*.entry.mpv"))
     entries.extend(full_paths)
 
-    #modelnames = [pkgs.os.path.basename(path).replace('.entry.mpv', '') for path in full_paths]
-    #max_length = max(len(modelname) for modelname in modelnames) if modelnames else 0
-    #set_logging_format(max_length)
+    # modelnames = [pkgs.os.path.basename(path).replace('.entry.mpv', '') for path in full_paths]
+    # max_length = max(len(modelname) for modelname in modelnames) if modelnames else 0
+    # set_logging_format(max_length)
 
     with pkgs.concurrent.futures.ProcessPoolExecutor() as executor:
         futures = {
@@ -276,7 +276,8 @@ def metaverif(repo_path, tmpdir, file):
         print(f"AWK Prep Path: {awk_prep}")
 
         cpp(file, cpp_prep)
-        awk(repo_path, cpp_prep, awk_prep)
+        parse_main(cpp_prep, awk_prep)
+        # awk(repo_path, cpp_prep, awk_prep)
 
         log_file = pkgs.os.path.join(tmpdir, f"{name}.log")
 
@@ -300,12 +301,13 @@ def metaverif(repo_path, tmpdir, file):
 
 
 @main.command()
-@click.argument("file_path")
-def parse(file_path):
+@click.argument("i_path")
+@click.argument("o_path")
+def parse(i_path, o_path):
     try:
-        parse_main(file_path)
+        parse_main(i_path, o_path)
     except pkgs.lark.exceptions.UnexpectedCharacters as e:
-        logger.error(f"Error {type(e).__name__} parsing {file_path}: {e}")
+        logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
 
 
 if __name__ == "__main__":

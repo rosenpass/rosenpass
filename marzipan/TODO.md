@@ -39,15 +39,15 @@
     * ~`in(C, Cinit_conf(Ssskm, Spsk, Sspkt, ic));`~
     * ~                                          ^~
   * ~04_dos… has a syntax error (see below)~
+  * ~~rewrite marzipan.awk into Python/LARK~~
+  * ~~define a LARK grammar for marzipan.awk rules~~
+  * ~~write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)~~
 
 ## Next Steps
 
 * integrate marzipan.awk into Python, somehow
-  * options term special cases (c.f. manual page 133, starting with "fun" term)
-    * complete with CryptoVerif options
-* rewrite marzipan.awk into Python/LARK
-  * define a LARK grammar for marzipan.awk rules
-  * write python code for processing marzipan rules, e.g. alias replacement (step: i.pv->o.pv)
+* options term special cases (c.f. manual page 133, starting with "fun" term)
+  * complete with CryptoVerif options
 * do not assume that the repo path has subdir marzipan
 * do not assume that the repo path has subdir analysis
 * rewrite cpp into Python/LARK (step: mpv->i.pv)

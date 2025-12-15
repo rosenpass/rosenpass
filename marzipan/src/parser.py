@@ -1,8 +1,36 @@
 import re
-import sys
 from pathlib import Path
 
-from lark import Lark, Token, Transformer, exceptions, tree
+from lark import Discard, Lark, Transformer
+from lark.reconstruct import Reconstructor
+
+
+class TreeVisitor(Transformer):
+    # def __default_token__(self, token):
+    #     if token.type == "PROCESS":
+    #         return ""
+    #     elif token.type == "IDENT":
+    #         return token
+    #         # return f"<ident>{token}</ident>"
+
+    # def __default__(self, data, children, meta):
+    # #return "\n".join([c for c in children if c])
+    # amazing_str = ""
+    # for c in children:
+    #     if c:
+    #         amazing_str += c
+    # return f"<{data}> {amazing_str} </{data}>"
+
+    # lemma_decl_core: original_stuff
+    # lemma_annotation: [LEMMA ESCAPED_STRING]
+    # lemma_decl: lemma_annotation lemma_decl_core
+    # lemma_decl: original_stuff
+    def lemma_annotation(self, children):
+        return Discard
+
+    def query_annotation(self, children):
+        return Discard
+
 
 # taken from Page 17 in the ProVerif manual
 # At the moment, we do not reject a ProVerif model that uses reserved words as identifier,
@@ -118,35 +146,47 @@ LEMMA: "@lemma"
 
 
 # add @query and @reachable to query_decl, @lemma to lemma_decl
-def modify_decl_rule(rules: str, decl_rule: str, new_rule: str) -> str:
-    old_decl_renamed = f"{decl_rule}_core"
-    rename_target = f"{decl_rule}\s*:"
+def modify_decl_rule(
+    grammar: str, old_rule_name: str, annot_rule_name: str, annot_rule: str
+) -> str:
+    old_decl_renamed = f"{old_rule_name}_core"
+    rename_target = f"{old_rule_name}\s*:"
     # rename *_decl -> *_decl_core
-    rules, count = re.subn(rename_target, f"{old_decl_renamed}:", rules, count=1)
+    grammar, count = re.subn(rename_target, f"{old_decl_renamed}:", grammar, count=1)
     if count == 0:
         raise RuntimeError("*_decl not found!")
-    wrapper = f"{decl_rule}: {new_rule} {old_decl_renamed}"
+    # lemma_annotation: [LEMMA ESCAPED_STRING]
+    annot_rule = f"{annot_rule_name}: {annot_rule}"
+    # lemma_decl: lemma_annotation lemma_decl_core
+    wrapper = f"{old_rule_name}: {annot_rule_name} {old_decl_renamed}"
     old_decl_target = f"{old_decl_renamed}\s*:"
     # get index of *_decl_core rule
-    match = re.search(old_decl_target, rules, flags=re.MULTILINE)
+    match = re.search(old_decl_target, grammar, flags=re.MULTILINE)
     if not match:
         raise RuntimeError("*_decl_core: rule not found after rename")
     insert_pos = match.start()
-    rules = rules[:insert_pos] + wrapper + "\n" + rules[insert_pos:]
-    return rules
+    grammar = (
+        grammar[:insert_pos] + annot_rule + "\n" + wrapper + "\n" + grammar[insert_pos:]
+    )
+    return grammar
 
 
 query_rules = modify_decl_rule(
-    query_rules, "query_decl", "[(REACHABLE|QUERY) ESCAPED_STRING]"
+    query_rules, "query_decl", "query_annotation", "[(REACHABLE|QUERY) ESCAPED_STRING]"
 )
 
-lemma_rules = modify_decl_rule(lemma_rules, "lemma_decl", "[LEMMA ESCAPED_STRING]")
+lemma_rules = modify_decl_rule(
+    lemma_rules, "lemma_decl", "lemma_annotation", "[LEMMA ESCAPED_STRING]"
+)
 
 grammar = (
     common_rules + decl_rules + process_rules + query_rules + lemma_rules + term_rules
 )
 
-parser = Lark(grammar)
+with open("./src/grammars/awk_proverif.lark", "w") as f:
+    f.write(grammar)
+
+parser = Lark(grammar, maybe_placeholders=False)
 
 # COMMENT:  /\(\*(\*(?!\))|[^*])*\*\)/
 # COMMENT:  "(*" /(\*(?!\))|[^*])*/  "*)"
@@ -165,8 +205,26 @@ def parsertest(input):
     return parsetree
 
 
-def parse_main(file_path):
-    with open(file_path, "r") as f:
+"""
+    parse in i.pv file using new awk-marzipan grammar,
+    eliminate aliases from i.pv using lark TreeVisitor,
+    then return o.pv (awk_prep)
+"""
+
+
+def parse_main(ipv_path, opv_path):
+    with open(ipv_path, "r") as f:
         content = f.read()
-        # print(content)
-        parsertest(content)
+        # content += "\nprocess main"
+
+        forest = parsertest(content)
+        with open("i.pv", "w") as ipvf:
+            ipvf.write(forest.pretty())
+
+        tree = TreeVisitor().transform(forest)
+        # TODO: tree -> o.pv
+        new_json = Reconstructor(parser).reconstruct(tree)
+
+        with open(opv_path, "w") as opvf:
+            # opvf.write(tree.pretty())
+            opvf.write(new_json)
