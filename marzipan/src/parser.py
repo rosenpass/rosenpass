@@ -105,6 +105,7 @@ process_rules = Path(parent_dir + "process.lark").read_text()
 query_rules = Path(parent_dir + "query.lark").read_text()
 lemma_rules = Path(parent_dir + "lemma.lark").read_text()
 term_rules = Path(parent_dir + "term.lark").read_text()
+cryptoverif_rules = Path(parent_dir + "cryptoverif.lark").read_text()
 
 # marzipan additives
 common_rules = (
@@ -143,8 +144,11 @@ query_rules = modify_decl_rule(
 lemma_rules = modify_decl_rule(lemma_rules, "lemma_decl", "[LEMMA ESCAPED_STRING]")
 
 grammar = (
-    common_rules + decl_rules + process_rules + query_rules + lemma_rules + term_rules
+    common_rules + decl_rules + process_rules + query_rules + lemma_rules + term_rules + cryptoverif_rules
 )
+
+with open(Path(parent_dir + "generated_grammar.lark"), "w") as f:
+    f.write(grammar)
 
 parser = Lark(grammar)
 
