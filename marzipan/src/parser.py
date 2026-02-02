@@ -133,6 +133,7 @@ process_rules = Path(parent_dir + "process.lark").read_text()
 query_rules = Path(parent_dir + "query.lark").read_text()
 lemma_rules = Path(parent_dir + "lemma.lark").read_text()
 term_rules = Path(parent_dir + "term.lark").read_text()
+cryptoverif_rules = Path(parent_dir + "cryptoverif.lark").read_text()
 
 # marzipan additives
 common_rules = (
@@ -180,7 +181,13 @@ lemma_rules = modify_decl_rule(
 )
 
 grammar = (
-    common_rules + decl_rules + process_rules + query_rules + lemma_rules + term_rules
+    common_rules
+    + decl_rules
+    + process_rules
+    + query_rules
+    + lemma_rules
+    + term_rules
+    + cryptoverif_rules
 )
 
 with open("./src/grammars/awk_proverif.lark", "w") as f:

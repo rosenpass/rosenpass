@@ -108,6 +108,16 @@ def run_proverif(file, log_file, extra_args=[]):
             exit(return_code)
 
 
+def m4(input_file, output_file):
+    logger.debug(f"m4: {input_file}, {output_file}")
+    input_file_path = pkgs.pathlib.Path(input_file)
+
+    params = ["m4", "-D", "ProVerif", pkgs.os.path.basename(input_file)]
+    return exc(
+        params, stderr=pkgs.sys.stderr, cwd=input_file_path.parent, stdout=output_file
+    )
+
+
 def cpp(file, cpp_prep):
     logger.debug(f"_cpp: {file}, {cpp_prep}")
     file_path = pkgs.pathlib.Path(file)
@@ -304,10 +314,27 @@ def metaverif(repo_path, tmpdir, file):
 @click.argument("i_path")
 @click.argument("o_path")
 def parse(i_path, o_path):
-    try:
-        parse_main(i_path, o_path)
-    except pkgs.lark.exceptions.UnexpectedCharacters as e:
-        logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
+    if not pkgs.os.path.isfile(i_path):
+        logger.error(f"{i_path} is not a file or does not exist.")
+        exit(1)
+
+    if i_path.lower().endswith(".pv"):
+        logger.info(f"Parsing ProVerif .pv file {i_path}")
+        try:
+            parse_main(i_path, o_path)
+        except pkgs.lark.exceptions.UnexpectedCharacters as e:
+            logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
+    elif i_path.lower().endswith(".pcv"):
+        with pkgs.tempfile.NamedTemporaryFile(suffix=".pv", delete_on_close=False) as f:
+            m4(i_path, f)
+            try:
+                parse_main(f.name, o_path)
+            except pkgs.lark.exceptions.UnexpectedCharacters as e:
+                logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
+
+    else:
+        logger.error(f"Unsupported file extension for file {i_path}")
+        exit(2)
 
 
 if __name__ == "__main__":

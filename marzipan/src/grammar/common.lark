@@ -29,12 +29,17 @@ OPTIONS_AXIOM: OPTIONS_QUERY_LEMMA_AXIOM
 OPTIONS_QUERY_LEMMA: OPTIONS_QUERY_LEMMA_AXIOM | "induction" | "noInduction"
 OPTIONS_LEMMA: OPTIONS_QUERY_LEMMA | "maxSubset"
 OPTIONS_QUERY: OPTIONS_QUERY_LEMMA | "proveAll"
-OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | "/cv_[a-zA-Z0-9À-ÿ'_]*/"
+OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | /cv_[a-zA-Z0-9À-ÿ'_]*/
 OPTIONS_RESTRICTION: "removeEvents" | "keepEvents" | "keep" # transl_option_lemma_query in pitsyntax.ml
-OPTIONS_EQUATION: "convergent" | "linear" # check_equations in pitsyntax.ml
+OPTIONS_EQUATION: "convergent" | "linear" | "manual" # manual is for compatibility with CryptoVerif
 OPTIONS_TYPE: "fixed" | "bounded" | "large" | "nonuniform" | "password" | "size" NAT | "size" NAT "_" NAT | "pcoll" NAT | "small" | "ghost" # from Page 22 in CryptoVerif reference manual
 options{idents}: [ "[" _non_empty_seq{idents} "]" ]
-BOOL : "true" | "false"
+
+# ProVerif manual 6.6.2: ProVerif also accepts no instead of false and yes instead of true.
+FALSE: "false" | "no"
+TRUE: "true" | "yes"
+BOOL : TRUE | FALSE
+
 NONE: "none"
 FULL: "full"
 ALL: "all"
@@ -91,7 +96,7 @@ ignore_types_values: BOOL | "all" | "none" | "attacker"
 simplify_process_values: BOOL | "interactive"
 precise_actions_values: BOOL | "trueWithoutArgsInNames"
 redundant_hyp_elim_values: BOOL | "beginOnly"
-reconstruct_trace_values: BOOL | NAT | "yes" | "no" # TODO(blipp): check whether yes/no is always allowed for BOOL
+reconstruct_trace_values: BOOL | NAT
 attacker_values: "active" | "passive"
 key_compromise_values: "none" | "approx" | "strict"
 predicates_implementable: "check" | "nocheck"
