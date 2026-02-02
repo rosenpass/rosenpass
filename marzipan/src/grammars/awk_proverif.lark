@@ -33,12 +33,17 @@ OPTIONS_AXIOM: OPTIONS_QUERY_LEMMA_AXIOM
 OPTIONS_QUERY_LEMMA: OPTIONS_QUERY_LEMMA_AXIOM | "induction" | "noInduction"
 OPTIONS_LEMMA: OPTIONS_QUERY_LEMMA | "maxSubset"
 OPTIONS_QUERY: OPTIONS_QUERY_LEMMA | "proveAll"
-OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | "/cv_[a-zA-Z0-9À-ÿ'_]*/"
+OPTIONS_QUERY_SECRET: "reachability" | "pv_reachability" | "real_or_random" | "pv_real_or_random" | /cv_[a-zA-Z0-9À-ÿ'_]*/
 OPTIONS_RESTRICTION: "removeEvents" | "keepEvents" | "keep" # transl_option_lemma_query in pitsyntax.ml
-OPTIONS_EQUATION: "convergent" | "linear" # check_equations in pitsyntax.ml
+OPTIONS_EQUATION: "convergent" | "linear" | "manual" # manual is for compatibility with CryptoVerif
 OPTIONS_TYPE: "fixed" | "bounded" | "large" | "nonuniform" | "password" | "size" NAT | "size" NAT "_" NAT | "pcoll" NAT | "small" | "ghost" # from Page 22 in CryptoVerif reference manual
 options{idents}: [ "[" _non_empty_seq{idents} "]" ]
-BOOL : "true" | "false"
+
+# ProVerif manual 6.6.2: ProVerif also accepts no instead of false and yes instead of true.
+FALSE: "false" | "no"
+TRUE: "true" | "yes"
+BOOL : TRUE | FALSE
+
 NONE: "none"
 FULL: "full"
 ALL: "all"
@@ -95,7 +100,7 @@ ignore_types_values: BOOL | "all" | "none" | "attacker"
 simplify_process_values: BOOL | "interactive"
 precise_actions_values: BOOL | "trueWithoutArgsInNames"
 redundant_hyp_elim_values: BOOL | "beginOnly"
-reconstruct_trace_values: BOOL | NAT | "yes" | "no" # TODO(blipp): check whether yes/no is always allowed for BOOL
+reconstruct_trace_values: BOOL | NAT
 attacker_values: "active" | "passive"
 key_compromise_values: "none" | "approx" | "strict"
 predicates_implementable: "check" | "nocheck"
@@ -140,12 +145,12 @@ decl: type_decl
     | elimtrue_decl
     | clauses_decl
     | module_decl
-    #| param_decl
-    #| proba_decl
-    #| letproba_decl
-    #| proof_decl
-    #| def_decl
-    #| expand_decl
+    | param_decl
+    | proba_decl
+    | letproba_decl
+    | proof_decl
+    | def_decl
+    | expand_decl
 
 type_decl: "type" IDENT "."
 #type_decl: "type" IDENT options{OPTIONS_TYPE} "."
@@ -203,10 +208,17 @@ noninterf_decl: "noninterf" [ typedecl ";"] _maybe_empty_seq{nidecl} "."
 weaksecret_decl: "weaksecret" IDENT "."
 
 nidecl: IDENT [ "among" "(" _non_empty_seq{term} ")" ]
+
+# According to the manual page 127, “Compatibility with CryptoVerif”, ProVerif also allows disequations.
+# The ProVerif source code uses the same eqlist for equation and reduc, so we do that, too.
 equality: term "=" term
+        | term "<>" term
         | "let" IDENT "=" term "in" equality
+
 mayfailequality: IDENT mayfailterm_seq "=" mayfailterm
+
 eqlist: [ "forall" typedecl ";" ] equality [ ";" eqlist ]
+
 clause: term
         | term "->" term
         | term "<->" term
@@ -360,3 +372,79 @@ mayfailterm: term
 mayfailterm_seq: "(" _non_empty_seq{mayfailterm} ")"
 typedecl: _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
 failtypedecl: _non_empty_seq{IDENT} ":" typeid [ "or fail" ] [ "," failtypedecl ]
+# CryptoVerif manual Page 21
+OPTIONS_PARAM: "noninteractive" | "passive" | "default" | "small" | "size" NAT
+param_decl: "param" _non_empty_seq{IDENT} options{OPTIONS_PARAM} "."
+
+dimension: "time" ["^" INT]
+         | "length" ["^" INT]
+         | "number"
+         | dimension "*" dimension
+         | dimension "/" dimension
+var_dimension: IDENT ":" dimension
+probability_estimate: "pest" NAT | "password" | "large"
+proba_decl: "proba" IDENT ["(" _maybe_empty_seq{dimension} ")"] ["[" probability_estimate "]"] "."
+
+simpleterm: IDENT
+          | IDENT "(" _maybe_empty_seq{simpleterm} ")"
+          | "(" _maybe_empty_seq{simpleterm} ")"
+          | IDENT "[" _maybe_empty_seq{simpleterm} "]"
+          | simpleterm "=" simpleterm
+          | simpleterm "<>" simpleterm
+          | simpleterm "||" simpleterm
+          | simpleterm "&&" simpleterm
+proba: "(" proba ")"
+     | proba "+" proba
+     | proba "-" proba
+     | proba "*" proba
+     | proba "/" proba
+     | proba "^" INT
+     | "max" "(" _non_empty_seq{proba} ")"
+     | "min" "(" _non_empty_seq{proba} ")"
+     | IDENT [ "(" _maybe_empty_seq{proba} ")" ]
+     | "|" IDENT "|"
+     | "maxlength" "(" simpleterm ")"
+     | "length" "(" IDENT [ "," _non_empty_seq{proba} ] ")"
+     | "length" "(" "(" _maybe_empty_seq{IDENT} ")" [ "," _non_empty_seq{proba} ] ")"
+     | NAT
+     | "#" IDENT
+     | "#" "(" IDENT "foreach" _non_empty_seq{IDENT} ")"
+     | "eps_find"
+     | "eps_rand" "(" IDENT ")"
+     | "Pcoll1rand" "(" IDENT ")"
+     | "Pcoll2rand" "(" IDENT ")"
+     | "time"
+     | "time" "(" IDENT [ "," _non_empty_seq{proba} ] ")"
+     | "time" "(" "let" IDENT [ "," _non_empty_seq{proba} ] ")"
+     | "time" "(" "(" _maybe_empty_seq{IDENT} ")" [ "," _non_empty_seq{proba} ] ")"
+     | "time" "(" "let" "(" _maybe_empty_seq{IDENT} ")" [ "," _non_empty_seq{proba} ] ")"
+     | "time" "(" "=" IDENT [ "," _non_empty_seq{proba} ] ")"
+     | "time" "(" "!" ")"
+     | "time" "(" "foreach" ")"
+     | "time" "(" "[" NAT "]" ")"
+     | "time" "(" "&&" ")"
+     | "time" "(" "||" ")"
+     | "time" "(" "new" IDENT ")"
+     | "time" "(" "<-R" IDENT ")"
+     | "time" "(" "newOracle" ")"
+     | "time" "(" "if" ")"
+     | "time" "(" "find" NAT ")"
+     | "optim-if" optimcond "then" proba "else" proba
+optimcond: "(" optimcond ")"
+         | "is-cst" "(" proba ")"
+         | proba "=" proba
+         | proba "<=" proba
+         | proba ">=" proba
+         | proba "<" proba
+         | proba ">" proba
+         | optimcond "&&" optimcond
+         | optimcond "||" optimcond
+letproba_decl: "letproba" IDENT ["(" _non_empty_seq{var_dimension} ")"] "=" proba "."
+
+# ProVerif ignores proof blocks, so lazily matching proof blocks and accepts everything as
+# proof content except a closing brace should be enough.
+_no_braces: /[^{}]+/
+proof_decl: "proof" "{" [ _no_braces ] "}"
+
+def_decl: "def" IDENT "(" _maybe_empty_seq{typeid} ")" "{" decl* "}"
+expand_decl: "expand" IDENT "(" _maybe_empty_seq{typeid} ")" "."
