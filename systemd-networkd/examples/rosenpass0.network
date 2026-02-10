@@ -1,0 +1,25 @@
+# /etc/systemd/network/rosenpass0.network
+#
+# systemd-networkd network configuration for the WireGuard interface
+# managed alongside Rosenpass.
+#
+# This assigns addresses and routes to the "rosenpass0" WireGuard device
+# created by rosenpass0.netdev.
+#
+# See systemd.network(5) for full documentation.
+
+[Match]
+Name=rosenpass0
+
+[Network]
+# Address assigned to this end of the tunnel.
+Address=10.0.0.1/24
+
+# Optional: set DNS servers reachable through the tunnel.
+# DNS=10.0.0.2
+
+[Route]
+# Routes for traffic that should go through the tunnel.
+# This example routes the peer's address. For a full-tunnel VPN,
+# use 0.0.0.0/0 and ::/0 instead.
+Destination=10.0.0.2/32

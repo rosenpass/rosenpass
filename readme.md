@@ -40,6 +40,15 @@ The [`rp`](./rp) tool written in Rust makes it easy to create a VPN using WireGu
 `rp` is easy to get started with but has a few drawbacks; it runs as root, demanding access to both WireGuard
 and Rosenpass private keys, takes control of the interface and works with exactly one interface. If you do not feel confident about running Rosenpass as root, you should use the stand-alone mode to create a more secure setup using containers, jails, or virtual machines.
 
+### systemd-networkd integration
+
+On systems using systemd-networkd to manage WireGuard interfaces, Rosenpass can be
+integrated using the provided [systemd-networkd configuration](./systemd-networkd/).
+systemd-networkd handles WireGuard device creation and network configuration via `.netdev`
+and `.network` files, while Rosenpass supplies rotating post-quantum pre-shared keys.
+See the [systemd-networkd README](./systemd-networkd/README.md) for setup instructions
+and examples.
+
 ### Networking & ports
 
 rp allocates two UDP ports; if port N is specified for rosenpass, it will allocate port N+1 for WireGuard.

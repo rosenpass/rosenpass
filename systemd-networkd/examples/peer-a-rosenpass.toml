@@ -1,0 +1,16 @@
+# /etc/rosenpass/rp0.toml (on Peer A / Server)
+#
+# Rosenpass configuration for a systemd-networkd managed WireGuard interface.
+# The WireGuard device "rp0" is created by systemd-networkd via rp0.netdev.
+# Rosenpass supplies rotating post-quantum pre-shared keys.
+
+public_key = "/etc/rosenpass/rp0/pqpk"
+secret_key = "/etc/rosenpass/rp0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "/etc/rosenpass/rp0/peers/peer-b-pqpk"
+# endpoint is omitted: Peer A only responds, does not initiate.
+device = "rp0"
+peer = "PEER_B_WG_PUBLIC_KEY_HERE"

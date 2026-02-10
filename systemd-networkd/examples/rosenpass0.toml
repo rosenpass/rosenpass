@@ -1,0 +1,38 @@
+# /etc/rosenpass/rosenpass0.toml
+#
+# Rosenpass configuration for use with a systemd-networkd managed
+# WireGuard interface.
+#
+# systemd-networkd creates and configures the WireGuard device (via
+# the .netdev file). Rosenpass only performs the post-quantum key
+# exchange and supplies the resulting pre-shared key to WireGuard
+# using the `wg set` command.
+#
+# Generate Rosenpass keys:
+#   rosenpass gen-keys --secret-key /etc/rosenpass/rosenpass0/pqsk \
+#                      --public-key /etc/rosenpass/rosenpass0/pqpk
+#
+# Exchange the pqpk (public key) file with the remote peer.
+
+public_key = "/etc/rosenpass/rosenpass0/pqpk"
+secret_key = "/etc/rosenpass/rosenpass0/pqsk"
+
+# The Rosenpass listen address. This is the UDP port used for the
+# Rosenpass key exchange protocol (separate from WireGuard's port).
+listen = ["0.0.0.0:9999"]
+verbosity = "Quiet"
+
+[[peers]]
+# Path to the remote peer's Rosenpass public key.
+public_key = "/etc/rosenpass/rosenpass0/peers/peer1-pqpk"
+
+# Rosenpass endpoint of the remote peer (host:port for the Rosenpass
+# protocol, not the WireGuard endpoint).
+endpoint = "198.51.100.1:9999"
+
+# WireGuard device name. Must match the [NetDev] Name in the .netdev file.
+device = "rosenpass0"
+
+# WireGuard public key of the remote peer. Must match the PublicKey
+# in the [WireGuardPeer] section of the .netdev file.
+peer = "PEER_WG_PUBLIC_KEY_BASE64"

@@ -1,0 +1,34 @@
+# /etc/systemd/network/rosenpass0.netdev
+#
+# systemd-networkd WireGuard device configuration for use with Rosenpass.
+#
+# This file creates a WireGuard interface named "rosenpass0". Rosenpass will
+# continuously rotate the PresharedKey via the `wg set` command, providing
+# post-quantum security on top of WireGuard's existing cryptography.
+#
+# Adjust PrivateKeyFile, PublicKey, Endpoint, AllowedIPs, and ListenPort
+# to match your deployment.
+#
+# See systemd.netdev(5) for full documentation.
+
+[NetDev]
+Name=rosenpass0
+Kind=wireguard
+Description=WireGuard tunnel with Rosenpass post-quantum key exchange
+
+[WireGuard]
+# Path to the WireGuard private key file.
+# Generate with: wg genkey > /etc/wireguard/rosenpass0.key
+# Restrict permissions: chmod 0600 /etc/wireguard/rosenpass0.key
+PrivateKeyFile=/etc/wireguard/rosenpass0.key
+ListenPort=51820
+
+[WireGuardPeer]
+# WireGuard public key of the remote peer.
+PublicKey=PEER_WG_PUBLIC_KEY_BASE64
+# Rosenpass will manage the PresharedKey automatically.
+# Do NOT set PresharedKey or PresharedKeyFile here; Rosenpass rotates it
+# every ~2 minutes via `wg set`.
+Endpoint=198.51.100.1:51820
+AllowedIPs=10.0.0.2/32
+PersistentKeepalive=25

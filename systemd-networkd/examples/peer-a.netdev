@@ -1,0 +1,20 @@
+# /etc/systemd/network/rp0.netdev (on Peer A / Server)
+#
+# Complete example: Peer A listens on port 51820.
+# Peer B connects to Peer A.
+
+[NetDev]
+Name=rp0
+Kind=wireguard
+Description=WireGuard tunnel with Rosenpass (Peer A)
+
+[WireGuard]
+PrivateKeyFile=/etc/wireguard/rp0.key
+ListenPort=51820
+
+[WireGuardPeer]
+# Peer B's WireGuard public key
+PublicKey=PEER_B_WG_PUBLIC_KEY_HERE
+AllowedIPs=10.0.0.2/32
+PersistentKeepalive=25
+# Rosenpass manages the PresharedKey - do not set it here.
