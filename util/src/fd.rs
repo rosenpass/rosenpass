@@ -1,6 +1,5 @@
 //! Utilities for working with file descriptors
 
-use anyhow::bail;
 use rustix::io::fcntl_dupfd_cloexec;
 use std::os::fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
 

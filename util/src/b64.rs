@@ -1,6 +1,7 @@
 //! Utilities for working with Base64
 
 use base64ct::{Base64, Decoder as B64Reader, Encoder as B64Writer};
+use rosenpass_to::{with_destination, To};
 use zeroize::Zeroize;
 
 use std::fmt::Display;
@@ -59,28 +60,31 @@ impl<T: AsRef<[u8]>> B64Display for T {
 /// # Examples
 ///
 /// See [b64_encode].
-pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
-    let mut reader = B64Reader::<Base64>::new(input).map_err(|e| anyhow::anyhow!(e))?;
-    match reader.decode(output) {
-        Ok(_) => (),
-        Err(base64ct::Error::InvalidLength) => (),
-        Err(e) => {
-            return Err(anyhow::anyhow!(e));
+pub fn b64_decode(input: &[u8]) -> impl To<[u8], anyhow::Result<()>> + '_ {
+    with_destination(move |output: &mut [u8]| {
+        let mut reader = B64Reader::<Base64>::new(input).map_err(|e| anyhow::anyhow!(e))?;
+        match reader.decode(output) {
+            Ok(_) => (),
+            Err(base64ct::Error::InvalidLength) => (),
+            Err(e) => {
+                return Err(anyhow::anyhow!(e));
+            }
         }
-    }
-    if reader.is_finished() {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!(
-            "Input not decoded completely (buffer size too small?)"
-        ))
-    }
+        if reader.is_finished() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "Input not decoded completely (buffer size too small?)"
+            ))
+        }
+    })
 }
 
 /// Encode a value as base64.
 ///
 /// ```
 /// use rosenpass_util::b64::{b64_encode, b64_decode};
+/// use rosenpass_to::To;
 ///
 /// let bytes = b"Hello World";
 ///
@@ -88,7 +92,7 @@ pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
 /// let encoded = b64_encode(bytes, &mut encoder_buffer)?;
 ///
 /// let mut bytes_decoded = [0u8; 11];
-/// b64_decode(encoded.as_bytes(), &mut bytes_decoded);
+/// b64_decode(encoded.as_bytes()).to(&mut bytes_decoded);
 /// assert_eq!(bytes, &bytes_decoded);
 ///
 /// Ok::<(), anyhow::Error>(())
@@ -103,6 +107,7 @@ pub fn b64_encode<'o>(input: &[u8], output: &'o mut [u8]) -> anyhow::Result<&'o 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rosenpass_to::To;
 
     #[test]
     fn test_b64_encode() {
@@ -135,7 +140,7 @@ mod tests {
     fn test_b64_decode() {
         let input = b"SGVsbG8sIFdvcmxkIQ==";
         let mut output = [0u8; 1000];
-        b64_decode(input, &mut output).unwrap();
+        b64_decode(input).to(&mut output).unwrap();
         assert_eq!(&output[..13], b"Hello, World!");
     }
 
@@ -143,7 +148,7 @@ mod tests {
     fn test_b64_decode_small_buffer() {
         let input = b"SGVsbG8sIFdvcmxkIQ==";
         let mut output = [0u8; 10]; // Small output buffer
-        let result = b64_decode(input, &mut output);
+        let result = b64_decode(input).to(&mut output);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -155,7 +160,7 @@ mod tests {
     fn test_b64_decode_empty_buffer() {
         let input = b"";
         let mut output = [0u8; 16];
-        let result = b64_decode(input, &mut output);
+        let result = b64_decode(input).to(&mut output);
         assert!(result.is_err());
     }
 

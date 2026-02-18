@@ -38,6 +38,7 @@ use derive_builder::Builder;
 use log::{debug, error};
 use postcard::{from_bytes, to_allocvec};
 use rosenpass_secret_memory::{Public, Secret};
+use rosenpass_to::To;
 use rosenpass_util::b64::b64_decode;
 use rosenpass_util::{b64::B64Display, file::StoreValueB64Writer};
 
@@ -216,7 +217,7 @@ impl NativeUnixBrokerConfigBaseBuilder {
         peer_id: &str,
     ) -> Result<&mut Self, NativeUnixBrokerConfigBaseBuilderError> {
         let mut peer_id_b64 = Public::<WG_PEER_LEN>::zero();
-        b64_decode(peer_id.as_bytes(), &mut peer_id_b64.value).map_err(|_e| {
+        b64_decode(peer_id.as_bytes()).to(&mut peer_id_b64.value).map_err(|_e| {
             NativeUnixBrokerConfigBaseBuilderError::ValidationError(
                 "Failed to parse peer id b64".to_string(),
             )

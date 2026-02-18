@@ -159,7 +159,7 @@ impl<const N: usize> LoadValueB64 for Public<N> {
             .read_slice_to_end(&mut f)
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f[0..len], &mut v.value)
+        b64_decode(&f[0..len]).to(&mut v.value)
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
@@ -349,7 +349,7 @@ impl<const N: usize> LoadValueB64 for PublicBox<N> {
             .read_slice_to_end(&mut f)
             .with_context(|| format!("Could not load file {p:?}"))?;
 
-        b64_decode(&f[0..len], v.deref_mut())
+        b64_decode(&f[0..len]).to(v.deref_mut())
             .with_context(|| format!("Could not decode base64 file {p:?}"))?;
 
         Ok(v)
