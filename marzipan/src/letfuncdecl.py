@@ -1,9 +1,12 @@
 import sys
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import List, Optional
 
-from lark import Lark, Transformer, Tree, ast_utils, tree, v_args
+from lark import Lark, Token, Transformer, Tree, ast_utils, tree, v_args
 from lark.tree import Meta
+
+from util import T
 
 this_module = sys.modules[__name__]
 
@@ -109,20 +112,31 @@ class ToAst(Transformer):
 transformer = ast_utils.create_transformer(this_module, ToAst())
 
 
-def gen_tree(asttree: list, column=0, indent=2):
+def ast_deepcopy_except(nodes: list, data_exclusion_list: list):
+    elements = []
+    for node in nodes:
+        if isinstance(node, Tree):
+            if node.data not in data_exclusion_list:
+                children = ast_deepcopy_except(node.children, data_exclusion_list)
+                elements.append(Tree(node.data, children))
+        else:
+            elements.append(deepcopy(node))
+    return elements
+
+
+def print_tree(asttree: list, column=0, indent=2):
     for node in asttree:
         cur_list = []
         if isinstance(node, Tree):
+            print(f"{' ' * column}{node.data}")
             cur_list = node.children
         else:
             cur_list = node
+
         if isinstance(cur_list, list):
-            gen_tree(cur_list, column=column + indent)
+            print_tree(cur_list, column=column + indent)
         else:
             print(f"{' ' * column}{cur_list}")
-        # for n in path:
-        #     parent = parent.setdefault(n, {})
-    # pprint.pprint(root, width=1)
 
 
 def parse(input: str):
@@ -130,9 +144,16 @@ def parse(input: str):
     print(parsetree.pretty())
     ast = transformer.transform(parsetree)
     print("=" * 100)
+    print_tree(ast)
+    print("=" * 100)
+    clean_ast = ast_deepcopy_except(
+        ast, ["lemma_annotation", "query_annotation", "reachable_annotation"]
+    )
+    print("=" * 100)
+    print(clean_ast)
+    print_tree(clean_ast)
+    # print("=" * 100)
     # print(ast)
-    gen_tree(ast)
-    # ast -> input
 
 
 if __name__ == "__main__":
@@ -150,6 +171,7 @@ if __name__ == "__main__":
     query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
         event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
         ==> t1 = t2.
+
     """)
 
     # parse("""
