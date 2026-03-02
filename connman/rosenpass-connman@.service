@@ -1,0 +1,22 @@
+[Unit]
+Description=Rosenpass key exchange for ConnMan profile %I
+Documentation=man:rosenpass(1)
+Documentation=https://rosenpass.eu/docs
+After=connman-vpn.service network-online.target
+Wants=connman-vpn.service network-online.target
+PartOf=connman-vpn.service
+
+[Service]
+Type=simple
+ExecStart=rosenpass exchange-config /etc/rosenpass/connman/%i.toml
+Restart=on-failure
+RestartSec=5s
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
