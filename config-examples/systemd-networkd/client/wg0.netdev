@@ -1,0 +1,16 @@
+[NetDev]
+Name=wg0
+Kind=wireguard
+Description=WireGuard tunnel managed by Rosenpass (client)
+
+[WireGuard]
+# IMPORTANT: No PresharedKey here! Rosenpass handles PSK rotation automatically.
+PrivateKeyFile=/etc/rosenpass/wg0/wg-client.key
+
+[WireGuardPeer]
+# Server peer public key
+PublicKey=SERVER_WG_PUBLIC_KEY_HERE
+AllowedIPs=10.0.0.1/32
+Endpoint=SERVER_IP_HERE:9999
+PersistentKeepalive=25
+# No PresharedKey entry - Rosenpass manages this dynamically

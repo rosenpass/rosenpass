@@ -1,0 +1,16 @@
+[Unit]
+Description=Rosenpass post-quantum key exchange for WireGuard interface %i
+After=network-pre.target systemd-networkd.service
+Requires=systemd-networkd.service
+BindsTo=sys-subsystem-net-devices-%i.device
+After=sys-subsystem-net-devices-%i.device
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rosenpass exchange \
+    /etc/rosenpass/%i/config.toml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

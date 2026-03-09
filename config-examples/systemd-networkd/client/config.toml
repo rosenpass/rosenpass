@@ -1,0 +1,18 @@
+# Rosenpass client configuration for systemd-networkd integration
+# This file goes in /etc/rosenpass/wg0/config.toml
+
+[rosenpass]
+# Client's Rosenpass public key
+public_key = "/etc/rosenpass/wg0/pqpk"
+# Client's Rosenpass secret key
+secret_key = "/etc/rosenpass/wg0/pqsk"
+
+[[peers]]
+# Server's Rosenpass public key
+public_key = "/etc/rosenpass/wg0/peers/server/pqpk"
+# Server's Rosenpass listen address
+endpoint = "SERVER_IP_HERE:9999"
+# WireGuard interface and peer to update PSK on
+[peers.wireguard]
+interface = "wg0"
+peer = "SERVER_WG_PUBLIC_KEY_HERE"
