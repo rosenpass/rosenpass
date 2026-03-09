@@ -20,7 +20,7 @@ echo "    WireGuard public key: $(cat ${CONFIG_DIR}/wg-${ROLE}.pub)"
 
 # Generate Rosenpass keys
 echo "==> Generating Rosenpass keys..."
-rosenpass gen-keys "${CONFIG_DIR}"
+rosenpass gen-keys --secret-key "${CONFIG_DIR}/pqsk" --public-key "${CONFIG_DIR}/pqpk"
 echo "    Rosenpass public key stored in: ${CONFIG_DIR}/pqpk"
 
 echo ""
