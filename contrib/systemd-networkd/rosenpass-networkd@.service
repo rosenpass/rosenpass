@@ -1,0 +1,11 @@
+[Unit]
+Description=Rosenpass systemd-networkd integration for %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rosenpass exchange %i.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
