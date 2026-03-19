@@ -4,3 +4,4 @@ pub mod mio_client;
 pub mod netlink;
 
 pub mod native_unix;
+pub mod netctl;
