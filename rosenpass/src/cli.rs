@@ -12,6 +12,7 @@ use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
+use rosenpass_wireguard_broker::brokers::netctl::NetctlBroker;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
@@ -37,7 +38,7 @@ use {
 };
 
 /// How to reach a WireGuard PSK Broker
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BrokerInterface {
     /// The PSK Broker is listening on a unix socket at the given path
     Socket(PathBuf),
@@ -457,15 +458,20 @@ impl CliArgs {
 
         config.apply_to_app_server(&mut srv)?;
 
-        let broker = Self::create_broker(broker_interface)?;
-        let broker_store_ptr = srv.register_broker(broker)?;
-
         fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
             anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
         }
 
         for cfg_peer in config.peers {
             let broker_peer = if let Some(wg) = &cfg_peer.wg {
+                let broker: Box<dyn rosenpass_wireguard_broker::WireguardBrokerMio<MioError = anyhow::Error, Error = anyhow::Error> + Send> = if wg.netctl {
+                    Box::new(NetctlBroker::new())
+                } else {
+                    Self::create_broker(broker_interface.clone())?
+                };
+
+                let broker_store_ptr = srv.register_broker(broker)?;
+
                 let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
                     .peer_id_b64(&wg.peer)?
                     .interface(wg.device.clone())
@@ -473,7 +479,7 @@ impl CliArgs {
                     .build()
                     .map_err(cfg_err_map)?;
 
-                let broker_peer = BrokerPeer::new(broker_store_ptr.clone(), Box::new(peer_cfg));
+                let broker_peer = BrokerPeer::new(broker_store_ptr, Box::new(peer_cfg));
 
                 Some(broker_peer)
             } else {
