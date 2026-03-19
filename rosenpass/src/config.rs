@@ -234,6 +234,10 @@ pub struct WireGuard {
     /// WireGuard public key of the peer to supply with pre-shared keys
     pub peer: String,
 
+    /// Use netctl to supply the pre-shared key
+    #[serde(default)]
+    pub netctl: bool,
+
     /// Extra parameters passed to the `wg` command
     #[serde(default)]
     pub extra_params: Vec<String>,
