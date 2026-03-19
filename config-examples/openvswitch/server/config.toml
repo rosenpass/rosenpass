@@ -1,0 +1,15 @@
+# Rosenpass server configuration for Open vSwitch integration
+#
+# The WireGuard interface (wg0) is added as an OVS port on bridge br-rp.
+# Rosenpass manages PSK rotation independently of the OVS layer.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Verbose"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/client/pqpk"
+# WireGuard interface and peer for PSK delivery
+device = "wg0"
+peer = "CLIENT_WG_PUBLIC_KEY_HERE"
