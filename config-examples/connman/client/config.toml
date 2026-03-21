@@ -1,0 +1,17 @@
+# Rosenpass client configuration for ConnMan integration
+#
+# ConnMan manages the WireGuard VPN connection via provisioning files
+# in /var/lib/connman-vpn/. Rosenpass delivers post-quantum PSKs
+# independently via `wg set`.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = []
+verbosity = "Verbose"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/server/pqpk"
+endpoint = "SERVER_IP:9999"
+# WireGuard interface and peer for PSK delivery
+device = "wg0"
+peer = "SERVER_WG_PUBLIC_KEY_HERE"
