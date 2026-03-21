@@ -1,0 +1,16 @@
+# Rosenpass server configuration for systemd-networkd integration
+#
+# systemd-networkd creates and manages the WireGuard interface via .netdev
+# and .network files. Rosenpass delivers post-quantum PSKs independently
+# via `wg set`.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Verbose"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/client/pqpk"
+# WireGuard interface and peer for PSK delivery
+device = "wg0"
+peer = "CLIENT_WG_PUBLIC_KEY_HERE"
