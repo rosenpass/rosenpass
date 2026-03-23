@@ -331,21 +331,31 @@ class ToAst(Transformer):
 transformer = ast_utils.create_transformer(this_module, ToAst())
 
 
-def ast_deepcopy_except(nodes: list):
-    print("in function ast_deepcopy_except")
-    elements = []
-    # TODO: isinstance handling between dataclass->return dataclass and list->return list
-    for node in fields(d):
-        if not (
+def ast_deepcopy_except(node):
+    if is_dataclass(node):
+        if (
             isinstance(node, QueryAnnotation) or isinstance(node, ReachableAnnotation)
             # or isinstance(node, LemmaAnnotation)
         ):
-            # TODO
-            # children = ast_deepcopy_except(node.children)
-            # elements.append(Tree(node.data, children))
-            # subclasses = ast_deepcopy_except(node)
-            # elements.append(subclasses)
-    return elements
+            return None
+
+        dataclass_type = type(node)
+        kwargs = {}
+
+        for field in fields(node):
+            if isinstance(node, QueryDecl) and field.name == "query_decl_annotation":
+                kwargs[field.name] = None
+            else:
+                child_node = getattr(node, field.name)
+                child_node_deepcopy = ast_deepcopy_except(child_node)
+                kwargs[field.name] = child_node_deepcopy
+
+        return dataclass_type(**kwargs)
+
+    elif isinstance(node, list):
+        return [ast_deepcopy_except(item) for item in node]
+    else:
+        return deepcopy(node)
 
 
 def parsetree_deepcopy_except(nodes: list, data_exclusion_list: list):
@@ -384,8 +394,10 @@ def print_tree(asttree: list, column=0, indent=2):
     def handle_dataclass(d):
         print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name]")
         for f in fields(d):
-            print(f"{' ' * (column + 1)}{f.name} [handle_dataclass: attr]")
-            print_tree(getattr(d, f.name), column + 2)
+            next_d = getattr(d, f.name)
+            if next_d is not None:
+                print(f"{' ' * (column + 1)}{f.name} [handle_dataclass: attr]")
+                print_tree(next_d, column + 2)
 
     def inner(node):
         cur_list = []
@@ -405,7 +417,8 @@ def print_tree(asttree: list, column=0, indent=2):
             if isinstance(cur_list, list):
                 print_tree(cur_list, column=column + indent)
             else:
-                print(f"{' ' * column}{cur_list} [else]")
+                if cur_list is not None:
+                    print(f"{' ' * column}{cur_list} [else]")
 
     if isinstance(asttree, list):
         for node in asttree:
@@ -430,9 +443,11 @@ def parse(input: str):
     print("print_tree ast")
     print_tree(ast)
     print("=" * 100)
+    print(ast)
     # clean_ast = parsetree_deepcopy_except(
     #     ast, ["lemma_annotation", "query_annotation", "reachable_annotation"]
     # )
+
     clean_ast = ast_deepcopy_except(ast)
     print("=" * 100)
     print("print clean_ast")
@@ -466,8 +481,3 @@ if __name__ == "__main__":
 # @lemma "secrecy: Adv can not learn shared secret key"
 # lemma kp:key_prec, skp:kem_sk_prec;
 #     attacker(trusted_key(kp)).
-
-# @reachable "non-secrecy: The attacker can learn the value of a shared key"
-# query k:key;
-#     attacker(prepare_key(k)) && attacker(k).
-# """
