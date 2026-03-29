@@ -1,112 +1,127 @@
-//! For the main function
-
-use clap::CommandFactory;
-use clap::Parser;
-use clap_mangen::roff::{roman, Roff};
-use log::error;
-use rosenpass::cli::CliArgs;
+use std::fs;
+use std::path::PathBuf;
 use std::process::exit;
 
-/// Printing custom man sections when generating the man page
-fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File) {
-    let mut roff = Roff::default();
-    roff.control("SH", [section]);
-    roff.text([roman(text)]);
-    let _ = roff.to_writer(file);
-}
+use clap::Parser;
+use rosenpass::{
+    app_server::AppServer,
+    cmdline::Cmdline,
+    config::Config,
+    net::network_manager::{DefaultNetworkManager, NetworkManager},
+    peer::{Peer, PeerName},
+    transport::Transport,
+};
+use rosenpass_util::{
+    file::load_secret_bytes_from_file,
+    fs::create_dir_all,
+    io::IoErrorContext,
+    logging,
+    path::PathExt,
+    timing::DurationExt,
+};
 
-/// Catches errors, prints them through the logger, then exits
-///
-/// The bulk of the command line logic is handled inside [crate::cli::CliArgs::run].
-pub fn main() {
-    // parse CLI arguments
-    let args = CliArgs::parse();
+#[cfg(feature = "experiment_memfd_secret")]
+use rosenpass_secret_memory::policy;
 
-    if let Some(shell) = args.print_completions {
-        let mut cmd = CliArgs::command();
-        clap_complete::generate(shell, &mut cmd, "rosenpass", &mut std::io::stdout());
-        return;
-    }
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    logging::init_logging();
 
-    if let Some(out_dir) = args.generate_manpage {
-        std::fs::create_dir_all(&out_dir).expect("Failed to create man pages directory");
+    #[cfg(feature = "experiment_memfd_secret")]
+    policy::secret_policy_try_use_memfd_secrets();
+    #[cfg(not(feature = "experiment_memfd_secret"))]
+    policy::secret_policy_use_only_malloc_secrets();
 
-        let cmd = CliArgs::command();
-        let man = clap_mangen::Man::new(cmd.clone());
-        let _ = clap_mangen::generate_to(cmd, &out_dir);
-
-        let file_path = out_dir.join("rosenpass.1");
-        let mut file = std::fs::File::create(file_path).expect("Failed to create man page file");
-
-        let _ = man.render_title(&mut file);
-        let _ = man.render_name_section(&mut file);
-        let _ = man.render_synopsis_section(&mut file);
-        let _ = man.render_subcommands_section(&mut file);
-        let _ = man.render_options_section(&mut file);
-        print_custom_man_section("EXIT STATUS", EXIT_STATUS_MAN, &mut file);
-        print_custom_man_section("SEE ALSO", SEE_ALSO_MAN, &mut file);
-        print_custom_man_section("STANDARDS", STANDARDS_MAN, &mut file);
-        print_custom_man_section("AUTHORS", AUTHORS_MAN, &mut file);
-        print_custom_man_section("BUGS", BUGS_MAN, &mut file);
-        return;
-    }
-
-    {
-        use rosenpass_secret_memory as SM;
-        #[cfg(feature = "experiment_memfd_secret")]
-        SM::secret_policy_try_use_memfd_secrets();
-        #[cfg(not(feature = "experiment_memfd_secret"))]
-        SM::secret_policy_use_only_malloc_secrets();
-    }
-
-    // init logging
-    {
-        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
-        if let Some(level) = args.get_log_level() {
-            log::debug!("setting log level to {:?} (set via CLI parameter)", level);
-            log_builder.filter_level(level); // set log level filter from CLI args if available
+    let cmdline = match Cmdline::parse() {
+        Ok(cmdline) => cmdline,
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
         }
-        log_builder.init();
+    };
 
-        // // check the effectiveness of the log level filter with the following lines:
-        // use log::{debug, error, info, trace, warn};
-        // trace!("trace dummy");
-        // debug!("debug dummy");
-        // info!("info dummy");
-        // warn!("warn dummy");
-        // error!("error dummy");
+    if cmdline.verbose {
+        logging::set_max_level(log::LevelFilter::Debug);
     }
 
-    let broker_interface = args.get_broker_interface();
-    match args.run(broker_interface, None) {
-        Ok(_) => {}
-        Err(e) => {
-            error!("{e:?}");
+    let config = match Config::load(&cmdline.config) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("Failed to load config: {}", err);
+            exit(1);
+        }
+    };
+
+    // Initialize network manager
+    let network_manager = DefaultNetworkManager::new();
+
+    if !network_manager.is_available() {
+        eprintln!("Warning: No supported network manager available (systemd-networkd not found)");
+    }
+
+    let mut app_server = AppServer::new(config.clone(), cmdline.verbose);
+
+    // Setup network configuration if needed
+    if let Some(network_config) = &config.network {
+        if let Err(e) = setup_network_config(&network_manager, network_config).await {
+            eprintln!("Failed to setup network configuration: {}", e);
             exit(1);
         }
     }
+
+    app_server.run().await
 }
 
-/// Custom main page section: Exit Status
-static EXIT_STATUS_MAN: &str = r"
-The rosenpass utility exits 0 on success, and >0 if an error occurs.";
+async fn setup_network_config<N: NetworkManager>(
+    network_manager: &N,
+    network_config: &rosenpass::config::NetworkConfig,
+) -> anyhow::Result<()> {
+    use rosenpass::config::NetworkBackend;
 
-/// Custom main page section: See also.
-static SEE_ALSO_MAN: &str = r"
-rp(1), wg(1)
+    match &network_config.backend {
+        NetworkBackend::SystemdNetworkd(config) => {
+            // Generate systemd-networkd configuration
+            let networkd_config = generate_systemd_networkd_config(config)?;
 
-Karolin Varner, Benjamin Lipp, Wanja Zaeske, and Lisa Schmidt, Rosenpass, https://rosenpass.eu/whitepaper.pdf, 2023.";
+            // Write configuration to file
+            let config_path = PathBuf::from("/etc/systemd/network/99-rosenpass.network");
+            network_manager
+                .apply_config(&networkd_config, &config_path)
+                .context("Failed to apply systemd-networkd configuration")?;
 
-/// Custom main page section: Standards.
-static STANDARDS_MAN: &str = r"
-This tool is the reference implementation of the Rosenpass protocol, as
-specified within the whitepaper referenced above.";
+            // Reload network configuration
+            network_manager
+                .reload()
+                .context("Failed to reload network configuration")?;
+        }
+    }
 
-/// Custom main page section: Authors.
-static AUTHORS_MAN: &str = r"
-Rosenpass was created by Karolin Varner, Benjamin Lipp, Wanja Zaeske, Marei
-Peischl, Stephan Ajuvo, and Lisa Schmidt.";
+    Ok(())
+}
 
-/// Custom main page section: Bugs.
-static BUGS_MAN: &str = r"
-The bugs are tracked at https://github.com/rosenpass/rosenpass/issues.";
+fn generate_systemd_networkd_config(config: &rosenpass::config::SystemdNetworkdConfig) -> anyhow::Result<String> {
+    let mut output = String::new();
+
+    // Network section
+    output.push_str("[Match]\n");
+    if let Some(name) = &config.interface_name {
+        output.push_str(&format!("Name={}\n", name));
+    }
+    output.push_str("\n");
+
+    output.push_str("[Network]\n");
+    if let Some(address) = &config.address {
+        output.push_str(&format!("Address={}\n", address));
+    }
+    if let Some(gateway) = &config.gateway {
+        output.push_str(&format!("Gateway={}\n", gateway));
+    }
+    if let Some(dns) = &config.dns {
+        output.push_str(&format!("DNS={}\n", dns));
+    }
+    if let Some(domain) = &config.domain {
+        output.push_str(&format!("Domains={}\n", domain));
+    }
+
+    Ok(output)
+}
