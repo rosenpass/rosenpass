@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import cProfile
 import dataclasses
+import io
 import pprint
+import pstats
 import sys
 from copy import deepcopy
 from dataclasses import asdict, dataclass, fields, is_dataclass
+from pstats import SortKey
 from typing import List, Optional, Tuple
 
 from lark import Lark, Token, Transformer, Tree, ast_utils, tree, v_args
@@ -100,6 +104,9 @@ class ImpliesGterm(ast_utils.Ast):
     left: Gterm
     right: Gterm
 
+    def pretty_print(self, indent=0):
+        print(f"{self.left} ==> {self.right}")
+
 
 @dataclass
 class EventGterm(ast_utils.Ast):
@@ -158,23 +165,36 @@ class LetfunDecl(ast_utils.Ast):
 
 
 @dataclass
-class LemmaPublicVars(ast_utils.Ast):
-    lemma: Gterm
-    public_vars: Optional[List] = None
-    optional_lemma: Optional[Lemma] = None
+class LemmaGterm(ast_utils.Ast):
+    gterm: Gterm
+    lemma: Optional[Lemma] = None
 
 
 @dataclass
-class LemmaSecrets(ast_utils.Ast):
-    lemma: Gterm
+class LemmaPublicVars(ast_utils.Ast):
+    gterm: Gterm
+    public_vars: Optional[List] = None
+    lemma: Optional[Lemma] = None
+
+
+@dataclass
+class LemmaPublicVarsSecret(ast_utils.Ast):
+    gterm: Gterm
     secret: Ident
     public_vars: Optional[List] = None
-    optional_lemma: Optional[Lemma] = None
+    lemma: Optional[Lemma] = None
 
 
 @dataclass
 class Lemma(ast_utils.Ast):
-    lemma: Gterm | LemmaPublicVars | LemmaSecrets
+    lemma: LemmaGterm | LemmaPublicVars | LemmaPublicVarsSecret
+
+    # def __post_init__(self):
+    #    print(f"[constructor] Lemma: lemma={self.lemma}")
+
+    # def __init__(self, lemma=None, arg2=None, arg3=None):
+    #    print(f"[constructor] Lemma: {lemma}, {arg2}, {arg3}")
+    #    self.lemma = lemma
 
 
 @dataclass
@@ -184,8 +204,13 @@ class LemmaDeclCore(ast_utils.Ast):
 
 
 @dataclass
+class LemmaAnnotation(ast_utils.Ast):
+    annotation: str
+
+
+@dataclass
 class LemmaDecl(ast_utils.Ast):
-    lemma_annotation: Optional[str]
+    lemma_decl_annotation: Optional[LemmaAnnotation]
     lemma_decl_core: LemmaDeclCore
 
 
@@ -293,9 +318,12 @@ let_gterm: "let" IDENT "=" gterm "in" gterm
 gbinding: "!" NAT "=" gterm [";" gbinding]
         | IDENT "=" gterm [";" gbinding]
 
-lemma: gterm [";" lemma]
-         | gterm "for" "{" "public_vars" _non_empty_seq{IDENT} "}" [";" lemma]
-         | gterm "for" "{" "secret" IDENT [ "public_vars" _non_empty_seq{IDENT}] "[real_or_random]" "}" [";" lemma]
+lemma_gterm: gterm [";" lemma]
+lemma_public_vars: gterm "for" "{" "public_vars" _non_empty_seq{IDENT} "}" [";" lemma]
+lemma_public_vars_secret: gterm "for" "{" "secret" IDENT [ "public_vars" _non_empty_seq{IDENT}] "[real_or_random]" "}" [";" lemma]
+lemma: lemma_gterm
+         | lemma_public_vars
+         | lemma_public_vars_secret
 lemma_annotation: _LEMMA ESCAPED_STRING
 lemma_decl: [lemma_annotation] lemma_decl_core
 lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
@@ -334,8 +362,9 @@ transformer = ast_utils.create_transformer(this_module, ToAst())
 def ast_deepcopy_except(node):
     if is_dataclass(node):
         if (
-            isinstance(node, QueryAnnotation) or isinstance(node, ReachableAnnotation)
-            # or isinstance(node, LemmaAnnotation)
+            isinstance(node, QueryAnnotation)
+            or isinstance(node, ReachableAnnotation)
+            or isinstance(node, LemmaAnnotation)
         ):
             return None
 
@@ -344,6 +373,8 @@ def ast_deepcopy_except(node):
 
         for field in fields(node):
             if isinstance(node, QueryDecl) and field.name == "query_decl_annotation":
+                kwargs[field.name] = None
+            elif isinstance(node, LemmaDecl) and field.name == "lemma_decl_annotation":
                 kwargs[field.name] = None
             else:
                 child_node = getattr(node, field.name)
@@ -392,7 +423,12 @@ def print_tree(asttree: list, column=0, indent=2):
             print_tree(value, column + 1)
 
     def handle_dataclass(d):
-        print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name]")
+        if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
+            pp = f"[{d.pretty_print()}]"
+        else:
+            pp = ""
+
+        print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name] {pp}")
         for f in fields(d):
             next_d = getattr(d, f.name)
             if next_d is not None:
@@ -435,26 +471,34 @@ def print_tree(asttree: list, column=0, indent=2):
 
 def parse(input: str):
     parsetree = parser.parse(input)
-    print("=" * 100)
-    print("print parsetree")
-    print(parsetree.pretty())
+    # print("=" * 100)
+    # print("print parsetree")
+    # print(parsetree.pretty())
     ast = transformer.transform(parsetree)
-    print("=" * 100)
-    print("print_tree ast")
-    print_tree(ast)
-    print("=" * 100)
-    print(ast)
-    # clean_ast = parsetree_deepcopy_except(
-    #     ast, ["lemma_annotation", "query_annotation", "reachable_annotation"]
-    # )
-
+    # print("=" * 100)
+    # print("print_tree ast")
+    # print_tree(ast)
+    # print("=" * 100)
+    # print(ast)
+    # # clean_ast = parsetree_deepcopy_except(
+    # #     ast, ["lemma_annotation", "query_annotation", "reachable_annotation"]
+    # # )
+    pr = cProfile.Profile()
+    pr.enable()
     clean_ast = ast_deepcopy_except(ast)
-    print("=" * 100)
+    pr.disable()
+    s = io.StringIO()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print(s.getvalue())
+    # print("=" * 100)
     print("print clean_ast")
     print(clean_ast)
     print("=" * 100)
     print("print_tree clean_ast")
     print_tree(clean_ast)
+
     # print("=" * 100)
     # print("=" * 100)
     # print(ast)
@@ -462,22 +506,31 @@ def parse(input: str):
 
 if __name__ == "__main__":
     parse("""
-    @query "non-interruptability: Adv cannot start a responder session with the same key twice"
-    query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
-        event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
-        ==> t1 = t2.
+        @lemma "secrecy: Adv can not learn shared secret key"
+        lemma kp:key_prec, skp:kem_sk_prec;
+            attacker(trusted_key(kp)).
+        @query "non-interruptability: Adv cannot start a responder session with the same key twice"
+        query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
+            event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
+            ==> t1 = t2.
+
+        @reachable "non-secrecy: The attacker can learn the value of a shared key"
+        query k:key;
+            attacker(prepare_key(k)) && attacker(k).
+
+        @lemma "secrecy: The adversary can learn a trusted kem pk only by using the reveal oracle"
+        lemma skp:kem_sk_prec;
+            attacker(kem_pub(trusted_kem_sk(skp)))
+              ==> event(RevealPk(kem_pub(trusted_kem_sk(skp)))).
+
+        @lemma "secrecy: Attacker knowledge of a kem sk implies the key is not trusted"
+          lemma k:kem_sk, kp:kem_sk_prec;
+            attacker(prepare_kem_sk(k)) && attacker(k) ==> k <> trusted_kem_sk(kp).
+
+        @lemma "asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted InitHello transmission from responder perspective"
+        lemma ck_ini:key, ck:key, any_psk:key, any_sskr:kem_sk, PSsski:kem_sk_prec, any_epki:kem_pk, any_epti:key, PSspti:seed_prec;
+            let secure_spki = kem_pub(trusted_kem_sk(PSsski)) in
+            let secure_spti = rng_key(trusted_seed(PSspti)) in
+            attacker(ck)
+            && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti)).
     """)
-
-    # parse("""
-    # letfun test ( foo : bar ) = foo .
-    # """)
-
-# """
-
-# @reachable "non-secrecy: The attacker can learn the value of a shared key"
-# query k:key;
-#     attacker(prepare_key(k)) && attacker(k).
-
-# @lemma "secrecy: Adv can not learn shared secret key"
-# lemma kp:key_prec, skp:kem_sk_prec;
-#     attacker(trusted_key(kp)).
