@@ -98,14 +98,17 @@ class InjEventGterm(ast_utils.Ast):
     event_gterms: GtermList
     at: Optional[Ident] = None
 
+    def pretty_print(self, indent=0):
+        return ""
+
 
 @dataclass
 class ImpliesGterm(ast_utils.Ast):
     left: Gterm
     right: Gterm
 
-    def pretty_print(self, indent=0):
-        print(f"{self.left} ==> {self.right}")
+    def pretty_print(self, column=0, indent=2):
+        return f"{self.left.pretty_print(column, indent)} ==> {self.right.pretty_print(column, indent)}"
 
 
 @dataclass
@@ -148,6 +151,9 @@ class Gterm(ast_utils.Ast):
         | SampleGterm
         | LetGterm
     )
+
+    def pretty_print(self, column=0, indent=2):
+        return f"{' ' * indent}{self}"
 
 
 @dataclass
@@ -195,12 +201,17 @@ class Lemma(ast_utils.Ast):
     # def __init__(self, lemma=None, arg2=None, arg3=None):
     #    print(f"[constructor] Lemma: {lemma}, {arg2}, {arg3}")
     #    self.lemma = lemma
+    # def pretty_print(self, column=0, indent=2):
+    #     print(f"{self}: not implemented")
 
 
 @dataclass
 class LemmaDeclCore(ast_utils.Ast):
     typedecl: Optional[Typedecl]
     lemma: Lemma
+
+    def pretty_print(self, column=0, indent=2):
+        print(f"{self}: not implemented")
 
 
 @dataclass
@@ -212,6 +223,16 @@ class LemmaAnnotation(ast_utils.Ast):
 class LemmaDecl(ast_utils.Ast):
     lemma_decl_annotation: Optional[LemmaAnnotation]
     lemma_decl_core: LemmaDeclCore
+
+    pptemplate = "{% if lemma_decl_annotation %}@lemma {{lemma_decl_annotation}}{% endif %}{{lemma_decl_core}}"
+
+    # def pretty_print(self, column=0, indent=2):
+    #    return f"{'@lemma' + a if a is not None else ''}{l}"
+
+    def pretty_print(self, column=0, indent=2):
+        a = self.lemma_decl_annotation
+        l = self.lemma_decl_core
+        return f"{'@lemma' + a.pretty_print(column, indent) if a is not None else ''}{l.pretty_print(column, indent)}"
 
 
 @dataclass
@@ -240,6 +261,9 @@ class QueryDecl(ast_utils.Ast):
     query_decl_annotation: Optional[QueryAnnotation | ReachableAnnotation]
     query_decl_core: QueryDeclCore
 
+    def pretty_print(self, column=0, indent=2):
+        return "QueryDecl not implemented"
+
 
 @dataclass
 class QueryGterm(ast_utils.Ast):
@@ -264,6 +288,9 @@ class QueryPutBegin(ast_utils.Ast):
 @dataclass
 class Decl(ast_utils.Ast):
     decl: LemmaDecl | QueryDecl
+
+    def pretty_print(self, column=0, indent=2):
+        return self.decl.pretty_print(column, indent)
 
 
 parser = Lark("""
@@ -423,12 +450,13 @@ def print_tree(asttree: list, column=0, indent=2):
             print_tree(value, column + 1)
 
     def handle_dataclass(d):
-        if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
-            pp = f"[{d.pretty_print()}]"
-        else:
-            pp = ""
+        # if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
+        #    pp = f"[{d.pretty_print()}]"
+        # else:
+        #    pp = ""
 
-        print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name] {pp}")
+        # print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name] {pp}")
+        print(f"{' ' * (column)}{type(d).__name__} [handle_dataclass: class name]")
         for f in fields(d):
             next_d = getattr(d, f.name)
             if next_d is not None:
@@ -455,6 +483,29 @@ def print_tree(asttree: list, column=0, indent=2):
             else:
                 if cur_list is not None:
                     print(f"{' ' * column}{cur_list} [else]")
+
+    if isinstance(asttree, list):
+        for node in asttree:
+            inner(node)
+    else:
+        inner(asttree)
+
+
+def pretty_print(asttree: list, column=0, indent=2):
+
+    def handle_dataclass(d):
+        if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
+            pp = f"{d.pretty_print(column, indent)}"
+        else:
+            pp = "not implemented"
+
+        print(pp)
+
+    def inner(node):
+        if is_dataclass(node):
+            handle_dataclass(node)
+        else:
+            assert False
 
     if isinstance(asttree, list):
         for node in asttree:
@@ -499,6 +550,9 @@ def parse(input: str):
     print("print_tree clean_ast")
     print_tree(clean_ast)
 
+    print("=" * 100)
+    pretty_print(clean_ast)
+
     # print("=" * 100)
     # print("=" * 100)
     # print(ast)
@@ -509,6 +563,7 @@ if __name__ == "__main__":
         @lemma "secrecy: Adv can not learn shared secret key"
         lemma kp:key_prec, skp:kem_sk_prec;
             attacker(trusted_key(kp)).
+
         @query "non-interruptability: Adv cannot start a responder session with the same key twice"
         query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
             event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
