@@ -5,7 +5,10 @@
   cmake,
   mandoc,
   removeReferencesTo,
+  makeWrapper,
   bash,
+  wireguard-tools,
+  wireguard-go,
   package ? "rosenpass",
 }:
 
@@ -92,7 +95,7 @@ rustPlatform.buildRustPackage {
     mandoc # for the built-in manual
     removeReferencesTo
     rustPlatform.bindgenHook # for C-bindings in the crypto libs
-  ];
+  ] ++ lib.optionals (package == "rp" && stdenv.hostPlatform.isDarwin) [ makeWrapper ];
   buildInputs = [ bash ];
 
   hardeningDisable = lib.optional isStatic "fortify";
@@ -102,6 +105,14 @@ rustPlatform.buildRustPackage {
     install systemd/rosenpass@.service $out/lib/systemd/system
     install systemd/rp@.service $out/lib/systemd/system
     install systemd/rosenpass.target $out/lib/systemd/system
+  ''
+  + lib.optionalString (package == "rp" && stdenv.hostPlatform.isDarwin) ''
+    wrapProgram $out/bin/rp --prefix PATH : ${
+      lib.makeBinPath [
+        wireguard-tools
+        wireguard-go
+      ]
+    }
   '';
 
   meta = {
