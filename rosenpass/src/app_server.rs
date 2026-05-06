@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 
 use mio::{Interest, Token};
+#[cfg(unix)]
 use signal_hook_mio::v1_0 as signal_hook_mio;
-
 use anyhow::{bail, Context, Result};
 use derive_builder::Builder;
 use log::{error, info, warn};
@@ -818,13 +818,23 @@ impl AppServer {
         // Setup signal handling
         let signal_handler = attempt!({
             let mut handler =
-                signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
+                #[cfg(unix)]
+        {
+            let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
             let mio_token = mio_token_dispenser.dispense();
             mio_poll
                 .registry()
-                .register(&mut handler, mio_token, Interest::READABLE)?;
+                .register(&mut signals, mio_token, Interest::READABLE)?;
             let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
             assert!(prev.is_none());
+        }
+
+            
+            
+                
+                
+            
+            
             Ok(NullDebug(handler))
         })
         .context("Failed to set up signal (user triggered program termination) handler")?;
