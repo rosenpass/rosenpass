@@ -797,11 +797,7 @@ impl HostPathDiscoveryEndpoint {
 
 impl AppServer {
     /// Construct a new AppServer
-    ///
-    /// # Examples
-    ///
-    /// See [Self].
-    pub fn new(
+pub fn new(
         keypair: Option<(SSk, SPk)>,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
@@ -816,7 +812,7 @@ impl AppServer {
         let mut io_source_index = HashMap::new();
 
         // Setup signal handling
-let signal_handler = attempt!({
+        let signal_handler = rosenpass_util::attempt!({
             let mut handler = ();
             #[cfg(unix)]
             {
@@ -830,24 +826,12 @@ let signal_handler = attempt!({
                 handler = signals;
             }
             Ok(NullDebug(handler))
-        });
-        .context("Failed to set up signal (user triggered program termination) handler")?;
+        }).context("Failed to set up signal (user triggered program termination) handler")?;
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
             addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
         let mut sockets = maybe_sockets?;
-
-        // When no socket is specified, rosenpass should open one port on all
-        // available interfaces best-effort. Here are the cases how this can possibly go:
-        //
-        // Some operating systems (such as Linux [^linux] and FreeBSD [^freebsd])
-        // using IPv6 sockets to handle IPv4 connections; on these systems
-        // binding to the `[::]:0` address will typically open a dual-stack
-        // socket. Some other systems such as OpenBSD [^openbsd] do not support this feature.
-        //
-        // Dual-stack systems provide a flag to enable or disable this
-        // behavior – the IPV6_V6ONLY flag. OpenBSD supports this flag
         // read-only. MIO[^mio] provides a way to read this flag but not
         // to write it.
         //
