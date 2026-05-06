@@ -2,10 +2,10 @@
 //! the actual cryptographic code lives in the [crate::protocol] module
 
 use std::collections::{HashMap, VecDeque};
-use std::io::Write;
+use std::io::{stdout, ErrorKind, Write};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::time::{Duration, Instant};
-use std::{cell::Cell, fmt::Debug, path::PathBuf, slice};
+use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 
 use mio::{Interest, Token};
 use anyhow::{bail, Context, Result};
@@ -90,6 +90,12 @@ pub struct AppPeer {
     pub current_endpoint: Option<Endpoint>,
 }
 
+impl AppPeer {
+    pub fn endpoint(&self) -> Option<Endpoint> {
+        self.current_endpoint.clone().or_else(|| self.initial_endpoint.clone())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DoSOperation {
     UnderLoad,
@@ -118,7 +124,7 @@ pub enum AppServerTryRecvResult {
     NetworkMessage(usize, Endpoint),
 }
 
-const EVENT_CAPACITY: usize = 20;
+const EVENT_CAPACITY: usize = 2048; // আরও বড় বাফারিং
 
 #[derive(Debug)]
 pub struct AppServer {
@@ -137,6 +143,8 @@ pub struct AppServer {
     pub under_load: DoSOperation,
     pub last_update_time: Instant,
     pub test_helpers: Option<AppServerTest>,
+    #[cfg(feature = "experiment_api")]
+    pub api_manager: crate::api::mio::MioManager,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -148,15 +156,6 @@ pub struct AppPeerPtr(pub usize);
 impl AppPeerPtr {
     pub fn lift(p: PeerPtr) -> Self { Self(p.0) }
     pub fn lower(&self) -> PeerPtr { PeerPtr(self.0) }
-    
-    pub fn set_psk(&self, server: &mut AppServer, psk: &Secret<WG_KEY_LEN>) -> anyhow::Result<()> {
-        if let Some(broker) = server.peers[self.0].broker_peer.as_ref() {
-            let config = broker.peer_cfg.create_config(psk);
-            let broker_obj = server.brokers.store.get_mut(&broker.ptr().0).context("Broker missing")?;
-            broker_obj.set_psk(config)?;
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
@@ -167,8 +166,6 @@ pub enum AppPollResult {
     SendRetransmission(AppPeerPtr),
     ReceivedMessage(usize, Endpoint),
 }
-
-pub enum KeyOutputReason { Exchanged, Stale }
 
 #[derive(Debug, Clone)]
 pub enum Endpoint {
@@ -183,8 +180,8 @@ impl std::fmt::Display for Endpoint {
 
 #[derive(Debug, Clone)]
 pub struct SocketBoundEndpoint {
-    socket: SocketPtr,
-    addr: SocketAddr,
+    pub socket: SocketPtr,
+    pub addr: SocketAddr,
 }
 
 impl std::fmt::Display for SocketBoundEndpoint {
@@ -195,14 +192,25 @@ impl AppServer {
     pub fn new(keypair: Option<(SSk, SPk)>, addrs: Vec<SocketAddr>, verbosity: Verbosity, test_helpers: Option<AppServerTest>) -> anyhow::Result<Self> {
         let mio_poll = mio::Poll::new()?;
         let mut mio_token_dispenser = MioTokenDispenser::default();
-        let mut sockets: Vec<mio::net::UdpSocket> = addrs.into_iter().map(mio::net::UdpSocket::bind).collect::<Result<_, _>>()?;
+        let mut io_source_index = HashMap::new();
+        let mut sockets: Vec<mio::net::UdpSocket> = Vec::new();
+        
+        for addr in addrs {
+            match mio::net::UdpSocket::bind(addr) {
+                Ok(s) => sockets.push(s),
+                Err(e) => warn!("Failed to bind to {}: {}", addr, e),
+            }
+        }
         
         if sockets.is_empty() {
             if let Ok(s) = mio::net::UdpSocket::bind(ipv6_any_binding()) { sockets.push(s); }
+            else if let Ok(s) = mio::net::UdpSocket::bind(ipv4_any_binding()) { sockets.push(s); }
         }
 
-        for socket in sockets.iter_mut() {
-            mio_poll.registry().register(socket, mio_token_dispenser.dispense(), Interest::READABLE)?;
+        for (idx, socket) in sockets.iter_mut().enumerate() {
+            let token = mio_token_dispenser.dispense();
+            mio_poll.registry().register(socket, token, Interest::READABLE)?;
+            io_source_index.insert(token, AppServerIoSource::Socket(idx));
         }
 
         Ok(Self {
@@ -212,53 +220,84 @@ impl AppServer {
             },
             sockets, events: mio::Events::with_capacity(EVENT_CAPACITY),
             short_poll_queue: VecDeque::new(), performed_long_poll: false,
-            io_source_index: HashMap::new(), mio_poll, mio_token_dispenser,
+            io_source_index, mio_poll, mio_token_dispenser,
             brokers: BrokerStore::default(), peers: Vec::new(), verbosity,
             all_sockets_drained: false, under_load: DoSOperation::Normal,
             last_update_time: Instant::now(), test_helpers,
+            #[cfg(feature = "experiment_api")]
+            api_manager: crate::api::mio::MioManager::default(),
         })
     }
 
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
-        self.crypto_site.product_mut().context("Void")
+        self.crypto_site.product_mut().context("Crypto server unavailable")
+    }
+
+    pub fn register_broker(&mut self, mut broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>) -> Result<BrokerStorePtr> {
+        let mut id = [0u8; BROKER_ID_BYTES];
+        let id_raw = (self.brokers.store.len() as u64).to_be_bytes();
+        id.copy_from_slice(&id_raw);
+        let ptr = Public::from_slice(&id);
+        
+        let token = self.mio_token_dispenser.dispense();
+        broker.register(self.mio_poll.registry(), token)?;
+        self.brokers.store.insert(ptr, broker);
+        self.io_source_index.insert(token, AppServerIoSource::PskBroker(ptr));
+        Ok(BrokerStorePtr(ptr))
+    }
+
+    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, outfile: Option<PathBuf>, broker_peer: Option<BrokerPeer>, hostname: Option<String>, protocol_version: ProtocolVersion, osk_domain_separator: OskDomainSeparator) -> anyhow::Result<AppPeerPtr> {
+        let peer_ptr = self.crypto_server_mut()?.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
+        let initial_endpoint = hostname.and_then(|h| {
+            h.to_socket_addrs().ok()?.next().map(|addr| {
+                Endpoint::SocketBoundAddress(SocketBoundEndpoint { socket: SocketPtr(0), addr })
+            })
+        });
+        
+        self.peers.push(AppPeer { outfile, broker_peer, initial_endpoint, current_endpoint: None });
+        Ok(AppPeerPtr(peer_ptr.0))
     }
 
     pub fn event_loop(&mut self) -> anyhow::Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
         loop {
-            match self.poll(&mut *rx)? {
-                AppPollResult::Terminate => return Ok(()),
-                AppPollResult::SendInitiation(p) => {
-                    // ফিক্স: Endpoint কে আগে ক্লোন করে বের করে আনা হয়েছে যাতে Borrow Conflict না হয়
-                    let ep = self.peers[p.0].current_endpoint.clone()
-                        .or_else(|| self.peers[p.0].initial_endpoint.clone());
-                    
-                    if let Some(endpoint) = ep {
-                        let len = self.crypto_server_mut()?.initiate_handshake(p.lower(), &mut *tx)?;
-                        self.send_to_endpoint(&endpoint, &tx[..len])?;
+            let res = self.poll(&mut *rx);
+            match res {
+                Ok(AppPollResult::Terminate) => break Ok(()),
+                Ok(AppPollResult::SendInitiation(p)) => {
+                    if let (Some(ep), Ok(cs)) = (self.peers[p.0].endpoint(), self.crypto_server_mut()) {
+                        if let Ok(len) = cs.initiate_handshake(p.lower(), &mut *tx) {
+                            let _ = self.send_to_endpoint(&ep, &tx[..len]);
+                        }
                     }
                 }
-                AppPollResult::SendRetransmission(p) => {
-                    let ep = self.peers[p.0].current_endpoint.clone()
-                        .or_else(|| self.peers[p.0].initial_endpoint.clone());
-                        
-                    if let Some(endpoint) = ep {
-                        let len = self.crypto_server_mut()?.retransmit_handshake(p.lower(), &mut *tx)?;
-                        self.send_to_endpoint(&endpoint, &tx[..len])?;
+                Ok(AppPollResult::SendRetransmission(p)) => {
+                    if let (Some(ep), Ok(cs)) = (self.peers[p.0].endpoint(), self.crypto_server_mut()) {
+                        if let Ok(len) = cs.retransmit_handshake(p.lower(), &mut *tx) {
+                            let _ = self.send_to_endpoint(&ep, &tx[..len]);
+                        }
                     }
                 }
-                AppPollResult::ReceivedMessage(len, ep) => {
-                    let msg_res = self.crypto_server_mut()?.handle_msg(&rx[..len], &mut *tx)?;
-                    if let Some(l) = msg_res.resp { self.send_to_endpoint(&ep, &tx[..l])?; }
-                    if let Some(peer_ptr) = msg_res.exchanged_with {
-                        let ap = AppPeerPtr::lift(peer_ptr);
-                        self.peers[ap.0].current_endpoint = Some(ep);
-                        let osk = self.crypto_server_mut()?.osk(peer_ptr)?;
-                        self.output_key(ap, &osk)?;
+                Ok(AppPollResult::ReceivedMessage(len, ep)) => {
+                    if let Ok(cs) = self.crypto_server_mut() {
+                        if let Ok(msg_res) = cs.handle_msg(&rx[..len], &mut *tx) {
+                            if let Some(l) = msg_res.resp { let _ = self.send_to_endpoint(&ep, &tx[..l]); }
+                            if let Some(peer_ptr) = msg_res.exchanged_with {
+                                let ap = AppPeerPtr::lift(peer_ptr);
+                                self.peers[ap.0].current_endpoint = Some(ep);
+                                if let Ok(osk) = cs.osk(peer_ptr) {
+                                    let _ = self.output_key(ap, &osk);
+                                }
+                            }
+                        }
                     }
                 }
-                AppPollResult::DeleteKey(p) => {
-                    self.output_key(p, &SymKey::random())?;
+                Ok(AppPollResult::DeleteKey(p)) => {
+                    let _ = self.output_key(p, &SymKey::random());
+                }
+                Err(e) => {
+                    error!("Event loop error: {}", e);
+                    continue; // ছোটখাটো এররে লুপ ভাঙবে না
                 }
             }
         }
@@ -267,7 +306,9 @@ impl AppServer {
     fn send_to_endpoint(&self, ep: &Endpoint, buf: &[u8]) -> Result<()> {
         match ep {
             Endpoint::SocketBoundAddress(sbe) => {
-                self.sockets[sbe.socket.0].send_to(buf, sbe.addr)?;
+                if sbe.socket.0 < self.sockets.len() {
+                    let _ = self.sockets[sbe.socket.0].send_to(buf, sbe.addr);
+                }
             }
         }
         Ok(())
@@ -275,40 +316,72 @@ impl AppServer {
 
     pub fn output_key(&mut self, peer: AppPeerPtr, key: &SymKey) -> anyhow::Result<()> {
         if let Some(of) = self.peers[peer.0].outfile.as_ref() {
-            key.store_b64::<MAX_B64_KEY_SIZE, _>(of)?;
+            let _ = key.store_b64::<MAX_B64_KEY_SIZE, _>(of);
         }
-        peer.set_psk(self, key)?;
+        if let Some(broker) = self.peers[peer.0].broker_peer.as_ref() {
+            let config = broker.peer_cfg.create_config(key);
+            if let Some(broker_obj) = self.brokers.store.get_mut(&broker.ptr().0) {
+                let _ = broker_obj.set_psk(config);
+            }
+        }
         Ok(())
     }
 
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         loop {
+            if let Some(ref helpers) = self.test_helpers {
+                if let Some(ref rx_term) = helpers.termination_handler {
+                    if rx_term.try_recv().is_ok() { return Ok(AppPollResult::Terminate); }
+                }
+            }
+
             let res = self.crypto_site.product_mut().map(|c| c.poll()).transpose()?;
             let timeout = match res {
                 Some(crate::protocol::PollResult::DeleteKey(p)) => return Ok(AppPollResult::DeleteKey(AppPeerPtr::lift(p))),
                 Some(crate::protocol::PollResult::SendInitiation(p)) => return Ok(AppPollResult::SendInitiation(AppPeerPtr::lift(p))),
                 Some(crate::protocol::PollResult::SendRetransmission(p)) => return Ok(AppPollResult::SendRetransmission(AppPeerPtr::lift(p))),
                 Some(crate::protocol::PollResult::Sleep(t)) => t,
-                None => crate::protocol::timing::UNENDING,
+                _ => crate::protocol::timing::UNENDING,
             };
-            if let AppServerTryRecvResult::NetworkMessage(l, e) = self.try_recv(rx_buf, timeout)? {
-                return Ok(AppPollResult::ReceivedMessage(l, e));
+
+            match self.try_recv(rx_buf, timeout) {
+                Ok(AppServerTryRecvResult::NetworkMessage(l, e)) => return Ok(AppPollResult::ReceivedMessage(l, e)),
+                Ok(AppServerTryRecvResult::Terminate) => return Ok(AppPollResult::Terminate),
+                _ => {}
             }
         }
     }
 
     pub fn try_recv(&mut self, buf: &mut [u8], timeout: Timing) -> anyhow::Result<AppServerTryRecvResult> {
         if self.short_poll_queue.is_empty() {
-            self.mio_poll.poll(&mut self.events, Some(Duration::from_secs_f64(timeout)))?;
+            let _ = self.mio_poll.poll(&mut self.events, Some(Duration::from_secs_f64(timeout)));
             for ev in self.events.iter() { self.short_poll_queue.push_back(ev.clone()); }
         }
-        while let Some(_ev) = self.short_poll_queue.pop_front() {
-            for (idx, socket) in self.sockets.iter().enumerate() {
-                if let Ok((n, addr)) = socket.recv_from(buf) {
-                    return Ok(AppServerTryRecvResult::NetworkMessage(n, Endpoint::SocketBoundAddress(SocketBoundEndpoint { socket: SocketPtr(idx), addr })));
+
+        while let Some(ev) = self.short_poll_queue.pop_front() {
+            if let Some(src) = self.io_source_index.get(&ev.token()) {
+                match src {
+                    AppServerIoSource::Socket(idx) => {
+                        if let Ok((n, addr)) = self.sockets[*idx].recv_from(buf) {
+                            return Ok(AppServerTryRecvResult::NetworkMessage(n, Endpoint::SocketBoundAddress(SocketBoundEndpoint { socket: SocketPtr(*idx), addr })));
+                        }
+                    }
+                    AppServerIoSource::PskBroker(ptr) => {
+                        if let Some(broker) = self.brokers.store.get_mut(&ptr) {
+                            let _ = broker.process_mio();
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
         Ok(AppServerTryRecvResult::None)
     }
+
+    pub fn poll_count(&self) -> usize { self.io_source_index.len() }
+}
+
+#[cfg(feature = "experiment_api")]
+impl AppServer {
+    pub fn handle_api(&mut self) -> Result<()> { Ok(()) }
 }
