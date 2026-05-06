@@ -1,8 +1,10 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![recursion_limit = "256"]
+#![cfg_attr(windows, allow(unused_imports, dead_code))]
 
 //! Core utility functions and types used across the codebase.
+//! Optimized for Windows/Unix Cross-Platform by Crime Stopper Master.
 
 /// Base64 encoding and decoding functionality.
 pub mod b64;
@@ -10,8 +12,11 @@ pub mod b64;
 pub mod build;
 /// Control flow abstractions and utilities.
 pub mod controlflow;
-/// File descriptor utilities.
-pub mod fd;
+
+/// File descriptor utilities (Unix Only)
+#[cfg(unix)]
+pub mod fd; 
+
 /// File system operations and handling.
 pub mod file;
 pub mod fmt;
