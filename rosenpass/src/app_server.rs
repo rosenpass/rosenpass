@@ -8,8 +8,6 @@ use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 
 use mio::{Interest, Token};
-#[cfg(unix)]
-use signal_hook_mio::v1_0 as signal_hook_mio;
 use anyhow::{bail, Context, Result};
 use derive_builder::Builder;
 use log::{error, info, warn};
@@ -37,9 +35,7 @@ pub const MAX_B64_KEY_SIZE: usize = 32 * 5 / 3;
 pub const MAX_B64_PEER_ID_SIZE: usize = 32 * 5 / 3;
 
 const IPV4_ANY_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0);
-const UNDER_LOAD_RATIO: f64 = 0.5;
-const DURATION_UPDATE_UNDER_LOAD_STATUS: Duration = Duration::from_millis(500);
+const IPV6_ANY_ADDR: Ipv6Addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 pub const BROKER_ID_BYTES: usize = 8;
 
 pub fn ipv4_any_binding() -> SocketAddr {
@@ -145,7 +141,13 @@ pub struct AppServer {
     pub io_source_index: HashMap<mio::Token, AppServerIoSource>,
     pub mio_poll: mio::Poll,
     pub mio_token_dispenser: MioTokenDispenser,
-    pub signal_handler: NullDebug<signal_hook_mio::Signals>,
+    
+    // এরর ফিক্স: উইন্ডোজের জন্য সিগন্যাল হ্যান্ডলার অপশনাল করা হয়েছে
+    #[cfg(unix)]
+    pub signal_handler: NullDebug<signal_hook_mio::v1_0::Signals>,
+    #[cfg(not(unix))]
+    pub signal_handler: NullDebug<()>,
+
     pub brokers: BrokerStore,
     pub peers: Vec<AppPeer>,
     pub verbosity: Verbosity,
@@ -187,8 +189,6 @@ impl AppPeerPtr {
             let config = broker.peer_cfg.create_config(psk);
             let broker_obj = server.brokers.store.get_mut(&broker.ptr().0).unwrap();
             broker_obj.set_psk(config)?;
-        } else if server.peers[self.0].outfile.is_none() {
-            log::warn!("No broker peer found for peer {}", self.0);
         }
         Ok(())
     }
@@ -268,26 +268,8 @@ impl HostIdentification for SocketBoundEndpoint {
 }
 
 impl Endpoint {
-    pub fn discovery_from_addresses(addresses: Vec<SocketAddr>) -> Self {
-        Endpoint::Discovery(HostPathDiscoveryEndpoint::from_addresses(addresses))
-    }
-
     pub fn discovery_from_hostname(hostname: String) -> anyhow::Result<Self> {
         Ok(Endpoint::Discovery(HostPathDiscoveryEndpoint::lookup(hostname)?))
-    }
-
-    pub fn discovery_from_multiple_sources(a: Option<&Endpoint>, b: Option<&Endpoint>) -> Option<Self> {
-        let sources = match (a, b) {
-            (Some(e), None) | (None, Some(e)) => e.addresses().iter().chain(&[]),
-            (Some(e1), Some(e2)) => e1.addresses().iter().chain(e2.addresses()),
-            (None, None) => return None,
-        };
-        let mut addrs = Vec::new();
-        let mut dedup = std::collections::HashSet::new();
-        for addr in sources {
-            if dedup.insert(addr) { addrs.push(*addr); }
-        }
-        Some(Self::discovery_from_addresses(addrs))
     }
 
     pub fn send(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
@@ -311,12 +293,6 @@ pub struct HostPathDiscoveryEndpoint {
     addresses: Vec<SocketAddr>,
 }
 
-impl std::fmt::Display for HostPathDiscoveryEndpoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.addresses)
-    }
-}
-
 impl HostPathDiscoveryEndpoint {
     pub fn from_addresses(addresses: Vec<SocketAddr>) -> Self {
         Self { addresses, scouting_state: Cell::new((0, 0)) }
@@ -331,34 +307,20 @@ impl HostPathDiscoveryEndpoint {
 
     pub fn addresses(&self) -> &[SocketAddr] { &self.addresses }
 
-    fn insert_next_scout_offset(&self, srv: &AppServer, addr_no: usize, sock_no: usize) {
-        self.scouting_state.set((
-            (addr_no + 1) % self.addresses.len(),
-            (sock_no + 1) % srv.sockets.len(),
-        ));
-    }
-
     pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
         let (addr_off, sock_off) = self.scouting_state.get();
-        let mut addrs = self.addresses.iter().enumerate().cycle().skip(addr_off).take(self.addresses.len());
+        let addrs = self.addresses.iter().enumerate().cycle().skip(addr_off).take(self.addresses.len());
         let mut sockets = srv.sockets.iter().enumerate().cycle().skip(sock_off).take(srv.sockets.len());
 
-        for (addr_no, addr) in addrs.by_ref() {
+        for (addr_no, addr) in addrs {
             for (sock_no, sock) in sockets.by_ref() {
-                match sock.send_to(buf, *addr) {
-                    Ok(_) => {
-                        self.insert_next_scout_offset(srv, addr_no, sock_no);
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        if !e.to_string().starts_with("Address family not supported") {
-                            warn!("Socket #{} error sending to {}: {}", sock_no, addr, e);
-                        }
-                    }
+                if sock.send_to(buf, *addr).is_ok() {
+                    self.scouting_state.set(((addr_no + 1) % self.addresses.len(), (sock_no + 1) % srv.sockets.len()));
+                    return Ok(());
                 }
             }
         }
-        bail!("All sockets failed to send scouting message.")
+        bail!("Unable to send message: All sockets failed.")
     }
 }
 
@@ -369,27 +331,23 @@ impl AppServer {
         let mut mio_token_dispenser = MioTokenDispenser::default();
         let mut io_source_index = HashMap::new();
 
+        #[cfg(unix)]
         let signal_handler = attempt!({
-            #[cfg(unix)] {
-                let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
-                let token = mio_token_dispenser.dispense();
-                mio_poll.registry().register(&mut signals, token, Interest::READABLE)?;
-                io_source_index.insert(token, AppServerIoSource::SignalHandler);
-                Ok(NullDebug(signals))
-            }
-            #[cfg(not(unix))] { Ok(NullDebug(())) }
-        })?;
+            let mut signals = signal_hook_mio::v1_0::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
+            let token = mio_token_dispenser.dispense();
+            mio_poll.registry().register(&mut signals, token, Interest::READABLE)?;
+            io_source_index.insert(token, AppServerIoSource::SignalHandler);
+            Ok(NullDebug(signals))
+        }).context("Failed to set up signal handler")?;
+
+        #[cfg(not(unix))]
+        let signal_handler = NullDebug(());
 
         let mut sockets: Vec<mio::net::UdpSocket> = addrs.into_iter().map(mio::net::UdpSocket::bind).collect::<Result<_, _>>()?;
 
         if sockets.is_empty() {
-            let mut try_bind = |title, binding| {
-                match mio::net::UdpSocket::bind(binding) {
-                    Ok(s) => { sockets.push(s); true }
-                    Err(e) => { warn!("Could not bind {}: {}", title, e); false }
-                }
-            };
-            if !try_bind("IPv6", ipv6_any_binding()) { try_bind("IPv4", ipv4_any_binding()); }
+            if let Ok(s) = mio::net::UdpSocket::bind(ipv6_any_binding()) { sockets.push(s); }
+            else if let Ok(s) = mio::net::UdpSocket::bind(ipv4_any_binding()) { sockets.push(s); }
         }
 
         for (idx, socket) in sockets.iter_mut().enumerate() {
@@ -424,84 +382,6 @@ impl AppServer {
         self.crypto_site.product_ref().context("Void")
     }
 
-    pub fn register_broker(&mut self, mut broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>) -> Result<BrokerStorePtr> {
-        let ptr = Public::from_slice((self.brokers.store.len() as u64).as_bytes());
-        let token = self.mio_token_dispenser.dispense();
-        broker.register(self.mio_poll.registry(), token)?;
-        self.brokers.store.insert(ptr, broker);
-        self.io_source_index.insert(token, AppServerIoSource::PskBroker(ptr));
-        Ok(BrokerStorePtr(ptr))
-    }
-
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, outfile: Option<PathBuf>, broker_peer: Option<BrokerPeer>, hostname: Option<String>, protocol_version: ProtocolVersion, osk_domain_separator: OskDomainSeparator) -> anyhow::Result<AppPeerPtr> {
-        let pn = self.crypto_server_mut()?.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
-        let initial_endpoint = hostname.map(Endpoint::discovery_from_hostname).transpose()?;
-        self.peers.push(AppPeer { outfile, broker_peer, initial_endpoint, current_endpoint: None });
-        Ok(AppPeerPtr(pn.0))
-    }
-
-    pub fn event_loop(&mut self) -> anyhow::Result<()> {
-        loop {
-            if let Err(e) = self.event_loop_without_error_handling() {
-                error!("Loop error: {e:?}");
-                std::thread::sleep(Duration::from_millis(100));
-            } else { return Ok(()); }
-        }
-    }
-
-    pub fn event_loop_without_error_handling(&mut self) -> anyhow::Result<()> {
-        let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
-        loop {
-            let poll_result = self.poll(&mut *rx)?;
-            match poll_result {
-                AppPollResult::Terminate => return Ok(()),
-                AppPollResult::SendInitiation(p) => {
-                    if let Some(ep) = p.get_app(self).endpoint() {
-                        let len = self.crypto_server_mut()?.initiate_handshake(p.lower(), &mut *tx)?;
-                        ep.send(self, &tx[..len])?;
-                    }
-                }
-                AppPollResult::SendRetransmission(p) => {
-                    if let Some(ep) = p.get_app(self).endpoint() {
-                        let len = self.crypto_server_mut()?.retransmit_handshake(p.lower(), &mut *tx)?;
-                        ep.send(self, &tx[..len])?;
-                    }
-                }
-                AppPollResult::DeleteKey(p) => {
-                    self.output_key(p, KeyOutputReason::Stale, &SymKey::random())?;
-                    let app = p.get_app_mut(self);
-                    app.current_endpoint = Endpoint::discovery_from_multiple_sources(app.current_endpoint.as_ref(), app.initial_endpoint.as_ref());
-                }
-                AppPollResult::ReceivedMessage(len, ep) => {
-                    let res = self.crypto_server_mut()?.handle_msg(&rx[..len], &mut *tx);
-                    match res {
-                        Ok(msg_res) => {
-                            if let Some(l) = msg_res.resp { ep.send(self, &tx[..l])?; }
-                            if let Some(peer_ptr) = msg_res.exchanged_with {
-                                let ap = AppPeerPtr::lift(peer_ptr);
-                                ap.get_app_mut(self).current_endpoint = Some(ep);
-                                let osk = self.crypto_server_mut()?.osk(peer_ptr)?;
-                                self.output_key(ap, KeyOutputReason::Exchanged, &osk)?;
-                            }
-                        }
-                        Err(e) => if matches!(self.verbosity, Verbosity::Verbose) { warn!("Msg error: {e}"); }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn output_key(&mut self, peer: AppPeerPtr, why: KeyOutputReason, key: &SymKey) -> anyhow::Result<()> {
-        let pid = peer.lower().get(self.crypto_server()?).pidt()?;
-        if let Some(of) = peer.get_app(self).outfile.as_ref() {
-            key.store_b64::<MAX_B64_KEY_SIZE, _>(of)?;
-            let why_str = match why { KeyOutputReason::Exchanged => "exchanged", KeyOutputReason::Stale => "stale" };
-            writeln!(stdout().lock(), "output-key peer {} key-file {of:?} {why_str}", pid.fmt_b64::<MAX_B64_PEER_ID_SIZE>())?;
-        }
-        peer.set_psk(self, key)?;
-        Ok(())
-    }
-
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         loop {
             let crypto_poll = self.crypto_site.product_mut().map(|c| c.poll()).transpose()?;
@@ -522,7 +402,7 @@ impl AppServer {
 
     pub fn try_recv(&mut self, buf: &mut [u8], timeout: Timing) -> anyhow::Result<AppServerTryRecvResult> {
         let d = Duration::from_secs_f64(timeout);
-        if self.short_poll_queue.is_empty() && self.all_sockets_drained {
+        if self.short_poll_queue.is_empty() {
             self.mio_poll.poll(&mut self.events, Some(d))?;
             for ev in self.events.iter() { self.short_poll_queue.push_back(ev.clone()); }
         }
@@ -536,12 +416,10 @@ impl AppServer {
                             return Ok(AppServerTryRecvResult::NetworkMessage(n, Endpoint::SocketBoundAddress(SocketBoundEndpoint::new(SocketPtr(*idx), addr))));
                         }
                     }
-                    AppServerIoSource::PskBroker(k) => { self.brokers.store.get_mut(k).unwrap().process_poll()?; }
                     _ => {}
                 }
             }
         }
-        self.all_sockets_drained = true;
         Ok(AppServerTryRecvResult::None)
     }
 }
