@@ -809,7 +809,7 @@ pub fn new(
 
         // And helpers to map mio tokens to internal event types
         let mut mio_token_dispenser = MioTokenDispenser::default();
-        let mut io_source_index = HashMap::new();
+let mut io_source_index = HashMap::new();
 
         // Setup signal handling
         let signal_handler = rosenpass_util::attempt!({
@@ -832,25 +832,12 @@ pub fn new(
         let maybe_sockets: Result<Vec<_>, _> =
             addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
         let mut sockets = maybe_sockets?;
-        // read-only. MIO[^mio] provides a way to read this flag but not
-        // to write it.
-        //
-        // - One dual-stack IPv6 socket, if the operating supports dual-stack sockets and
-        //   correctly reports this
-        // - One IPv6 socket and one IPv4 socket if the operating does not support dual stack
-        //   sockets or disables them by default assuming this is also correctly reported
-        // - One IPv6 socket and no IPv4 socket if IPv6 socket is not dual-stack and opening
-        //   the IPv6 socket fails
-        // - One IPv4 socket and no IPv6 socket if opening the IPv6 socket fails
-        // - One dual-stack IPv6 socket and a redundant IPv4 socket if dual-stack sockets are
-        //   supported but the operating system does not correctly report this (specifically,
-        //   if the only_v6() call raises an error)
-        // - Rosenpass exits if no socket could be opened
-        //
-        // [^freebsd]: https://man.freebsd.org/cgi/man.cgi?query=ip6&sektion=4&manpath=FreeBSD+6.0-RELEASE
-        // [^openbsd]: https://man.openbsd.org/ip6.4
-        // [^linux]: https://man7.org/linux/man-pages/man7/ipv6.7.html
-        // [^mio]: https://docs.rs/mio/0.8.6/mio/net/struct.UdpSocket.html#method.only_v6
+
+        #[cfg(unix)]
+        pub signal_handler: NullDebug<signal_hook_mio::Signals>,
+        #[cfg(not(unix))]
+        pub signal_handler: NullDebug<()>,
+
         if sockets.is_empty() {
             macro_rules! try_register_socket {
                 ($title:expr, $binding:expr) => {{
