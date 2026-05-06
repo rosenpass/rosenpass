@@ -816,27 +816,21 @@ impl AppServer {
         let mut io_source_index = HashMap::new();
 
         // Setup signal handling
-        let signal_handler = attempt!({
-            let mut handler =
-                #[cfg(unix)]
-        {
-            let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
-            let mio_token = mio_token_dispenser.dispense();
-            mio_poll
-                .registry()
-                .register(&mut signals, mio_token, Interest::READABLE)?;
-            let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
-            assert!(prev.is_none());
-        }
-
-            
-            
-                
-                
-            
-            
+let signal_handler = attempt!({
+            let mut handler = ();
+            #[cfg(unix)]
+            {
+                let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
+                let mio_token = mio_token_dispenser.dispense();
+                mio_poll
+                    .registry()
+                    .register(&mut signals, mio_token, Interest::READABLE)?;
+                let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
+                assert!(prev.is_none());
+                handler = signals;
+            }
             Ok(NullDebug(handler))
-        })
+        });
         .context("Failed to set up signal (user triggered program termination) handler")?;
 
         // bind each SocketAddr to a socket
