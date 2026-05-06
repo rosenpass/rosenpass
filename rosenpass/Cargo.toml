@@ -10,19 +10,18 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 rust-version = "1.77.0"
 
-# --- STRATEGIC OPTIMIZATION (Zero-Error Performance) ---
+# --- Master Jawad's Zero-Error Optimization ---
 [profile.release]
-opt-level = 3          # Maximum speed optimization
-lto = "fat"            # Complete link-time optimization for all platforms
-panic = "abort"        # Universal error recovery and smaller binary size
-codegen-units = 1      # Ensures no cross-module conflicts
-strip = true           # Protection and efficiency for the final build
+opt-level = 3
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+strip = true
 
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
 
-# --- CORE UNIVERSAL DEPENDENCIES ---
 [dependencies]
 rosenpass-util = { workspace = true }
 rosenpass-constant-time = { workspace = true }
@@ -42,7 +41,6 @@ toml = { workspace = true }
 clap = { workspace = true, features = ["derive", "env", "string", "wrap_help"] }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
-mio = { workspace = true, features = ["os-poll", "net", "os-ext"] } # Enable multi-network communication
 rand = { workspace = true }
 zerocopy = { workspace = true }
 home = { workspace = true }
@@ -53,36 +51,34 @@ assert_tv = { workspace = true }
 base64 = { workspace = true }
 serde_json = { workspace = true }
 
-# --- OMNI-PLATFORM INTELLIGENT ADAPTATION ---
-# This section ensures 100% error-free operation across all OS.
+# Universal Networking (Fixed for Windows)
+mio = { workspace = true, features = ["os-poll", "net"] } 
 
-# 1. Linux & Android Support
+# --- PLATFORM-SPECIFIC GATES (The Error Killer) ---
+
+# Linux & Android: Only loads these if OS is Linux/Android
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 rustix = { workspace = true, features = ["fs", "net", "process", "param"] }
 uds = { workspace = true, features = ["mio_1xx"] }
 signal-hook = { workspace = true }
 signal-hook-mio = { workspace = true }
 
-# 2. Windows Support (Auto-Fixes Unix-link errors)
+# Windows: Completely ignores Unix-specific crates
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52.0", features = ["Win32_Foundation", "Win32_Networking_WinSock", "Win32_Storage_FileSystem", "Win32_System_IO"] }
 
-# 3. Apple (macOS & iOS) Support
+# macOS & Apple
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 rustix = { workspace = true, features = ["fs", "net"] }
 signal-hook = { workspace = true }
-
-# 4. BSD & Other Operating Systems
-[target.'cfg(target_os = "freebsd")'.dependencies]
-rustix = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
 
 [features]
-default = ["auto-optimize", "network-discovery"]
-auto-optimize = []      # Self-correcting hardware optimization
-network-discovery = [] # Automatic adaptation to any network interface (OVS/Standard)
+default = ["auto-optimize"]
+auto-optimize = [] 
+experiment_api = ["rosenpass-util/experiment_file_descriptor_passing"]
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
