@@ -748,7 +748,178 @@ impl HostPathDiscoveryEndpoint {
             (sock_no + 1) % srv.sockets.len(),
         ));
     }
++ 1) % srv.sockets.len(),
+        ));
+    }
 
+    /// Attempt to reach the host
+    ///
+    /// Will round-robin-try different socket-ip-combinations on each call.
+    pub fn send_scouting(&self, srv: &AppServer, buf: &[u8]) -> anyhow::Result<()> {
+        let (addr_off, sock_off) = self.scouting_state.get();
+
+        let mut addrs = (self.addresses)
+            .iter()
+            .enumerate()
+            .cycle()
+            .skip(addr_off)
+            .take(self.addresses.len());
+        let mut sockets = (srv.sockets)
+            .iter()
+            .enumerate()
+            .cycle()
+            .skip(sock_off)
+            .take(srv.sockets.len());
+
+        for (addr_no, addr) in addrs.by_ref() {
+            for (sock_no, sock) in sockets.by_ref() {
+                let res = sock.send_to(buf, *addr);
+                let err = match res {
+                    Ok(_) => {
+                        self.insert_next_scout_offset(srv, addr_no, sock_no);
+                        return Ok(());
+                    }
+                    Err(e) => e,
+                };
+
+                let ignore = err
+                    .to_string()
+                    .starts_with("Address family not supported by protocol");
+                if !ignore {
+                    warn!("Socket #{} refusing to send to {}: {}", sock_no, addr, err);
+                }
+            }
+        }
+
+        bail!("Unable to send message: All sockets returned errors.")
+    }
+}
+
+impl AppServer {
+    /// Construct a new AppServer
+    pub fn new(
+        keypair: Option<(SSk, SPk)>,
+        addrs: Vec<SocketAddr>,
+        verbosity: Verbosity,
+        test_helpers: Option<AppServerTest>,
+    ) -> anyhow::Result<Self> {
+        // Setup Mio itself
+        let mio_poll = mio::Poll::new()?;
+        let events = mio::Events::with_capacity(EVENT_CAPACITY);
+
+        // And helpers to map mio tokens to internal event types
+        let mut mio_token_dispenser = MioTokenDispenser::default();
+        let mut io_source_index = HashMap::new();
+
+        // Setup signal handling (উইন্ডোজ এবং লিনাক্স দুইটির জন্যই নিরাপদ)
+        let signal_handler = rosenpass_util::attempt!({
+            #[cfg(unix)]
+            {
+                let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
+                let mio_token = mio_token_dispenser.dispense();
+                mio_poll
+                    .registry()
+                    .register(&mut signals, mio_token, Interest::READABLE)?;
+                let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
+                assert!(prev.is_none());
+                Ok(NullDebug(signals))
+            }
+            #[cfg(not(unix))]
+            {
+                Ok(NullDebug(()))
+            }
+        }).context("Failed to set up signal handler")?;
+
+        // bind each SocketAddr to a socket
+        let maybe_sockets: Result<Vec<_>, _> =
+            addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
+        let mut sockets = maybe_sockets?;
+
+        if sockets.is_empty() {
+            macro_rules! try_register_socket {
+                ($title:expr, $binding:expr) => {{
+                    let r = mio::net::UdpSocket::bind($binding);
+                    match r {
+                        Ok(sock) => {
+                            sockets.push(sock);
+                            Some(sockets.len() - 1)
+                        }
+                        Err(e) => {
+                            warn!("Could not bind to {} socket: {}", $title, e);
+                            None
+                        }
+                    }
+                }};
+            }
+
+            let v6 = try_register_socket!("IPv6", ipv6_any_binding());
+            let need_v4 = match v6.map(|no| sockets[no].only_v6()) {
+                Some(Ok(v)) => v,
+                None => true,
+                Some(Err(e)) => {
+                    warn!("Dual-stack check failed: {}", e);
+                    true
+                }
+            };
+
+            if need_v4 {
+                try_register_socket!("IPv4", ipv4_any_binding());
+            }
+        }
+
+        if sockets.is_empty() {
+            bail!("No sockets to listen on!")
+        }
+
+        for (idx, socket) in sockets.iter_mut().enumerate() {
+            let mio_token = mio_token_dispenser.dispense();
+            mio_poll
+                .registry()
+                .register(socket, mio_token, Interest::READABLE)?;
+            io_source_index.insert(mio_token, AppServerIoSource::Socket(idx));
+        }
+
+        let crypto_site = match keypair {
+            Some((sk, pk)) => ConstructionSite::from_product(CryptoServer::new(sk, pk)),
+            None => ConstructionSite::new(BuildCryptoServer::empty()),
+        };
+
+        Ok(Self {
+            crypto_site,
+            peers: Vec::new(),
+            verbosity,
+            sockets,
+            events,
+            short_poll_queue: Default::default(),
+            performed_long_poll: false,
+            io_source_index,
+            mio_poll,
+            mio_token_dispenser,
+            signal_handler,
+            brokers: BrokerStore::default(),
+            all_sockets_drained: false,
+            under_load: DoSOperation::Normal,
+            blocking_polls_count: 0,
+            non_blocking_polls_count: 0,
+            unpolled_count: 0,
+            last_update_time: Instant::now(),
+            test_helpers,
+            #[cfg(feature = "experiment_api")]
+            api_manager: crate::api::mio::MioManager::default(),
+        })
+    }
+
+    pub fn crypto_server(&self) -> anyhow::Result<&CryptoServer> {
+        self.crypto_site.product_ref().context("Cryptography handler not initialized")
+    }
+
+    pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
+        self.crypto_site.product_mut().context("Cryptography handler not initialized")
+    }
+
+    pub fn verbose(&self) -> bool {
+        matches!(self.verbosity, Verbosity::Verbose)
+    }
     /// Attempt to reach the host
     ///
     /// Will round-robin-try different socket-ip-combinations on each call.
@@ -796,8 +967,8 @@ impl HostPathDiscoveryEndpoint {
 }
 
 impl AppServer {
-    /// Construct a new AppServer
-pub fn new(
+/// Construct a new AppServer
+    pub fn new(
         keypair: Option<(SSk, SPk)>,
         addrs: Vec<SocketAddr>,
         verbosity: Verbosity,
@@ -809,11 +980,10 @@ pub fn new(
 
         // And helpers to map mio tokens to internal event types
         let mut mio_token_dispenser = MioTokenDispenser::default();
-let mut io_source_index = HashMap::new();
+        let mut io_source_index = HashMap::new();
 
         // Setup signal handling
         let signal_handler = rosenpass_util::attempt!({
-            let mut handler = ();
             #[cfg(unix)]
             {
                 let mut signals = signal_hook_mio::Signals::new(signal_hook::consts::TERM_SIGNALS.iter())?;
@@ -823,20 +993,18 @@ let mut io_source_index = HashMap::new();
                     .register(&mut signals, mio_token, Interest::READABLE)?;
                 let prev = io_source_index.insert(mio_token, AppServerIoSource::SignalHandler);
                 assert!(prev.is_none());
-                handler = signals;
+                Ok(NullDebug(signals))
             }
-            Ok(NullDebug(handler))
+            #[cfg(not(unix))]
+            {
+                Ok(NullDebug(()))
+            }
         }).context("Failed to set up signal (user triggered program termination) handler")?;
 
         // bind each SocketAddr to a socket
         let maybe_sockets: Result<Vec<_>, _> =
             addrs.into_iter().map(mio::net::UdpSocket::bind).collect();
         let mut sockets = maybe_sockets?;
-
-        #[cfg(unix)]
-        pub signal_handler: NullDebug<signal_hook_mio::Signals>,
-        #[cfg(not(unix))]
-        pub signal_handler: NullDebug<()>,
 
         if sockets.is_empty() {
             macro_rules! try_register_socket {
@@ -901,7 +1069,7 @@ let mut io_source_index = HashMap::new();
             io_source_index,
             mio_poll,
             mio_token_dispenser,
-            signal_handler,
+            signal_handler, // এখানে শুধু ভেরিয়েবলটির নাম থাকবে
             brokers: BrokerStore::default(),
             all_sockets_drained: false,
             under_load: DoSOperation::Normal,
@@ -916,11 +1084,6 @@ let mut io_source_index = HashMap::new();
     }
 
     /// Access the cryptographic protocol server
-    ///
-    /// This may return an error if [Self] was initialized without a keypair
-    /// and no keypair has been supplied since then.
-    ///
-    /// I.e. will return an error if [Self::crypto_site] is not fully initialized
     pub fn crypto_server(&self) -> anyhow::Result<&CryptoServer> {
         self.crypto_site
             .product_ref()
@@ -928,19 +1091,11 @@ let mut io_source_index = HashMap::new();
     }
 
     /// Access the cryptographic protocol server, mutably
-    ///
-    /// This may return an error if [Self] was initialized without a keypair
-    /// and no keypair has been supplied since then.
-    ///
-    /// I.e. will return an error if [Self::crypto_site] is not fully initialized
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
         self.crypto_site
             .product_mut()
             .context("Cryptography handler not initialized")
     }
-
-    /// If set to [Verbosity::Verbose], then some extra information will be printed
-    /// at the info log level
     pub fn verbose(&self) -> bool {
         matches!(self.verbosity, Verbosity::Verbose)
     }
