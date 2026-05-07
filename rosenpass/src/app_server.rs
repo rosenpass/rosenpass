@@ -124,7 +124,7 @@ pub enum AppServerTryRecvResult {
     NetworkMessage(usize, Endpoint),
 }
 
-const EVENT_CAPACITY: usize = 2048; // আরও বড় বাফারিং
+const EVENT_CAPACITY: usize = 2048;
 
 #[derive(Debug)]
 pub struct AppServer {
@@ -196,10 +196,7 @@ impl AppServer {
         let mut sockets: Vec<mio::net::UdpSocket> = Vec::new();
         
         for addr in addrs {
-            match mio::net::UdpSocket::bind(addr) {
-                Ok(s) => sockets.push(s),
-                Err(e) => warn!("Failed to bind to {}: {}", addr, e),
-            }
+            if let Ok(s) = mio::net::UdpSocket::bind(addr) { sockets.push(s); }
         }
         
         if sockets.is_empty() {
@@ -230,19 +227,19 @@ impl AppServer {
     }
 
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
-        self.crypto_site.product_mut().context("Crypto server unavailable")
+        self.crypto_site.product_mut().context("Crypto server error")
     }
 
     pub fn register_broker(&mut self, mut broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>) -> Result<BrokerStorePtr> {
-        let mut id = [0u8; BROKER_ID_BYTES];
         let id_raw = (self.brokers.store.len() as u64).to_be_bytes();
+        let mut id = [0u8; BROKER_ID_BYTES];
         id.copy_from_slice(&id_raw);
         let ptr = Public::from_slice(&id);
         
         let token = self.mio_token_dispenser.dispense();
         broker.register(self.mio_poll.registry(), token)?;
-        self.brokers.store.insert(ptr, broker);
-        self.io_source_index.insert(token, AppServerIoSource::PskBroker(ptr));
+        self.brokers.store.insert(ptr.clone(), broker); // .clone() added for HashMap stability
+        self.io_source_index.insert(token, AppServerIoSource::PskBroker(ptr.clone()));
         Ok(BrokerStorePtr(ptr))
     }
 
@@ -261,43 +258,34 @@ impl AppServer {
     pub fn event_loop(&mut self) -> anyhow::Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
         loop {
-            let res = self.poll(&mut *rx);
-            match res {
-                Ok(AppPollResult::Terminate) => break Ok(()),
-                Ok(AppPollResult::SendInitiation(p)) => {
-                    if let (Some(ep), Ok(cs)) = (self.peers[p.0].endpoint(), self.crypto_server_mut()) {
-                        if let Ok(len) = cs.initiate_handshake(p.lower(), &mut *tx) {
-                            let _ = self.send_to_endpoint(&ep, &tx[..len]);
-                        }
+            match self.poll(&mut *rx)? {
+                AppPollResult::Terminate => break Ok(()),
+                AppPollResult::SendInitiation(p) => {
+                    if let Some(ep) = self.peers[p.0].endpoint() {
+                        let len = self.crypto_server_mut()?.initiate_handshake(p.lower(), &mut *tx)?;
+                        let _ = self.send_to_endpoint(&ep, &tx[..len]);
                     }
                 }
-                Ok(AppPollResult::SendRetransmission(p)) => {
-                    if let (Some(ep), Ok(cs)) = (self.peers[p.0].endpoint(), self.crypto_server_mut()) {
-                        if let Ok(len) = cs.retransmit_handshake(p.lower(), &mut *tx) {
-                            let _ = self.send_to_endpoint(&ep, &tx[..len]);
-                        }
+                AppPollResult::SendRetransmission(p) => {
+                    if let Some(ep) = self.peers[p.0].endpoint() {
+                        let len = self.crypto_server_mut()?.retransmit_handshake(p.lower(), &mut *tx)?;
+                        let _ = self.send_to_endpoint(&ep, &tx[..len]);
                     }
                 }
-                Ok(AppPollResult::ReceivedMessage(len, ep)) => {
-                    if let Ok(cs) = self.crypto_server_mut() {
-                        if let Ok(msg_res) = cs.handle_msg(&rx[..len], &mut *tx) {
-                            if let Some(l) = msg_res.resp { let _ = self.send_to_endpoint(&ep, &tx[..l]); }
-                            if let Some(peer_ptr) = msg_res.exchanged_with {
-                                let ap = AppPeerPtr::lift(peer_ptr);
-                                self.peers[ap.0].current_endpoint = Some(ep);
-                                if let Ok(osk) = cs.osk(peer_ptr) {
-                                    let _ = self.output_key(ap, &osk);
-                                }
+                AppPollResult::ReceivedMessage(len, ep) => {
+                    if let Ok(msg_res) = self.crypto_server_mut()?.handle_msg(&rx[..len], &mut *tx) {
+                        if let Some(l) = msg_res.resp { let _ = self.send_to_endpoint(&ep, &tx[..l]); }
+                        if let Some(peer_ptr) = msg_res.exchanged_with {
+                            let ap = AppPeerPtr::lift(peer_ptr);
+                            self.peers[ap.0].current_endpoint = Some(ep);
+                            if let Ok(osk) = self.crypto_server_mut()?.osk(peer_ptr) {
+                                let _ = self.output_key(ap, &osk);
                             }
                         }
                     }
                 }
-                Ok(AppPollResult::DeleteKey(p)) => {
+                AppPollResult::DeleteKey(p) => {
                     let _ = self.output_key(p, &SymKey::random());
-                }
-                Err(e) => {
-                    error!("Event loop error: {}", e);
-                    continue; // ছোটখাটো এররে লুপ ভাঙবে না
                 }
             }
         }
@@ -330,8 +318,8 @@ impl AppServer {
     pub fn poll(&mut self, rx_buf: &mut [u8]) -> anyhow::Result<AppPollResult> {
         loop {
             if let Some(ref helpers) = self.test_helpers {
-                if let Some(ref rx_term) = helpers.termination_handler {
-                    if rx_term.try_recv().is_ok() { return Ok(AppPollResult::Terminate); }
+                if let Some(ref rx) = helpers.termination_handler {
+                    if rx.try_recv().is_ok() { return Ok(AppPollResult::Terminate); }
                 }
             }
 
@@ -344,10 +332,8 @@ impl AppServer {
                 _ => crate::protocol::timing::UNENDING,
             };
 
-            match self.try_recv(rx_buf, timeout) {
-                Ok(AppServerTryRecvResult::NetworkMessage(l, e)) => return Ok(AppPollResult::ReceivedMessage(l, e)),
-                Ok(AppServerTryRecvResult::Terminate) => return Ok(AppPollResult::Terminate),
-                _ => {}
+            if let Ok(AppServerTryRecvResult::NetworkMessage(l, e)) = self.try_recv(rx_buf, timeout) {
+                return Ok(AppPollResult::ReceivedMessage(l, e));
             }
         }
     }
@@ -367,8 +353,9 @@ impl AppServer {
                         }
                     }
                     AppServerIoSource::PskBroker(ptr) => {
-                        if let Some(broker) = self.brokers.store.get_mut(&ptr) {
-                            let _ = broker.process_mio();
+                        // FIX: Using the correct broker method to handle external events (OBS/Wireguard)
+                        if let Some(broker) = self.brokers.store.get_mut(ptr) {
+                            let _ = broker.poll(self.mio_poll.registry());
                         }
                     }
                     _ => {}
@@ -379,9 +366,4 @@ impl AppServer {
     }
 
     pub fn poll_count(&self) -> usize { self.io_source_index.len() }
-}
-
-#[cfg(feature = "experiment_api")]
-impl AppServer {
-    pub fn handle_api(&mut self) -> Result<()> { Ok(()) }
 }
