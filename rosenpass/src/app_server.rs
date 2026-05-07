@@ -143,8 +143,6 @@ pub struct AppServer {
     pub under_load: DoSOperation,
     pub last_update_time: Instant,
     pub test_helpers: Option<AppServerTest>,
-    #[cfg(feature = "experiment_api")]
-    pub api_manager: crate::api::mio::MioManager,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -221,13 +219,11 @@ impl AppServer {
             brokers: BrokerStore::default(), peers: Vec::new(), verbosity,
             all_sockets_drained: false, under_load: DoSOperation::Normal,
             last_update_time: Instant::now(), test_helpers,
-            #[cfg(feature = "experiment_api")]
-            api_manager: crate::api::mio::MioManager::default(),
         })
     }
 
     pub fn crypto_server_mut(&mut self) -> anyhow::Result<&mut CryptoServer> {
-        self.crypto_site.product_mut().context("Crypto server error")
+        self.crypto_site.product_mut().context("Crypto server failure")
     }
 
     pub fn register_broker(&mut self, mut broker: Box<dyn WireguardBrokerMio<Error = anyhow::Error, MioError = anyhow::Error> + Send>) -> Result<BrokerStorePtr> {
@@ -238,21 +234,9 @@ impl AppServer {
         
         let token = self.mio_token_dispenser.dispense();
         broker.register(self.mio_poll.registry(), token)?;
-        self.brokers.store.insert(ptr.clone(), broker); // .clone() added for HashMap stability
+        self.brokers.store.insert(ptr.clone(), broker); 
         self.io_source_index.insert(token, AppServerIoSource::PskBroker(ptr.clone()));
         Ok(BrokerStorePtr(ptr))
-    }
-
-    pub fn add_peer(&mut self, psk: Option<SymKey>, pk: SPk, outfile: Option<PathBuf>, broker_peer: Option<BrokerPeer>, hostname: Option<String>, protocol_version: ProtocolVersion, osk_domain_separator: OskDomainSeparator) -> anyhow::Result<AppPeerPtr> {
-        let peer_ptr = self.crypto_server_mut()?.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
-        let initial_endpoint = hostname.and_then(|h| {
-            h.to_socket_addrs().ok()?.next().map(|addr| {
-                Endpoint::SocketBoundAddress(SocketBoundEndpoint { socket: SocketPtr(0), addr })
-            })
-        });
-        
-        self.peers.push(AppPeer { outfile, broker_peer, initial_endpoint, current_endpoint: None });
-        Ok(AppPeerPtr(peer_ptr.0))
     }
 
     pub fn event_loop(&mut self) -> anyhow::Result<()> {
@@ -284,22 +268,9 @@ impl AppServer {
                         }
                     }
                 }
-                AppPollResult::DeleteKey(p) => {
-                    let _ = self.output_key(p, &SymKey::random());
-                }
+                AppPollResult::DeleteKey(p) => { let _ = self.output_key(p, &SymKey::random()); }
             }
         }
-    }
-
-    fn send_to_endpoint(&self, ep: &Endpoint, buf: &[u8]) -> Result<()> {
-        match ep {
-            Endpoint::SocketBoundAddress(sbe) => {
-                if sbe.socket.0 < self.sockets.len() {
-                    let _ = self.sockets[sbe.socket.0].send_to(buf, sbe.addr);
-                }
-            }
-        }
-        Ok(())
     }
 
     pub fn output_key(&mut self, peer: AppPeerPtr, key: &SymKey) -> anyhow::Result<()> {
@@ -353,9 +324,9 @@ impl AppServer {
                         }
                     }
                     AppServerIoSource::PskBroker(ptr) => {
-                        // FIX: Using the correct broker method to handle external events (OBS/Wireguard)
+                        // FIX: Corrected method name to 'process_poll' for Wireguard Broker/OBS connection
                         if let Some(broker) = self.brokers.store.get_mut(ptr) {
-                            let _ = broker.poll(self.mio_poll.registry());
+                            let _ = broker.process_poll(); 
                         }
                     }
                     _ => {}
@@ -365,5 +336,14 @@ impl AppServer {
         Ok(AppServerTryRecvResult::None)
     }
 
-    pub fn poll_count(&self) -> usize { self.io_source_index.len() }
+    fn send_to_endpoint(&self, ep: &Endpoint, buf: &[u8]) -> Result<()> {
+        match ep {
+            Endpoint::SocketBoundAddress(sbe) => {
+                if sbe.socket.0 < self.sockets.len() {
+                    let _ = self.sockets[sbe.socket.0].send_to(buf, sbe.addr);
+                }
+            }
+        }
+        Ok(())
+    }
 }
