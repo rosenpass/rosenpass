@@ -239,6 +239,40 @@ impl AppServer {
         Ok(BrokerStorePtr(ptr))
     }
 
+    // সংশোধিত অংশ: cli.rs এর এরর মেটাতে এই মেথডটি যোগ করা হয়েছে
+    pub fn add_peer(
+        &mut self,
+        psk: Option<SymKey>,
+        pk: SPk,
+        outfile: Option<PathBuf>,
+        broker_peer: Option<BrokerPeer>,
+        hostname: Option<String>,
+        protocol_version: ProtocolVersion,
+        osk_domain_separator: OskDomainSeparator,
+    ) -> anyhow::Result<AppPeerPtr> {
+        let peer_ptr = self.crypto_server_mut()?.add_peer(
+            psk,
+            pk,
+            protocol_version.into(),
+            osk_domain_separator,
+        )?;
+        
+        let initial_endpoint = hostname.and_then(|h| {
+            h.to_socket_addrs().ok()?.next().map(|addr| {
+                Endpoint::SocketBoundAddress(SocketBoundEndpoint { socket: SocketPtr(0), addr })
+            })
+        });
+        
+        self.peers.push(AppPeer {
+            outfile,
+            broker_peer,
+            initial_endpoint,
+            current_endpoint: None,
+        });
+        
+        Ok(AppPeerPtr(peer_ptr.0))
+    }
+
     pub fn event_loop(&mut self) -> anyhow::Result<()> {
         let (mut rx, mut tx) = (MsgBuf::zero(), MsgBuf::zero());
         loop {
@@ -346,4 +380,6 @@ impl AppServer {
         }
         Ok(())
     }
+
+    pub fn poll_count(&self) -> usize { self.io_source_index.len() }
 }
