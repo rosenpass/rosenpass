@@ -1,0 +1,25 @@
+# Rosenpass configuration example for use with netctl on Arch Linux.
+#
+# This config is referenced by the netctl profile via the ROSENPASS_CONFIG
+# environment variable. The rosenpass-setup hook (ExecUpPost) starts the
+# daemon with this file after the WireGuard interface is up.
+#
+# Peer A (server) configuration.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/peer-b/pqpk"
+endpoint = "peer-b.example.com:9999"
+exchange_command = [
+    "wg",
+    "set",
+    "wg0",
+    "peer",
+    "<PEER_B_WG_PUBLIC_KEY>",
+    "preshared-key",
+    "/dev/stdin",
+]

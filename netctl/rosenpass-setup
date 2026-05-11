@@ -1,0 +1,32 @@
+#!/bin/bash
+# rosenpass-setup — Bring up a WireGuard interface managed by netctl and start
+# the Rosenpass key exchange daemon for post-quantum preshared key rotation.
+#
+# This script is intended to be called from a netctl profile's ExecUpPost hook.
+#
+# Required environment variables (set by netctl or the profile):
+#   INTERFACE       — WireGuard interface name (e.g. wg0)
+#   ROSENPASS_CONFIG — Path to the Rosenpass TOML config file
+#
+# Optional:
+#   ROSENPASS_BIN   — Path to the rosenpass binary (default: rosenpass)
+#   ROSENPASS_PIDFILE — PID file location (default: /run/rosenpass-$INTERFACE.pid)
+
+set -euo pipefail
+
+: "${INTERFACE:?INTERFACE must be set}"
+: "${ROSENPASS_CONFIG:?ROSENPASS_CONFIG must be set}"
+: "${ROSENPASS_BIN:=rosenpass}"
+: "${ROSENPASS_PIDFILE:=/run/rosenpass-${INTERFACE}.pid}"
+
+if [[ ! -f "$ROSENPASS_CONFIG" ]]; then
+    echo "rosenpass-setup: config file not found: $ROSENPASS_CONFIG" >&2
+    exit 1
+fi
+
+# Start rosenpass in the background and record its PID
+"$ROSENPASS_BIN" exchange-config "$ROSENPASS_CONFIG" &
+ROSENPASS_PID=$!
+echo "$ROSENPASS_PID" > "$ROSENPASS_PIDFILE"
+
+echo "rosenpass-setup: started rosenpass (PID $ROSENPASS_PID) for interface $INTERFACE"

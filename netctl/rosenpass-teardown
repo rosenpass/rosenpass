@@ -1,0 +1,43 @@
+#!/bin/bash
+# rosenpass-teardown — Stop the Rosenpass daemon associated with a WireGuard
+# interface managed by netctl.
+#
+# This script is intended to be called from a netctl profile's ExecDownPre hook.
+#
+# Required environment variables (set by netctl or the profile):
+#   INTERFACE       — WireGuard interface name (e.g. wg0)
+#
+# Optional:
+#   ROSENPASS_PIDFILE — PID file location (default: /run/rosenpass-$INTERFACE.pid)
+
+set -euo pipefail
+
+: "${INTERFACE:?INTERFACE must be set}"
+: "${ROSENPASS_PIDFILE:=/run/rosenpass-${INTERFACE}.pid}"
+
+if [[ ! -f "$ROSENPASS_PIDFILE" ]]; then
+    echo "rosenpass-teardown: no PID file found at $ROSENPASS_PIDFILE, nothing to do" >&2
+    exit 0
+fi
+
+ROSENPASS_PID=$(cat "$ROSENPASS_PIDFILE")
+
+if kill -0 "$ROSENPASS_PID" 2>/dev/null; then
+    kill "$ROSENPASS_PID"
+    # Wait briefly for graceful shutdown
+    for i in $(seq 1 10); do
+        if ! kill -0 "$ROSENPASS_PID" 2>/dev/null; then
+            break
+        fi
+        sleep 0.1
+    done
+    # Force kill if still running
+    if kill -0 "$ROSENPASS_PID" 2>/dev/null; then
+        kill -9 "$ROSENPASS_PID" 2>/dev/null || true
+    fi
+    echo "rosenpass-teardown: stopped rosenpass (PID $ROSENPASS_PID) for interface $INTERFACE"
+else
+    echo "rosenpass-teardown: rosenpass (PID $ROSENPASS_PID) already stopped" >&2
+fi
+
+rm -f "$ROSENPASS_PIDFILE"

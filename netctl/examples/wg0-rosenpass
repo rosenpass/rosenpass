@@ -1,0 +1,26 @@
+# Example netctl profile for a WireGuard interface with Rosenpass
+# post-quantum preshared key rotation.
+#
+# Place this file in /etc/netctl/ (e.g. /etc/netctl/wg0-rosenpass)
+# and the corresponding Rosenpass config in /etc/rosenpass/.
+#
+# Start with: netctl start wg0-rosenpass
+# Enable at boot: netctl enable wg0-rosenpass
+#
+# See also:
+#   - netctl.profile(5)
+#   - wg(8)
+#   - https://rosenpass.eu/docs
+
+Description='WireGuard VPN with Rosenpass post-quantum key exchange'
+Interface=wg0
+Connection=wireguard
+
+# WireGuard configuration
+WGConfigFile='/etc/wireguard/wg0.conf'
+
+# --- Rosenpass hooks ---
+# Adjust paths if you installed rosenpass-setup/teardown elsewhere.
+ROSENPASS_CONFIG='/etc/rosenpass/wg0.toml'
+ExecUpPost='/usr/lib/rosenpass/rosenpass-setup'
+ExecDownPre='/usr/lib/rosenpass/rosenpass-teardown'

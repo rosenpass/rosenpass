@@ -1,0 +1,20 @@
+# Rosenpass configuration example for use with netctl on Arch Linux.
+#
+# Peer B (client) configuration — does not listen, connects to Peer A.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/peer-a/pqpk"
+endpoint = "peer-a.example.com:9999"
+exchange_command = [
+    "wg",
+    "set",
+    "wg0",
+    "peer",
+    "<PEER_A_WG_PUBLIC_KEY>",
+    "preshared-key",
+    "/dev/stdin",
+]

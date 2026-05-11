@@ -1,0 +1,29 @@
+# Example Rosenpass configuration for use with netctl.
+#
+# This file should be placed at the path referenced by ROSENPASS_CONFIG
+# in your netctl profile (e.g. /etc/rosenpass/wg0.toml).
+#
+# Key generation:
+#   rosenpass gen-keys --secret-key /etc/rosenpass/wg0/pqsk --public-key /etc/rosenpass/wg0/pqpk
+#
+# Exchange the public key (pqpk) with your peer out-of-band.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/peer1/pqpk"
+endpoint = "peer1.example.com:9999"
+# The exchange_command is called each time a new PSK is derived.
+# It sets the WireGuard preshared key for the peer via wg(8).
+exchange_command = [
+    "wg",
+    "set",
+    "wg0",
+    "peer",
+    "<PEER_WG_PUBLIC_KEY>",
+    "preshared-key",
+    "/dev/stdin",
+]

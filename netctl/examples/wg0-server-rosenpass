@@ -1,0 +1,31 @@
+# Example netctl profile for a WireGuard server with Rosenpass.
+#
+# This profile demonstrates inline WireGuard configuration (without a
+# separate wg0.conf file) combined with Rosenpass post-quantum key exchange.
+#
+# Place this file in /etc/netctl/ (e.g. /etc/netctl/wg0-server-rosenpass)
+#
+# See also:
+#   - netctl.profile(5)
+#   - wg(8)
+#   - https://rosenpass.eu/docs
+
+Description='WireGuard server with Rosenpass post-quantum key exchange'
+Interface=wg0
+Connection=wireguard
+
+# WireGuard interface settings
+WGKey='/etc/wireguard/server-private-key'
+WGListenPort=51820
+
+# IP address for the WireGuard interface
+Address=('10.0.0.1/24' 'fd00::1/64')
+
+# Peers
+WGPeer=('peer-public-key-base64' '10.0.0.2/32,fd00::2/128' '' '25')
+# Format: WGPeer=('<public-key>' '<allowed-ips>' '<endpoint>' '<keepalive>')
+
+# --- Rosenpass hooks ---
+ROSENPASS_CONFIG='/etc/rosenpass/wg0.toml'
+ExecUpPost='/usr/lib/rosenpass/rosenpass-setup'
+ExecDownPre='/usr/lib/rosenpass/rosenpass-teardown'
