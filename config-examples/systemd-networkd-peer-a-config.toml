@@ -1,0 +1,24 @@
+# Rosenpass configuration example for use with systemd-networkd.
+#
+# Peer A (server) configuration — listens for incoming connections.
+#
+# Used with rosenpass-networkd@wg0.service.
+# Place at /etc/rosenpass/wg0.toml.
+
+public_key = "/etc/rosenpass/wg0/pqpk"
+secret_key = "/etc/rosenpass/wg0/pqsk"
+listen = ["0.0.0.0:9999"]
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "/etc/rosenpass/wg0/peers/peer-b/pqpk"
+endpoint = "peer-b.example.com:9999"
+exchange_command = [
+    "wg",
+    "set",
+    "wg0",
+    "peer",
+    "<PEER_B_WG_PUBLIC_KEY>",
+    "preshared-key",
+    "/dev/stdin",
+]

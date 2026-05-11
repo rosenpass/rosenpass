@@ -102,6 +102,7 @@ rustPlatform.buildRustPackage {
     install systemd/rosenpass@.service $out/lib/systemd/system
     install systemd/rp@.service $out/lib/systemd/system
     install systemd/rosenpass.target $out/lib/systemd/system
+    install systemd-networkd/rosenpass-networkd@.service $out/lib/systemd/system
   '';
 
   meta = {

@@ -1,0 +1,21 @@
+# Example systemd-networkd .network file for a WireGuard interface with Rosenpass.
+#
+# Place this file in /etc/systemd/network/ (e.g. /etc/systemd/network/90-wg0.network)
+#
+# This assigns addresses and routes to the WireGuard interface defined in
+# the corresponding .netdev file.
+#
+# See also:
+#   - systemd.network(5)
+#   - https://rosenpass.eu/docs
+
+[Match]
+Name=wg0
+
+[Network]
+Address=10.0.0.1/24
+Address=fd00::1/64
+
+[Route]
+Destination=10.0.0.0/24
+Scope=link

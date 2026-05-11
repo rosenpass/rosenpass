@@ -217,6 +217,7 @@
               // {
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
                 systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
+                systemd-networkd = pkgs.testers.runNixOSTest ./tests/systemd-networkd/rosenpass.nix;
                 formatting = treefmtEval.config.build.check self;
                 rosenpass-msrv-check =
                   let

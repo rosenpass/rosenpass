@@ -1,0 +1,25 @@
+# Example systemd-networkd .netdev file for a WireGuard interface with Rosenpass.
+#
+# Place this file in /etc/systemd/network/ (e.g. /etc/systemd/network/90-wg0.netdev)
+#
+# This defines the WireGuard interface. Rosenpass runs alongside to rotate
+# the preshared key for post-quantum security.
+#
+# See also:
+#   - systemd.netdev(5)
+#   - https://rosenpass.eu/docs
+
+[NetDev]
+Name=wg0
+Kind=wireguard
+Description=WireGuard tunnel with Rosenpass post-quantum key exchange
+
+[WireGuard]
+ListenPort=51820
+PrivateKeyFile=/etc/wireguard/wg0-private-key
+
+[WireGuardPeer]
+PublicKey=<PEER_WG_PUBLIC_KEY>
+AllowedIPs=10.0.0.2/32,fd00::2/128
+Endpoint=peer.example.com:51820
+PersistentKeepalive=25
