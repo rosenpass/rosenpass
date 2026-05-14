@@ -55,6 +55,25 @@ Starts the VPN on interface
 .Ar device ,
 listening on the provided IP and port combination, allowing connections from
 .Ar PEERS .
+On macOS/Darwin,
+.Nm
+uses userspace WireGuard through
+.Ql wireguard-go .
+Darwin WireGuard interfaces must be named
+.Qq utun
+or
+.Qq utunN ;
+non-utun names such as the default
+.Qq rosenpass0
+request automatic allocation of a
+.Qq utunN
+interface.
+Use the actual interface name printed by
+.Nm
+when inspecting the interface with
+.Ql ifconfig
+or
+.Ql wg .
 .El
 .Sh EXIT STATUS
 .Ex -std

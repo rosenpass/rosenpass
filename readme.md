@@ -49,6 +49,10 @@ If you do not specify the `listen` option, Rosenpass and WireGuard will choose r
 If you do not specify `endpoint`, Rosenpass will not try to connect to the peer and instead wait for connections from peers. This is _server mode_.
 You may specify both. Leaving out both is not forbidden but also not very useful.
 
+On macOS/Darwin, `rp` uses userspace WireGuard through `wireguard-go`.
+Darwin WireGuard interfaces must be named `utun` or `utunN`, so a non-`utun` device name such as the default `rosenpass0` asks `wireguard-go` to allocate a `utunN` device automatically.
+Use the actual `utunN` interface name printed by `rp` when inspecting the interface with `ifconfig` or `wg`.
+
 ## Security analysis
 
 <!-- Currently, a symbolic analysis in proverif asserts various properties for the Rosenpass protocol. Further on, a proof of the cryptographic promises based on cryptoverif is in the process of being made. -->

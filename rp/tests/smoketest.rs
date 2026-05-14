@@ -1,6 +1,6 @@
 use std::process::Command;
 
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "macos"))]
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: extern static `pidfd_spawnp` is not supported by Miri
 fn smoketest() -> anyhow::Result<()> {

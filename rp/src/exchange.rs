@@ -1,9 +1,19 @@
-use std::any::type_name;
-use std::{borrow::Borrow, net::SocketAddr, path::PathBuf};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use std::{any::type_name, borrow::Borrow};
+use std::{net::SocketAddr, path::PathBuf};
+#[cfg(target_os = "macos")]
+use std::{
+    path::Path,
+    process::Stdio,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use tokio::process::Command;
 
-use anyhow::{bail, ensure, Context, Result};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use anyhow::bail;
+use anyhow::{ensure, Context, Result};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
@@ -17,10 +27,17 @@ use rosenpass::{
     },
 };
 use rosenpass_secret_memory::Secret;
+#[cfg(target_os = "macos")]
+use rosenpass_util::file::StoreValueB64Writer;
 use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-use rosenpass_util::functional::{ApplyExt, MutatingExt};
+use rosenpass_util::functional::ApplyExt;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use rosenpass_util::functional::MutatingExt;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use rosenpass_util::result::OkExt;
-use rosenpass_util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
+use rosenpass_util::tokio::janitor::spawn_cleanup_job;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use rosenpass_util::tokio::janitor::try_spawn_daemon;
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
 };
@@ -30,6 +47,7 @@ use crate::key::WG_B64_LEN;
 
 /// Extra-special measure to structure imports from the various
 /// netlink related crates used in [super]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 mod netlink {
     /// Re-exports from [::netlink_packet_core]
     pub mod core {
@@ -56,7 +74,7 @@ mod netlink {
     }
 }
 
-type WgSecretKey = Secret<{ netlink::wg::KEY_LEN }>;
+type WgSecretKey = Secret<32>;
 
 /// Used to define a peer for the rosenpass connection that consists of
 /// a directory for storing public keys and optionally an IP address and port of the endpoint,
@@ -98,6 +116,7 @@ pub struct ExchangeOptions {
 }
 
 /// Manage the lifetime of WireGuard devices uses for rp
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 #[derive(Debug, Default)]
 struct WireGuardDeviceImpl {
     // TODO: Can we merge these two somehow?
@@ -107,6 +126,7 @@ struct WireGuardDeviceImpl {
     device: Option<(u32, String)>,
 }
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl WireGuardDeviceImpl {
     fn take(&mut self) -> WireGuardDeviceImpl {
         Self::default().mutating(|nu| std::mem::swap(self, nu))
@@ -374,6 +394,187 @@ impl WireGuardDeviceImpl {
     }
 }
 
+fn is_darwin_utun_name(device_name: &str) -> bool {
+    device_name == "utun"
+        || device_name
+            .strip_prefix("utun")
+            .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn darwin_wireguard_go_name(device_name: &str) -> &str {
+    if is_darwin_utun_name(device_name) {
+        device_name
+    } else {
+        "utun"
+    }
+}
+
+fn address_without_cidr(addr: &str) -> &str {
+    addr.split_once('/').map(|(ip, _)| ip).unwrap_or(addr)
+}
+
+#[cfg(target_os = "macos")]
+fn darwin_tun_name_file() -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    std::env::temp_dir().join(format!("rp-wg-tun-name-{}-{nanos}", std::process::id()))
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Debug, Default)]
+struct WireGuardDeviceImpl {
+    device: Option<String>,
+    tun_name_file: Option<PathBuf>,
+    wireguard_go_started: bool,
+}
+
+#[cfg(target_os = "macos")]
+impl WireGuardDeviceImpl {
+    fn take(&mut self) -> WireGuardDeviceImpl {
+        let mut replacement = Self::default();
+        std::mem::swap(self, &mut replacement);
+        replacement
+    }
+
+    async fn open(&mut self, device_name: String) -> anyhow::Result<()> {
+        let wireguard_go_name = darwin_wireguard_go_name(&device_name);
+        let tun_name_file = darwin_tun_name_file();
+        let _ = tokio::fs::remove_file(&tun_name_file).await;
+
+        let status = Command::new("wireguard-go")
+            .env("WG_TUN_NAME_FILE", &tun_name_file)
+            .arg(wireguard_go_name)
+            .status()
+            .await
+            .with_context(|| "wireguard-go is required on Darwin/macOS")?;
+        ensure!(status.success(), "wireguard-go failed with status {status}");
+
+        let actual_device_name = if wireguard_go_name == "utun" {
+            let name = tokio::fs::read_to_string(&tun_name_file)
+                .await
+                .with_context(|| "wireguard-go did not report a Darwin interface name")?;
+            let name = name.trim().to_string();
+            ensure!(
+                !name.is_empty(),
+                "wireguard-go did not report a Darwin interface name"
+            );
+            name
+        } else {
+            wireguard_go_name.to_string()
+        };
+
+        if actual_device_name != device_name {
+            eprintln!(
+                "INFO: Darwin WireGuard requested device {device_name} is using {actual_device_name}"
+            );
+        }
+
+        let status = Command::new("ifconfig")
+            .args([actual_device_name.as_str(), "up"])
+            .status()
+            .await
+            .with_context(|| format!("Could not mark {actual_device_name} up with ifconfig"))?;
+        ensure!(
+            status.success(),
+            "ifconfig failed while marking {actual_device_name} up"
+        );
+
+        self.device = Some(actual_device_name);
+        self.tun_name_file = Some(tun_name_file);
+        self.wireguard_go_started = true;
+        Ok(())
+    }
+
+    async fn close(mut self) {
+        if self.wireguard_go_started {
+            if let Some(device_name) = self.device.take() {
+                let socket = Path::new("/var/run/wireguard").join(format!("{device_name}.sock"));
+                if let Err(err) = tokio::fs::remove_file(&socket).await {
+                    if err.kind() != std::io::ErrorKind::NotFound {
+                        log::warn!(
+                            "Could not remove WireGuard control socket `{}`: {err:?}",
+                            socket.display()
+                        );
+                    }
+                }
+            }
+        }
+
+        if let Some(tun_name_file) = self.tun_name_file.take() {
+            let _ = tokio::fs::remove_file(tun_name_file).await;
+        }
+    }
+
+    pub async fn add_ip_address(&self, addr: &str) -> anyhow::Result<()> {
+        let family = if addr.contains(':') { "inet6" } else { "inet" };
+        let peer_addr = address_without_cidr(addr);
+        let device = self.name()?.to_string();
+        let status = Command::new("ifconfig")
+            .args([device.as_str(), family, addr, peer_addr, "alias"])
+            .status()
+            .await
+            .with_context(|| format!("Could not add IP address {addr} to {device}"))?;
+        ensure!(
+            status.success(),
+            "ifconfig failed while adding IP address {addr} to {}",
+            device
+        );
+        Ok(())
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.device.is_some()
+    }
+
+    pub fn maybe_name(&self) -> Option<&str> {
+        self.device.as_deref()
+    }
+
+    pub fn name(&self) -> anyhow::Result<&str> {
+        self.maybe_name()
+            .with_context(|| "WireGuardDeviceImpl has not been initialized!")
+    }
+
+    pub async fn set_private_key_and_listen_addr(
+        &mut self,
+        wgsk: &WgSecretKey,
+        listen_port: Option<u16>,
+    ) -> anyhow::Result<()> {
+        let mut command = std::process::Command::new("wg");
+        command
+            .arg("set")
+            .arg(self.name()?)
+            .arg("private-key")
+            .arg("/dev/stdin")
+            .stdin(Stdio::piped());
+
+        let listen_port = listen_port.map(|port| port.to_string());
+        if let Some(port) = listen_port.as_deref() {
+            command.arg("listen-port").arg(port);
+        }
+
+        let mut child = command
+            .spawn()
+            .with_context(|| "Could not run wg to configure the Darwin WireGuard interface")?;
+        wgsk.store_b64_writer::<WG_B64_LEN, _>(
+            child
+                .stdin
+                .take()
+                .with_context(|| "Could not open wg stdin")?,
+        )?;
+        let status = child
+            .wait()
+            .with_context(|| "Could not wait for wg to configure the Darwin WireGuard interface")?;
+        ensure!(
+            status.success(),
+            "wg failed while configuring the Darwin WireGuard interface"
+        );
+        Ok(())
+    }
+}
+
 struct WireGuardDevice {
     _impl: WireGuardDeviceImpl,
 }
@@ -395,6 +596,7 @@ impl WireGuardDevice {
 
     /// Return the raw handle for this device
     #[allow(dead_code)]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub fn raw_handle(&self) -> u32 {
         self._impl.raw_handle().unwrap()
     }
@@ -422,6 +624,50 @@ impl Drop for WireGuardDevice {
             Ok(())
         });
     }
+}
+
+async fn configure_route(allowed_ips: &str, device: &str, wgpk: &str) -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let family = if allowed_ips.contains(':') {
+            "-inet6"
+        } else {
+            "-inet"
+        };
+        let _ = Command::new("route")
+            .args([
+                "-q",
+                "-n",
+                "delete",
+                family,
+                allowed_ips,
+                "-interface",
+                device,
+            ])
+            .status()
+            .await;
+
+        let status = Command::new("route")
+            .args(["-q", "-n", "add", family, allowed_ips, "-interface", device])
+            .status()
+            .await
+            .with_context(|| format!("Could not configure routes for peer {wgpk}"))?;
+        ensure!(
+            status.success(),
+            "route failed while configuring routes for peer {wgpk}"
+        );
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Command::new("ip")
+            .args(["route", "replace", allowed_ips, "dev", device])
+            .status()
+            .await
+            .with_context(|| format!("Could not configure routes for peer {wgpk}"))?;
+    }
+
+    Ok(())
 }
 
 /// Sets up the rosenpass link and wireguard and configures both with the configuration specified by
@@ -525,17 +771,50 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             OskDomainSeparator::for_wireguard_psk(),
         )?;
 
-        // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
-        // the cleanup as `ip route del <allowed_ips>`.
+        // Configure routes for the peer's allowed IPs.
         if let Some(allowed_ips) = peer.allowed_ips {
-            Command::new("ip")
-                .args(["route", "replace", &allowed_ips, "dev", device.name()])
-                .status()
-                .await
-                .with_context(|| format!("Could not configure routes for peer {wgpk}"))?;
+            configure_route(&allowed_ips, device.name(), &wgpk).await?;
         }
     }
 
     log::info!("Starting to perform rosenpass key exchanges!");
-    spawn_blocking(move || srv.event_loop()).await?
+    #[cfg(target_os = "macos")]
+    {
+        srv.event_loop()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        spawn_blocking(move || srv.event_loop()).await?
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{address_without_cidr, darwin_wireguard_go_name, is_darwin_utun_name};
+
+    #[test]
+    fn darwin_utun_names_are_detected() {
+        assert!(is_darwin_utun_name("utun"));
+        assert!(is_darwin_utun_name("utun0"));
+        assert!(is_darwin_utun_name("utun42"));
+        assert!(!is_darwin_utun_name("utunx"));
+        assert!(!is_darwin_utun_name("rosenpass0"));
+        assert!(!is_darwin_utun_name("wg0"));
+    }
+
+    #[test]
+    fn darwin_wireguard_go_auto_allocates_non_utun_names() {
+        assert_eq!(darwin_wireguard_go_name("rosenpass0"), "utun");
+        assert_eq!(darwin_wireguard_go_name("wg0"), "utun");
+        assert_eq!(darwin_wireguard_go_name("utun"), "utun");
+        assert_eq!(darwin_wireguard_go_name("utun7"), "utun7");
+    }
+
+    #[test]
+    fn address_without_cidr_keeps_plain_addresses() {
+        assert_eq!(address_without_cidr("192.168.21.2/24"), "192.168.21.2");
+        assert_eq!(address_without_cidr("192.168.21.2"), "192.168.21.2");
+        assert_eq!(address_without_cidr("fd00::2/64"), "fd00::2");
+        assert_eq!(address_without_cidr("fd00::2"), "fd00::2");
+    }
 }
