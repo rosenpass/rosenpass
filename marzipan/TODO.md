@@ -63,4 +63,10 @@
   * rewrite our CPP usages into Python/…?
 * low priority: nested comments in ProVerif code
 
+## Idea
+
+* somehow parse Horn clauses output from ProVerif into something more helpful?
+
+## First Target
+
 “it replaces the Bash script and is idiomatic Python code”
