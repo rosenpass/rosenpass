@@ -22,19 +22,40 @@ this_module = sys.modules[__name__]
 pp = pprint.PrettyPrinter(indent=4, width=50)
 
 
+# type Ident = str
+# @dataclass
+# class Ident(ast_utils.Ast):
+#    ident: str
+#
+#    def pretty_print(self):
+#        if isinstance(self.ident, Token):
+#            return f"{self.ident.value}"
+#        else:
+#            return "whaaaaat"
+
+
 @dataclass
-class Ident(ast_utils.Ast):
-    ident: str
+class TypeDecl(ast_utils.Ast):
+    ident: Token
+
+    def pretty_print(self):
+        return "type " + self.ident.value + "."
 
 
 @dataclass
 class Typeid(ast_utils.Ast):
-    ident: str
+    ident: Token
+
+    def pretty_print(self):
+        return self.ident.value
 
 
 @dataclass
 class Infix(ast_utils.Ast):
-    infix: str
+    infix: Token
+
+    def pretty_print(self):
+        return self.infix.value
 
 
 @dataclass
@@ -51,10 +72,16 @@ class Gbinding(ast_utils.Ast):
 class IdentGterm(ast_utils.Ast):
     ident_gterm: Ident
 
+    def pretty_print(self):
+        return self.ident_gterm.pretty_print()
+
 
 @dataclass
 class GtermList(ast_utils.Ast, ast_utils.AsList):
     gterms: List[Gterm]
+
+    def pretty_print(self):
+        return ",".join([t.pretty_print() for t in self.gterms])
 
 
 @dataclass
@@ -66,6 +93,18 @@ class FunGterm(ast_utils.Ast):
     gterm_list: GtermList
     phase: Optional[int] = None
     at: Optional[Ident] = None
+
+    def pretty_print(self):
+        str = ""
+        str += self.fun_gterm.pretty_print()
+        str += "("
+        str += self.gterm_list.pretty_print()
+        str += ")"
+        if self.phase is not None:
+            str += "not implemented"
+        if self.at is not None:
+            str += "not implemented"
+        return str
 
 
 @dataclass
@@ -98,7 +137,7 @@ class InjEventGterm(ast_utils.Ast):
     event_gterms: GtermList
     at: Optional[Ident] = None
 
-    def pretty_print(self, indent=0):
+    def pretty_print(self):
         return ""
 
 
@@ -152,8 +191,11 @@ class Gterm(ast_utils.Ast):
         | LetGterm
     )
 
-    def pretty_print(self, column=0, indent=2):
-        return f"{' ' * indent}{self}"
+    def pretty_print(self):
+        if isinstance(self.gterm, (IdentGterm, FunGterm)):
+            return self.gterm.pretty_print()
+        return "not implemented"
+        # return f"{' ' * indent}{self}"
 
 
 @dataclass
@@ -161,6 +203,17 @@ class Typedecl(ast_utils.Ast):
     type_list: List[Ident]
     typeid: Typeid
     optional_typedecl: Optional[Type] = None
+
+    # _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
+    def pretty_print(self):
+        str = ""
+        # str += ", ".join([t.pretty_print() for t in self.type_list])
+        str += ", ".join([t for t in self.type_list])
+        str += ":"
+        str += self.typeid.pretty_print()
+        if self.optional_typedecl is not None:
+            str += "," + self.optional_typedecl.pretty_print()
+        return str
 
 
 @dataclass
@@ -174,6 +227,13 @@ class LetfunDecl(ast_utils.Ast):
 class LemmaGterm(ast_utils.Ast):
     gterm: Gterm
     lemma: Optional[Lemma] = None
+
+    def pretty_print(self):
+        str = ""
+        str += self.gterm.pretty_print()
+        if self.lemma is not None:
+            str += ";" + self.lemma.pretty_print()
+        return str
 
 
 @dataclass
@@ -195,6 +255,14 @@ class LemmaPublicVarsSecret(ast_utils.Ast):
 class Lemma(ast_utils.Ast):
     lemma: LemmaGterm | LemmaPublicVars | LemmaPublicVarsSecret
 
+    def pretty_print(self):
+        str = ""
+        if isinstance(self.lemma, LemmaGterm):
+            str += self.lemma.pretty_print()
+        else:
+            pass
+        return str
+
     # def __post_init__(self):
     #    print(f"[constructor] Lemma: lemma={self.lemma}")
 
@@ -210,13 +278,26 @@ class LemmaDeclCore(ast_utils.Ast):
     typedecl: Optional[Typedecl]
     lemma: Lemma
 
-    def pretty_print(self, column=0, indent=2):
-        print(f"{self}: not implemented")
+    # lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
+    def pretty_print(self):
+        str = ""
+        str += "lemma"
+        if self.typedecl is not None:
+            str += self.typedecl.pretty_print()
+            str += ";"
+        str += self.lemma.pretty_print()
+        str += "."
+        return str
 
 
 @dataclass
 class LemmaAnnotation(ast_utils.Ast):
     annotation: str
+
+    def pretty_print(self):
+        str = ""
+        str += self.annotation
+        return str
 
 
 @dataclass
@@ -224,15 +305,22 @@ class LemmaDecl(ast_utils.Ast):
     lemma_decl_annotation: Optional[LemmaAnnotation]
     lemma_decl_core: LemmaDeclCore
 
-    pptemplate = "{% if lemma_decl_annotation %}@lemma {{lemma_decl_annotation}}{% endif %}{{lemma_decl_core}}"
+    def pretty_print(self):
+        str = ""
+        if self.lemma_decl_annotation is not None:
+            str += f"@lemma {self.lemma_decl_annotation}\n"
+        str += f"{self.lemma_decl_core.pretty_print()}"
+        return str
+
+    # "{% if lemma_decl_annotation %}@lemma {{lemma_decl_annotation}}{% endif %}{{lemma_decl_core}}"
 
     # def pretty_print(self, column=0, indent=2):
     #    return f"{'@lemma' + a if a is not None else ''}{l}"
 
-    def pretty_print(self, column=0, indent=2):
-        a = self.lemma_decl_annotation
-        l = self.lemma_decl_core
-        return f"{'@lemma' + a.pretty_print(column, indent) if a is not None else ''}{l.pretty_print(column, indent)}"
+    # def pretty_print(self, column=0, indent=2):
+    #    a = self.lemma_decl_annotation
+    #    l = self.lemma_decl_core
+    #    return f"{'@lemma' + a.pretty_print(column, indent) if a is not None else ''}{l.pretty_print(column, indent)}"
 
 
 @dataclass
@@ -261,7 +349,7 @@ class QueryDecl(ast_utils.Ast):
     query_decl_annotation: Optional[QueryAnnotation | ReachableAnnotation]
     query_decl_core: QueryDeclCore
 
-    def pretty_print(self, column=0, indent=2):
+    def pretty_print(self):
         return "QueryDecl not implemented"
 
 
@@ -289,18 +377,21 @@ class QueryPutBegin(ast_utils.Ast):
 class Decl(ast_utils.Ast):
     decl: LemmaDecl | QueryDecl
 
-    def pretty_print(self, column=0, indent=2):
-        return self.decl.pretty_print(column, indent)
+    def pretty_print(self):
+        return self.decl.pretty_print()
 
 
 parser = Lark("""
 start: decl*
-decl: lemma_decl | query_decl
+decl: lemma_decl | query_decl | type_decl
 _non_empty_seq{x}: x ("," x)*
 _maybe_empty_seq{x}: [ _non_empty_seq{x} ]
-IDENT:/[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
+IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
 NAT: DIGIT+
 typeid: IDENT
+
+type_decl: "type" IDENT "."
+
 typedecl: _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
 pterm: IDENT | NAT | "(" _maybe_empty_seq{pterm} ")"
 letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
@@ -373,6 +464,9 @@ query_decl_core: "query" [ typedecl ";"] query "."
 
 
 class ToAst(Transformer):
+    def IDENT(self, str):
+        return str
+
     def NAT(self, n):
         n = int(n)
         assert n > 0, "NAT must be an integer > 0"
@@ -491,11 +585,11 @@ def print_tree(asttree: list, column=0, indent=2):
         inner(asttree)
 
 
-def pretty_print(asttree: list, column=0, indent=2):
+def pretty_print(asttree: list):
 
     def handle_dataclass(d):
         if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
-            pp = f"{d.pretty_print(column, indent)}"
+            pp = f"{d.pretty_print()}"
         else:
             pp = "not implemented"
 
@@ -560,9 +654,13 @@ def parse(input: str):
 
 if __name__ == "__main__":
     parse("""
-        @lemma "secrecy: Adv can not learn shared secret key"
-        lemma kp:key_prec, skp:kem_sk_prec;
-            attacker(trusted_key(kp)).
+        type c.
+    """)
+
+"""
+@lemma "secrecy: Adv can not learn shared secret key"
+lemma kp:key_prec, skp:kem_sk_prec;
+    attacker(trusted_key(kp)).
 
         @query "non-interruptability: Adv cannot start a responder session with the same key twice"
         query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
@@ -588,4 +686,4 @@ if __name__ == "__main__":
             let secure_spti = rng_key(trusted_seed(PSspti)) in
             attacker(ck)
             && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti)).
-    """)
+"""
