@@ -790,25 +790,30 @@ def print_tree(asttree: list, column=0, indent=2):
 
 def pretty_print(asttree: list):
 
+    result_str = ""
+
     def handle_dataclass(d):
         if hasattr(d, "pretty_print") and callable(getattr(d, "pretty_print")):
-            pp = f"{d.pretty_print()}"
+            pp = d.pretty_print() + "\n"
         else:
             pp = "not implemented"
 
-        print(pp)
+        return pp
 
     def inner(node):
         if is_dataclass(node):
-            handle_dataclass(node)
+            return handle_dataclass(node)
         else:
             assert False
 
     if isinstance(asttree, list):
         for node in asttree:
-            inner(node)
+            result_str += inner(node)
     else:
-        inner(asttree)
+        result_str += inner(asttree)
+
+    print(result_str)
+    return result_str
 
 
 # def print_class_tree(classtree: list, column=0, indent=2):
@@ -848,7 +853,7 @@ def parse(input: str):
     print_tree(clean_ast)
 
     print("=" * 100)
-    pretty_print(clean_ast)
+    return pretty_print(clean_ast)
 
     # print("=" * 100)
     # print("=" * 100)
@@ -856,31 +861,10 @@ def parse(input: str):
 
 
 if __name__ == "__main__":
-    parse("""
-        type c.
-        letfun foo (bar: bitstring, baz: int) = blub.
-        @lemma "secrecy: Adv can not learn shared secret key"
-        lemma kp:key_prec, skp:kem_sk_prec;
-            attacker(trusted_key(kp)).
-        @query "non-interruptability: Adv cannot start a responder session with the same key twice"
-        query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
-            event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
-            ==> t1 = t2.
-        @reachable "non-secrecy: The attacker can learn the value of a shared key"
-        query k:key;
-            attacker(prepare_key(k)) && attacker(k).
-        @lemma "secrecy: The adversary can learn a trusted kem pk only by using the reveal oracle"
-        lemma skp:kem_sk_prec;
-            attacker(kem_pub(trusted_kem_sk(skp)))
-                ==> event(RevealPk(kem_pub(trusted_kem_sk(skp)))).
+    with open("sample.pv", "r", encoding="utf-8") as f:
+        input = f.read()
 
-        @lemma "secrecy: Attacker knowledge of a kem sk implies the key is not trusted"
-            lemma k:kem_sk, kp:kem_sk_prec;
-            attacker(prepare_kem_sk(k)) && attacker(k) ==> k <> trusted_kem_sk(kp).
-        @lemma "asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted InitHello transmission from responder perspective"
-        lemma ck_ini:key, ck:key, any_psk:key, any_sskr:kem_sk, PSsski:kem_sk_prec, any_epki:kem_pk, any_epti:key, PSspti:seed_prec;
-            let secure_spki = kem_pub(trusted_kem_sk(PSsski)) in
-            let secure_spti = rng_key(trusted_seed(PSspti)) in
-            attacker(ck)
-            && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti)).
-    """)
+    output = parse(input)
+
+    with open("sample-output.pv", "w", encoding="utf-8") as f:
+        f.write(output)
