@@ -30,6 +30,7 @@ let
         latexmk
         lm
         lualatex-math
+        lua-ul
         markdown
         mathtools
         minted
