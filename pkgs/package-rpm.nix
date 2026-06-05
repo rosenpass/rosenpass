@@ -25,26 +25,37 @@ runCommand "rosenpass-${version}.rpm" { } ''
 
   %description
   Post-quantum-secure VPN tool Rosenpass
+
   Rosenpass is a post-quantum-secure VPN
   that uses WireGuard to transport the actual data.
 
+
+
+  %install
+  rm -rfv %{buildroot}
+
+  mkdir -v -p %{buildroot}%{_bindir}
+  install -v -m755 -t %{buildroot}%{_bindir} ${rosenpass}/bin/*
+
+  mkdir -v -p %{buildroot}%{_sysconfdir}
+  cp -v -r ${rosenpass}/lib/systemd %{buildroot}%{_sysconfdir}/
+
+  find %{buildroot}%{_sysconfdir}/systemd -type d -exec chmod 755 {} +
+  find %{buildroot}%{_sysconfdir}/systemd -type f -exec chmod 644 {} +
+
+  install -v -Dm644 ${./example.toml} %{buildroot}%{_sysconfdir}/rosenpass/example.toml
+
+
   %files
-  /usr/bin/rosenpass
-  /usr/bin/rp
-  /etc/systemd/system/rosenpass.target
-  /etc/systemd/system/rosenpass@.service
-  /etc/systemd/system/rp@.service
-  /etc/rosenpass/example.toml
+  %{_bindir}/rosenpass
+  %{_bindir}/rp
+  %{_sysconfdir}/systemd/system/rosenpass.target
+  %{_sysconfdir}/systemd/system/rosenpass@.service
+  %{_sysconfdir}/systemd/system/rp@.service
+  %config(noreplace) %{_sysconfdir}/rosenpass/example.toml
   EOF
 
-  buildroot=rpmbuild/BUILDROOT/rosenpass-${version}-${release}.${arch}
-  mkdir -p $buildroot/usr/bin
-  install -m755 -t $buildroot/usr/bin ${rosenpass}/bin/*
 
-  mkdir -p $buildroot/etc/rosenpass
-  cp -r ${rosenpass}/lib/systemd $buildroot/etc/
-  chmod -R 744 $buildroot/etc/systemd
-  cp ${./example.toml} $buildroot/etc/rosenpass/example.toml
 
   export HOME=/build
   mkdir -p /build/tmp
