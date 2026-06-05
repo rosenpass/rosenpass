@@ -23,11 +23,13 @@ let
         eso-pic
         fancyvrb
         fontspec
+        framed
         gitinfo2
         gobble
         ifmtarg
         koma-script
         latexmk
+        lineno
         lm
         lualatex-math
         lua-ul
@@ -44,6 +46,7 @@ let
         upquote
         xifthen
         xkeyval
+        xstring
         xurl
         dirtytalk
         ;

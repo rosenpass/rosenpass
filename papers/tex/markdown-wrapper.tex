@@ -29,6 +29,7 @@
 	citations,
 	tightLists=false,
 	html,
+	hybrid,
 relativeReferences=true,
 ]{markdown}
 
@@ -91,32 +92,35 @@ relativeReferences=true,
 \markdownSetup{
   renderers = {
     jekyllDataTypographicString = {
-      \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
     },
     jekyllDataProgrammaticString = {},
     jekyllDataNumber = {
-      \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
     },
     jekyllDataBoolean = {
-      \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
     },
     jekyllDataEmpty = {
-      \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {} }
+        \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {} }
     },
     jekyllDataSequenceBegin = {
-      \begingroup
-      \renewcommand*{\markdownRendererJekyllDataTypographicString}[2]{
-        \seq_if_exist:cF { g__ptxcd_##1_seq } {
-          \seq_new:c { g__ptxcd_##1_seq }
-        }
-        \seq_gput_right:cn { g__ptxcd_##1_seq } { ##2 }
-      }
-      \renewcommand*{\markdownRendererJekyllDataProgrammaticString}[2]{}
-    },
+		\begingroup
+
+		\seq_if_exist:cTF { g__ptxcd_#1_seq }
+			{ \seq_gclear:c { g__ptxcd_#1_seq } }
+			{ \seq_new:c { g__ptxcd_#1_seq } }
+
+		\renewcommand*{\markdownRendererJekyllDataTypographicString}[2]{
+			\seq_gput_right:cn { g__ptxcd_#1_seq } { ##2 }
+		}
+
+		\renewcommand*{\markdownRendererJekyllDataProgrammaticString}[2]{}
+	},
     jekyllDataSequenceEnd = {
-      \endgroup
-    },
-	backslash = {\\},
+      	\endgroup
+    }%,
+	% backslash = {\\},
   }
 }
 
@@ -163,6 +167,11 @@ relativeReferences=true,
 
 \markdownInputPlainTeX{\MarkDownInputFile}%
 \UseHook{markdownInput/end}%
+
+\markdownSetup{rendererPrototypes={
+	backslash = {\\},
+}}
+
 
 \AddToHook{markdownInput/end}{\TemplateEnd}
 \AddToHook{markdownInput/begin}{\TemplateBegin}
