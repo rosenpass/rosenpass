@@ -1,7 +1,7 @@
 {
   lib,
   stdenvNoCC,
-  runCommandNoCC,
+  runCommand,
   pkgsStatic,
   rosenpass,
   rosenpass-oci-image,
@@ -20,7 +20,7 @@ let
     else
       args.rosenpass-oci-image;
 in
-runCommandNoCC "lace-result" { } ''
+runCommand "lace-result" { } ''
   mkdir {bin,$out}
   tar -cvf $out/rosenpass-${stdenvNoCC.hostPlatform.system}-${version}.tar \
     -C ${package} bin/rosenpass lib/systemd \
