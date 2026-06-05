@@ -61,10 +61,15 @@ runCommand "rosenpass-${version}.rpm" { } ''
   mkdir -p /build/tmp
   ls -R rpmbuild
 
+  # rpmbuild requires these defines, because Nix would otherwise overwrite them, especially %{_bindir}
   ${rpm}/bin/rpmbuild \
     -bb \
     --dbpath=$HOME \
     --define "_tmppath /build/tmp" \
+    --define "_prefix /usr" \
+    --define "_exec_prefix %{_prefix}" \
+    --define "_bindir %{_exec_prefix}/bin" \
+    --define "_sysconfdir /etc" \
     rpmbuild/SPECS/rosenpass.spec
 
   cp rpmbuild/RPMS/${arch}/rosenpass*.rpm $out
