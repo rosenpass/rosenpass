@@ -112,15 +112,13 @@ in
     { ... }:
     ''
       from os import system
-      import time
       rp = "${pkgs.rosenpass}/bin/rp"
 
       start_all()
 
       for machine in [server, client]:
-        machine.wait_for_unit("multi-user.target")
-        time.sleep(10)
-        machine.wait_for_unit("network-online.target") # rp
+        machine.wait_for_unit("multi-user.target") # (unit: rp)
+        machine.wait_until_succeeds("ip route get 1.1.1.1") # (unit: rp)
 
       with subtest("Key, Config, and Service Setup"):
         for name, machine, remote in [("server", server, client), ("client", client, server)]:

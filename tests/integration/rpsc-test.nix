@@ -327,11 +327,13 @@ in
     """)
 
     for m in [peerA, peerB, peerakeyexchanger, peerbkeyexchanger]:
-      m.wait_for_unit("network-online.target") # rpsc-test 1
+      m.wait_for_unit("multi-user.target") # (unit: rpsc-test 1)
+      m.wait_until_succeeds("ip route get 1.1.1.1") # (unit: rpsc-test 1)
 
     ${lib.optionalString multiPeer ''
       for m in [peerC, peerckeyexchanger]:
-        m.wait_for_unit("network-online.target")  # rpsc-test 2
+        m.wait_for_unit("multi-user.target") # (unit: rpsc-test 2)
+        m.wait_until_succeeds("ip route get 1.1.1.1") # (unit: rpsc-test 2)
     ''}
 
     # Generate the normal wireguard key pairs
