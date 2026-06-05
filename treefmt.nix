@@ -24,5 +24,10 @@
       "*.toml"
     ];
   };
-  programs.rustfmt.enable = true;
+  programs.rustfmt = {
+    enable = true;
+    includes = [
+      "*.rs"
+    ];
+  };
 }
