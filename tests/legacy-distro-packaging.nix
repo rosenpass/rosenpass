@@ -6,8 +6,12 @@
 
 let
   wg-deb = pkgs.fetchurl {
-    url = "https://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20250521-1_amd64.deb";
-    hash = "sha256-c8Z1pIAofTxlqOF9XXXnF1w+4PRHRQbCN8xMJlSNunQ=";
+    # too new, requires newer libc than availalbe on all targets
+    # url = "https://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20250521-1_amd64.deb";
+    # hash = "sha256-c8Z1pIAofTxlqOF9XXXnF1w+4PRHRQbCN8xMJlSNunQ=";
+    url = "https://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20210914-1+b1_amd64.deb";
+    hash = "sha256-VtLSVdeot8qyAN6E9RD2Gppug93nXnR/xu6rA8Dh3Uc=";
+    # not available anymore:
     # url = "https://ftp.de.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20210914-1.1_amd64.deb";
     # hash = "sha256-s/hCUisQLR19kEbV6d8JXzzTAWUPM+NV0APgHizRGA4=";
   };
