@@ -5,9 +5,9 @@ use std::{
     process::Stdio,
 };
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use rosenpass::api;
-use rosenpass_to::{ops::copy_slice_least_src, To};
+use rosenpass_to::{To, ops::copy_slice_least_src};
 use rosenpass_util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
@@ -23,7 +23,7 @@ struct KillChild(std::process::Child);
 
 impl Drop for KillChild {
     fn drop(&mut self) {
-        use rustix::process::{kill_process, Pid, Signal::Term};
+        use rustix::process::{Pid, Signal::Term, kill_process};
         let pid = Pid::from_child(&self.0);
         // We seriously need to start handling signals with signalfd, our current signal handling
         // system is a bit broken; there is probably a few functions that just restart on EINTR
@@ -188,8 +188,10 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
         let osk_b = SymKey::load_b64::<64, _>(peer_b_osk.clone())?;
         match osk_a.secret() == osk_b.secret() {
             true => break,
-            false if attempt > 10 => bail!("Peers did not produce a matching key even after ten attempts. Something is wrong with the key exchange!"),
-            false => {},
+            false if attempt > 10 => bail!(
+                "Peers did not produce a matching key even after ten attempts. Something is wrong with the key exchange!"
+            ),
+            false => {}
         };
 
         attempt += 1;

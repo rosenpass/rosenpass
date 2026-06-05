@@ -246,9 +246,11 @@ pub trait MioConnectionContext {
 
                 // Message does not fit in buffer
                 Err((e @ E::MessageTooLargeError { .. }, _)) => {
-                    log::warn!("Received message on API that was too big to fit in our buffers; \
+                    log::warn!(
+                        "Received message on API that was too big to fit in our buffers; \
                             looks like the client is broken. Stopping to process messages of the client.\n\
-                            Error: {e:?}");
+                            Error: {e:?}"
+                    );
                     conn.invalid_read = true; // Closed mio_manager
                     break Ok(None);
                 }

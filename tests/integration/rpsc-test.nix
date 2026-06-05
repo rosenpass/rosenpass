@@ -33,79 +33,78 @@ let
   peerBConfigFileVersion = getConfigFileVersion pkgs.rosenpass-peer-b;
   peerCConfigFileVersion = if multiPeer then getConfigFileVersion pkgs.rosenpass-peer-c else null;
 
-  staticConfig =
-    {
-      peerA = {
-        innerIp = "10.100.0.1";
-        wgPrivateKeyFile = "${wireguardKeyFolder}/peerA.sk";
-        wgPublicKeyFile = "${wireguardKeyFolder}/peerA.pk";
-        rosenpassConfig = builtins.toFile "peer-a.toml" (
-          ''
-            public_key = "${rosenpassKeyFolder}/self.pk"
-            secret_key = "${rosenpassKeyFolder}/self.sk"
-            listen = ["[::]:${builtins.toString rpPort}"]
-            verbosity = "Verbose"
-
-            [[peers]]
-            public_key = "${rosenpassKeyFolder}/peer-b.pk"
-            endpoint = "peerbkeyexchanger:${builtins.toString rpPort}"
-            key_out = "${keyExchangePathAB}"
-          ''
-          + (lib.optionalString multiPeer ''
-            [[peers]]
-            public_key = "${rosenpassKeyFolder}/peer-c.pk"
-            endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-            key_out = "${keyExchangePathAC}"
-          '')
-        );
-      };
-      peerB = {
-        innerIp = "10.100.0.2";
-        wgPrivateKeyFile = "${wireguardKeyFolder}/peerB.sk";
-        wgPublicKeyFile = "${wireguardKeyFolder}/peerB.pk";
-        rosenpassConfig = builtins.toFile "peer-b.toml" (
-          ''
-            public_key = "${rosenpassKeyFolder}/self.pk"
-            secret_key = "${rosenpassKeyFolder}/self.sk"
-            listen = ["[::]:${builtins.toString rpPort}"]
-            verbosity = "Verbose"
-
-            [[peers]]
-            public_key = "${rosenpassKeyFolder}/peer-a.pk"
-            endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
-            key_out = "${keyExchangePathBA}"
-          ''
-          + (lib.optionalString multiPeer ''
-            [[peers]]
-            public_key = "${rosenpassKeyFolder}/peer-c.pk"
-            endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-            key_out = "${keyExchangePathBC}"
-          '')
-        );
-      };
-    }
-    // lib.optionalAttrs multiPeer {
-      # peerC is only defined if we are in a multiPeer context.
-      peerC = {
-        innerIp = "10.100.0.3";
-        wgPrivateKeyFile = "${wireguardKeyFolder}/peerC.sk";
-        wgPublicKeyFile = "${wireguardKeyFolder}/peerC.pk";
-        rosenpassConfig = builtins.toFile "peer-c.toml" ''
+  staticConfig = {
+    peerA = {
+      innerIp = "10.100.0.1";
+      wgPrivateKeyFile = "${wireguardKeyFolder}/peerA.sk";
+      wgPublicKeyFile = "${wireguardKeyFolder}/peerA.pk";
+      rosenpassConfig = builtins.toFile "peer-a.toml" (
+        ''
           public_key = "${rosenpassKeyFolder}/self.pk"
           secret_key = "${rosenpassKeyFolder}/self.sk"
           listen = ["[::]:${builtins.toString rpPort}"]
           verbosity = "Verbose"
+
+          [[peers]]
+          public_key = "${rosenpassKeyFolder}/peer-b.pk"
+          endpoint = "peerbkeyexchanger:${builtins.toString rpPort}"
+          key_out = "${keyExchangePathAB}"
+        ''
+        + (lib.optionalString multiPeer ''
+          [[peers]]
+          public_key = "${rosenpassKeyFolder}/peer-c.pk"
+          endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+          key_out = "${keyExchangePathAC}"
+        '')
+      );
+    };
+    peerB = {
+      innerIp = "10.100.0.2";
+      wgPrivateKeyFile = "${wireguardKeyFolder}/peerB.sk";
+      wgPublicKeyFile = "${wireguardKeyFolder}/peerB.pk";
+      rosenpassConfig = builtins.toFile "peer-b.toml" (
+        ''
+          public_key = "${rosenpassKeyFolder}/self.pk"
+          secret_key = "${rosenpassKeyFolder}/self.sk"
+          listen = ["[::]:${builtins.toString rpPort}"]
+          verbosity = "Verbose"
+
           [[peers]]
           public_key = "${rosenpassKeyFolder}/peer-a.pk"
           endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathCA}"
+          key_out = "${keyExchangePathBA}"
+        ''
+        + (lib.optionalString multiPeer ''
           [[peers]]
-          public_key = "${rosenpassKeyFolder}/peer-b.pk"
+          public_key = "${rosenpassKeyFolder}/peer-c.pk"
           endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathCB}"
-        '';
-      };
+          key_out = "${keyExchangePathBC}"
+        '')
+      );
     };
+  }
+  // lib.optionalAttrs multiPeer {
+    # peerC is only defined if we are in a multiPeer context.
+    peerC = {
+      innerIp = "10.100.0.3";
+      wgPrivateKeyFile = "${wireguardKeyFolder}/peerC.sk";
+      wgPublicKeyFile = "${wireguardKeyFolder}/peerC.pk";
+      rosenpassConfig = builtins.toFile "peer-c.toml" ''
+        public_key = "${rosenpassKeyFolder}/self.pk"
+        secret_key = "${rosenpassKeyFolder}/self.sk"
+        listen = ["[::]:${builtins.toString rpPort}"]
+        verbosity = "Verbose"
+        [[peers]]
+        public_key = "${rosenpassKeyFolder}/peer-a.pk"
+        endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
+        key_out = "${keyExchangePathCA}"
+        [[peers]]
+        public_key = "${rosenpassKeyFolder}/peer-b.pk"
+        endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+        key_out = "${keyExchangePathCB}"
+      '';
+    };
+  };
 
   inherit (import (pkgs.path + "/nixos/tests/ssh-keys.nix") pkgs)
     snakeOilPublicKey
@@ -133,143 +132,140 @@ in
     systemd.tmpfiles.rules = [ "d ${rosenpassKeyFolder} 0400 root root - -" ];
   };
 
-  nodes =
-    {
-      # peerA and peerB are the only neccessary peers unless we are in the multiPeer test.
-      peerA = {
-        networking.firewall.allowedUDPPorts = [ wgPort ];
+  nodes = {
+    # peerA and peerB are the only neccessary peers unless we are in the multiPeer test.
+    peerA = {
+      networking.firewall.allowedUDPPorts = [ wgPort ];
 
-        # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
-        services.rosenpassKeySync.instances =
-          {
-            AB = {
-              create = true;
-              enable = false;
-              inherit wgInterface;
-              rpHost = "peerakeyexchanger";
-              peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
-              remoteKeyPath = keyExchangePathAB;
-              endpoint = "peerB:${builtins.toString wgPort}";
-              allowedIps = "${staticConfig.peerB.innerIp}/32";
-            };
-          }
-          // lib.optionalAttrs multiPeer {
-            AC = {
-              create = true;
-              enable = false;
-              inherit wgInterface;
-              rpHost = "peerakeyexchanger";
-              peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
-              remoteKeyPath = keyExchangePathAC;
-              endpoint = "peerC:${builtins.toString wgPort}";
-              allowedIps = "${staticConfig.peerC.innerIp}/32";
-            };
-          };
-      };
-      peerB = {
-        networking.firewall.allowedUDPPorts = [ wgPort ];
-
-        # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
-        services.rosenpassKeySync.instances =
-          {
-            BA = {
-              create = true;
-              enable = false;
-              inherit wgInterface;
-              rpHost = "peerbkeyexchanger";
-              peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
-              remoteKeyPath = keyExchangePathBA;
-              endpoint = "peerA:${builtins.toString wgPort}";
-              allowedIps = "${staticConfig.peerA.innerIp}/32";
-            };
-          }
-          // lib.optionalAttrs multiPeer {
-            BC = {
-              create = true;
-              enable = false;
-              inherit wgInterface;
-              rpHost = "peerbkeyexchanger";
-              peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
-              remoteKeyPath = keyExchangePathBC;
-              endpoint = "peerC:${builtins.toString wgPort}";
-              allowedIps = "${staticConfig.peerC.innerIp}/32";
-            };
-          };
-      };
-
-      # The key exchanger node for peerA is the node that actually runs rosenpass. It takes the rosenpass confguration for peerA and runs it.
-      # The key sync services of peerA will ssh into this node and download the exchanged keys from here.
-      peerakeyexchanger = {
-        services.openssh.enable = true;
-        users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
-        networking.firewall.allowedUDPPorts = [ rpPort ];
-
-        services.rosenpassKeyExchange = {
+      # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
+      services.rosenpassKeySync.instances = {
+        AB = {
           create = true;
           enable = false;
-          config = staticConfig.peerA.rosenpassConfig;
-          rosenpassVersion = pkgs.rosenpass-peer-a;
+          inherit wgInterface;
+          rpHost = "peerakeyexchanger";
+          peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathAB;
+          endpoint = "peerB:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerB.innerIp}/32";
         };
-      };
-
-      # The key exchanger node for peerB is the node that actually runs rosenpass. It takes the rosenpass confguration for peerB and runs it.
-      # The key sync services of peerB will ssh into this node and download the exchanged keys from here.
-      peerbkeyexchanger = {
-        services.openssh.enable = true;
-        users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
-
-        services.rosenpassKeyExchange = {
+      }
+      // lib.optionalAttrs multiPeer {
+        AC = {
           create = true;
           enable = false;
-          config = staticConfig.peerB.rosenpassConfig;
-          rosenpassVersion = pkgs.rosenpass-peer-b;
-        };
-      };
-    }
-    // lib.optionalAttrs multiPeer {
-      peerC = {
-        networking.firewall.allowedUDPPorts = [ wgPort ];
-
-        # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
-        services.rosenpassKeySync.instances = {
-          CA = {
-            create = true;
-            enable = false;
-            inherit wgInterface;
-            rpHost = "peerckeyexchanger";
-            peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
-            remoteKeyPath = keyExchangePathCA;
-            endpoint = "peerA:${builtins.toString wgPort}";
-            allowedIps = "${staticConfig.peerA.innerIp}/32";
-          };
-          CB = {
-            create = true;
-            enable = false;
-            inherit wgInterface;
-            rpHost = "peerckeyexchanger";
-            peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
-            remoteKeyPath = keyExchangePathCB;
-            endpoint = "peerB:${builtins.toString wgPort}";
-            allowedIps = "${staticConfig.peerB.innerIp}/32";
-          };
-        };
-      };
-
-      # The key exchanger node for peerC is the node that actually runs rosenpass. It takes the rosenpass confguration for peerC and runs it.
-      # The key sync services of peerC will ssh into this node and download the exchanged keys from here.
-      peerckeyexchanger = {
-        services.openssh.enable = true;
-        users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
-        networking.firewall.allowedUDPPorts = [ rpPort ];
-
-        services.rosenpassKeyExchange = {
-          create = true;
-          enable = false;
-          config = staticConfig.peerC.rosenpassConfig;
-          rosenpassVersion = pkgs.rosenpass-peer-c;
+          inherit wgInterface;
+          rpHost = "peerakeyexchanger";
+          peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathAC;
+          endpoint = "peerC:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerC.innerIp}/32";
         };
       };
     };
+    peerB = {
+      networking.firewall.allowedUDPPorts = [ wgPort ];
+
+      # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
+      services.rosenpassKeySync.instances = {
+        BA = {
+          create = true;
+          enable = false;
+          inherit wgInterface;
+          rpHost = "peerbkeyexchanger";
+          peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathBA;
+          endpoint = "peerA:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerA.innerIp}/32";
+        };
+      }
+      // lib.optionalAttrs multiPeer {
+        BC = {
+          create = true;
+          enable = false;
+          inherit wgInterface;
+          rpHost = "peerbkeyexchanger";
+          peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathBC;
+          endpoint = "peerC:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerC.innerIp}/32";
+        };
+      };
+    };
+
+    # The key exchanger node for peerA is the node that actually runs rosenpass. It takes the rosenpass confguration for peerA and runs it.
+    # The key sync services of peerA will ssh into this node and download the exchanged keys from here.
+    peerakeyexchanger = {
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
+      networking.firewall.allowedUDPPorts = [ rpPort ];
+
+      services.rosenpassKeyExchange = {
+        create = true;
+        enable = false;
+        config = staticConfig.peerA.rosenpassConfig;
+        rosenpassVersion = pkgs.rosenpass-peer-a;
+      };
+    };
+
+    # The key exchanger node for peerB is the node that actually runs rosenpass. It takes the rosenpass confguration for peerB and runs it.
+    # The key sync services of peerB will ssh into this node and download the exchanged keys from here.
+    peerbkeyexchanger = {
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
+
+      services.rosenpassKeyExchange = {
+        create = true;
+        enable = false;
+        config = staticConfig.peerB.rosenpassConfig;
+        rosenpassVersion = pkgs.rosenpass-peer-b;
+      };
+    };
+  }
+  // lib.optionalAttrs multiPeer {
+    peerC = {
+      networking.firewall.allowedUDPPorts = [ wgPort ];
+
+      # Each instance of the key sync service loads a symmetric key from a rosenpass keyexchanger node and sets it as the preshared key for the appropriate wireguard tunnel.
+      services.rosenpassKeySync.instances = {
+        CA = {
+          create = true;
+          enable = false;
+          inherit wgInterface;
+          rpHost = "peerckeyexchanger";
+          peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathCA;
+          endpoint = "peerA:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerA.innerIp}/32";
+        };
+        CB = {
+          create = true;
+          enable = false;
+          inherit wgInterface;
+          rpHost = "peerckeyexchanger";
+          peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
+          remoteKeyPath = keyExchangePathCB;
+          endpoint = "peerB:${builtins.toString wgPort}";
+          allowedIps = "${staticConfig.peerB.innerIp}/32";
+        };
+      };
+    };
+
+    # The key exchanger node for peerC is the node that actually runs rosenpass. It takes the rosenpass confguration for peerC and runs it.
+    # The key sync services of peerC will ssh into this node and download the exchanged keys from here.
+    peerckeyexchanger = {
+      services.openssh.enable = true;
+      users.users.root.openssh.authorizedKeys.keys = [ snakeOilPublicKey ];
+      networking.firewall.allowedUDPPorts = [ rpPort ];
+
+      services.rosenpassKeyExchange = {
+        create = true;
+        enable = false;
+        config = staticConfig.peerC.rosenpassConfig;
+        rosenpassVersion = pkgs.rosenpass-peer-c;
+      };
+    };
+  };
 
   interactive = {
     defaults = {

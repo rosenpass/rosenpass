@@ -4,10 +4,10 @@
 use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use anyhow::Context;
-use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_to::{To, ops::copy_slice};
 use rosenpass_util::{
     fd::FdIo,
-    functional::{run, ApplyExt},
+    functional::{ApplyExt, run},
     io::ReadExt,
     mem::DiscardResultExt,
     mio::UnixStreamExt,
@@ -21,7 +21,7 @@ use crate::{
     protocol::BuildCryptoServer,
 };
 
-use super::{supply_keypair_response_status, Server as ApiServer};
+use super::{Server as ApiServer, supply_keypair_response_status};
 
 /// Stores the state of the API handler.
 ///

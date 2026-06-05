@@ -101,7 +101,7 @@ impl<'de, const N: usize> Deserialize<'de> for PublicBox<N> {
 mod tests {
     use super::*;
     use crate::secret_policy_use_only_malloc_secrets;
-    use serde::{de::DeserializeOwned, Serialize};
+    use serde::{Serialize, de::DeserializeOwned};
     use serde_json;
 
     // Generic helper: serialize to JSON, then deserialize back.

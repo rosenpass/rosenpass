@@ -19,7 +19,7 @@ fn main() {
 pub mod linux {
     //! Linux-specific implementation for the broker that communicates with the WireGuard broker.
 
-    use std::io::{stdin, stdout, Read, Write};
+    use std::io::{Read, Write, stdin, stdout};
 
     use rosenpass_wireguard_broker::api::msgs;
     use rosenpass_wireguard_broker::api::server::BrokerServer;

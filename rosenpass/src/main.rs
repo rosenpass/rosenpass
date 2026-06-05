@@ -2,7 +2,7 @@
 
 use clap::CommandFactory;
 use clap::Parser;
-use clap_mangen::roff::{roman, Roff};
+use clap_mangen::roff::{Roff, roman};
 use log::error;
 use rosenpass::cli::CliArgs;
 use std::process::exit;

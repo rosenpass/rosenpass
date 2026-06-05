@@ -1,4 +1,4 @@
-use rosenpass_to::{ops::copy_slice, To as _};
+use rosenpass_to::{To as _, ops::copy_slice};
 use thiserror::Error;
 
 /// Models authenticated encryption with assiciated data (AEAD) functionality.
@@ -148,11 +148,11 @@ pub trait AeadWithNonceInCiphertext<
 }
 
 impl<
-        const KEY_LEN: usize,
-        const NONCE_LEN: usize,
-        const TAG_LEN: usize,
-        T: Aead<KEY_LEN, NONCE_LEN, TAG_LEN>,
-    > AeadWithNonceInCiphertext<KEY_LEN, NONCE_LEN, TAG_LEN> for T
+    const KEY_LEN: usize,
+    const NONCE_LEN: usize,
+    const TAG_LEN: usize,
+    T: Aead<KEY_LEN, NONCE_LEN, TAG_LEN>,
+> AeadWithNonceInCiphertext<KEY_LEN, NONCE_LEN, TAG_LEN> for T
 {
 }
 

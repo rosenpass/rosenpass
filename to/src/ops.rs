@@ -1,7 +1,7 @@
 //! Functions that make it easy to copy data between arrays and slices using functions with
 //! destinations. See the specific functions for examples and more explanations.
 
-use crate::{with_destination, To};
+use crate::{To, with_destination};
 
 /// Function with destination that copies data from
 /// origin into the destination.

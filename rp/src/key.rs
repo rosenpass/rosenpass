@@ -5,14 +5,14 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use rosenpass_util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::basic_types::{SPk, SSk};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
-use rosenpass_secret_memory::{file::StoreSecret as _, Public, Secret};
+use rosenpass_secret_memory::{Public, Secret, file::StoreSecret as _};
 
 /// The length of wireguard keys as a length in base 64 encoding.
 pub const WG_B64_LEN: usize = 32 * 5 / 3;
@@ -119,13 +119,13 @@ mod tests {
     use std::fs;
 
     use rosenpass::protocol::basic_types::{SPk, SSk};
-    use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
     use rosenpass_secret_memory::Secret;
+    use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
     use rosenpass_util::file::LoadValue;
     use rosenpass_util::file::LoadValueB64;
     use tempfile::tempdir;
 
-    use crate::key::{genkey, pubkey, WG_B64_LEN};
+    use crate::key::{WG_B64_LEN, genkey, pubkey};
 
     #[test]
     #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE

@@ -7,7 +7,7 @@ use std::{
 };
 use uds::UnixStreamExt as FdPassingExt;
 
-use crate::fd::{claim_fd_inplace, IntoStdioErr};
+use crate::fd::{IntoStdioErr, claim_fd_inplace};
 
 /// A wrapper around a socket that combines reading from the socket with tracking
 /// received file descriptors. Limits the maximum number of file descriptors that

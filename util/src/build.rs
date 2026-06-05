@@ -459,7 +459,7 @@ where
             let builder = match site {
                 site @ Self::Void => return (site, Err(ConstructionSiteErectError::IsVoid)),
                 site @ Self::Product(_) => {
-                    return (site, Err(ConstructionSiteErectError::AlreadyBuilt))
+                    return (site, Err(ConstructionSiteErectError::AlreadyBuilt));
                 }
                 Self::Builder(builder) => builder,
             };

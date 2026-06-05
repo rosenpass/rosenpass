@@ -9,7 +9,7 @@ use tokio::process::Command;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::{Result, bail, ensure};
 use clap::{ArgGroup, Parser};
 
 use rosenpass_util::fd::claim_fd;

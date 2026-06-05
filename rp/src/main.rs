@@ -15,5 +15,7 @@ fn main() -> anyhow::Result<()> {
 
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 fn main() {
-    panic!("Unfortunately, the rp command is currently not supported on your platform. See https://github.com/rosenpass/rosenpass/issues/689 for more information and discussion.")
+    panic!(
+        "Unfortunately, the rp command is currently not supported on your platform. See https://github.com/rosenpass/rosenpass/issues/689 for more information and discussion."
+    )
 }

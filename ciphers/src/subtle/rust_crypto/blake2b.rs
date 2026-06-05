@@ -1,12 +1,12 @@
 use zeroize::Zeroizing;
 
+use blake2::Blake2bMac;
 use blake2::digest::crypto_common::generic_array::GenericArray;
 use blake2::digest::crypto_common::typenum::U32;
 use blake2::digest::{FixedOutput, Mac};
-use blake2::Blake2bMac;
 
 use rosenpass_cipher_traits::primitives::KeyedHash;
-use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_to::{To, ops::copy_slice};
 
 pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::{HASH_LEN, KEY_LEN};
 

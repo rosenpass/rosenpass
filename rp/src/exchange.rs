@@ -3,7 +3,7 @@ use std::{borrow::Borrow, net::SocketAddr, path::PathBuf};
 
 use tokio::process::Command;
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
@@ -33,7 +33,7 @@ use crate::key::WG_B64_LEN;
 mod netlink {
     /// Re-exports from [::netlink_packet_core]
     pub mod core {
-        pub use ::netlink_packet_core::{NetlinkMessage, NLM_F_ACK, NLM_F_REQUEST};
+        pub use ::netlink_packet_core::{NLM_F_ACK, NLM_F_REQUEST, NetlinkMessage};
     }
 
     /// Re-exports from [::rtnetlink]

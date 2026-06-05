@@ -1,7 +1,7 @@
 //! A module providing the [`RefMaker`] type and its associated methods for constructing
 //! [`zerocopy::Ref`] references from byte buffers.
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use std::marker::PhantomData;
 use zerocopy::{ByteSlice, ByteSliceMut, Ref};
 use zeroize::Zeroize;

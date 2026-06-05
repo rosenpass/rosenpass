@@ -39,11 +39,11 @@
 use std::{borrow::BorrowMut, fmt::Debug};
 
 use crate::{
+    SerializedBrokerConfig, WireGuardBroker,
     api::{
         config::NetworkBrokerConfig,
         msgs::{self, REQUEST_MSG_BUFFER_SIZE},
     },
-    SerializedBrokerConfig, WireGuardBroker,
 };
 
 use super::{

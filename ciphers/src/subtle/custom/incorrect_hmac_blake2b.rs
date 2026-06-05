@@ -3,7 +3,7 @@ use rosenpass_cipher_traits::{
     primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
 };
 use rosenpass_constant_time::xor;
-use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 
 #[cfg(not(feature = "experiment_libcrux_blake2"))]

@@ -161,8 +161,8 @@ mod equivalence_tests {
 
         // The functions below are from the old libcrux backend. I am keeping them around so we can
         // check if they behave the same.
-        use rosenpass_to::ops::copy_slice;
         use rosenpass_to::To;
+        use rosenpass_to::ops::copy_slice;
         use zeroize::Zeroize;
 
         /// Encrypts using ChaCha20Poly1305 as implemented in [libcrux](https://github.com/cryspen/libcrux).
