@@ -61,6 +61,12 @@ let
     }).sandboxed;
 in
 {
+  package-deb-debian-12 = test {
+    tester = pkgs.testers.nonNixOSDistros.debian."12";
+    installPrefix = "dpkg --install";
+    suffix = "deb";
+    source = pkgsDirDeb;
+  };
   package-deb-debian-13 = test {
     tester = pkgs.testers.nonNixOSDistros.debian."13";
     installPrefix = "dpkg --install";
@@ -73,10 +79,47 @@ in
     suffix = "deb";
     source = pkgsDirDeb;
   };
-  package-rpm-fedora_40 = test {
-    tester = pkgs.testers.nonNixOSDistros.fedora."40";
+  package-deb-ubuntu-24_04 = test {
+    tester = pkgs.testers.nonNixOSDistros.ubuntu."24_04";
+    installPrefix = "dpkg --install";
+    suffix = "deb";
+    source = pkgsDirDeb;
+  };
+  package-deb-ubuntu-26_04 = test {
+    tester = pkgs.testers.nonNixOSDistros.ubuntu."24_04";
+    installPrefix = "dpkg --install";
+    suffix = "deb";
+    source = pkgsDirDeb;
+  };
+  # Fedora 40 is not available for download anymore
+  # package-rpm-fedora_40 = test {
+  #   tester = pkgs.testers.nonNixOSDistros.fedora."40";
+  #   installPrefix = "rpm -i";
+  #   suffix = "rpm";
+  #   source = pkgsDirRpm;
+  # };
+  package-rpm-fedora_41 = test {
+    tester = pkgs.testers.nonNixOSDistros.fedora."41";
     installPrefix = "rpm -i";
     suffix = "rpm";
     source = pkgsDirRpm;
   };
+  package-rpm-fedora_42 = test {
+    tester = pkgs.testers.nonNixOSDistros.fedora."42";
+    installPrefix = "rpm -i";
+    suffix = "rpm";
+    source = pkgsDirRpm;
+  };
+  package-rpm-fedora_43 = test {
+    tester = pkgs.testers.nonNixOSDistros.fedora."43";
+    installPrefix = "rpm -i";
+    suffix = "rpm";
+    source = pkgsDirRpm;
+  };
+  # package-rpm-fedora_44 = test {
+  #   tester = pkgs.testers.nonNixOSDistros.fedora."44";
+  #   installPrefix = "rpm -i";
+  #   suffix = "rpm";
+  #   source = pkgsDirRpm;
+  # };
 }
