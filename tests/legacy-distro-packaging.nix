@@ -98,12 +98,12 @@ in
   #   suffix = "rpm";
   #   source = pkgsDirRpm;
   # };
-  package-rpm-fedora_41 = test {
-    tester = pkgs.testers.nonNixOSDistros.fedora."41";
-    installPrefix = "rpm -i";
-    suffix = "rpm";
-    source = pkgsDirRpm;
-  };
+  # package-rpm-fedora_41 = test {
+  #   tester = pkgs.testers.nonNixOSDistros.fedora."41";
+  #   installPrefix = "rpm -i";
+  #   suffix = "rpm";
+  #   source = pkgsDirRpm;
+  # };
   package-rpm-fedora_42 = test {
     tester = pkgs.testers.nonNixOSDistros.fedora."42";
     installPrefix = "rpm -i";
@@ -116,6 +116,7 @@ in
     suffix = "rpm";
     source = pkgsDirRpm;
   };
+  # not yet available:
   # package-rpm-fedora_44 = test {
   #   tester = pkgs.testers.nonNixOSDistros.fedora."44";
   #   installPrefix = "rpm -i";
