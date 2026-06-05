@@ -77,7 +77,7 @@ in
     suffix = "deb";
     source = pkgsDirDeb;
   };
-  
+
   package-deb-ubuntu-23_10 = test {
     tester = pkgs.testers.nonNixOSDistros.ubuntu."23_10";
     installPrefix = "dpkg --install";
