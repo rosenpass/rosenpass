@@ -13,16 +13,16 @@
       "*.json5"
       "*.md"
       "*.mdx"
-      "*.toml"
       "*.yaml"
       "*.yml"
     ];
     excludes = [ "supply-chain/*" ];
-    settings = {
-      plugins = [
-        "${pkgs.nodePackages.prettier-plugin-toml}/lib/node_modules/prettier-plugin-toml/lib/index.js"
-      ];
-    };
+  };
+  programs.taplo = {
+    enable = true;
+    includes = [
+      "*.toml"
+    ];
   };
   programs.rustfmt.enable = true;
 }

@@ -144,7 +144,7 @@
                 cargo-release
                 clippy
                 rustfmt
-                nodePackages.prettier
+                prettier
                 nushell # for the .ci/gen-workflow-files.nu script
                 proverif-patched
               ];
@@ -159,7 +159,7 @@
                 cargo-release
                 cargo-vet
                 rustfmt
-                nodePackages.prettier
+                prettier
                 nushell # for the .ci/gen-workflow-files.nu script
                 proverif-patched
                 pkgs.cargo-llvm-cov
