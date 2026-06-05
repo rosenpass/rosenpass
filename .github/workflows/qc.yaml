@@ -27,9 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
-        with: nix_path: nixpkgs=channel:nixos-26.05
+        with:
+          nix_path: nixpkgs=channel:nixos-26.05
       - uses: cachix/cachix-action@v17
-        with: name: rosenpass authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+        with:
+          name: rosenpass
+          rosenpass authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: run nix format
         run: nix fmt -- --fail-on-change
 
