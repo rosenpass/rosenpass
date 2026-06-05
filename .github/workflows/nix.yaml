@@ -351,7 +351,7 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
-        run: nix flake check . --print-build-logs --option min-free 10G
+        run: nix flake check . --print-build-logs --max-jobs 1 #  --option min-free 10G
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubicloud-standard-2-ubuntu-2204
