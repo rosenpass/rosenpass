@@ -15,7 +15,7 @@ permissions:
 jobs:
   shellcheck:
     name: Shellcheck
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - name: Run ShellCheck
@@ -23,7 +23,7 @@ jobs:
 
   rustfmt:
     name: Code Formatting
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -37,7 +37,7 @@ jobs:
         run: nix fmt -- --fail-on-change
 
   cargo-bench:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -56,7 +56,7 @@ jobs:
 
   mandoc:
     name: mandoc
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - name: Install mandoc
         run: sudo apt-get install -y mandoc
@@ -65,7 +65,7 @@ jobs:
         run: doc/check.sh doc/rp.1
 
   cargo-audit:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions-rs/audit-check@v1
@@ -73,7 +73,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo-clippy:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -92,7 +92,7 @@ jobs:
           args: --all-features
 
   cargo-doc:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -111,7 +111,7 @@ jobs:
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
 
   cargo-test:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -130,7 +130,7 @@ jobs:
 
   cargo-test-nix-devshell-x86_64-linux:
     runs-on:
-      - ubicloud-standard-2-ubuntu-2604
+      - ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -152,7 +152,7 @@ jobs:
       - run: nix develop --command cargo test --workspace --all-features
 
   cargo-fuzz:
-    runs-on: ubicloud-standard-2-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -185,7 +185,7 @@ jobs:
           cargo fuzz run fuzz_vec_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
 
   codecov:
-    runs-on: ubicloud-standard-8-ubuntu-2604
+    runs-on: ubicloud-standard-8-ubuntu-2404
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
