@@ -185,7 +185,7 @@ jobs:
           cargo fuzz run fuzz_vec_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
 
   codecov:
-    runs-on: ubicloud-standard-2-ubuntu-2204
+    runs-on: ubicloud-standard-8-ubuntu-2204
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
