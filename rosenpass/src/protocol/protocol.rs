@@ -14,7 +14,7 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
 use zerocopy::{AsBytes, FromBytes, Ref};
@@ -26,11 +26,11 @@ use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace
 use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_to::{To, ops::copy_slice};
 use rosenpass_util::{
     cat,
     functional::ApplyExt,
-    mem::{cpy_min, DiscardResultExt},
+    mem::{DiscardResultExt, cpy_min},
     time::Timebase,
 };
 
@@ -38,7 +38,7 @@ use crate::protocol::test_vector_sets::{
     CycledBiscuitSecretKeyTestValues, EncapsAndMixTestValues, HandleInitHelloTestValues,
     HandleInitiationTestValues, StoreBiscuitTestValues,
 };
-use crate::{hash_domains, msgs::*, RosenpassError};
+use crate::{RosenpassError, hash_domains, msgs::*};
 
 use super::basic_types::{
     BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, PublicSymKey, SPk, SSk, SessionId, SymKey,
@@ -53,7 +53,7 @@ use super::constants::{
 use super::cookies::{BiscuitKey, CookieSecret, CookieStore};
 use super::index::{PeerIndex, PeerIndexKey};
 use super::osk_domain_separator::OskDomainSeparator;
-use super::timing::{has_happened, Timing, BCE, UNENDING};
+use super::timing::{BCE, Timing, UNENDING, has_happened};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
 #[cfg(feature = "trace_bench")]
@@ -1657,11 +1657,7 @@ impl Mortal for BiscuitKeyPtr {
     /// At [BiscuitKey::created_at]
     fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         let t = self.get(srv).created_at;
-        if t < 0.0 {
-            None
-        } else {
-            Some(t)
-        }
+        if t < 0.0 { None } else { Some(t) }
     }
 
     /// At [Self::created_at] plus [BISCUIT_EPOCH]
@@ -1679,11 +1675,7 @@ impl Mortal for ServerCookieSecretPtr {
     /// At [CookieSecret::created_at]
     fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         let t = self.get(srv).created_at;
-        if t < 0.0 {
-            None
-        } else {
-            Some(t)
-        }
+        if t < 0.0 { None } else { Some(t) }
     }
 
     /// At [Self::created_at] plus [COOKIE_SECRET_EPOCH]
@@ -1725,11 +1717,7 @@ impl Mortal for KnownInitConfResponsePtr {
     /// At [KnownInitConfResponse::received_at]
     fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         let t = self.get(srv)?.received_at;
-        if t < 0.0 {
-            None
-        } else {
-            Some(t)
-        }
+        if t < 0.0 { None } else { Some(t) }
     }
 
     /// No retirement phase, so this is the same as [Self::die_at]

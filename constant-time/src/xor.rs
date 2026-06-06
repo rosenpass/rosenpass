@@ -1,7 +1,7 @@
 //! xor
 
 use core::hint::black_box;
-use rosenpass_to::{with_destination, To};
+use rosenpass_to::{To, with_destination};
 
 /// Xors the source into the destination
 ///

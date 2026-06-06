@@ -90,6 +90,7 @@ impl From<wg::err::GetDeviceError> for SetPskError {
     }
 }
 
+use SetPskError as SetPskNetlinkError;
 /// # Example
 /// ```
 /// use rosenpass_wireguard_broker::api::msgs::SetPskError as SetPskMsgsError;
@@ -98,7 +99,6 @@ impl From<wg::err::GetDeviceError> for SetPskError {
 /// let set_psk_msgs_error = SetPskMsgsError::from(set_psk_nlink_error);
 /// ```
 use msgs::SetPskError as SetPskMsgsError;
-use SetPskError as SetPskNetlinkError;
 impl From<SetPskNetlinkError> for SetPskMsgsError {
     fn from(err: SetPskError) -> Self {
         match err {
@@ -191,7 +191,7 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Public, Secret};
+    use rosenpass_secret_memory::{Public, Secret, secret_policy_use_only_malloc_secrets};
     #[test]
     fn smoke_test() -> Result<(), Box<dyn std::error::Error>> {
         secret_policy_use_only_malloc_secrets();

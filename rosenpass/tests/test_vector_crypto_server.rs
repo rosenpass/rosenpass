@@ -15,7 +15,7 @@
 //! TEST_MODE=init cargo test crypto_server_test_vector_1
 //! ```
 
-use assert_tv::{test_vec_case, TestValue, TestVector, TestVectorActive, TestVectorSet};
+use assert_tv::{TestValue, TestVector, TestVectorActive, TestVectorSet, test_vec_case};
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::test_vector_sets::deserialize_byte_vec;

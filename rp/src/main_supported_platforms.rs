@@ -5,7 +5,7 @@ use rosenpass_util::tokio::janitor::ensure_janitor;
 use rosenpass_secret_memory::policy;
 
 use crate::cli::{Cli, Command};
-use crate::exchange::{exchange, ExchangeOptions};
+use crate::exchange::{ExchangeOptions, exchange};
 use crate::key::{genkey, pubkey};
 
 #[tokio::main]

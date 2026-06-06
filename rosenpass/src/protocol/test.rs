@@ -9,7 +9,7 @@ use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::Public;
 use rosenpass_util::mem::DiscardResultExt;
 
-use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MsgType, RespHello, MAX_MESSAGE_LEN};
+use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MAX_MESSAGE_LEN, MsgType, RespHello};
 
 use super::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use super::constants::REKEY_AFTER_TIME_RESPONDER;
@@ -502,13 +502,14 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
             ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
 
         //A handles RespHello message under load, should not send cookie reply
-        assert!(a
-            .handle_msg_under_load(
+        assert!(
+            a.handle_msg_under_load(
                 &b_to_a_buf[..resp_hello_len],
                 &mut *a_to_b_buf,
                 &ip_addr_port_b
             )
-            .is_err());
+            .is_err()
+        );
     });
 }
 

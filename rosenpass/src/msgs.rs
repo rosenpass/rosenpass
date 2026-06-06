@@ -13,7 +13,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use super::RosenpassError;
 use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
-use rosenpass_ciphers::{Aead, XAead, KEY_LEN};
+use rosenpass_ciphers::{Aead, KEY_LEN, XAead};
 use rosenpass_ciphers::{EphemeralKem, StaticKem};
 
 /// Length of a session ID such as [InitHello::sidi]
@@ -437,7 +437,7 @@ impl From<MsgType> for u8 {
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
     use rosenpass_cipher_traits::primitives::Aead as _;
-    use rosenpass_ciphers::{XAead, KEY_LEN};
+    use rosenpass_ciphers::{KEY_LEN, XAead};
 
     #[test]
     fn sodium_keysize() {

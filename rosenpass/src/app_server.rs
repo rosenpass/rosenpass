@@ -2,7 +2,7 @@
 //! the actual cryptographic code lives in the [crate::protocol] module
 
 use std::collections::{HashMap, VecDeque};
-use std::io::{stdout, ErrorKind, Write};
+use std::io::{ErrorKind, Write, stdout};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
@@ -10,21 +10,21 @@ use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 use mio::{Interest, Token};
 use signal_hook_mio::v1_0 as signal_hook_mio;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use derive_builder::Builder;
 use log::{error, info, warn};
 use zerocopy::AsBytes;
 
 use rosenpass_util::attempt;
 use rosenpass_util::fmt::debug::NullDebug;
-use rosenpass_util::functional::{run, ApplyExt};
+use rosenpass_util::functional::{ApplyExt, run};
 use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
 use rosenpass_util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
 use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WireguardBrokerCfg, WireguardBrokerMio, WG_KEY_LEN};
+use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};
 
@@ -886,7 +886,10 @@ impl AppServer {
                 Some(Ok(v)) => v,
                 None => true,
                 Some(Err(e)) => {
-                    warn!("Unable to detect whether the IPv6 socket supports dual-stack operation: {}", e);
+                    warn!(
+                        "Unable to detect whether the IPv6 socket supports dual-stack operation: {}",
+                        e
+                    );
                     true
                 }
             };
@@ -1325,7 +1328,7 @@ impl AppServer {
                 Some(C::DeleteKey(PeerPtr(no))) => break A::DeleteKey(AppPeerPtr(no)),
                 Some(C::SendInitiation(PeerPtr(no))) => break A::SendInitiation(AppPeerPtr(no)),
                 Some(C::SendRetransmission(PeerPtr(no))) => {
-                    break A::SendRetransmission(AppPeerPtr(no))
+                    break A::SendRetransmission(AppPeerPtr(no));
                 }
                 Some(C::Sleep(timeout)) => timeout, // No event from crypto-server, do IO
                 None => crate::protocol::timing::UNENDING, // Crypto server is uninitialized, do IO
@@ -1555,7 +1558,9 @@ impl AppServer {
         let io_source = match self.io_source_index.get(&token) {
             Some(io_source) => *io_source,
             None => {
-                log::warn!("No IO source assiociated with mio token ({token:?}). Polling using mio tokens directly is an experimental feature and IO handler should recover when all available io sources are polled. This is a developer error. Please report it.");
+                log::warn!(
+                    "No IO source assiociated with mio token ({token:?}). Polling using mio tokens directly is an experimental feature and IO handler should recover when all available io sources are polled. This is a developer error. Please report it."
+                );
                 return Ok(AppServerTryRecvResult::None);
             }
         };

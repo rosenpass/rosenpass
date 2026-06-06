@@ -1,7 +1,7 @@
 //! This module defines message formats for messages in the Wireguard Broker protocol as well as
 //! helper structures like errors and conversion functions.
 
-use std::str::{from_utf8, Utf8Error};
+use std::str::{Utf8Error, from_utf8};
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 

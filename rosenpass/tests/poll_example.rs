@@ -102,11 +102,14 @@ fn test_successful_exchange_with_poll(
         "
     );
     #[cfg(not(coverage))]
-    assert!((110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)), "\
+    assert!(
+        (110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)),
+        "\
         First renegotiation should happen in between two and three minutes after the first renegotiation!\n\
           Transcript: {transcript:?}\n\
           Completions: {_completions:?}\
-        ");
+        "
+    );
 
     Ok(())
 }
@@ -198,11 +201,14 @@ fn test_successful_exchange_under_packet_loss(
         "
     );
     #[cfg(not(coverage))]
-    assert!((110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)), "\
+    assert!(
+        (110.0..175.0).contains(&(_completions[2].0 - _completions[1].0)),
+        "\
         First renegotiation should happen in between two and three minutes after the first renegotiation!\n\
           Transcript: {transcript:?}\n\
           Completions: {_completions:?}\
-        ");
+        "
+    );
 
     Ok(())
 }
@@ -232,8 +238,10 @@ fn test_osk_label_mismatch() -> anyhow::Result<()> {
     for _ in 0..300 {
         let ev = sim.poll()?;
 
-        assert!(!matches!(ev, TranscriptEvent::CompletedExchange(_)),
-            "We deliberately provoked a mismatch in OSK domain separator, but still saw a successfully completed key exchange");
+        assert!(
+            !matches!(ev, TranscriptEvent::CompletedExchange(_)),
+            "We deliberately provoked a mismatch in OSK domain separator, but still saw a successfully completed key exchange"
+        );
 
         // Wait for a key exchange that failed with a KeyMismatch event
         let (osk_a_custom1, osk_b_custom2) = match ev {

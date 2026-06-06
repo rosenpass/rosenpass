@@ -7,22 +7,22 @@
   ...
 }:
 let
-  # The current version of ipython fails to build on i686 linux.
-  # We therefore pin an older version that works for the time beeing.
-  ipythonOverlay = final: prev: {
-    python313 = prev.python313.override {
-      packageOverrides = python-final: python-prev: {
-        ipython = python-prev.ipython.overridePythonAttrs (old: {
-          version = "8.37.0";
-          src = python-final.fetchPypi {
-            pname = "ipython";
-            version = "8.37.0";
-            hash = "sha256-yoFYQeGkGh5rc6CwjzA4r5siUlZNAfxAU1bTQDMBIhY=";
-          };
-        });
-      };
-    };
-  };
+  # # The current version of ipython fails to build on i686 linux.
+  # # We therefore pin an older version that works for the time beeing.
+  # ipythonOverlay = final: prev: {
+  #   python313 = prev.python313.override {
+  #     packageOverrides = python-final: python-prev: {
+  #       ipython = python-prev.ipython.overridePythonAttrs (old: {
+  #         version = "8.37.0";
+  #         src = python-final.fetchPypi {
+  #           pname = "ipython";
+  #           version = "8.37.0";
+  #           hash = "sha256-yoFYQeGkGh5rc6CwjzA4r5siUlZNAfxAU1bTQDMBIhY=";
+  #         };
+  #       });
+  #     };
+  #   };
+  # };
 
   basicConnectivityOverlay = final: prev: {
     rosenpass-peer-a = rosenpassNew;
@@ -49,7 +49,7 @@ let
     inherit system;
     overlays = [
       basicConnectivityOverlay
-      ipythonOverlay
+      # ipythonOverlay
     ];
   };
 
@@ -57,7 +57,7 @@ let
     inherit system;
     overlays = [
       backwardServerOverlay
-      ipythonOverlay
+      # ipythonOverlay
     ];
   };
 
@@ -65,7 +65,7 @@ let
     inherit system;
     overlays = [
       backwardClientOverlay
-      ipythonOverlay
+      # ipythonOverlay
     ];
   };
 
@@ -73,7 +73,7 @@ let
     inherit system;
     overlays = [
       multiPeerOverlay
-      ipythonOverlay
+      # ipythonOverlay
     ];
   };
 

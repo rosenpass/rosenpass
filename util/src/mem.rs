@@ -283,9 +283,9 @@ impl<T: Sized> MoveExt for T {
 #[cfg(test)]
 mod test_forgetting {
     use crate::mem::Forgetting;
+    use std::sync::Arc;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering::SeqCst;
-    use std::sync::Arc;
 
     #[test]
     fn test_forgetting() {

@@ -56,11 +56,22 @@ fn fatal<T>(note: &str, command: Option<CommandType>) -> Result<T, String> {
     match command {
         Some(command) => match command {
             CommandType::GenKey => Err(format!("{}\nUsage: rp genkey PRIVATE_KEYS_DIR", note)),
-            CommandType::PubKey => Err(format!("{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR", note)),
-            CommandType::Exchange => Err(format!("{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [ip <ip1>/<cidr1>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...", note)),
-            CommandType::ExchangeConfig => Err(format!("{}\nUsage: rp exchange-config <CONFIG_FILE>", note)),
+            CommandType::PubKey => Err(format!(
+                "{}\nUsage: rp pubkey PRIVATE_KEYS_DIR PUBLIC_KEYS_DIR",
+                note
+            )),
+            CommandType::Exchange => Err(format!(
+                "{}\nUsage: rp exchange PRIVATE_KEYS_DIR [dev <device>] [ip <ip1>/<cidr1>] [listen <ip>:<port>] [peer PUBLIC_KEYS_DIR [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...",
+                note
+            )),
+            CommandType::ExchangeConfig => {
+                Err(format!("{}\nUsage: rp exchange-config <CONFIG_FILE>", note))
+            }
         },
-        None => Err(format!("{}\nUsage: rp [verbose] genkey|pubkey|exchange|exchange-config [ARGS]...", note)),
+        None => Err(format!(
+            "{}\nUsage: rp [verbose] genkey|pubkey|exchange|exchange-config [ARGS]...",
+            note
+        )),
     }
 }
 
@@ -140,7 +151,7 @@ impl ExchangePeer {
                     return fatal(
                         &format!("Unknown option {}", x),
                         Some(CommandType::Exchange),
-                    )
+                    );
                 }
             }
         }
@@ -208,7 +219,7 @@ impl ExchangeOptions {
                     return fatal(
                         &format!("Unknown option {}", x),
                         Some(CommandType::Exchange),
-                    )
+                    );
                 }
             }
         }

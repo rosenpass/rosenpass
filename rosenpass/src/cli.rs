@@ -3,7 +3,7 @@
 //! [CliArgs::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{Context, bail, ensure};
 use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
@@ -27,9 +27,9 @@ use {
     log::{error, info},
     mio::net::UnixStream,
     rosenpass_util::fd::claim_fd,
-    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
     rosenpass_wireguard_broker::WireguardBrokerMio,
-    rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
+    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
+    rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
     std::os::fd::AsRawFd,
     std::os::unix::net,
     std::process::Command,
@@ -291,7 +291,9 @@ impl CliArgs {
 
             // Deprecated - use gen-keys instead
             Some(Keygen { args }) => {
-                log::warn!("The 'keygen' command is deprecated. Please use the 'gen-keys' command instead.");
+                log::warn!(
+                    "The 'keygen' command is deprecated. Please use the 'gen-keys' command instead."
+                );
 
                 let mut public_key: Option<PathBuf> = None;
                 let mut secret_key: Option<PathBuf> = None;
@@ -346,7 +348,9 @@ impl CliArgs {
                     }
                     (_, Some(pkf), Some(skf)) => (pkf.clone(), skf.clone()),
                     _ => {
-                        bail!("either a config-file or both public-key and secret-key file are required")
+                        bail!(
+                            "either a config-file or both public-key and secret-key file are required"
+                        )
                     }
                 };
 

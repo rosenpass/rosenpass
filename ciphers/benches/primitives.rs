@@ -79,7 +79,7 @@ mod kem {
         impl_name: &str,
         scheme: T,
     ) {
-        use super::{benchid, KvPair, KvPairs};
+        use super::{KvPair, KvPairs, benchid};
 
         let base = [
             KvPair("primitive", "kem"),
@@ -176,7 +176,7 @@ mod aead {
         impl_name: &str,
         scheme: T,
     ) {
-        use crate::{benchid, KvPair, KvPairs};
+        use crate::{KvPair, KvPairs, benchid};
 
         let base = [
             KvPair("primitive", "aead"),
@@ -326,7 +326,7 @@ mod keyed_hash {
     ) where
         H::Error: std::fmt::Debug,
     {
-        use crate::{benchid, KvPair, KvPairs};
+        use crate::{KvPair, KvPairs, benchid};
 
         let key = [12u8; KEY_LEN];
         let mut out = [0u8; HASH_LEN];

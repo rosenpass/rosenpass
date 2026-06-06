@@ -206,7 +206,10 @@ impl Build<CryptoServer> for BuildCryptoServer {
             let PeerPtr(idx2) =
                 srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?;
 
-            assert!(idx == idx2, "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error.")
+            assert!(
+                idx == idx2,
+                "Peer id changed during CryptoServer construction from {idx} to {idx2}. This is a developer error."
+            )
         }
 
         Ok(srv)

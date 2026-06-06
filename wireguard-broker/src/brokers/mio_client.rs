@@ -47,10 +47,10 @@
 //! # }
 //! ```
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use mio::Interest;
 use rosenpass_secret_memory::Secret;
-use rosenpass_to::{ops::copy_slice_least_src, To};
+use rosenpass_to::{To, ops::copy_slice_least_src};
 use rosenpass_util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
 use rosenpass_util::length_prefix_encoding::decoder::LengthPrefixDecoder;
 use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
@@ -233,7 +233,10 @@ impl BrokerClientIo for MioBrokerClientIo {
     fn send_msg(&mut self, buf: &[u8]) -> Result<(), Self::SendError> {
         // Clear write buffer (blocking write)
         self.flush_blocking()?;
-        assert!(self.write_buffer.exhausted(), "flush_blocking() should have put the write buffer in exhausted state. Developer error!");
+        assert!(
+            self.write_buffer.exhausted(),
+            "flush_blocking() should have put the write buffer in exhausted state. Developer error!"
+        );
 
         // Emplace new message in write buffer
         copy_slice_least_src(buf).to(self.write_buffer.buffer_bytes_mut());
@@ -273,8 +276,10 @@ impl MioBrokerClientIo {
             return Ok(());
         }
 
-        log::warn!("Could not flush PSK broker write buffer in non-blocking mode. Flushing in blocking mode!");
-        use rustix::io::{fcntl_getfd, fcntl_setfd, FdFlags};
+        log::warn!(
+            "Could not flush PSK broker write buffer in non-blocking mode. Flushing in blocking mode!"
+        );
+        use rustix::io::{FdFlags, fcntl_getfd, fcntl_setfd};
 
         // Build O_NONBLOCK
         let o_nonblock = {

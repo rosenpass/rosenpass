@@ -10,15 +10,15 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
-    fopen_r, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64,
-    StoreValueB64Writer,
+    LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
+    fopen_r,
 };
 use rosenpass_util::functional::mutating;
 
-use crate::alloc::{secret_box, SecretBox, SecretVec};
+use crate::alloc::{SecretBox, SecretVec, secret_box};
 use crate::file::StoreSecret;
 
-use rosenpass_util::file::{fopen_w, Visibility};
+use rosenpass_util::file::{Visibility, fopen_w};
 use std::io::Write;
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will

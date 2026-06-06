@@ -50,7 +50,7 @@
 use std::any::type_name;
 use std::future::Future;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 
 use tokio::task::{AbortHandle, JoinError, JoinHandle, JoinSet};
 use tokio::task_local;
@@ -214,13 +214,14 @@ impl JanitorAgent {
             }),
 
             // JoinError produced by the user task: The user task was cancelled.
-            (Some(Ok(E::CleanupJobJoinError(err))), _) if err.is_cancelled() => Err(err).with_context(|| {
-                format!(
-                    "Error in cleanup job handled by {me}; the cleanup task was cancelled.
+            (Some(Ok(E::CleanupJobJoinError(err))), _) if err.is_cancelled() => Err(err)
+                .with_context(|| {
+                    format!(
+                        "Error in cleanup job handled by {me}; the cleanup task was cancelled.
                     This should not happend and likely indicates a developer error in {me}.",
-                    me = type_name::<Self>()
-                )
-            }),
+                        me = type_name::<Self>()
+                    )
+                }),
 
             // JoinError produced by the user task: The user task panicked
             (Some(Ok(E::CleanupJobJoinError(err))), _) => Err(err).with_context(|| {
@@ -250,17 +251,18 @@ impl JanitorAgent {
                 )
             }),
 
-
             // Internal errors: State machine failure
 
             // No tasks left, but ticket queue was not drained
-            (Option::None, false) => bail!("Internal error in {me}::handle_one_event(); \
+            (Option::None, false) => bail!(
+                "Internal error in {me}::handle_one_event(); \
                 there are no more internal tasks active, but the ticket queue was not drained. \
                 The {me}::handle_one_event() code is deliberately designed to never leave the internal task set empty; \
                 instead, there should always be one task to receive new cleanup jobs from the task queue unless the task \
                 queue has been closed. \
                 This is probably a developer error.",
-                me = type_name::<Self>())
+                me = type_name::<Self>()
+            ),
         }
     }
 
@@ -562,10 +564,14 @@ where
 #[derive(thiserror::Error, Debug)]
 pub enum TrySpawnCleanupJobError {
     /// No active janitor exists
-    #[error("No janitor registered. Did the developer forget to call enter_janitor(…) or ensure_janitor(…)?")]
+    #[error(
+        "No janitor registered. Did the developer forget to call enter_janitor(…) or ensure_janitor(…)?"
+    )]
     NoActiveJanitor,
     /// The currently active janitor is in the process of terminating
-    #[error("There is a registered janitor, but it is currently in the process of terminating and won't accept new tasks.")]
+    #[error(
+        "There is a registered janitor, but it is currently in the process of terminating and won't accept new tasks."
+    )]
     ActiveJanitorTerminating,
 }
 

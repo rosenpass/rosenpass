@@ -271,7 +271,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
                     break Err(ReadFromIoError::IoError(io::Error::new(
                         K::UnexpectedEof,
                         "",
-                    )))
+                    )));
                 }
 
                 // Retry

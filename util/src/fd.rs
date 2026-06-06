@@ -133,7 +133,7 @@ pub fn clone_fd_cloexec<Fd: AsFd>(fd: Fd) -> rustix::io::Result<OwnedFd> {
 /// explicit destination file descriptor.
 #[cfg(target_os = "linux")]
 pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::Result<()> {
-    use rustix::io::{dup3, DupFlags};
+    use rustix::io::{DupFlags, dup3};
     dup3(fd, new, DupFlags::CLOEXEC)
 }
 
@@ -143,7 +143,7 @@ pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::R
 /// This is slightly different from [clone_fd_cloexec], as this function supports specifying an
 /// explicit destination file descriptor.
 pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::Result<()> {
-    use rustix::io::{dup2, fcntl_setfd, FdFlags};
+    use rustix::io::{FdFlags, dup2, fcntl_setfd};
     dup2(&fd, new)?;
     fcntl_setfd(&new, FdFlags::CLOEXEC)
 }
@@ -165,7 +165,7 @@ pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::R
 /// let nullfd = open_nullfd().unwrap();
 /// ```
 pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
-    use rustix::fs::{open, Mode, OFlags};
+    use rustix::fs::{Mode, OFlags, open};
     // TODO: Add tests showing that this will throw errors on use
     open("/dev/null", OFlags::CLOEXEC, Mode::empty())
 }

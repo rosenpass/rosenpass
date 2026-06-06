@@ -31,7 +31,7 @@ use anyhow::Result;
 use rosenpass_secret_memory::Secret;
 use rosenpass_to::To as _;
 
-pub use crate::{KeyedHash, KEY_LEN};
+pub use crate::{KEY_LEN, KeyedHash};
 
 use rosenpass_cipher_traits::primitives::KeyedHashInstanceTo;
 

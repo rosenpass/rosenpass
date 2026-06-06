@@ -15,7 +15,7 @@ use anyhow::{bail, ensure};
 
 use serde::{Deserialize, Serialize};
 
-use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
+use rosenpass_util::file::{LoadValue, Visibility, fopen_w};
 
 use crate::protocol::basic_types::{SPk, SSk};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
@@ -201,8 +201,12 @@ impl RosenpassPeerOskDomainSeparator {
         match (&self.osk_organization, &self.osk_label) {
             (None, None) => Ok(None),
             (Some(org), Some(label)) => Ok(Some((org, label))),
-            (Some(_), None) => bail!("Specified osk_organization but not osk_label in config file. You need to specify both, or none."),
-            (None, Some(_)) =>  bail!("Specified osk_label but not osk_organization in config file. You need to specify both, or none."),
+            (Some(_), None) => bail!(
+                "Specified osk_organization but not osk_label in config file. You need to specify both, or none."
+            ),
+            (None, Some(_)) => bail!(
+                "Specified osk_label but not osk_organization in config file. You need to specify both, or none."
+            ),
         }
     }
 

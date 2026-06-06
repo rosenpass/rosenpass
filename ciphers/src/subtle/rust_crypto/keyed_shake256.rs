@@ -1,7 +1,7 @@
 use anyhow::ensure;
 use rosenpass_cipher_traits::primitives::{InferKeyedHash, KeyedHash};
-use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
+use sha3::digest::{ExtendableOutput, Update, XofReader};
 
 pub use rosenpass_cipher_traits::algorithms::keyed_hash_shake256::{HASH_LEN, KEY_LEN};
 

@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use command_fds::{CommandFdExt, FdMapping};
 use hex_literal::hex;
 use rosenpass::api::{
@@ -33,7 +33,7 @@ struct KillChild(std::process::Child);
 
 impl Drop for KillChild {
     fn drop(&mut self) {
-        use rustix::process::{kill_process, Pid, Signal::Term};
+        use rustix::process::{Pid, Signal::Term, kill_process};
         let pid = Pid::from_child(&self.0);
         // We seriously need to start handling signals with signalfd, our current signal handling
         // system is a bit broken; there is probably a few functions that just restart on EINTR
@@ -241,7 +241,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
 
     // Send SupplyKeypairRequest
     {
-        use rustix::fs::{open, Mode, OFlags};
+        use rustix::fs::{Mode, OFlags, open};
         let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
         let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
 
@@ -342,8 +342,10 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         // success on consensus
         match osk_a.secret() == osk_b.secret() {
             true => break,
-            false if attempt > 10 => bail!("Peers did not produce a matching key even after ten attempts. Something is wrong with the key exchange!"),
-            false => {},
+            false if attempt > 10 => bail!(
+                "Peers did not produce a matching key even after ten attempts. Something is wrong with the key exchange!"
+            ),
+            false => {}
         };
 
         attempt += 1;

@@ -121,7 +121,7 @@ where
 {
 }
 
-use rosenpass_to::{with_destination, To};
+use rosenpass_to::{To, with_destination};
 
 /// Extends the [`KeyedHash`] trait with a [`To`]-flavoured function.
 pub trait KeyedHashTo<const KEY_LEN: usize, const HASH_LEN: usize>:

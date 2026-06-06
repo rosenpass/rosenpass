@@ -1,11 +1,11 @@
 use crate::debug::debug_crypto_array;
 use anyhow::Context;
 use rand::{Fill as Randomize, Rng};
-use rosenpass_to::{ops::copy_slice, To};
+use rosenpass_to::{To, ops::copy_slice};
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
-    fopen_r, fopen_w, LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue,
-    StoreValueB64, StoreValueB64Writer, Visibility,
+    LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue, StoreValueB64,
+    StoreValueB64Writer, Visibility, fopen_r, fopen_w,
 };
 use rosenpass_util::functional::mutating;
 use std::borrow::{Borrow, BorrowMut};
@@ -390,8 +390,8 @@ mod tests {
         use rosenpass_util::{
             b64::b64_encode,
             file::{
-                fopen_w, LoadValue, LoadValueB64, StoreValue, StoreValueB64, StoreValueB64Writer,
-                Visibility,
+                LoadValue, LoadValueB64, StoreValue, StoreValueB64, StoreValueB64Writer,
+                Visibility, fopen_w,
             },
         };
         use std::{fs, ops::Deref, os::unix::fs::PermissionsExt};

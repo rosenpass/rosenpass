@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use super::basic_types::{PeerId, PeerNo, SessionId};
 use super::KnownResponseHash;
+use super::basic_types::{PeerId, PeerNo, SessionId};
 
 /// Maps various keys to peer (numbers).
 ///

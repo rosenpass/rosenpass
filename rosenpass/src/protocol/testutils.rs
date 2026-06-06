@@ -6,9 +6,9 @@ use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 
 use super::{
+    CryptoServer, PeerPtr, ProtocolVersion,
     basic_types::{SPk, SSk},
     osk_domain_separator::OskDomainSeparator,
-    CryptoServer, PeerPtr, ProtocolVersion,
 };
 
 /// Helper for tests and examples
