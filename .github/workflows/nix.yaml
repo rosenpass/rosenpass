@@ -63,6 +63,7 @@ jobs:
       - name: Build
         run: nix build .#packages.i686-linux.rosenpass-oci-image --print-build-logs
   i686-linux---check:
+    # use --max-jobs 1 for the nix command to debug this
     name: Run Nix checks on i686-linux
     strategy:
       fail-fast: false
@@ -336,6 +337,7 @@ jobs:
       - name: Build
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
   x86_64-linux---check:
+    # use --max-jobs 1 for the nix command to debug this
     name: Run Nix checks on x86_64-linux
     strategy:
       fail-fast: false
@@ -351,7 +353,7 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
-        run: nix flake check . --print-build-logs --max-jobs 1 #  --option min-free 10G
+        run: nix flake check . --print-build-logs --option min-free 10G
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubicloud-standard-2-ubuntu-2204
