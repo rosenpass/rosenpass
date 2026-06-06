@@ -15,7 +15,7 @@ jobs:
   i686-linux---default:
     name: Build i686-linux.default
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs:
       - i686-linux---rosenpass
     steps:
@@ -32,7 +32,7 @@ jobs:
   i686-linux---rosenpass:
     name: Build i686-linux.rosenpass
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -48,7 +48,7 @@ jobs:
   i686-linux---rosenpass-oci-image:
     name: Build i686-linux.rosenpass-oci-image
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs:
       - i686-linux---rosenpass
     steps:
@@ -68,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
     runs-on:
-      - ubicloud-standard-8-ubuntu-2204
+      - ubicloud-standard-8-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -84,7 +84,7 @@ jobs:
   x86_64-linux---default:
     name: Build x86_64-linux.default
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs:
       - x86_64-linux---rosenpass
     steps:
@@ -101,7 +101,7 @@ jobs:
   x86_64-linux---proof-proverif:
     name: Build x86_64-linux.proof-proverif
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs:
       - x86_64-linux---proverif-patched
     steps:
@@ -118,7 +118,7 @@ jobs:
   x86_64-linux---proverif-patched:
     name: Build x86_64-linux.proverif-patched
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -134,7 +134,7 @@ jobs:
   x86_64-linux---release-package:
     name: Build x86_64-linux.release-package
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs:
       - x86_64-linux---rosenpass-static
       - x86_64-linux---rosenpass-static-oci-image
@@ -153,7 +153,7 @@ jobs:
   # aarch64-linux---release-package:
   #   name: Build aarch64-linux.release-package
   #   runs-on:
-  #     - ubicloud-standard-2-arm-ubuntu-2204
+  #     - ubicloud-standard-2-arm-ubuntu-2404
   #   needs:
   #     - aarch64-linux---rosenpass-oci-image
   #     - aarch64-linux---rosenpass
@@ -177,7 +177,7 @@ jobs:
   x86_64-linux---rosenpass:
     name: Build x86_64-linux.rosenpass
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -193,7 +193,7 @@ jobs:
   aarch64-linux---rosenpass:
     name: Build aarch64-linux.rosenpass
     runs-on:
-      - ubicloud-standard-4-arm-ubuntu-2204
+      - ubicloud-standard-4-arm-ubuntu-2404
     needs: []
     steps:
       - run: |
@@ -214,7 +214,7 @@ jobs:
   aarch64-linux---rp:
     name: Build aarch64-linux.rp
     runs-on:
-      - ubicloud-standard-4-arm-ubuntu-2204
+      - ubicloud-standard-4-arm-ubuntu-2404
     needs: []
     steps:
       - run: |
@@ -235,7 +235,7 @@ jobs:
   x86_64-linux---rosenpass-oci-image:
     name: Build x86_64-linux.rosenpass-oci-image
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs:
       - x86_64-linux---rosenpass
     steps:
@@ -252,7 +252,7 @@ jobs:
   aarch64-linux---rosenpass-oci-image:
     name: Build aarch64-linux.rosenpass-oci-image
     runs-on:
-      - ubicloud-standard-2-arm-ubuntu-2204
+      - ubicloud-standard-2-arm-ubuntu-2404
     needs:
       - aarch64-linux---rosenpass
     steps:
@@ -274,7 +274,7 @@ jobs:
   x86_64-linux---rosenpass-static:
     name: Build x86_64-linux.rosenpass-static
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -290,7 +290,7 @@ jobs:
   x86_64-linux---rp-static:
     name: Build x86_64-linux.rp-static
     runs-on:
-      - ubicloud-standard-4-ubuntu-2204
+      - ubicloud-standard-4-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -306,7 +306,7 @@ jobs:
   x86_64-linux---rosenpass-static-oci-image:
     name: Build x86_64-linux.rosenpass-static-oci-image
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs:
       - x86_64-linux---rosenpass-static
     steps:
@@ -323,7 +323,7 @@ jobs:
   x86_64-linux---whitepaper:
     name: Build x86_64-linux.whitepaper
     runs-on:
-      - ubicloud-standard-2-ubuntu-2204
+      - ubicloud-standard-2-ubuntu-2404
     needs: []
     steps:
       - uses: actions/checkout@v5
@@ -342,7 +342,7 @@ jobs:
     strategy:
       fail-fast: false
     runs-on:
-      - ubicloud-standard-8-ubuntu-2204
+      - ubicloud-standard-8-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -356,7 +356,7 @@ jobs:
         run: nix flake check . --print-build-logs --option min-free 10G
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
-    runs-on: ubicloud-standard-2-ubuntu-2204
+    runs-on: ubicloud-standard-2-ubuntu-2404
     if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v5
