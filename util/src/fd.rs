@@ -306,7 +306,7 @@ where
     type Error = rustix::io::Errno;
 
     fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error> {
-        rustix::net::sockopt::get_socket_type(self)
+        rustix::net::sockopt::socket_type(self)
     }
 }
 
@@ -335,7 +335,7 @@ where
     type Error = rustix::io::Errno;
 
     fn socket_domain(&self) -> Result<rustix::net::AddressFamily, Self::Error> {
-        rustix::net::sockopt::get_socket_domain(self)
+        rustix::net::sockopt::socket_domain(self)
     }
 }
 
@@ -511,7 +511,7 @@ where
     T: AsFd,
 {
     fn socket_protocol(&self) -> Result<Option<rustix::net::Protocol>, rustix::io::Errno> {
-        rustix::net::sockopt::get_socket_protocol(self)
+        rustix::net::sockopt::socket_protocol(self)
     }
 }
 
