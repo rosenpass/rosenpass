@@ -162,6 +162,7 @@ jobs:
       - name: Install cargo-fuzz
         # cargo-fuzz might already be installed in the cached ~/.cargo/bin (v.s.), so we need to check
         run: |
+          cargo --version
           if ! command -v cargo-fuzz >/dev/null 2>&1; then
             cargo install cargo-fuzz --locked
           fi
