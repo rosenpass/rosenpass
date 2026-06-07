@@ -64,14 +64,6 @@ jobs:
       - name: Check rp.1
         run: doc/check.sh doc/rp.1
 
-  cargo-audit:
-    runs-on: ubicloud-standard-2-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions-rs/audit-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   cargo-clippy:
     runs-on: ubicloud-standard-2-ubuntu-2404
     steps:

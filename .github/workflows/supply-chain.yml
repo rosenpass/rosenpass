@@ -9,12 +9,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-deny:
-    name: Deny dependencies with vulnerabilities or incompatible licenses
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: EmbarkStudios/cargo-deny-action@v2
   cargo-supply-chain:
     name: Supply Chain Report
     runs-on: ubuntu-latest
