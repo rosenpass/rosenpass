@@ -58,7 +58,7 @@ impl AeadChaCha20Poly1305 for ChaCha20Poly1305 {}
 #[cfg(test)]
 mod equivalence_tests {
     use super::*;
-    use rand::RngCore;
+    use rand::Rng;
 
     #[test]
     fn proptest_equivalence_libcrux_rustcrypto() {

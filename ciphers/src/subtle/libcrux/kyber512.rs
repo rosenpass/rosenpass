@@ -1,7 +1,7 @@
 //! Implementation of the [`KemKyber512`] trait based on the [`libcrux_ml_kem`] crate.
 
 use libcrux_ml_kem::kyber512;
-use rand::RngCore;
+use rand::Rng;
 
 use rosenpass_cipher_traits::algorithms::KemKyber512;
 use rosenpass_cipher_traits::primitives::{Kem, KemError};

@@ -52,7 +52,7 @@ impl KeyedHashBlake2b for Blake2b {}
 #[cfg(test)]
 mod equivalence_tests {
     use super::*;
-    use rand::RngCore;
+    use rand::Rng;
 
     #[test]
     fn fuzz_equivalence_libcrux_old_new() {
