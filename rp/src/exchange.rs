@@ -50,9 +50,9 @@ mod netlink {
 
     /// Re-exports from [::netlink_packet_wireguard]
     pub mod wg {
-        pub use ::netlink_packet_wireguard::constants::WG_KEY_LEN as KEY_LEN;
-        pub use ::netlink_packet_wireguard::nlas::WgDeviceAttrs as DeviceAttrs;
-        pub use ::netlink_packet_wireguard::{Wireguard, WireguardCmd};
+        pub const KEY_LEN: usize = ::netlink_packet_wireguard::WireguardAttribute::WG_KEY_LEN;
+        pub use ::netlink_packet_wireguard::WireguardAttribute as DeviceAttrs;
+        pub use ::netlink_packet_wireguard::{WireguardCmd, WireguardMessage};
     }
 }
 
@@ -305,9 +305,9 @@ impl WireGuardDeviceImpl {
         }
 
         // The netlink request we are trying to send
-        let req = nl::wg::Wireguard {
+        let req = nl::wg::WireguardMessage {
             cmd: nl::wg::WireguardCmd::SetDevice,
-            nlas: attrs,
+            attributes: attrs,
         };
 
         // Boilerplate; wrap the request into more structures

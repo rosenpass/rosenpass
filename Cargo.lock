@@ -1008,7 +1008,7 @@ dependencies = [
  "futures",
  "log",
  "netlink-packet-core 0.8.1",
- "netlink-packet-generic 0.4.0",
+ "netlink-packet-generic",
  "netlink-proto 0.12.0",
  "thiserror 1.0.69",
  "tokio",
@@ -1520,7 +1520,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -1644,18 +1644,6 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-generic"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cd7eb8ad331c84c6b8cb7f685b448133e5ad82e1ffd5acafac374af4a5a308b"
-dependencies = [
- "anyhow",
- "byteorder",
- "netlink-packet-core 0.7.0",
- "netlink-packet-utils",
-]
-
-[[package]]
-name = "netlink-packet-generic"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f891b2e0054cac5a684a06628f59568f841c93da4e551239da6e518f539e775"
@@ -1691,16 +1679,15 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-wireguard"
-version = "0.2.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60b25b050ff1f6a1e23c6777b72db22790fe5b6b5ccfd3858672587a79876c8f"
+checksum = "cb217ca08c02978c3ea5ef0f013d20c602f2a17a9f00d9e4b1518a3500c2f332"
 dependencies = [
- "anyhow",
- "byteorder",
+ "bitflags",
  "libc",
  "log",
- "netlink-packet-generic 0.3.3",
- "netlink-packet-utils",
+ "netlink-packet-core 0.8.1",
+ "netlink-packet-generic",
 ]
 
 [[package]]
@@ -2324,8 +2311,8 @@ dependencies = [
  "genetlink",
  "libc",
  "log",
- "netlink-packet-core 0.7.0",
- "netlink-packet-generic 0.3.3",
+ "netlink-packet-core 0.8.1",
+ "netlink-packet-generic",
  "netlink-packet-wireguard",
  "rosenpass",
  "rosenpass-cipher-traits",
@@ -3126,7 +3113,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
