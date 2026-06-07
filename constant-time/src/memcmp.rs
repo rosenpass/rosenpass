@@ -37,8 +37,8 @@ pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
 mod tests {
     use super::*;
     use core::hint::black_box;
-    use rand::seq::SliceRandom;
     use rand::rng;
+    use rand::seq::SliceRandom;
     use std::time::Instant;
 
     #[test]
