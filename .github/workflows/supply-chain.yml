@@ -11,7 +11,7 @@ concurrency:
 jobs:
   cargo-supply-chain:
     name: Supply Chain Report
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
@@ -43,7 +43,7 @@ jobs:
     # The setup for cargo-vet follows the recommendations in the cargo-vet documentation: https://mozilla.github.io/cargo-vet/configuring-ci.html
   cargo-vet:
     name: Vet Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     permissions:
       contents: write
     steps:

@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64]
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubicloud-standard-2-arm' || 'ubicloud-standard-2' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -125,7 +125,7 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     # Switch the runner based on the architecture
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubicloud-standard-2-arm' || 'ubicloud-standard-2' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -190,7 +190,7 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     # Switch the runner based on the architecture
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubicloud-standard-2-arm' || 'ubicloud-standard-2' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -245,7 +245,7 @@ jobs:
           retention-days: 1
 
   merge-digests:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - docker-image-rosenpass
       - docker-image-rp

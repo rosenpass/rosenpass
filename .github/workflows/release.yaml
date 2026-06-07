@@ -8,7 +8,7 @@ on:
 jobs:
   i686-linux---release:
     name: Build release artifacts for i686-linux
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -44,7 +44,7 @@ jobs:
           files: result/*
   x86_64-linux---release:
     name: Build release artifacts for x86_64-linux
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -64,7 +64,7 @@ jobs:
           files: result/*
   linux-packages:
     name: Build and upload DEB and RPM packages
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
