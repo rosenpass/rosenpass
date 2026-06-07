@@ -1531,6 +1531,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
 name = "lock_api"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2192,7 +2198,7 @@ dependencies = [
  "rosenpass-to",
  "rosenpass-util",
  "rosenpass-wireguard-broker",
- "rustix",
+ "rustix 1.1.4",
  "serde",
  "serde_json",
  "serial_test",
@@ -2350,7 +2356,7 @@ dependencies = [
  "libcrux-test-utils",
  "log",
  "mio",
- "rustix",
+ "rustix 1.1.4",
  "static_assertions",
  "tempfile",
  "thiserror 1.0.69",
@@ -2378,7 +2384,7 @@ dependencies = [
  "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-util",
- "rustix",
+ "rustix 1.1.4",
  "thiserror 1.0.69",
  "tokio",
  "wireguard-uapi",
@@ -2433,8 +2439,21 @@ dependencies = [
  "bitflags",
  "errno",
  "libc",
- "linux-raw-sys",
+ "linux-raw-sys 0.4.15",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rustix"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
+dependencies = [
+ "bitflags",
+ "errno",
+ "libc",
+ "linux-raw-sys 0.12.1",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2731,7 +2750,7 @@ dependencies = [
  "fastrand",
  "getrandom 0.3.1",
  "once_cell",
- "rustix",
+ "rustix 0.38.44",
  "windows-sys 0.59.0",
 ]
 
