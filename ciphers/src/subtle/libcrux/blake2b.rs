@@ -63,7 +63,7 @@ mod equivalence_tests {
         ];
 
         let mut key = [0; KEY_LEN];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut hash_left = [0; 32];
         let mut hash_right = [0; 32];

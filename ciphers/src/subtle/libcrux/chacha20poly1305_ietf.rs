@@ -69,7 +69,7 @@ mod equivalence_tests {
             b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
         ];
         let mut key = [0; KEY_LEN];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut ctxt_left = [0; 64 + TAG_LEN];
         let mut ctxt_right = [0; 64 + TAG_LEN];
@@ -120,7 +120,7 @@ mod equivalence_tests {
             b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
         ];
         let mut key = [0; KEY_LEN];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut ctxt_left = [0; 64 + TAG_LEN];
         let mut ctxt_right = [0; 64 + TAG_LEN];
