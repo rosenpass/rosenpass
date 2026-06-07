@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64]
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubicloud-standard-2-arm' || 'ubicloud-standard-2' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubicloud-standard-8-arm' || 'ubicloud-standard-8' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
