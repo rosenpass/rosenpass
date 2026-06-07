@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   multi-peer:
-    runs-on: ubicloud-standard-2-ubuntu-2404
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - run: cargo build --bin rosenpass --release
@@ -25,7 +25,7 @@ jobs:
           [ $(ls -1 output/ate/out | wc -l) -eq 100 ]
 
   boot-race:
-    runs-on: ubicloud-standard-2-ubuntu-2404
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v5
       - run: cargo build --bin rosenpass --release
