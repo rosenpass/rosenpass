@@ -217,8 +217,13 @@ impl<const N: usize> Secret<N> {
     }
 
     /// Sets all data of an existing [Secret] to random bytes.
+    /// The [Secret] is first zeroized to make sure that the barriers from the zeroize crate take effect.
     pub fn randomize(&mut self) {
-        self.try_fill(&mut crate::rand::rng()).unwrap()
+        // Zeroize self first just to make sure the barriers from the zeroize create take
+        // effect to prevent the compiler from optimizing this away.
+        // TODO: We should at some point replace this with our own barriers.
+        self.zeroize();
+        rand::Fill::fill_slice(self.secret_mut(), &mut crate::rand::rng());
     }
 
     /// Borrows the data.
@@ -229,18 +234,6 @@ impl<const N: usize> Secret<N> {
     /// Borrows the data mutably.
     pub fn secret_mut(&mut self) -> &mut [u8; N] {
         self.storage.as_mut().unwrap()
-    }
-}
-
-impl<const N: usize> Randomize for Secret<N> {
-    /// Tries to fill this [Secret] with random data. The [Secret] is first zeroized
-    /// to make sure that the barriers from the zeroize crate take effect.
-    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
-        // Zeroize self first just to make sure the barriers from the zeroize create take
-        // effect to prevent the compiler from optimizing this away.
-        // We should at some point replace this with our own barriers.
-        self.zeroize();
-        self.secret_mut().try_fill(rng)
     }
 }
 
