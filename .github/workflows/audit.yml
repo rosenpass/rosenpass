@@ -1,0 +1,28 @@
+# Audits the code regularly e.g. for bad dependencies and security advisories
+# This Workflow is different from `qc.yml`:
+# - runs regularly
+# - does not work on the code itself but on its depdencies
+
+name: Audit
+
+on:
+  pull_request:
+  push:
+    paths:
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - ".github/workflows/audit.yml"
+    # branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+
+
+jobs:
+  cargo-deny:
+    runs-on: ubicloud-standard-2-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --all-features
