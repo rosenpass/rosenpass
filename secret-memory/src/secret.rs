@@ -5,7 +5,6 @@ use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 use anyhow::Context;
-use rand::{Fill as Randomize, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use rosenpass_util::b64::{b64_decode, b64_encode};

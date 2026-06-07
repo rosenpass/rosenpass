@@ -1,6 +1,5 @@
 use crate::debug::debug_crypto_array;
 use anyhow::Context;
-use rand::{Fill as Randomize, Rng};
 use rosenpass_to::{To, ops::copy_slice};
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
@@ -373,7 +372,6 @@ mod tests {
     #[allow(clippy::module_inception)]
     mod tests {
         use crate::{Public, PublicBox};
-        use rand::Fill;
         use rosenpass_util::{
             b64::b64_encode,
             file::{
