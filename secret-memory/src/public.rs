@@ -254,7 +254,6 @@ impl<const N: usize> PublicBox<N> {
     }
 }
 
-
 impl<const N: usize> fmt::Debug for PublicBox<N> {
     // No extra documentation here because the Trait already provides a good documentation.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
