@@ -8,8 +8,7 @@ on:
 jobs:
   i686-linux---release:
     name: Build release artifacts for i686-linux
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -27,8 +26,7 @@ jobs:
           files: result/*
   x86_64-darwin---release:
     name: Build release artifacts for x86_64-darwin
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30
@@ -46,8 +44,7 @@ jobs:
           files: result/*
   x86_64-linux---release:
     name: Build release artifacts for x86_64-linux
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v30

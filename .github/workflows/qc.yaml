@@ -121,8 +121,7 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
 
   cargo-test-nix-devshell-x86_64-linux:
-    runs-on:
-      - ubicloud-standard-2-ubuntu-2404
+    runs-on: ubicloud-standard-2-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
       - uses: actions/cache@v4
