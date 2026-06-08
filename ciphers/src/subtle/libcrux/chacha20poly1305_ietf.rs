@@ -203,9 +203,9 @@ mod equivalence_tests {
             let (ciphertext, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
 
             use libcrux::algorithms::chacha20poly1305 as C;
-            use libcrux_secrets::Classify;
+            use libcrux_secrets::{Classify, ClassifyRef, Declassify, DeclassifyRef, U8};
             let crux_key = C::Key::from(key.classify());
-            let crux_iv = C::Iv(nonce.try_into().unwrap());
+            let crux_iv = C::Iv(nonce.classify());
 
             copy_slice(plaintext).to(ciphertext);
             let crux_tag = libcrux::aead::encrypt(&crux_key, ciphertext, crux_iv, ad).unwrap();
@@ -256,10 +256,12 @@ mod equivalence_tests {
         ) -> anyhow::Result<()> {
             let (ciphertext, mac) = ciphertext.split_at(ciphertext.len() - TAG_LEN);
 
-            use libcrux::aead as C;
-            let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.try_into().unwrap()));
-            let crux_iv = C::Iv(nonce.try_into().unwrap());
-            let crux_tag = C::Tag::from_slice(mac).unwrap();
+
+            use libcrux::algorithms::chacha20poly1305 as C;
+            use libcrux_secrets::Classify;
+            let crux_key = C::Key::from(key.classify());
+            let crux_iv = C::Iv(nonce.classify());
+            let crux_tag = C::Tag::from(mac.classify()).unwrap();
 
             copy_slice(ciphertext).to(plaintext);
             libcrux::aead::decrypt(&crux_key, plaintext, crux_iv, ad, &crux_tag).unwrap();
