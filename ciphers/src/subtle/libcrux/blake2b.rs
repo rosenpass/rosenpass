@@ -32,13 +32,7 @@ impl KeyedHash<KEY_LEN, HASH_LEN> for Blake2b {
         data: &[u8],
         out: &mut [u8; HASH_LEN],
     ) -> Result<(), Self::Error> {
-        let mut h = Blake2bBuilder::new_keyed_const(key)
-            // this may fail if the key length is invalid, but 32 is fine
-            .map_err(|_| Error::InternalError)?
-            .build_const_digest_len()
-            .map_err(|_|
-            // this can only fail if the output length is invalid, but 32 is fine.
-            Error::InternalError)?;
+        let mut h = Blake2bBuilder::new_keyed_const(key).build_const_digest_len();
 
         h.update(data).map_err(|_| Error::DataTooLong)?;
         h.finalize(out);

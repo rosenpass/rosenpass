@@ -202,8 +202,9 @@ mod equivalence_tests {
         ) -> anyhow::Result<()> {
             let (ciphertext, mac) = ciphertext.split_at_mut(ciphertext.len() - TAG_LEN);
 
-            use libcrux::aead as C;
-            let crux_key = C::Key::Chacha20Poly1305(C::Chacha20Key(key.try_into().unwrap()));
+            use libcrux::algorithms::chacha20poly1305 as C;
+            use libcrux_secrets::Classify;
+            let crux_key = C::Key::from(key.classify());
             let crux_iv = C::Iv(nonce.try_into().unwrap());
 
             copy_slice(plaintext).to(ciphertext);
