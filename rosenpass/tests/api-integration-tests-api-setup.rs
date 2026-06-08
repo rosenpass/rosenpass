@@ -156,7 +156,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
             .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
             .fd_mappings(vec![FdMapping {
-                parent_fd: deliberate_fail_api_server.move_here().as_raw_fd(),
+                parent_fd: deliberate_fail_api_server.move_here().into(),
                 child_fd: 3,
             }])?
             .args([
