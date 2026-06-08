@@ -39,17 +39,23 @@ dependencies = [
 
 [[package]]
 name = "allocator-api2"
-version = "0.2.18"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
+checksum = "c583acf993cf4245c4acb0a2cc2ab1f9cc097de73411bb6d3647ff6af2b1013d"
+
+[[package]]
+name = "allocator-api2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c880a97d28a3681c0267bd29cff89621202715b065127cd445fa0f0fe0aa2880"
 
 [[package]]
 name = "allocator-api2-tests"
-version = "0.2.15"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f3efb93c1e2a22a828c2b16f7276bb7ae198bbf60c78d297a6f3b373f7d22e6"
+checksum = "a2277ca94b6a6fec01ae765ad46fd99a117e8ac92e10c191e2b07b4ce36c01e5"
 dependencies = [
- "allocator-api2",
+ "allocator-api2 0.3.1",
 ]
 
 [[package]]
@@ -2128,7 +2134,7 @@ dependencies = [
 name = "rosenpass-secret-memory"
 version = "0.1.0"
 dependencies = [
- "allocator-api2",
+ "allocator-api2 0.4.0",
  "allocator-api2-tests",
  "anyhow",
  "assert_tv",
