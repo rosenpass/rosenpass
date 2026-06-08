@@ -6,13 +6,8 @@ use rosenpass_constant_time::xor;
 use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 
-#[cfg(not(feature = "experiment_libcrux_blake2"))]
 use crate::subtle::rust_crypto::blake2b::Blake2b;
-#[cfg(not(feature = "experiment_libcrux_blake2"))]
 use anyhow::Error;
-
-#[cfg(feature = "experiment_libcrux_blake2")]
-use crate::subtle::libcrux::blake2b::{Blake2b, Error};
 
 /// The key length, 32 bytes or 256 bits.
 pub const KEY_LEN: usize = 32;

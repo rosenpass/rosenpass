@@ -34,12 +34,7 @@ impl std::fmt::Display for KvPairs<'_> {
 }
 
 mod kem {
-    criterion::criterion_group!(
-        benches,
-        bench_kyber512_libcrux,
-        bench_kyber512_oqs,
-        bench_classicmceliece460896_oqs
-    );
+    criterion::criterion_group!(benches, bench_kyber512_oqs, bench_classicmceliece460896_oqs);
 
     use criterion::Criterion;
 
@@ -49,15 +44,6 @@ mod kem {
             "classicmceliece460896",
             "oqs",
             rosenpass_oqs::ClassicMceliece460896,
-        );
-    }
-
-    fn bench_kyber512_libcrux(c: &mut Criterion) {
-        template(
-            c,
-            "kyber512",
-            "libcrux",
-            rosenpass_ciphers::subtle::libcrux::kyber512::Kyber512,
         );
     }
 
@@ -131,7 +117,6 @@ mod kem {
 mod aead {
     criterion::criterion_group!(
         benches,
-        bench_chachapoly_libcrux,
         bench_chachapoly_rustcrypto,
         bench_xchachapoly_rustcrypto,
     );
@@ -156,15 +141,6 @@ mod aead {
             "chacha20poly1305",
             "rustcrypto",
             rosenpass_ciphers::subtle::rust_crypto::chacha20poly1305_ietf::ChaCha20Poly1305,
-        );
-    }
-
-    fn bench_chachapoly_libcrux(c: &mut Criterion) {
-        template(
-            c,
-            "chacha20poly1305",
-            "libcrux",
-            rosenpass_ciphers::subtle::libcrux::chacha20poly1305_ietf::ChaCha20Poly1305,
         );
     }
 
@@ -277,12 +253,7 @@ mod aead {
 }
 
 mod keyed_hash {
-    criterion::criterion_group!(
-        benches,
-        bench_blake2b_rustcrypto,
-        bench_blake2b_libcrux,
-        bench_shake256_rustcrypto,
-    );
+    criterion::criterion_group!(benches, bench_blake2b_rustcrypto, bench_shake256_rustcrypto,);
 
     const KEY_LEN: usize = 32;
     const HASH_LEN: usize = 32;
@@ -304,15 +275,6 @@ mod keyed_hash {
             "blake2b",
             "rustcrypto",
             &rosenpass_ciphers::subtle::rust_crypto::blake2b::Blake2b,
-        );
-    }
-
-    fn bench_blake2b_libcrux(c: &mut Criterion) {
-        template(
-            c,
-            "blake2b",
-            "libcrux",
-            &rosenpass_ciphers::subtle::libcrux::blake2b::Blake2b,
         );
     }
 
