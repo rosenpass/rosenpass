@@ -1021,10 +1021,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1287,44 +1285,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
-name = "libcrux"
-version = "0.0.2-pre.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31d9dcd435758db03438089760c55a45e6bcab7e4e299ee261f75225ab29d482"
-dependencies = [
- "getrandom 0.2.15",
- "libcrux-hacl",
- "libcrux-platform",
- "libjade-sys",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "libcrux-hacl"
-version = "0.0.2-pre.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52b2581ce493c5c22700077b5552b47be69b67b8176716572b02856218db0b68"
-dependencies = [
- "cc",
- "libcrux-platform",
-]
-
-[[package]]
 name = "libcrux-macros"
 version = "0.0.3"
 source = "git+https://github.com/cryspen/libcrux.git?rev=0ab6d2dd9c1f#0ab6d2dd9c1f39c82b1125a566d6befb38feea28"
 dependencies = [
  "quote",
  "syn 2.0.98",
-]
-
-[[package]]
-name = "libcrux-platform"
-version = "0.0.2-pre.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "647e39666194b11df17c19451d1154b9be79df98b9821532560c2ecad0cf3410"
-dependencies = [
- "libc",
 ]
 
 [[package]]
@@ -1343,16 +1309,6 @@ checksum = "5037190e1f70cbeef565bd267599242926f724d3b8a9f510fd7e0b540cfa4404"
 dependencies = [
  "arbitrary",
  "cc",
-]
-
-[[package]]
-name = "libjade-sys"
-version = "0.0.2-pre.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec4d22bba476bf8f5aebe36ccfd0e56dba8707e0c3b5c76996576028f48ffb8e"
-dependencies = [
- "cc",
- "libcrux-platform",
 ]
 
 [[package]]
@@ -2015,7 +1971,6 @@ dependencies = [
  "blake2",
  "chacha20poly1305",
  "criterion",
- "libcrux",
  "rand 0.10.1",
  "rosenpass-cipher-traits",
  "rosenpass-constant-time",

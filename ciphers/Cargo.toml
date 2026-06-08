@@ -11,7 +11,7 @@ readme = "readme.md"
 rust-version = "1.85.0"
 
 [features]
-bench = ["dep:libcrux"]
+bench = []
 
 [[bench]]
 name = "primitives"
@@ -34,8 +34,8 @@ sha3 = { workspace = true }
 rand = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 
-# this one is only used in testing, so it requires the `bench` feature.
-libcrux = { workspace = true, optional = true }
+# # this one is only used in testing, so it requires the `bench` feature.
+# libcrux = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
