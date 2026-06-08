@@ -81,8 +81,7 @@ impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 /// Encrypts using XChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// `key` and `nonce` MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of
 /// [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN].
-/// In contrast to [chacha20poly1305_ietf::encrypt](crate::subtle::chacha20poly1305_ietf::encrypt) and
-/// [chacha20poly1305_ietf_libcrux::encrypt](crate::subtle::chacha20poly1305_ietf_libcrux::encrypt),
+/// In contrast to [chacha20poly1305_ietf::encrypt](crate::subtle::chacha20poly1305_ietf::encrypt),
 /// `nonce` is also written into `ciphertext` and therefore ciphertext MUST have a length
 /// of at least [NONCE_LEN] + `plaintext.len()` + [TAG_LEN].
 ///
@@ -125,8 +124,7 @@ pub fn encrypt(
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
 /// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN] - [NONCE_LEN].
 ///
-/// In contrast to [chacha20poly1305_ietf::decrypt](crate::subtle::chacha20poly1305_ietf::decrypt) and
-/// [chacha20poly1305_ietf_libcrux::decrypt](crate::subtle::chacha20poly1305_ietf_libcrux::decrypt),
+/// In contrast to [chacha20poly1305_ietf::decrypt](crate::subtle::chacha20poly1305_ietf::decrypt),
 /// `ciperhtext` MUST include the as it is not given otherwise.
 ///
 /// # Examples

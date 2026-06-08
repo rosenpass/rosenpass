@@ -106,10 +106,6 @@ benchmark of `rosenpass-ciphers`. Run the benchmarks and view their results usin
 cargo bench -p rosenpass-ciphers --bench primitives -F bench
 ```
 
-Note that the `bench` feature enables the inclusion of the libcrux-backed
-trait implementations in the module tree, but does not enable them
-as default.
-
 ### Protocol Benchmarks
 
 The trace that is being written to lives in a new module
