@@ -13,7 +13,7 @@ jobs:
     name: Supply Chain Report
     runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/cache@v4
         with:
           path: |
@@ -47,7 +47,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/cache@v4
@@ -144,7 +144,7 @@ jobs:
           fi
           echo "IN_DEPENDABOT_PR_CONTEXT=$IN_DEPENDABOT_PR_CONTEXT" >> $GITHUB_ENV
         shell: bash
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         if: env.IN_DEPENDABOT_PR_CONTEXT == 'true'
         with:
           token: ${{ secrets.CI_BOT_PAT }}
