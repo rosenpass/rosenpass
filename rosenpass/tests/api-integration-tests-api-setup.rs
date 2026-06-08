@@ -33,13 +33,14 @@ struct KillChild(std::process::Child);
 
 impl Drop for KillChild {
     fn drop(&mut self) {
-        use rustix::process::{Pid, Signal::Term, kill_process};
+        const TERM: rustix::process::Signal = rustix::process::Signal::TERM;
+        use rustix::process::{Pid, kill_process};
         let pid = Pid::from_child(&self.0);
         // We seriously need to start handling signals with signalfd, our current signal handling
         // system is a bit broken; there is probably a few functions that just restart on EINTR
         // so the signal is absorbed
         loop {
-            kill_process(pid, Term).discard_result();
+            kill_process(pid, TERM).discard_result();
             if self.0.try_wait().unwrap().is_some() {
                 break;
             }

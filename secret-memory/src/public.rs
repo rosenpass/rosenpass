@@ -1,6 +1,5 @@
 use crate::debug::debug_crypto_array;
 use anyhow::Context;
-use rand::{Fill as Randomize, Rng};
 use rosenpass_to::{To, ops::copy_slice};
 use rosenpass_util::b64::{b64_decode, b64_encode};
 use rosenpass_util::file::{
@@ -60,14 +59,7 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public].
     pub fn randomize(&mut self) {
-        self.try_fill(&mut crate::rand::rng()).unwrap()
-    }
-}
-
-impl<const N: usize> Randomize for Public<N> {
-    // No extra documentation here because the Trait already provides a good documentation.
-    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
-        self.value.try_fill(rng)
+        rand::Fill::fill_slice(&mut self.value, &mut crate::rand::rng())
     }
 }
 
@@ -262,13 +254,6 @@ impl<const N: usize> PublicBox<N> {
     }
 }
 
-impl<const N: usize> Randomize for PublicBox<N> {
-    // No extra documentation here because the Trait already provides a good documentation.
-    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
-        self.inner.try_fill(rng)
-    }
-}
-
 impl<const N: usize> fmt::Debug for PublicBox<N> {
     // No extra documentation here because the Trait already provides a good documentation.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -386,7 +371,6 @@ mod tests {
     #[allow(clippy::module_inception)]
     mod tests {
         use crate::{Public, PublicBox};
-        use rand::Fill;
         use rosenpass_util::{
             b64::b64_encode,
             file::{
@@ -578,7 +562,6 @@ mod tests {
         fn test_public_box_randomize() {
             let mut pb: PublicBox<32> = PublicBox::zero();
             pb.randomize();
-            pb.try_fill(&mut crate::rand::rng()).unwrap();
             // Can't really assert anything here until we have can predict the randomness
             // by derandomizing the RNG for tests.
         }

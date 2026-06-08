@@ -2090,11 +2090,10 @@ impl CryptoServer {
         )?;
 
         {
-            use rand::Fill;
-            msg_out
-                .padding
-                .try_fill(&mut rosenpass_secret_memory::rand::rng())
-                .unwrap();
+            rand::Fill::fill_slice(
+                &mut msg_out.padding,
+                &mut rosenpass_secret_memory::rand::rng(),
+            );
         }
 
         // length of the response

@@ -1,7 +1,7 @@
 //! Implementation of the [`KemKyber512`] trait based on the [`libcrux_ml_kem`] crate.
 
 use libcrux_ml_kem::kyber512;
-use rand::RngCore;
+use rand::Rng;
 
 use rosenpass_cipher_traits::algorithms::KemKyber512;
 use rosenpass_cipher_traits::primitives::{Kem, KemError};
@@ -14,7 +14,7 @@ pub struct Kyber512;
 impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for Kyber512 {
     fn keygen(&self, sk: &mut [u8; SK_LEN], pk: &mut [u8; PK_LEN]) -> Result<(), KemError> {
         let mut randomness = [0u8; libcrux_ml_kem::KEY_GENERATION_SEED_SIZE];
-        rand::thread_rng().fill_bytes(&mut randomness);
+        rand::rng().fill_bytes(&mut randomness);
 
         let key_pair = kyber512::generate_key_pair(randomness);
 
@@ -34,7 +34,7 @@ impl Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> for Kyber512 {
         pk: &[u8; PK_LEN],
     ) -> Result<(), KemError> {
         let mut randomness = [0u8; libcrux_ml_kem::SHARED_SECRET_SIZE];
-        rand::thread_rng().fill_bytes(&mut randomness);
+        rand::rng().fill_bytes(&mut randomness);
 
         let (new_ct, new_shk) = kyber512::encapsulate(&pk.into(), randomness);
         let new_ct: &[u8; CT_LEN] = new_ct.as_slice();

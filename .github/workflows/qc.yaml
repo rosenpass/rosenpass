@@ -145,8 +145,8 @@ jobs:
   cargo-fuzz:
     runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v6
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -160,7 +160,12 @@ jobs:
           rustup toolchain install nightly
           rustup override set nightly
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
+        # cargo-fuzz might already be installed in the cached ~/.cargo/bin (v.s.), so we need to check
+        run: |
+          cargo --version
+          if ! command -v cargo-fuzz >/dev/null 2>&1; then
+            cargo install cargo-fuzz
+          fi
       - name: Run fuzzing
         run: |
           cargo fuzz run fuzz_aead_enc_into -- -max_total_time=5

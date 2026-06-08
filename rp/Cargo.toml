@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
-rust-version = "1.77.0"
+rust-version = "1.85.0"
 
 [[bin]]
 name = "rp"
@@ -36,12 +36,12 @@ futures = { workspace = true }
 futures-util = { workspace = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
-ctrlc-async = "3.2"
+ctrlc = "3.2"
 genetlink = "0.2"
 rtnetlink = "0.14"
-netlink-packet-core = "0.7"
-netlink-packet-generic = "0.3"
-netlink-packet-wireguard = "0.2"
+netlink-packet-core = "0.8.1"
+netlink-packet-generic = "0.4"
+netlink-packet-wireguard = "0.4"
 
 [dev-dependencies]
 tempfile = { workspace = true }

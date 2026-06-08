@@ -58,7 +58,7 @@ impl AeadChaCha20Poly1305 for ChaCha20Poly1305 {}
 #[cfg(test)]
 mod equivalence_tests {
     use super::*;
-    use rand::RngCore;
+    use rand::Rng;
 
     #[test]
     fn proptest_equivalence_libcrux_rustcrypto() {
@@ -69,7 +69,7 @@ mod equivalence_tests {
             b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
         ];
         let mut key = [0; KEY_LEN];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut ctxt_left = [0; 64 + TAG_LEN];
         let mut ctxt_right = [0; 64 + TAG_LEN];
@@ -120,7 +120,7 @@ mod equivalence_tests {
             b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
         ];
         let mut key = [0; KEY_LEN];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut ctxt_left = [0; 64 + TAG_LEN];
         let mut ctxt_right = [0; 64 + TAG_LEN];
