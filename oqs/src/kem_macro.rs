@@ -2,7 +2,7 @@
 
 /// Generate bindings to a liboqs-provided KEM
 macro_rules! oqs_kem {
-    ($name:ident, $algo_trait:path) => { ::paste::paste!{
+    ($name:ident, $algo_trait:path) => { ::pastey::paste!{
         #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
             use rosenpass_cipher_traits::primitives::{Kem, KemError};
