@@ -33,12 +33,21 @@ CONFIG = {
         "left_bracket": "(",
         "right_bracket": ")",
         "empty_brackets": True,
+        "none_representation": "",
+    },
+    "default": {
+        "list_separator": ", ",
+        "left_bracket": "(",
+        "right_bracket": ")",
+        "empty_brackets": True,
+        "none_representation": "",
     },
     "gterm": {
         "list_separator": ", ",
         "left_bracket": "",
         "right_bracket": "",
         "empty_brackets": False,
+        "none_representation": "",
     },
     "infix_separator": " ",
     "line_break": "\n",
@@ -48,7 +57,7 @@ CONFIG = {
 class AttrMap(Mapping):
     """
     Small wrapper so that dict values can be accessed as {ctx.foo}
-    instead of only {ctx[foo]}.
+    instead of only {ctx["foo"]} inside our custom format strings.
     """
 
     def __init__(self, mapping: Mapping[str, Any]):
@@ -77,13 +86,17 @@ class AttrMap(Mapping):
 
 
 def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
-    if ctx and format_spec in ctx:
+    if ctx:
+        if format_spec not in ctx:
+            format_spec = "default"
+
         list_config = ctx[format_spec]
         return (
             list_config["left_bracket"],
             list_config["right_bracket"],
             list_config["list_separator"],
             list_config["empty_brackets"],
+            list_config["none_representation"],
         )
     else:
         raise KeyError(
@@ -94,10 +107,20 @@ def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
 def pretty(
     value: Any, column: int, format_spec: str, ctx: Mapping[str, Any] | None = None
 ) -> str:
+
+    if value is None and format_spec != "":
+        (_, _, _, _, none_representation) = get_list_config(format_spec, ctx)
+        return none_representation
+
     if isinstance(value, List):
-        left_bracket, right_bracket, list_separator, empty_brackets = get_list_config(
-            format_spec, ctx
-        )
+        (
+            left_bracket,
+            right_bracket,
+            list_separator,
+            empty_brackets,
+            _,
+        ) = get_list_config(format_spec, ctx)
+
         if len(value) > 1:
             return (
                 left_bracket
@@ -168,15 +191,6 @@ def pretty_format(obj: Any, template: str, *, column: int = 0) -> str:
 
 type Ident = str
 type Infix = str
-# @dataclass
-# class Ident(ast_utils.Ast):
-#     ident: str
-
-#     def pretty_print(self, column : int = 0):
-#         if isinstance(self.ident, Token):
-#             return f"{self.ident.value}"
-#         else:
-#             return "whaaaaat"
 
 
 class MarzipanAST(ast_utils.Ast, ABC):
@@ -201,14 +215,6 @@ class Typeid(MarzipanAST):
     def pretty_print(self, column: int = 0) -> str:
         template = "{ident}"
         return pretty_format(self, template, column=column)
-
-
-# @dataclass
-# class Infix(MarzipanAST):
-#     infix: Token
-
-#     def pretty_print(self, column : int = 0):
-#         return self.infix.value
 
 
 @dataclass
@@ -252,9 +258,6 @@ class GtermList(MarzipanAST, ast_utils.AsList):
     gterms: Optional[List[Gterm]] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        # TODO: move the None case into the Formatter? none_repr config entry, and if clause in the beginning of pretty function
-        if self.gterms is None:
-            return ""
         return pretty_format(self, "{gterms:gterm}", column=column)
 
 
