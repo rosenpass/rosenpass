@@ -208,7 +208,7 @@ jobs:
       #- run: cargo install cargo-tarpaulin
       #- run: cargo tarpaulin --out Xml
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ./target/grcov/lcov
           verbose: true
