@@ -1,6 +1,7 @@
 use std::any::type_name;
 use std::{borrow::Borrow, net::SocketAddr, path::PathBuf};
 
+use rtnetlink::{LinkUnspec, LinkWireguard};
 use tokio::process::Command;
 
 use anyhow::{Context, Result, bail, ensure};
@@ -151,8 +152,7 @@ impl WireGuardDeviceImpl {
 
         // Add the link, equivalent to `ip link add <link_name> type wireguard`.
         rtnl_link
-            .add()
-            .wireguard(device_name.to_owned())
+            .add(LinkWireguard::new(device_name.as_str()).build())
             .execute()
             .await?;
         log::info!("Created network device!");
@@ -185,7 +185,10 @@ impl WireGuardDeviceImpl {
         self.device = Some((device_handle, device_name));
 
         // Activate the link, equivalent to `ip link set dev <DEV> up`.
-        rtnl_link.set(device_handle).up().execute().await?;
+        rtnl_link
+            .change(LinkUnspec::new_with_index(device_handle).up().build())
+            .execute()
+            .await?;
 
         Ok(())
     }
