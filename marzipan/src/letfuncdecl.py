@@ -6,12 +6,14 @@ import io
 import pprint
 import pstats
 import sys
+from abc import ABC, abstractmethod
+from collections import UserString
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import asdict, dataclass, fields, is_dataclass
 from pstats import SortKey
 from string import Formatter
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterator, List, Optional, Sequence, Tuple
 
 from lark import Lark, Token, Transformer, Tree, ast_utils, tree, v_args
 from lark.tree import Meta
@@ -43,7 +45,7 @@ CONFIG = {
 }
 
 
-class AttrMap:
+class AttrMap(Mapping):
     """
     Small wrapper so that dict values can be accessed as {ctx.foo}
     instead of only {ctx[foo]}.
@@ -61,24 +63,32 @@ class AttrMap:
     def __getitem__(self, name: str) -> Any:
         return self._mapping[name]
 
-    def __contains__(self, name: str) -> bool:
-        return name in self._mapping
+    def __contains__(self, key: object) -> bool:
+        return key in self._mapping
 
     def __str__(self) -> str:
         return str(self._mapping)
 
+    def __iter__(self) -> Iterator[Any]:
+        return self._mapping.__iter__()
+
+    def __len__(self) -> int:
+        return len(self._mapping)
+
 
 def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
-    if ctx:
-        if format_spec in ctx:
-            list_config = ctx[format_spec]
-            return (
-                list_config["left_bracket"],
-                list_config["right_bracket"],
-                list_config["list_separator"],
-                list_config["empty_brackets"],
-            )
-    return None
+    if ctx and format_spec in ctx:
+        list_config = ctx[format_spec]
+        return (
+            list_config["left_bracket"],
+            list_config["right_bracket"],
+            list_config["list_separator"],
+            list_config["empty_brackets"],
+        )
+    else:
+        raise KeyError(
+            f"Cannot find pretty printer configuration for list type {format_spec}."
+        )
 
 
 def pretty(
@@ -102,10 +112,8 @@ def pretty(
         else:
             return left_bracket + right_bracket if empty_brackets else ""
 
-    pretty_print = getattr(value, "pretty_print", None)
-
-    if callable(pretty_print):
-        return pretty_print(column=column)
+    if isinstance(value, MarzipanAST):
+        return value.pretty_print(column=column)
 
     return str(value)
 
@@ -126,31 +134,40 @@ class PrettyFormatter(Formatter):
     def get_value(
         self,
         key: Any,
-        args: tuple[Any, ...],
-        kwargs: dict[str, Any],
+        args: Sequence[Any],
+        kwargs: Mapping[str, Any],
     ) -> Any:
+        """Retrieve a given field value. Uses the prefix `self.` to
+        refer to fields within the dataclass that is formatted, and uses
+        the prefix `ctx.` to refer to pretty printer configuration variables.
+        If no prefix is used, defaults to `self.`.
+        """
+
+        # As documented in https://docs.python.org/3/library/string.html#string.Formatter.get_value,
+        # for compound field names, get_value is only called for the first component.
         if key == "self":
             return self.root
 
         if key == "ctx":
             return self.ctx
 
+        # For a key that is not prefixed with `self` or `ctx`, assume `self`.
         if isinstance(key, str):
             return getattr(self.root, key)
 
-        return super().get_value(key, args, kwargs)
+        raise KeyError(f"Unsupported non-string key: {key}")
 
     def format_field(self, value: Any, format_spec: str) -> str:
-        child_column = self.column
-
-        return pretty(value, column=child_column, format_spec=format_spec, ctx=self.ctx)
+        """This function override injects the column and configuration context"""
+        return pretty(value, column=self.column, format_spec=format_spec, ctx=self.ctx)
 
 
 def pretty_format(obj: Any, template: str, *, column: int = 0) -> str:
     return PrettyFormatter(obj, column=column, ctx=CONFIG).format(template)
 
 
-# type Ident = str
+type Ident = str
+type Infix = str
 # @dataclass
 # class Ident(ast_utils.Ast):
 #     ident: str
@@ -162,26 +179,32 @@ def pretty_format(obj: Any, template: str, *, column: int = 0) -> str:
 #             return "whaaaaat"
 
 
+class MarzipanAST(ast_utils.Ast, ABC):
+    @abstractmethod
+    def pretty_print(self, column: int = 0) -> str:
+        raise NotImplementedError()
+
+
 @dataclass
-class TypeDecl(ast_utils.Ast):
+class TypeDecl(MarzipanAST):
     ident: Token
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         template = "type {ident}."
         return pretty_format(self, template, column=column)
 
 
 @dataclass
-class Typeid(ast_utils.Ast):
+class Typeid(MarzipanAST):
     ident: Token
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         template = "{ident}"
         return pretty_format(self, template, column=column)
 
 
 # @dataclass
-# class Infix(ast_utils.Ast):
+# class Infix(MarzipanAST):
 #     infix: Token
 
 #     def pretty_print(self, column : int = 0):
@@ -189,21 +212,21 @@ class Typeid(ast_utils.Ast):
 
 
 @dataclass
-class Pterm(ast_utils.Ast, ast_utils.AsList):
+class Pterm(MarzipanAST, ast_utils.AsList):
     pterm: Ident | int | List
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         template = "{pterm:pterm}"
         return pretty_format(self, template, column=column)
 
 
 @dataclass
-class Gbinding(ast_utils.Ast):
+class Gbinding(MarzipanAST):
     value: int | Ident
     gterm: Gterm
     gbinding: Optional[Gbinding] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         result = ""
         if type(self.value) is int:
             result = pretty_format(self, "!{value}={gterm}", column=column)
@@ -217,18 +240,18 @@ class Gbinding(ast_utils.Ast):
 
 
 @dataclass
-class IdentGterm(ast_utils.Ast):
+class IdentGterm(MarzipanAST):
     ident_gterm: Ident
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return pretty_format(self, "{ident_gterm}", column=column)
 
 
 @dataclass
-class GtermList(ast_utils.Ast, ast_utils.AsList):
+class GtermList(MarzipanAST, ast_utils.AsList):
     gterms: Optional[List[Gterm]] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         # TODO: move the None case into the Formatter? none_repr config entry, and if clause in the beginning of pretty function
         if self.gterms is None:
             return ""
@@ -236,7 +259,7 @@ class GtermList(ast_utils.Ast, ast_utils.AsList):
 
 
 @dataclass
-class FunGterm(ast_utils.Ast):
+class FunGterm(MarzipanAST):
     # def __init__(self, arg1, arg2=None, arg3=None, arg4=None, arg5=None):
     #    breakpoint()
 
@@ -245,7 +268,7 @@ class FunGterm(ast_utils.Ast):
     phase: Optional[int] = None
     at: Optional[Ident] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         str += self.fun_gterm.value
         str += "("
@@ -259,49 +282,49 @@ class FunGterm(ast_utils.Ast):
 
 
 @dataclass
-class InfixGterm(ast_utils.Ast):
+class InfixGterm(MarzipanAST):
     first_infix_gterm: Gterm
     infix: Infix
     second_infix_gterm: Gterm
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return f"{self.first_infix_gterm.pretty_print()} {self.infix} {self.second_infix_gterm.pretty_print()}"
 
 
 @dataclass
-class ChoiceGterm(ast_utils.Ast):
+class ChoiceGterm(MarzipanAST):
     choice_gterm: Tuple[Gterm, Gterm]
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         left, right = self.choice_gterm
         return f"choice [ {left.pretty_print()}, {right.pretty_print()} ]"
 
 
 @dataclass
-class ArithGterm(ast_utils.Ast):
+class ArithGterm(MarzipanAST):
     arith_gterm: Gterm
     operand: str
     value: int
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return f"{self.arith_gterm.pretty_print()} {self.operand} {self.value}"
 
 
 @dataclass
-class Arith2Gterm(ast_utils.Ast):
+class Arith2Gterm(MarzipanAST):
     value: int
     arith_gterm: Gterm
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return f"{self.value} + {self.arith_gterm.pretty_print()}"
 
 
 @dataclass
-class InjeventGterm(ast_utils.Ast):
+class InjeventGterm(MarzipanAST):
     event_gterms: GtermList
     at: Optional[Ident] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         result = f"inj-event ( {self.event_gterms.pretty_print()} )"
         if self.at is not None:
             result += f"@ {self.at}"
@@ -309,20 +332,20 @@ class InjeventGterm(ast_utils.Ast):
 
 
 @dataclass
-class ImpliesGterm(ast_utils.Ast):
+class ImpliesGterm(MarzipanAST):
     left: Gterm
     right: Gterm
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return f"{self.left.pretty_print()} ==> {self.right.pretty_print()}"
 
 
 @dataclass
-class EventGterm(ast_utils.Ast):
+class EventGterm(MarzipanAST):
     event_gterms: GtermList
     at: Optional[Ident] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = "event ("
         str += self.event_gterms.pretty_print()
         str += ")"
@@ -332,29 +355,29 @@ class EventGterm(ast_utils.Ast):
 
 
 @dataclass
-class ParenGterm(ast_utils.Ast):
+class ParenGterm(MarzipanAST):
     paren_gterms: GtermList
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return "(" + self.paren_gterms.pretty_print() + ")"
 
 
 @dataclass
-class LetGterm(ast_utils.Ast):
+class LetGterm(MarzipanAST):
     ident: Ident
     first_gterm: Gterm
     second_gterm: Gterm
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return f"let {self.ident.value} = {self.first_gterm.pretty_print()} in\n {self.second_gterm.pretty_print()}"
 
 
 @dataclass
-class SampleGterm(ast_utils.Ast):
+class SampleGterm(MarzipanAST):
     ident: Ident
     gbinding: Optional[Gbinding] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = f"new {self.ident.value}"
         if self.gbinding is not None:
             str += "["
@@ -364,7 +387,7 @@ class SampleGterm(ast_utils.Ast):
 
 
 @dataclass
-class Gterm(ast_utils.Ast):
+class Gterm(MarzipanAST):
     gterm: (
         IdentGterm
         | FunGterm
@@ -380,7 +403,7 @@ class Gterm(ast_utils.Ast):
         | LetGterm
     )
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         if isinstance(
             self.gterm,
             (
@@ -404,13 +427,13 @@ class Gterm(ast_utils.Ast):
 
 
 @dataclass
-class Typedecl(ast_utils.Ast):
+class Typedecl(MarzipanAST):
     type_list: List[Ident]
     typeid: Typeid
     optional_typedecl: Optional[Typedecl] = None
 
     # _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         # str += ", ".join([t.pretty_print() for t in self.type_list])
         if isinstance(self.type_list, List):
@@ -426,12 +449,12 @@ class Typedecl(ast_utils.Ast):
 
 
 @dataclass
-class LetfunDecl(ast_utils.Ast):
+class LetfunDecl(MarzipanAST):
     ident: Ident
     typedecl: Optional[Typedecl]
     pterm: Pterm
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = f"letfun {self.ident.value}"
         if self.typedecl is not None:
             str += "("
@@ -450,11 +473,11 @@ class LetfunDecl(ast_utils.Ast):
 
 
 @dataclass
-class LemmaGterm(ast_utils.Ast):
+class LemmaGterm(MarzipanAST):
     gterm: Gterm
     lemma: Optional[Lemma] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = self.gterm.pretty_print()
         if self.lemma is not None:
             str += ";" + self.lemma.pretty_print()
@@ -462,12 +485,12 @@ class LemmaGterm(ast_utils.Ast):
 
 
 @dataclass
-class LemmaPublicVars(ast_utils.Ast):
+class LemmaPublicVars(MarzipanAST):
     gterm: Gterm
     public_vars: List
     lemma: Optional[Lemma] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = self.gterm.pretty_print()
         str += "for { public_vars"
         str += ",".join(
@@ -483,13 +506,13 @@ class LemmaPublicVars(ast_utils.Ast):
 
 
 @dataclass
-class LemmaPublicVarsSecret(ast_utils.Ast):
+class LemmaPublicVarsSecret(MarzipanAST):
     gterm: Gterm
     secret: Ident
     public_vars: List
     lemma: Optional[Lemma] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = self.gterm.pretty_print()
         str += "for { secret"
         str += self.secret.value
@@ -506,10 +529,10 @@ class LemmaPublicVarsSecret(ast_utils.Ast):
 
 
 @dataclass
-class Lemma(ast_utils.Ast):
+class Lemma(MarzipanAST):
     lemma: LemmaGterm | LemmaPublicVars | LemmaPublicVarsSecret
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return self.lemma.pretty_print()
 
     # def __post_init__(self):
@@ -523,12 +546,12 @@ class Lemma(ast_utils.Ast):
 
 
 @dataclass
-class LemmaDeclCore(ast_utils.Ast):
+class LemmaDeclCore(MarzipanAST):
     typedecl: Optional[Typedecl]
     lemma: Lemma
 
     # lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         str += "lemma "
         if self.typedecl is not None:
@@ -540,21 +563,21 @@ class LemmaDeclCore(ast_utils.Ast):
 
 
 @dataclass
-class LemmaAnnotation(ast_utils.Ast):
+class LemmaAnnotation(MarzipanAST):
     annotation: str
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         str += self.annotation
         return str
 
 
 @dataclass
-class LemmaDecl(ast_utils.Ast):
+class LemmaDecl(MarzipanAST):
     lemma_decl_annotation: Optional[LemmaAnnotation]
     lemma_decl_core: LemmaDeclCore
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         if self.lemma_decl_annotation is not None:
             str += f"@lemma {self.lemma_decl_annotation}\n"
@@ -573,35 +596,35 @@ class LemmaDecl(ast_utils.Ast):
 
 
 @dataclass
-class Query(ast_utils.Ast):
+class Query(MarzipanAST):
     query: QueryGterm | QuerySecret | QueryPutBegin
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return self.query.pretty_print()
 
 
 @dataclass
-class QueryAnnotation(ast_utils.Ast):
+class QueryAnnotation(MarzipanAST):
     annotation: str
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return self.annotation
 
 
 @dataclass
-class ReachableAnnotation(ast_utils.Ast):
+class ReachableAnnotation(MarzipanAST):
     annotation: str
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return self.annotation
 
 
 @dataclass
-class QueryDeclCore(ast_utils.Ast):
+class QueryDeclCore(MarzipanAST):
     typedecl: Optional[Typedecl]
     query: Query
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = "query "
         if self.typedecl is not None:
             str += self.typedecl.pretty_print()
@@ -612,11 +635,11 @@ class QueryDeclCore(ast_utils.Ast):
 
 
 @dataclass
-class QueryDecl(ast_utils.Ast):
+class QueryDecl(MarzipanAST):
     query_decl_annotation: Optional[QueryAnnotation | ReachableAnnotation]
     query_decl_core: QueryDeclCore
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = ""
         if self.query_decl_annotation is not None:
             if isinstance(self.query_decl_annotation, QueryAnnotation):
@@ -628,12 +651,12 @@ class QueryDecl(ast_utils.Ast):
 
 
 @dataclass
-class QueryGterm(ast_utils.Ast):
+class QueryGterm(MarzipanAST):
     gterm: Gterm
     public_vars: Optional[List[Ident]] = None
     query: Optional[Query] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = self.gterm.pretty_print()
         if self.public_vars is not None:
             str += "public_vars "
@@ -649,12 +672,12 @@ class QueryGterm(ast_utils.Ast):
 
 
 @dataclass
-class QuerySecret(ast_utils.Ast):
+class QuerySecret(MarzipanAST):
     ident: Ident
     public_vars: Optional[List[Ident]] = None
     query: Optional[Query] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = "secret"
         str += self.ident.pretty_print()
         if self.public_vars is not None:
@@ -671,11 +694,11 @@ class QuerySecret(ast_utils.Ast):
 
 
 @dataclass
-class QueryPutBegin(ast_utils.Ast):
+class QueryPutBegin(MarzipanAST):
     event_list: List[Ident]
     query: Optional[Query] = None
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         str = "putbegin event :"
         str += ", ".join(
             [
@@ -689,10 +712,10 @@ class QueryPutBegin(ast_utils.Ast):
 
 
 @dataclass
-class Decl(ast_utils.Ast):
+class Decl(MarzipanAST):
     decl: LemmaDecl | QueryDecl | TypeDecl | LetfunDecl
 
-    def pretty_print(self, column: int = 0):
+    def pretty_print(self, column: int = 0) -> str:
         return self.decl.pretty_print()
 
 
