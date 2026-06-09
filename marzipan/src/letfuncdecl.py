@@ -28,21 +28,21 @@ pp = pprint.PrettyPrinter(indent=4, width=50)
 
 CONFIG = {
     "space": " ",
-    "pterm": {
+    "list.pterm": {
         "list_separator": ", ",
         "left_bracket": "(",
         "right_bracket": ")",
         "empty_brackets": True,
         "none_representation": "",
     },
-    "default": {
+    "list.default": {
         "list_separator": ", ",
         "left_bracket": "(",
         "right_bracket": ")",
         "empty_brackets": True,
         "none_representation": "",
     },
-    "gterm": {
+    "list.gterm": {
         "list_separator": ", ",
         "left_bracket": "",
         "right_bracket": "",
@@ -51,6 +51,8 @@ CONFIG = {
     },
     "infix_separator": " ",
     "line_break": "\n",
+    "indentation_style": " " * 4,  # 4 spaces
+    "empty_lines_after_decl": "\n" * 1,
 }
 
 
@@ -88,7 +90,7 @@ class AttrMap(Mapping):
 def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
     if ctx:
         if format_spec not in ctx:
-            format_spec = "default"
+            format_spec = "list.default"
 
         list_config = ctx[format_spec]
         return (
@@ -108,11 +110,21 @@ def pretty(
     value: Any, column: int, format_spec: str, ctx: Mapping[str, Any] | None = None
 ) -> str:
 
-    if value is None and format_spec != "":
-        (_, _, _, _, none_representation) = get_list_config(format_spec, ctx)
-        return none_representation
+    return_str = ""
 
-    if isinstance(value, List):
+    # new line that is indented one column more
+    if format_spec == "indentline":
+        return_str += ctx.indentation_style * (column + 1)
+        column += 1
+    # new line with the same indentation
+    elif format_spec == "newline":
+        return_str += ctx.indentation_style * (column)
+
+    if value is None and format_spec.startswith("list."):
+        (_, _, _, _, none_representation) = get_list_config(format_spec, ctx)
+        return_str += none_representation
+
+    elif isinstance(value, List):
         (
             left_bracket,
             right_bracket,
@@ -122,23 +134,49 @@ def pretty(
         ) = get_list_config(format_spec, ctx)
 
         if len(value) > 1:
-            return (
-                left_bracket
-                + list_separator.join(
-                    pretty(item, column=column, format_spec=format_spec, ctx=ctx)
-                    for item in value
+            if len(value) < 5:
+                return_str += (
+                    left_bracket
+                    + list_separator.join(
+                        pretty(item, column=column, format_spec=format_spec, ctx=ctx)
+                        for item in value
+                    )
+                    + right_bracket
                 )
-                + right_bracket
-            )
+            else:
+                # TODO: make it work generally
+                # it might actually work with a recursive call, alternatively construct
+                # the list of sublists of length 5 (or whatever).
+                # Maybe then we need a separator for format_spec to be able to do
+                # "newline,gterm"
+                return_str += (
+                    left_bracket
+                    + list_separator.join(
+                        pretty(item, column=column, format_spec=format_spec, ctx=ctx)
+                        for item in value[:5]
+                    )
+                    + list_separator
+                    + "\n"
+                    + ctx.indentation_style * column
+                    + list_separator.join(
+                        pretty(item, column=column, format_spec=format_spec, ctx=ctx)
+                        for item in value[5:]
+                    )
+                    + right_bracket
+                )
         elif len(value) == 1:
-            return pretty(value[0], column=column, format_spec=format_spec, ctx=ctx)
+            return_str += pretty(
+                value[0], column=column, format_spec=format_spec, ctx=ctx
+            )
         else:
-            return left_bracket + right_bracket if empty_brackets else ""
+            return_str += left_bracket + right_bracket if empty_brackets else ""
 
-    if isinstance(value, MarzipanAST):
-        return value.pretty_print(column=column)
+    elif isinstance(value, MarzipanAST):
+        return_str += value.pretty_print(column=column)
+    else:
+        return_str += str(value)
 
-    return str(value)
+    return return_str
 
 
 class PrettyFormatter(Formatter):
@@ -222,7 +260,7 @@ class Pterm(MarzipanAST, ast_utils.AsList):
     pterm: Ident | int | List
 
     def pretty_print(self, column: int = 0) -> str:
-        template = "{pterm:pterm}"
+        template = "{pterm:list.pterm}"
         return pretty_format(self, template, column=column)
 
 
@@ -258,30 +296,24 @@ class GtermList(MarzipanAST, ast_utils.AsList):
     gterms: Optional[List[Gterm]] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        return pretty_format(self, "{gterms:gterm}", column=column)
+        return pretty_format(self, "{gterms:list.gterm}", column=column)
 
 
 @dataclass
 class FunGterm(MarzipanAST):
-    # def __init__(self, arg1, arg2=None, arg3=None, arg4=None, arg5=None):
-    #    breakpoint()
-
     fun_gterm: Ident
     gterm_list: GtermList
     phase: Optional[int] = None
     at: Optional[Ident] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        str += self.fun_gterm.value
-        str += "("
-        str += self.gterm_list.pretty_print()
-        str += ")"
-        if self.phase is not None:
-            str += f"phase {self.phase}"
-        if self.at is not None:
-            str += f"@ {self.at}"
-        return str
+        return pretty_format(
+            self,
+            "{fun_gterm}({gterm_list})"
+            + (" phase {phase}" if self.phase is not None else "")
+            + (" @ {at}" if self.at is not None else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -291,7 +323,9 @@ class InfixGterm(MarzipanAST):
     second_infix_gterm: Gterm
 
     def pretty_print(self, column: int = 0) -> str:
-        return f"{self.first_infix_gterm.pretty_print()} {self.infix} {self.second_infix_gterm.pretty_print()}"
+        return pretty_format(
+            self, "{first_infix_gterm} {self.infix} {second_infix_gterm}", column=column
+        )
 
 
 @dataclass
@@ -372,7 +406,11 @@ class LetGterm(MarzipanAST):
     second_gterm: Gterm
 
     def pretty_print(self, column: int = 0) -> str:
-        return f"let {self.ident.value} = {self.first_gterm.pretty_print()} in\n {self.second_gterm.pretty_print()}"
+        return pretty_format(
+            self,
+            "let {ident} = {first_gterm} in\n{second_gterm:newline}",  # {'\t' * column}
+            column=column,
+        )
 
 
 @dataclass
@@ -458,21 +496,13 @@ class LetfunDecl(MarzipanAST):
     pterm: Pterm
 
     def pretty_print(self, column: int = 0) -> str:
-        str = f"letfun {self.ident.value}"
-        if self.typedecl is not None:
-            str += "("
-            str += self.typedecl.pretty_print()
-            # str += ", ".join(
-            #     [
-            #         t.pretty_print() if hasattr(t, "pretty_print") else str(t)
-            #         for t in self.typedecl
-            #     ]
-            # )
-            str += ")"
-        str += " = "
-        str += self.pterm.pretty_print()
-        str += "."
-        return str
+        return pretty_format(
+            self,
+            "letfun {ident}"
+            + ("({typedecl})" if self.typedecl is not None else "")
+            + " =\n{pterm:indentline}.",
+            column=column,
+        )
 
 
 @dataclass
@@ -553,16 +583,16 @@ class LemmaDeclCore(MarzipanAST):
     typedecl: Optional[Typedecl]
     lemma: Lemma
 
-    # lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        str += "lemma "
-        if self.typedecl is not None:
-            str += self.typedecl.pretty_print()
-            str += ";\n "
-        str += self.lemma.pretty_print()
-        str += "."
-        return str
+        return pretty_format(
+            self,
+            "lemma "
+            + ("{typedecl};" if self.typedecl is not None else "")
+            + "\n"
+            + "{lemma:indentline}."
+            + "{ctx.empty_lines_after_decl}",
+            column=column,
+        )
 
 
 @dataclass
@@ -628,13 +658,15 @@ class QueryDeclCore(MarzipanAST):
     query: Query
 
     def pretty_print(self, column: int = 0) -> str:
-        str = "query "
-        if self.typedecl is not None:
-            str += self.typedecl.pretty_print()
-            str += ";\n "
-        str += self.query.pretty_print()
-        str += "."
-        return str
+        return pretty_format(
+            self,
+            "query "
+            + ("{typedecl};" if self.typedecl is not None else "")
+            + "\n"
+            + "{query:newline}."
+            + "{ctx.empty_lines_after_decl}",
+            column=column,
+        )
 
 
 @dataclass
@@ -810,7 +842,7 @@ class ToAst(Transformer):
 
     def NAT(self, n):
         n = int(n)
-        assert n > 0, "NAT must be an integer > 0"
+        assert n >= 0, "NAT must be an integer >= 0"
         return n
 
     # @v_args(inline=True)

@@ -1,7 +1,7 @@
 type c.
 
 letfun foo (bar: bitstring, baz: int) =
-    (5, bar).
+    (5, foo, bar, barz, lol, rofl).
 letfun foo (bar: bitstring, baz: int) =
     ().
 letfun foo (bar: bitstring, baz: int) =
@@ -13,7 +13,7 @@ lemma kp:key_prec, skp:kem_sk_prec;
 
 @query "non-interruptability: Adv cannot start a responder session with the same key twice"
 query ic1:InitConf_t, ic2:InitConf_t, ck:key, t1:time, t2:time;
-    event(ResponderSession(ic1, ck))@t1 && event(ResponderSession(ic2, ck))@t2
+    event(ResponderSession(ic1, ck) phase 0 @ foo)@t1 && event(ResponderSession(ic2, ck))@t2
     ==> t1 = t2.
 
 @reachable "non-secrecy: The attacker can learn the value of a shared key"
