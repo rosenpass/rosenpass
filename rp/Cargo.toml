@@ -36,12 +36,12 @@ futures = { workspace = true }
 futures-util = { workspace = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
-ctrlc = "3.2"
-genetlink = "0.2"
-rtnetlink = "0.21"
-netlink-packet-core = "0.8.1"
-netlink-packet-generic = "0.4"
-netlink-packet-wireguard = "0.4"
+ctrlc = { workspace = true }
+genetlink = { workspace = true }
+rtnetlink = { workspace = true }
+netlink-packet-core = { workspace = true }
+netlink-packet-generic = { workspace = true }
+netlink-packet-wireguard = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
