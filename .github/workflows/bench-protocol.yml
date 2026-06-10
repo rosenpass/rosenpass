@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +17,7 @@ concurrency:
 
 jobs:
   proto-benchmark:
+    name: Protocol benchmark (${{ matrix.system }})
     strategy:
       fail-fast: true
       matrix:
@@ -78,6 +80,7 @@ jobs:
           base-path: benchmarks/
 
   ciphers-protocol-bench-status:
+    name: Protocol benchmark status
     if: ${{ always() }}
     needs: [proto-benchmark]
     runs-on: ubicloud-standard-2

@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +17,7 @@ concurrency:
 
 jobs:
   prim-benchmark:
+    name: Primitives benchmark (${{ matrix.system }})
     strategy:
       fail-fast: true
       matrix:
@@ -91,6 +93,7 @@ jobs:
           base-path: benchmarks/
 
   ciphers-primitives-bench-status:
+    name: Primitives benchmark status
     if: ${{ always() }}
     needs: [prim-benchmark]
     runs-on: ubicloud-standard-2
