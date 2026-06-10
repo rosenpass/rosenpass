@@ -40,7 +40,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -186,7 +186,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
