@@ -64,13 +64,12 @@ blake2 = "0.10.6"
 sha3 = "0.10.8"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
   "std",
-  "heapless",
 ] }
 zerocopy = { version = "0.7.35", features = ["derive"] }
 home = "0.5.12"
 derive_builder = "0.20.2"
 tokio = { version = "1.46", features = ["macros", "rt-multi-thread"] }
-postcard = { version = "1.1.1", features = ["alloc"] }
+postcard = { version = "1.1.1", default-features = false, features = ["alloc"] }
 libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f" }
 hex-literal = { version = "1.1.0" }
 hex = { version = "0.4.3" }
