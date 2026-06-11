@@ -100,7 +100,7 @@ impl<'de, const N: usize> Deserialize<'de> for PublicBox<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::secret_policy_use_only_malloc_secrets;
+    use crate::test_spawn_process_with_policies;
     use serde::{Serialize, de::DeserializeOwned};
     use serde_json;
 
@@ -113,21 +113,21 @@ mod tests {
         serde_json::from_str::<T>(&json).expect("deserialize")
     }
 
-    pub fn test_init_secret_memory_policy() {
-        secret_policy_use_only_malloc_secrets();
-    }
-
     #[test]
     fn secret_roundtrip_json() {
-        test_init_secret_memory_policy();
-        const N: usize = 32;
-        let src = [0xABu8; N];
-        let original = Secret::<N>::from_slice(&src);
-        let recovered: Secret<N> = roundtrip_json(&original);
-        assert_eq!(
-            original.secret(),
-            recovered.secret(),
-            "Secret bytes must match after roundtrip"
+        test_spawn_process_with_policies!(
+            {
+                const N: usize = 32;
+                let src = [0xABu8; N];
+                let original = Secret::<N>::from_slice(&src);
+                let recovered: Secret<N> = roundtrip_json(&original);
+                assert_eq!(
+                    original.secret(),
+                    recovered.secret(),
+                    "Secret bytes must match after roundtrip"
+                );
+            },
+            crate::secret_policy_use_only_malloc_secrets
         );
     }
 
@@ -164,19 +164,23 @@ mod tests {
 
     #[test]
     fn secret_len_mismatch_is_error() {
-        test_init_secret_memory_policy();
-        const N_SMALL: usize = 16;
-        const N_BIG: usize = 32;
+        test_spawn_process_with_policies!(
+            {
+                const N_SMALL: usize = 16;
+                const N_BIG: usize = 32;
 
-        let src = [0x55u8; N_SMALL];
-        let small = Secret::<N_SMALL>::from_slice(&src);
-        let json = serde_json::to_string(&small).expect("serialize");
+                let src = [0x55u8; N_SMALL];
+                let small = Secret::<N_SMALL>::from_slice(&src);
+                let json = serde_json::to_string(&small).expect("serialize");
 
-        // Attempt to deserialize a 16-byte payload into Secret<32> should fail.
-        let res = serde_json::from_str::<Secret<N_BIG>>(&json);
-        assert!(
-            res.is_err(),
-            "Deserializing into a larger fixed size must error"
+                // Attempt to deserialize a 16-byte payload into Secret<32> should fail.
+                let res = serde_json::from_str::<Secret<N_BIG>>(&json);
+                assert!(
+                    res.is_err(),
+                    "Deserializing into a larger fixed size must error"
+                );
+            },
+            crate::secret_policy_use_only_malloc_secrets
         );
     }
 
