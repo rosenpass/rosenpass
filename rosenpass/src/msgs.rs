@@ -7,9 +7,8 @@
 //! to the concept of lenses in function programming; more on that here:
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)
 //! To achieve this we utilize the zerocopy library.
-//!
 use std::mem::size_of;
-use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::RosenpassError;
 use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
@@ -50,9 +49,9 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 /// # Examples
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros, KnownLayout, Immutable};
 /// use memoffset::offset_of;
+/// use rosenpass::msgs::{Envelope, InitHello};
+/// use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 ///
 /// // Zero-initialization
 /// let mut ih = Envelope::<InitHello>::new_zeroed();
@@ -62,7 +61,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 ///
 /// // Edit as binary
 /// ih.as_bytes_mut()[offset_of!(Envelope<InitHello>, msg_type)] = 23;
-/// assert_eq!(ih.msg_type, 23);;
+/// assert_eq!(ih.msg_type, 23);
 ///
 /// // Conversion to bytes
 /// let mut ih2 = ih.as_bytes().to_owned();
@@ -105,9 +104,9 @@ pub struct Envelope<M: IntoBytes + FromBytes + KnownLayout + Immutable> {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros, KnownLayout, Immutable};
 /// use memoffset::span_of;
+/// use rosenpass::msgs::{Envelope, InitHello};
+/// use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 ///
 /// // Zero initialization
 /// let mut ih = Envelope::<InitHello>::new_zeroed();
@@ -117,13 +116,13 @@ pub struct Envelope<M: IntoBytes + FromBytes + KnownLayout + Immutable> {
 ///
 /// // Set value on byte representation
 /// ih[span_of!(Envelope<InitHello>, payload)][span_of!(InitHello, sidi)]
-///     .copy_from_slice(&[1,2,3,4]);
+///     .copy_from_slice(&[1, 2, 3, 4]);
 ///
 /// // Conversion from bytes
 /// let ih = Ref::<&mut [u8], Envelope<InitHello>>::new(ih).unwrap();
 ///
 /// // Check that write above on byte representation was effective
-/// assert_eq!(ih.payload.sidi, [1,2,3,4]);
+/// assert_eq!(ih.payload.sidi, [1, 2, 3, 4]);
 /// ```
 #[repr(packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
@@ -154,9 +153,9 @@ pub struct InitHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, RespHello};
-/// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros, KnownLayout, Immutable};
 /// use memoffset::span_of;
+/// use rosenpass::msgs::{Envelope, RespHello};
+/// use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 ///
 /// // Zero initialization
 /// let mut ih = Envelope::<RespHello>::new_zeroed();
@@ -166,13 +165,13 @@ pub struct InitHello {
 ///
 /// // Set value on byte representation
 /// ih[span_of!(Envelope<RespHello>, payload)][span_of!(RespHello, sidi)]
-///     .copy_from_slice(&[1,2,3,4]);
+///     .copy_from_slice(&[1, 2, 3, 4]);
 ///
 /// // Conversion from bytes
 /// let ih = Ref::<&mut [u8], Envelope<RespHello>>::new(ih).unwrap();
 ///
 /// // Check that write above on byte representation was effective
-/// assert_eq!(ih.payload.sidi, [1,2,3,4]);
+/// assert_eq!(ih.payload.sidi, [1, 2, 3, 4]);
 /// ```
 #[repr(packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
@@ -205,9 +204,9 @@ pub struct RespHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitConf};
-/// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros, KnownLayout, Immutable};
 /// use memoffset::span_of;
+/// use rosenpass::msgs::{Envelope, InitConf};
+/// use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 ///
 /// // Zero initialization
 /// let mut ih = Envelope::<InitConf>::new_zeroed();
@@ -217,13 +216,13 @@ pub struct RespHello {
 ///
 /// // Set value on byte representation
 /// ih[span_of!(Envelope<InitConf>, payload)][span_of!(InitConf, sidi)]
-///     .copy_from_slice(&[1,2,3,4]);
+///     .copy_from_slice(&[1, 2, 3, 4]);
 ///
 /// // Conversion from bytes
 /// let ih = Ref::<&mut [u8], Envelope<InitConf>>::new(ih).unwrap();
 ///
 /// // Check that write above on byte representation was effective
-/// assert_eq!(ih.payload.sidi, [1,2,3,4]);
+/// assert_eq!(ih.payload.sidi, [1, 2, 3, 4]);
 /// ```
 #[repr(packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Debug)]
@@ -263,9 +262,9 @@ pub struct InitConf {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, EmptyData};
-/// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros, KnownLayout, Immutable};
 /// use memoffset::span_of;
+/// use rosenpass::msgs::{EmptyData, Envelope};
+/// use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 ///
 /// // Zero initialization
 /// let mut ih = Envelope::<EmptyData>::new_zeroed();
@@ -275,13 +274,13 @@ pub struct InitConf {
 ///
 /// // Set value on byte representation
 /// ih[span_of!(Envelope<EmptyData>, payload)][span_of!(EmptyData, sid)]
-///     .copy_from_slice(&[1,2,3,4]);
+///     .copy_from_slice(&[1, 2, 3, 4]);
 ///
 /// // Conversion from bytes
 /// let ih = Ref::<&mut [u8], Envelope<EmptyData>>::new(ih).unwrap();
 ///
 /// // Check that write above on byte representation was effective
-/// assert_eq!(ih.payload.sid, [1,2,3,4]);
+/// assert_eq!(ih.payload.sid, [1, 2, 3, 4]);
 /// ```
 #[repr(packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Clone, Copy)]
@@ -377,21 +376,26 @@ pub struct CookieReply {
 /// use rosenpass::msgs::MsgType;
 /// use rosenpass::msgs::MsgType as M;
 ///
-/// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData, M::CookieReply];
+/// let values = [
+///     M::InitHello,
+///     M::RespHello,
+///     M::InitConf,
+///     M::EmptyData,
+///     M::CookieReply,
+/// ];
 /// let values_u8 = values.map(|v| -> u8 { v.into() });
 ///
 /// // Can be converted to and from u8 using [::std::convert::Into] or [::std::convert::From]
 /// for v in values.iter().copied() {
-///     let v_u8 : u8 = v.into();
-///     let v2 : MsgType = v_u8.try_into()?;
+///     let v_u8: u8 = v.into();
+///     let v2: MsgType = v_u8.try_into()?;
 ///     assert_eq!(v, v2);
 /// }
 ///
 /// // Converting an unsupported type produces an error
-/// let invalid_values = (u8::MIN..=u8::MAX)
-///     .filter(|v| !values_u8.contains(v));
+/// let invalid_values = (u8::MIN..=u8::MAX).filter(|v| !values_u8.contains(v));
 /// for v in invalid_values {
-///     let res : Result<MsgType, _> = v.try_into();
+///     let res: Result<MsgType, _> = v.try_into();
 ///     assert!(res.is_err());
 /// }
 ///

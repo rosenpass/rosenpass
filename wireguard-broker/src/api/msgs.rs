@@ -3,7 +3,7 @@
 
 use std::str::{Utf8Error, from_utf8};
 
-use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 /// The number of bytes reserved for overhead when packaging data.
 pub const ENVELOPE_OVERHEAD: usize = 1 + 3;
@@ -27,7 +27,6 @@ pub struct Envelope<M: IntoBytes + FromBytes + KnownLayout + Immutable> {
 
 /// Message format for requests to set a pre-shared key.
 /// # Example
-///
 #[repr(packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct SetPskRequest {
@@ -191,6 +190,7 @@ impl From<SetPskResult> for SetPskResponseReturnCode {
 /// let typ: u8 = 0x01; // Usually specifically set or comes out of a message.
 /// let typ = MsgType::try_from(typ)?;
 /// let MsgType::SetPsk = typ; // Assert type.
+///
 /// # Ok::<(), InvalidMessageTypeError>(())
 /// ```
 #[repr(u8)]

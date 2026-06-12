@@ -199,9 +199,7 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
-    fn supply_keypair_response_from_prefix(
-        self,
-    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
+    fn supply_keypair_response_from_prefix(self) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
     where
         Self: SplitByteSlice,
     {
@@ -209,9 +207,7 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
-    fn supply_keypair_response_from_suffix(
-        self,
-    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
+    fn supply_keypair_response_from_suffix(self) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
     where
         Self: SplitByteSlice,
     {

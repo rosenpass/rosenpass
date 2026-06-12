@@ -423,7 +423,9 @@ pub struct KnownResponse<ResponseType: IntoBytes + FromBytes + KnownLayout + Imm
     pub response: Envelope<ResponseType>,
 }
 
-impl<ResponseType: IntoBytes + FromBytes + KnownLayout + Immutable> Debug for KnownResponse<ResponseType> {
+impl<ResponseType: IntoBytes + FromBytes + KnownLayout + Immutable> Debug
+    for KnownResponse<ResponseType>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("KnownResponse")
             .field("received_at", &self.received_at)
@@ -508,7 +510,10 @@ impl KnownResponseHasher {
     /// # Panic & Safety
     ///
     /// Panics in case of a problem with this underlying hash function
-    pub fn hash<Msg: IntoBytes + FromBytes + KnownLayout + Immutable>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
+    pub fn hash<Msg: IntoBytes + FromBytes + KnownLayout + Immutable>(
+        &self,
+        msg: &Envelope<Msg>,
+    ) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
         // This function is only used internally and results are not propagated
         // to outside the peer. Thus, it uses SHAKE256 exclusively.
