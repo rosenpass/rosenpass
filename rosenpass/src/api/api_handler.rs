@@ -316,7 +316,7 @@ where
             use crate::app_server::BrokerStorePtr;
             //
             use rosenpass_secret_memory::Public;
-            use zerocopy::AsBytes;
+            use zerocopy::IntoBytes;
             (self.app_server().brokers.store.len() - 1)
                 .apply(|x| x as u64)
                 .apply(|x| Public::from_slice(x.as_bytes()))

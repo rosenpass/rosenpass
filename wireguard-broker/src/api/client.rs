@@ -170,8 +170,8 @@ where
         let typ = msgs::MsgType::try_from(*typ)?;
         let msgs::MsgType::SetPsk = typ; // Assert type
 
-        let res = zerocopy::Ref::<&[u8], Envelope<SetPskResponse>>::new(res)
-            .ok_or(invalid_msg_poller())?;
+        let res = zerocopy::Ref::<&[u8], Envelope<SetPskResponse>>::from_bytes(res)
+            .map_err(|_| invalid_msg_poller())?;
         let res: &msgs::SetPskResponse = &res.payload;
         let res: msgs::SetPskResponseReturnCode = res
             .return_code
@@ -200,8 +200,9 @@ where
         let mut req = [0u8; BUF_SIZE];
 
         // Construct message view
-        let mut req = zerocopy::Ref::<&mut [u8], Envelope<msgs::SetPskRequest>>::new(&mut req)
-            .ok_or(MsgError)?;
+        let mut req =
+            zerocopy::Ref::<&mut [u8], Envelope<msgs::SetPskRequest>>::from_bytes(&mut req[..])
+                .map_err(|_| MsgError)?;
 
         // Populate envelope
         req.msg_type = msgs::MsgType::SetPsk as u8;
@@ -219,7 +220,7 @@ where
         // Send message
         self.io
             .borrow_mut()
-            .send_msg(req.bytes())
+            .send_msg(zerocopy::Ref::bytes(&req))
             .map_err(IoError)?;
 
         Ok(())

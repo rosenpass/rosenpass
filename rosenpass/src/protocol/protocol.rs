@@ -17,7 +17,7 @@ use std::{
 use anyhow::{Context, Result, bail, ensure};
 use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
-use zerocopy::{AsBytes, FromBytes, Ref};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use rosenpass_cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
@@ -413,7 +413,7 @@ pub struct InitiatorHandshake {
 ///
 /// Used as [KnownInitConfResponse] for now cache [EmptyData] (responder confirmation)
 /// responses to [InitConf]
-pub struct KnownResponse<ResponseType: AsBytes + FromBytes> {
+pub struct KnownResponse<ResponseType: IntoBytes + FromBytes + KnownLayout + Immutable> {
     /// When the response was initially computed
     pub received_at: Timing,
     /// Hash of the message that triggered the response; created using
@@ -423,7 +423,7 @@ pub struct KnownResponse<ResponseType: AsBytes + FromBytes> {
     pub response: Envelope<ResponseType>,
 }
 
-impl<ResponseType: AsBytes + FromBytes> Debug for KnownResponse<ResponseType> {
+impl<ResponseType: IntoBytes + FromBytes + KnownLayout + Immutable> Debug for KnownResponse<ResponseType> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("KnownResponse")
             .field("received_at", &self.received_at)
@@ -435,7 +435,7 @@ impl<ResponseType: AsBytes + FromBytes> Debug for KnownResponse<ResponseType> {
 
 #[test]
 fn known_response_format() {
-    use zerocopy::FromZeroes;
+    use zerocopy::FromZeros;
 
     let v = KnownResponse::<[u8; 32]> {
         received_at: 42.0,
@@ -464,7 +464,7 @@ pub type KnownResponseHash = Public<16>;
 /// # Examples
 ///
 /// ```
-/// use zerocopy::FromZeroes;
+/// use zerocopy::FromZeros;
 /// use rosenpass::protocol::KnownResponseHasher;
 /// use rosenpass::msgs::{Envelope, InitConf};
 ///
@@ -508,7 +508,7 @@ impl KnownResponseHasher {
     /// # Panic & Safety
     ///
     /// Panics in case of a problem with this underlying hash function
-    pub fn hash<Msg: AsBytes + FromBytes>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
+    pub fn hash<Msg: IntoBytes + FromBytes + KnownLayout + Immutable>(&self, msg: &Envelope<Msg>) -> KnownResponseHash {
         let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
         // This function is only used internally and results are not propagated
         // to outside the peer. Thus, it uses SHAKE256 exclusively.
@@ -2030,8 +2030,8 @@ impl CryptoServer {
 
                 let mut expected = [0u8; COOKIE_SIZE];
 
-                let msg_in = Ref::<&[u8], Envelope<InitHello>>::new(rx_buf)
-                    .ok_or(RosenpassError::BufferSizeMismatch)?;
+                let msg_in = Ref::<&[u8], Envelope<InitHello>>::from_bytes(rx_buf)
+                    .map_err(|_| RosenpassError::BufferSizeMismatch)?;
                 expected.copy_from_slice(
                     &hash_domains::cookie(KeyedHash::keyed_shake256())?
                         .mix(&cookie_value)?
@@ -2175,7 +2175,7 @@ impl CryptoServer {
         let peer = match msg_type {
             Ok(MsgType::InitHello) => {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
                 // At this point, we do not know the hash functon used by the peer, thus we try both,
                 // with a preference for SHAKE256.
@@ -2209,7 +2209,7 @@ impl CryptoServer {
             }
             Ok(MsgType::RespHello) => {
                 let msg_in: Ref<&[u8], Envelope<RespHello>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
@@ -2226,7 +2226,7 @@ impl CryptoServer {
             }
             Ok(MsgType::InitConf) => {
                 let msg_in: Ref<&[u8], Envelope<InitConf>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
                 let mut msg_out = truncating_cast_into::<Envelope<EmptyData>>(tx_buf)?;
 
@@ -2245,7 +2245,7 @@ impl CryptoServer {
                             .map(|v| v.response.borrow())
                             // Invalid! Found peer no with cache in index but the cache does not exist
                             .unwrap();
-                        copy_slice(cached.as_bytes()).to(msg_out.as_bytes_mut());
+                        copy_slice(cached.as_bytes()).to(msg_out.as_mut_bytes());
                         peer
                     }
 
@@ -2294,13 +2294,13 @@ impl CryptoServer {
             }
             Ok(MsgType::EmptyData) => {
                 let msg_in: Ref<&[u8], Envelope<EmptyData>> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
                 self.handle_resp_conf(&msg_in, seal_broken.to_string())?
             }
             Ok(MsgType::CookieReply) => {
                 let msg_in: Ref<&[u8], CookieReply> =
-                    Ref::new(rx_buf).ok_or(RosenpassError::BufferSizeMismatch)?;
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
                 let peer = self.handle_cookie_reply(&msg_in)?;
                 len = 0;
                 peer
@@ -2341,8 +2341,8 @@ impl CryptoServer {
     ///
     /// To save some code, the function returns the size of the message,
     /// but the same could be easily achieved by calling [size_of] with the
-    /// message type or by calling [AsBytes::as_bytes] on the message reference.
-    pub fn seal_and_commit_msg<M: AsBytes + FromBytes>(
+    /// message type or by calling [IntoBytes::as_bytes] on the message reference.
+    pub fn seal_and_commit_msg<M: IntoBytes + FromBytes + KnownLayout + Immutable>(
         &mut self,
         peer: PeerPtr,
         msg_type: MsgType,
@@ -3065,7 +3065,7 @@ impl IniHsPtr {
 
 impl<M> Envelope<M>
 where
-    M: AsBytes + FromBytes,
+    M: IntoBytes + FromBytes + KnownLayout + Immutable,
 {
     /// Internal business logic: Calculate the message authentication code (`mac`) and also append cookie value
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
@@ -3094,7 +3094,7 @@ where
 
 impl<M> Envelope<M>
 where
-    M: AsBytes + FromBytes,
+    M: IntoBytes + FromBytes + KnownLayout + Immutable,
 {
     /// Internal business logic: Check the message authentication code produced by [Self::seal]
     pub fn check_seal(&self, srv: &CryptoServer, shake_or_blake: KeyedHash) -> Result<bool> {
@@ -3309,7 +3309,7 @@ impl HandshakeState {
         let test_values: StoreBiscuitTestValues = TV::initialize_values();
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
 
         // calculate pt contents
         biscuit
@@ -3371,9 +3371,9 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::new(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
         XAead.decrypt_with_nonce_in_ctxt(
-            biscuit.as_bytes_mut(),
+            biscuit.as_mut_bytes(),
             bk.get(srv).value.secret(),
             &ad,
             biscuit_ct,

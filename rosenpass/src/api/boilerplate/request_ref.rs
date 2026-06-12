@@ -1,6 +1,6 @@
 use anyhow::ensure;
 
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Ref, SplitByteSlice};
 
 use super::{ByteSliceRefExt, MessageAttributes, PingRequest, RequestMsgType};
 
@@ -20,7 +20,7 @@ impl<B: ByteSlice> RequestRef<B> {
     /// # Examples
     ///
     /// ```
-    /// use zerocopy::AsBytes;
+    /// use zerocopy::IntoBytes;
     ///
     /// use rosenpass::api::{PingRequest, RequestRef, RequestMsgType};
     ///
@@ -46,13 +46,19 @@ impl<B: ByteSlice> RequestRef<B> {
 
     /// Produce a [ResponseRef] from the prefix of a raw message buffer,
     /// reading the type from the buffer.
-    pub fn parse_from_prefix(buf: B) -> anyhow::Result<Self> {
+    pub fn parse_from_prefix(buf: B) -> anyhow::Result<Self>
+    where
+        B: SplitByteSlice,
+    {
         RequestRefMaker::new(buf)?.from_prefix()?.parse()
     }
 
     /// Produce a [ResponseRef] from the prefix of a raw message buffer,
     /// reading the type from the buffer.
-    pub fn parse_from_suffix(buf: B) -> anyhow::Result<Self> {
+    pub fn parse_from_suffix(buf: B) -> anyhow::Result<Self>
+    where
+        B: SplitByteSlice,
+    {
         RequestRefMaker::new(buf)?.from_suffix()?.parse()
     }
 
@@ -121,20 +127,30 @@ impl<B: ByteSlice> RequestRefMaker<B> {
     }
 
     #[allow(clippy::wrong_self_convention)]
-    fn from_prefix(self) -> anyhow::Result<Self> {
+    fn from_prefix(self) -> anyhow::Result<Self>
+    where
+        B: SplitByteSlice,
+    {
         self.ensure_fit()?;
         let point = self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (buf, _) = buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Buffer is undersized!"))?;
         Ok(Self { buf, msg_type })
     }
 
     #[allow(clippy::wrong_self_convention)]
-    fn from_suffix(self) -> anyhow::Result<Self> {
+    fn from_suffix(self) -> anyhow::Result<Self>
+    where
+        B: SplitByteSlice,
+    {
         self.ensure_fit()?;
         let point = self.buf.len() - self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (_, buf) = buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Buffer is undersized!"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -168,10 +184,10 @@ where
     /// See [Self::parse].
     pub fn bytes(&self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes(),
-            Self::SupplyKeypair(r) => r.bytes(),
-            Self::AddListenSocket(r) => r.bytes(),
-            Self::AddPskBroker(r) => r.bytes(),
+            Self::Ping(r) => Ref::bytes(r),
+            Self::SupplyKeypair(r) => Ref::bytes(r),
+            Self::AddListenSocket(r) => Ref::bytes(r),
+            Self::AddPskBroker(r) => Ref::bytes(r),
         }
     }
 }
@@ -183,10 +199,10 @@ where
     /// Access the byte data of this reference; mutably
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes_mut(),
-            Self::SupplyKeypair(r) => r.bytes_mut(),
-            Self::AddListenSocket(r) => r.bytes_mut(),
-            Self::AddPskBroker(r) => r.bytes_mut(),
+            Self::Ping(r) => Ref::bytes_mut(r),
+            Self::SupplyKeypair(r) => Ref::bytes_mut(r),
+            Self::AddListenSocket(r) => Ref::bytes_mut(r),
+            Self::AddPskBroker(r) => Ref::bytes_mut(r),
         }
     }
 }

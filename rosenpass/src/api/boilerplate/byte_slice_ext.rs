@@ -1,4 +1,4 @@
-use zerocopy::{ByteSlice, Ref};
+use zerocopy::{ByteSlice, Ref, SplitByteSlice};
 
 use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
 
@@ -22,7 +22,10 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_ref_maker],
     /// [RefMaker::from_prefix], and
     /// [RefMakerRawMsgTypeExt::parse_request_msg_type].
-    fn request_msg_type_from_prefix(self) -> anyhow::Result<RequestMsgType> {
+    fn request_msg_type_from_prefix(self) -> anyhow::Result<RequestMsgType>
+    where
+        Self: SplitByteSlice,
+    {
         self.msg_type_maker()
             .from_prefix()?
             .parse_request_msg_type()
@@ -31,7 +34,10 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_ref_maker],
     /// [RefMaker::from_suffix], and
     /// [RefMakerRawMsgTypeExt::parse_request_msg_type].
-    fn request_msg_type_from_suffix(self) -> anyhow::Result<RequestMsgType> {
+    fn request_msg_type_from_suffix(self) -> anyhow::Result<RequestMsgType>
+    where
+        Self: SplitByteSlice,
+    {
         self.msg_type_maker()
             .from_suffix()?
             .parse_request_msg_type()
@@ -46,7 +52,10 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_ref_maker],
     /// [RefMaker::from_prefix], and
     /// [RefMakerRawMsgTypeExt::parse_response_msg_type].
-    fn response_msg_type_from_prefix(self) -> anyhow::Result<ResponseMsgType> {
+    fn response_msg_type_from_prefix(self) -> anyhow::Result<ResponseMsgType>
+    where
+        Self: SplitByteSlice,
+    {
         self.msg_type_maker()
             .from_prefix()?
             .parse_response_msg_type()
@@ -55,7 +64,10 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_ref_maker],
     /// [RefMaker::from_suffix], and
     /// [RefMakerRawMsgTypeExt::parse_response_msg_type].
-    fn response_msg_type_from_suffix(self) -> anyhow::Result<ResponseMsgType> {
+    fn response_msg_type_from_suffix(self) -> anyhow::Result<ResponseMsgType>
+    where
+        Self: SplitByteSlice,
+    {
         self.msg_type_maker()
             .from_suffix()?
             .parse_response_msg_type()
@@ -67,12 +79,18 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the use of [RequestRef::parse_from_prefix] in chaining.
-    fn parse_request_from_prefix(self) -> anyhow::Result<RequestRef<Self>> {
+    fn parse_request_from_prefix(self) -> anyhow::Result<RequestRef<Self>>
+    where
+        Self: SplitByteSlice,
+    {
         RequestRef::parse_from_prefix(self)
     }
 
     /// Shorthand for the use of [RequestRef::parse_from_suffix] in chaining.
-    fn parse_request_from_suffix(self) -> anyhow::Result<RequestRef<Self>> {
+    fn parse_request_from_suffix(self) -> anyhow::Result<RequestRef<Self>>
+    where
+        Self: SplitByteSlice,
+    {
         RequestRef::parse_from_suffix(self)
     }
 
@@ -82,12 +100,18 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the use of [ResponseRef::parse_from_prefix] in chaining.
-    fn parse_response_from_prefix(self) -> anyhow::Result<ResponseRef<Self>> {
+    fn parse_response_from_prefix(self) -> anyhow::Result<ResponseRef<Self>>
+    where
+        Self: SplitByteSlice,
+    {
         ResponseRef::parse_from_prefix(self)
     }
 
     /// Shorthand for the use of [ResponseRef::parse_from_suffix] in chaining.
-    fn parse_response_from_suffix(self) -> anyhow::Result<ResponseRef<Self>> {
+    fn parse_response_from_suffix(self) -> anyhow::Result<ResponseRef<Self>>
+    where
+        Self: SplitByteSlice,
+    {
         ResponseRef::parse_from_suffix(self)
     }
 
@@ -102,12 +126,18 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
-    fn ping_request_from_prefix(self) -> anyhow::Result<Ref<Self, PingRequest>> {
+    fn ping_request_from_prefix(self) -> anyhow::Result<Ref<Self, PingRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
-    fn ping_request_from_suffix(self) -> anyhow::Result<Ref<Self, PingRequest>> {
+    fn ping_request_from_suffix(self) -> anyhow::Result<Ref<Self, PingRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -122,12 +152,18 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
-    fn ping_response_from_prefix(self) -> anyhow::Result<Ref<Self, PingResponse>> {
+    fn ping_response_from_prefix(self) -> anyhow::Result<Ref<Self, PingResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
-    fn ping_response_from_suffix(self) -> anyhow::Result<Ref<Self, PingResponse>> {
+    fn ping_response_from_suffix(self) -> anyhow::Result<Ref<Self, PingResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -137,12 +173,18 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
-    fn supply_keypair_request_from_prefix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>> {
+    fn supply_keypair_request_from_prefix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
-    fn supply_keypair_request_from_suffix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>> {
+    fn supply_keypair_request_from_suffix(self) -> anyhow::Result<Ref<Self, SupplyKeypairRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -159,14 +201,20 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
     fn supply_keypair_response_from_prefix(
         self,
-    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
+    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
     fn supply_keypair_response_from_suffix(
         self,
-    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>> {
+    ) -> anyhow::Result<Ref<Self, SupplyKeypairResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -178,14 +226,20 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
     fn add_listen_socket_request_from_prefix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
     fn add_listen_socket_request_from_suffix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>> {
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -204,14 +258,20 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
     fn add_listen_socket_response_from_prefix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
     fn add_listen_socket_response_from_suffix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>> {
+    ) -> anyhow::Result<Ref<Self, super::AddListenSocketResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -223,14 +283,20 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
     fn add_psk_broker_request_from_prefix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>> {
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
     fn add_psk_broker_request_from_suffix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>> {
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerRequest>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 
@@ -247,14 +313,20 @@ pub trait ByteSliceRefExt: ByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_prefix].
     fn add_psk_broker_response_from_prefix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_prefix()
     }
 
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_parse_suffix].
     fn add_psk_broker_response_from_suffix(
         self,
-    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
+    ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>>
+    where
+        Self: SplitByteSlice,
+    {
         self.zk_parse_suffix()
     }
 }

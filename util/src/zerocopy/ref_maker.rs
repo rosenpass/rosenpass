@@ -1,9 +1,9 @@
 //! A module providing the [`RefMaker`] type and its associated methods for constructing
 //! [`zerocopy::Ref`] references from byte buffers.
 
-use anyhow::{Context, ensure};
+use anyhow::ensure;
 use std::marker::PhantomData;
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Immutable, KnownLayout, Ref, SplitByteSlice};
 use zeroize::Zeroize;
 
 use crate::zeroize::ZeroizedExt;
@@ -19,10 +19,10 @@ use crate::zeroize::ZeroizedExt;
 /// # Example
 ///
 /// ```
-/// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};///
+/// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};///
 /// # use rosenpass_util::zerocopy::RefMaker;
 ///
-/// #[derive(FromBytes, FromZeroes, AsBytes)]
+/// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 /// #[repr(C)]
 /// struct Header {
 ///     field1: u32,
@@ -82,7 +82,10 @@ impl<B, T> RefMaker<B, T> {
     }
 }
 
-impl<B: ByteSlice, T> RefMaker<B, T> {
+impl<B: ByteSlice, T> RefMaker<B, T>
+where
+    T: KnownLayout + Immutable,
+{
     /// Parses the buffer into a [`zerocopy::Ref<B, T>`].
     ///
     /// This will fail if the buffer is smaller than `size_of::<T>`.
@@ -94,10 +97,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass_util::zerocopy::RefMaker;
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Debug)]
     /// #[repr(C)]
     /// struct Data(u32);
     ///
@@ -119,8 +122,24 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// assert_eq!(parse_error.to_string(), "Parser error!");
     /// ```
     pub fn parse(self) -> anyhow::Result<Ref<B, T>> {
+        let have = self.buf.len();
+        let need = Self::target_size();
+        ensure!(
+            need <= have,
+            "Buffer is undersized at {have} bytes (need {need} bytes)!"
+        );
+        Ref::<B, T>::from_bytes(self.buf).map_err(|_| anyhow::anyhow!("Parser error!"))
+    }
+}
+
+impl<B: SplitByteSlice, T> RefMaker<B, T> {
+    /// Splits the buffer at the target type size, preserving the byte-slice
+    /// wrapper type on both halves.
+    fn split_at_target(self) -> anyhow::Result<(B, B)> {
         self.ensure_fit()?;
-        Ref::<B, T>::new(self.buf).context("Parser error!")
+        self.buf
+            .split_at(Self::target_size())
+            .map_err(|_| anyhow::anyhow!("Buffer is undersized!"))
     }
 
     /// Splits the internal buffer into a `RefMaker` containing a buffer with
@@ -141,8 +160,7 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// assert_eq!(tail, &[5,6,7,8]);
     /// ```
     pub fn from_prefix_with_tail(self) -> anyhow::Result<(Self, B)> {
-        self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self.split_at_target()?;
         Ok((Self::new(head), tail))
     }
 
@@ -164,8 +182,7 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// assert_eq!(tail.bytes(), &[5,6,7,8,9,10]);
     /// ```
     pub fn split_prefix(self) -> anyhow::Result<(Self, Self)> {
-        self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self.split_at_target()?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -204,7 +221,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Buffer is undersized!"))?;
         Ok((Self::new(tail), head))
     }
 
@@ -227,7 +247,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn split_suffix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            .map_err(|_| anyhow::anyhow!("Buffer is undersized!"))?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -282,7 +305,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     }
 }
 
-impl<B: ByteSliceMut, T> RefMaker<B, T> {
+impl<B: ByteSliceMut, T> RefMaker<B, T>
+where
+    T: KnownLayout + Immutable,
+{
     /// Creates a zeroized reference of type `T` from the buffer.
     ///
     /// # Errors
@@ -292,9 +318,9 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};    ///
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};    ///
     /// # use rosenpass_util::zerocopy::RefMaker;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     ///
@@ -305,7 +331,9 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     pub fn make_zeroized(self) -> anyhow::Result<Ref<B, T>> {
         self.zeroized().parse()
     }
+}
 
+impl<B: ByteSliceMut, T> RefMaker<B, T> {
     /// Returns a mutable reference to the underlying bytes.
     pub fn bytes_mut(&mut self) -> &mut [u8] {
         self.buf_mut().deref_mut()
