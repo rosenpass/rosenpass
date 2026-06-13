@@ -164,7 +164,7 @@ jobs:
         run: |
           cargo --version
           if ! command -v cargo-fuzz >/dev/null 2>&1; then
-            cargo install cargo-fuzz
+            cargo install cargo-fuzz --locked
           fi
       - name: Run fuzzing
         run: |
