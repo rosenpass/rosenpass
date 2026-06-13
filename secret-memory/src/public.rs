@@ -560,10 +560,24 @@ mod tests {
         /// Test the randomize functionality of [PublicBox].
         #[test]
         fn test_public_box_randomize() {
+            const SAMPLE_COUNT: usize = 8;
+
             let mut pb: PublicBox<32> = PublicBox::zero();
-            pb.randomize();
-            // Can't really assert anything here until we have can predict the randomness
-            // by derandomizing the RNG for tests.
+            let mut samples = [[0u8; 32]; SAMPLE_COUNT];
+
+            for sample in &mut samples {
+                pb.randomize();
+                *sample = *pb;
+            }
+
+            assert!(
+                samples.iter().any(|sample| sample != &[0; 32]),
+                "PublicBox::randomize should overwrite the zero buffer"
+            );
+            assert!(
+                samples.windows(2).any(|window| window[0] != window[1]),
+                "PublicBox::randomize should produce varying samples"
+            );
         }
 
         /// Test the [Debug] print of [PublicBox]
