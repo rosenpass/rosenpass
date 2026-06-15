@@ -1,5 +1,5 @@
 {
-  "lastUpdate": 1781528394970,
+  "lastUpdate": 1781529605389,
   "repoUrl": "https://github.com/rosenpass/rosenpass",
   "entries": {
     "Protocol Benchmarks": [
@@ -123561,6 +123561,336 @@
             "range": "± 723",
             "unit": "ns/iter",
             "operating system": "x86_64-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "decaps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ilka@rosenpass.eu",
+            "name": "Ilka Schulz"
+          },
+          "committer": {
+            "email": "ilka@rosenpass.eu",
+            "name": "Ilka Schulz"
+          },
+          "distinct": true,
+          "id": "4238fcd46ad661f3a19f9e2b2ad83ba850d0e905",
+          "message": "cargo vet regenerate exemptions",
+          "timestamp": "2026-06-15T14:49:26+02:00",
+          "tree_id": "4b0f4b40706517c61d6f0244b64ded3b233a89e6",
+          "url": "https://github.com/rosenpass/rosenpass/commit/4238fcd46ad661f3a19f9e2b2ad83ba850d0e905"
+        },
+        "date": 1781529602844,
+        "bigger_is_better": false,
+        "benches": [
+          {
+            "value": 931,
+            "range": "± 41",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "0byte"
+          },
+          {
+            "value": 1651,
+            "range": "± 218",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "32byte"
+          },
+          {
+            "value": 1460,
+            "range": "± 231",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "64byte"
+          },
+          {
+            "value": 1868,
+            "range": "± 237",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "128byte"
+          },
+          {
+            "value": 5180,
+            "range": "± 683",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "1024byte"
+          },
+          {
+            "value": 4286,
+            "range": "± 626",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "0byte"
+          },
+          {
+            "value": 2747,
+            "range": "± 852",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "32byte"
+          },
+          {
+            "value": 3473,
+            "range": "± 500",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "64byte"
+          },
+          {
+            "value": 4070,
+            "range": "± 620",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "128byte"
+          },
+          {
+            "value": 12266,
+            "range": "± 887",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "1024byte"
+          },
+          {
+            "value": 1164,
+            "range": "± 10",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1174,
+            "range": "± 5",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1288,
+            "range": "± 2",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 1336,
+            "range": "± 29",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 2431,
+            "range": "± 58",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "1024byt..."
+          },
+          {
+            "value": 2382,
+            "range": "± 5",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "1024byt..."
+          },
+          {
+            "value": 1402,
+            "range": "± 6",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1494,
+            "range": "± 51",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1597,
+            "range": "± 74",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 1546,
+            "range": "± 36",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 2840,
+            "range": "± 60",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "1024by..."
+          },
+          {
+            "value": 2672,
+            "range": "± 132",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "1024by..."
+          },
+          {
+            "value": 64028,
+            "range": "± 6947",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "keygen"
+          },
+          {
+            "value": 77443,
+            "range": "± 3045",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "encaps"
+          },
+          {
+            "value": 87306,
+            "range": "± 13721",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "decaps"
+          },
+          {
+            "value": 2316763605,
+            "range": "± 2745448367",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "keygen"
+          },
+          {
+            "value": 437939,
+            "range": "± 40910",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "encaps"
+          },
+          {
+            "value": 75696407,
+            "range": "± 4676912",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
             "primitive": "kem",
             "algorithm": "classicmceliece460896",
             "implementation": "oqs",
