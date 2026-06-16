@@ -2,6 +2,11 @@ type c.
 
 letfun foo (bar: bitstring, baz: int) =
     (5, foo, bar, barz, lol, rofl).
+
+lemma skp:kem_sk_prec;
+    let bumm = bla in
+    (one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve).
+
 letfun foo (bar: bitstring, baz: int) =
     ().
 letfun foo (bar: bitstring, baz: int) =
@@ -32,6 +37,9 @@ lemma k:kem_sk, kp:kem_sk_prec;
 @lemma "asymmetric secrecy: Secure SSKI is sufficient for ck secrecy after trusted InitHello transmission from responder perspective"
 lemma ck_ini:key, ck:key, any_psk:key, any_sskr:kem_sk, PSsski:kem_sk_prec, any_epki:kem_pk, any_epti:key, PSspti:seed_prec;
     let secure_spki = kem_pub(trusted_kem_sk(PSsski)) in
+    let secure_spti = rng_key(trusted_seed(PSspti, two, three, four, five,
+        six, seven, eight, nine, ten,
+        eleven, twelve)) in
     let secure_spti = rng_key(trusted_seed(PSspti)) in
     attacker(ck)
     && event(OskOinit_hello(ck_ini, ck, any_psk, any_sskr, secure_spki, any_epki, any_epti, secure_spti)).

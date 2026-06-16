@@ -25,6 +25,7 @@ this_module = sys.modules[__name__]
 
 pp = pprint.PrettyPrinter(indent=4, width=50)
 
+DEBUG = False
 
 CONFIG = {
     "space": " ",
@@ -53,6 +54,7 @@ CONFIG = {
     "line_break": "\n",
     "indentation_style": " " * 4,  # 4 spaces
     "empty_lines_after_decl": "\n" * 1,
+    "break_after_n_list_elements": 4,
 }
 
 
@@ -112,6 +114,9 @@ def pretty(
 
     return_str = ""
 
+    if DEBUG:
+        return_str += f"[c:{column}, f:{format_spec}, t:{type(value)}]"
+
     # new line that is indented one column more
     if format_spec == "indentline":
         return_str += ctx.indentation_style * (column + 1)
@@ -134,7 +139,8 @@ def pretty(
         ) = get_list_config(format_spec, ctx)
 
         if len(value) > 1:
-            if len(value) < 5:
+            break_after_n = 5
+            if len(value) < break_after_n:
                 return_str += (
                     left_bracket
                     + list_separator.join(
@@ -153,14 +159,16 @@ def pretty(
                     left_bracket
                     + list_separator.join(
                         pretty(item, column=column, format_spec=format_spec, ctx=ctx)
-                        for item in value[:5]
+                        for item in value[:break_after_n]
                     )
                     + list_separator
                     + "\n"
-                    + ctx.indentation_style * column
-                    + list_separator.join(
-                        pretty(item, column=column, format_spec=format_spec, ctx=ctx)
-                        for item in value[5:]
+                    + ctx.indentation_style * (column + 1)
+                    + pretty(
+                        value[break_after_n:],
+                        column=column,
+                        format_spec=format_spec,
+                        ctx=ctx,
                     )
                     + right_bracket
                 )
@@ -383,12 +391,12 @@ class EventGterm(MarzipanAST):
     at: Optional[Ident] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = "event ("
-        str += self.event_gterms.pretty_print()
-        str += ")"
-        if self.at is not None:
-            str += "@" + self.at.value
-        return str
+        return pretty_format(
+            self,
+            "event ({event_gterms:list.gterm})"
+            + ("@{at}" if self.at is not None else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -396,7 +404,11 @@ class ParenGterm(MarzipanAST):
     paren_gterms: GtermList
 
     def pretty_print(self, column: int = 0) -> str:
-        return "(" + self.paren_gterms.pretty_print() + ")"
+        return pretty_format(
+            self,
+            "({paren_gterms:list.gterm})",
+            column=column,
+        )
 
 
 @dataclass
@@ -462,9 +474,12 @@ class Gterm(MarzipanAST):
                 LetGterm,
             ),
         ):
-            return self.gterm.pretty_print()
+            return pretty_format(
+                self,
+                "{gterm}",
+                column=column,
+            )
         return "not implemented"
-        # return f"{' ' * indent}{self}"
 
 
 @dataclass
@@ -500,7 +515,8 @@ class LetfunDecl(MarzipanAST):
             self,
             "letfun {ident}"
             + ("({typedecl})" if self.typedecl is not None else "")
-            + " =\n{pterm:indentline}.",
+            + " =\n{pterm:indentline}."
+            + "{ctx.empty_lines_after_decl}",
             column=column,
         )
 
@@ -511,10 +527,11 @@ class LemmaGterm(MarzipanAST):
     lemma: Optional[Lemma] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = self.gterm.pretty_print()
-        if self.lemma is not None:
-            str += ";" + self.lemma.pretty_print()
-        return str
+        return pretty_format(
+            self,
+            "{gterm}" + ("; {lemma}" if self.lemma is not None else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -566,7 +583,11 @@ class Lemma(MarzipanAST):
     lemma: LemmaGterm | LemmaPublicVars | LemmaPublicVarsSecret
 
     def pretty_print(self, column: int = 0) -> str:
-        return self.lemma.pretty_print()
+        return pretty_format(
+            self,
+            "{lemma}",
+            column=column,
+        )
 
     # def __post_init__(self):
     #    print(f"[constructor] Lemma: lemma={self.lemma}")
@@ -993,6 +1014,7 @@ def pretty_print(asttree: list):
 
 
 def parse(input: str):
+    global DEBUG
     parsetree = parser.parse(input)
     # print("=" * 100)
     # print("print parsetree")
@@ -1023,6 +1045,10 @@ def parse(input: str):
     print_tree(clean_ast)
 
     print("=" * 100)
+    if DEBUG:
+        DEBUG = False
+        pretty_print(clean_ast)
+        DEBUG = True
     return pretty_print(clean_ast)
 
     # print("=" * 100)
