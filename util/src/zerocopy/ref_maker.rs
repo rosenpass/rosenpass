@@ -158,6 +158,32 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     }
 }
 impl<B: SplitByteSlice, T> RefMaker<B, T> {
+    
+    /// Splits the buffer into two `RefMaker`s, with the first containing the
+    /// first containing the beginning `point` bytes and the second containing the 
+    /// following bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the buffer is undersized.
+    ///
+    /// # Example
+    /// ```
+    /// # use rosenpass_util::zerocopy::RefMaker;
+    /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
+    /// let (head, tail) = RefMaker::<_, u32>::new(bytes).split_at_point(3).unwrap();
+    /// assert_eq!(head, &[1,2,3]);
+    /// assert_eq!(tail, &[4,5,6,7,8,9,10]);
+    /// ```
+    pub fn split_at_point(self, point: usize) -> anyhow::Result<(B, B)> {
+        self.ensure_fit()?;
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            // not using the returned error here because it might leak information
+            .map_err(|_| anyhow!("could not split byte slice"))?;
+        Ok((head, tail))
+    }
     /// Splits the internal buffer into a `RefMaker` containing a buffer with
     /// exactly `size_of::<T>()` bytes and the remaining tail of the previous
     /// internal buffer.
@@ -177,11 +203,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn from_prefix_with_tail(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
-        let (head, tail) = self
-            .buf
-            .split_at(Self::target_size())
-            // not using the returned error here because it might leak information
-            .map_err(|_| anyhow!("could not split byte slice"))?;
+        let (head, tail) = self.split_at_point(Self::target_size())?;
         Ok((Self::new(head), tail))
     }
 
@@ -204,11 +226,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn split_prefix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
-        let (head, tail) = self
-            .buf
-            .split_at(Self::target_size())
-            // not using the returned error here because it might leak information
-            .map_err(|_| anyhow!("could not split byte slice"))?;
+        let (head, tail) = self.split_at_point(Self::target_size())?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -247,11 +265,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self
-            .buf
-            .split_at(point)
-            // not using the returned error here because it might leak information
-            .map_err(|_| anyhow!("could not split byte slice"))?;
+        let (head, tail) = self.split_at_point(point)?;
         Ok((Self::new(tail), head))
     }
 
@@ -274,11 +288,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     pub fn split_suffix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self
-            .buf
-            .split_at(point)
-            // not using the returned error here because it might leak information
-            .map_err(|_| anyhow!("could not split byte slice"))?;
+        let (head, tail) = self.split_at_point(point)?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
