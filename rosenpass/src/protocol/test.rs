@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, fmt::Display, net::SocketAddrV4, ops::DerefMut};
 
 use anyhow::{Context, Result};
 use serial_test::serial;
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{IntoBytes, FromBytes};
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
@@ -542,7 +542,7 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
         Ok(msg.read())
     }
 
-    fn proc_msg<Rx: AsBytes + FromBytes, Tx: AsBytes + FromBytes>(
+    fn proc_msg<Rx: IntoBytes + FromBytes, Tx: IntoBytes + FromBytes>(
         srv: &mut CryptoServer,
         rx: &Envelope<Rx>,
     ) -> anyhow::Result<Envelope<Tx>> {
@@ -583,11 +583,11 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
     }
 
     // TODO: Implement Clone on our message types
-    fn clone_msg<Msg: AsBytes + FromBytes>(msg: &Msg) -> anyhow::Result<Msg> {
+    fn clone_msg<Msg: IntoBytes + FromBytes>(msg: &Msg) -> anyhow::Result<Msg> {
         Ok(truncating_cast_into_nomut::<Msg>(msg.as_bytes())?.read())
     }
 
-    fn break_payload<Msg: AsBytes + FromBytes>(
+    fn break_payload<Msg: IntoBytes + FromBytes>(
         srv: &mut CryptoServer,
         peer: PeerPtr,
         msg: &Envelope<Msg>,

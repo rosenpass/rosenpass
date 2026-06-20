@@ -20,7 +20,7 @@ impl<B: ByteSlice> RequestRef<B> {
     /// # Examples
     ///
     /// ```
-    /// use zerocopy::AsBytes;
+    /// use zerocopy::IntoBytes;
     ///
     /// use rosenpass::api::{PingRequest, RequestRef, RequestMsgType};
     ///
