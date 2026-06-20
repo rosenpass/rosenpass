@@ -464,7 +464,7 @@ pub type KnownResponseHash = Public<16>;
 /// # Examples
 ///
 /// ```
-/// use zerocopy::FromZeroes;
+/// use zerocopy::FromZeros;
 /// use rosenpass::protocol::KnownResponseHasher;
 /// use rosenpass::msgs::{Envelope, InitConf};
 ///

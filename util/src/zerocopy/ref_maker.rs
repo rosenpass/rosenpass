@@ -19,10 +19,10 @@ use crate::zeroize::ZeroizedExt;
 /// # Example
 ///
 /// ```
-/// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};///
+/// # use zerocopy::{IntoBytes, FromBytes, Ref, KnownLayout, Immutable};
 /// # use rosenpass_util::zerocopy::RefMaker;
 ///
-/// #[derive(FromBytes, FromZeroes, AsBytes)]
+/// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 /// #[repr(C)]
 /// struct Header {
 ///     field1: u32,
@@ -93,10 +93,10 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass_util::zerocopy::RefMaker;
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Debug)]
     /// #[repr(C)]
     /// struct Data(u32);
     ///
@@ -319,9 +319,9 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};    ///
+    /// # use zerocopy::{IntoBytes, FromBytes, FromZeros, Ref, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::RefMaker;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     ///

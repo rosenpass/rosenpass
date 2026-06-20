@@ -16,15 +16,15 @@ pub trait ZerocopyEmancipateExt<B, T> {
     ///
     /// ```
     /// # use std::ops::Deref;
-    /// # use zerocopy::{AsBytes, ByteSlice, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, ByteSlice, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass_util::zerocopy::ZerocopyEmancipateExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u32);
     /// #[repr(align(4))]
     /// struct AlignedBuf([u8; 4]);
     /// let bytes = AlignedBuf([0xAA, 0xBB, 0xCC, 0xDD]);
-    /// let r = Ref::<&[u8], Data>::new(&bytes.0).unwrap();
+    /// let r = Ref::<&[u8], Data>::from_bytes(&bytes.0).unwrap();
     /// let emancipated: Ref<&[u8], Data> = r.emancipate(); // same data, but guaranteed &[u8] backing
     /// assert_eq!(emancipated.0, 0xDDCCBBAA);
     /// ```
@@ -44,9 +44,9 @@ pub trait ZerocopyEmancipateMutExt<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes, Ref};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass_util::zerocopy::{ZerocopyEmancipateMutExt};
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u32);
     /// #[repr(align(4))]
