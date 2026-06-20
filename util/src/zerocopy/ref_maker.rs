@@ -1,9 +1,9 @@
 //! A module providing the [`RefMaker`] type and its associated methods for constructing
 //! [`zerocopy::Ref`] references from byte buffers.
 
-use anyhow::{Context, ensure};
+use anyhow::{anyhow, ensure};
 use std::marker::PhantomData;
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Immutable, KnownLayout, Ref, SplitByteSlice};
 use zeroize::Zeroize;
 
 use crate::zeroize::ZeroizedExt;
@@ -81,7 +81,6 @@ impl<B, T> RefMaker<B, T> {
         &mut self.buf
     }
 }
-
 impl<B: ByteSlice, T> RefMaker<B, T> {
     /// Parses the buffer into a [`zerocopy::Ref<B, T>`].
     ///
@@ -118,11 +117,47 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     ///     .expect_err("Should error");
     /// assert_eq!(parse_error.to_string(), "Parser error!");
     /// ```
-    pub fn parse(self) -> anyhow::Result<Ref<B, T>> {
+    pub fn parse(self) -> anyhow::Result<Ref<B, T>>
+    where
+        T: KnownLayout + Immutable,
+    {
         self.ensure_fit()?;
-        Ref::<B, T>::new(self.buf).context("Parser error!")
+        // not using the returned error here because it might leak information
+        Ref::<B, T>::from_bytes(self.buf).map_err(|_| anyhow!("Parser error!"))
     }
-
+    /// Ensures that the buffer is large enough to hold a `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the buffer is undersized.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rosenpass_util::zerocopy::RefMaker;
+    /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
+    /// let rm = RefMaker::<_, u32>::new(bytes);
+    /// rm.ensure_fit().unwrap();
+    ///
+    /// let bytes: &[u8] = &[1,2,3];
+    /// let rm = RefMaker::<_, u32>::new(bytes);
+    /// assert!(rm.ensure_fit().is_err());
+    /// ```
+    pub fn ensure_fit(&self) -> anyhow::Result<()> {
+        let have = self.bytes().len();
+        let need = Self::target_size();
+        ensure!(
+            need <= have,
+            "Buffer is undersized at {have} bytes (need {need} bytes)!"
+        );
+        Ok(())
+    }
+    /// Returns a reference to the underlying bytes.
+    pub fn bytes(&self) -> &[u8] {
+        self.buf().deref()
+    }
+}
+impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Splits the internal buffer into a `RefMaker` containing a buffer with
     /// exactly `size_of::<T>()` bytes and the remaining tail of the previous
     /// internal buffer.
@@ -142,7 +177,11 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn from_prefix_with_tail(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self
+            .buf
+            .split_at(Self::target_size())
+            // not using the returned error here because it might leak information
+            .map_err(|_| anyhow!("could not split byte slice"))?;
         Ok((Self::new(head), tail))
     }
 
@@ -165,7 +204,11 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn split_prefix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
-        let (head, tail) = self.buf.split_at(Self::target_size());
+        let (head, tail) = self
+            .buf
+            .split_at(Self::target_size())
+            // not using the returned error here because it might leak information
+            .map_err(|_| anyhow!("could not split byte slice"))?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -204,7 +247,11 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            // not using the returned error here because it might leak information
+            .map_err(|_| anyhow!("could not split byte slice"))?;
         Ok((Self::new(tail), head))
     }
 
@@ -227,7 +274,11 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     pub fn split_suffix(self) -> anyhow::Result<(Self, Self)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
-        let (head, tail) = self.buf.split_at(point);
+        let (head, tail) = self
+            .buf
+            .split_at(point)
+            // not using the returned error here because it might leak information
+            .map_err(|_| anyhow!("could not split byte slice"))?;
         Ok((Self::new(head), Self::new(tail)))
     }
 
@@ -246,39 +297,6 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// ```
     pub fn from_suffix(self) -> anyhow::Result<Self> {
         Ok(Self::from_suffix_with_head(self)?.0)
-    }
-
-    /// Returns a reference to the underlying bytes.
-    pub fn bytes(&self) -> &[u8] {
-        self.buf().deref()
-    }
-
-    /// Ensures that the buffer is large enough to hold a `T`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the buffer is undersized.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use rosenpass_util::zerocopy::RefMaker;
-    /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
-    /// let rm = RefMaker::<_, u32>::new(bytes);
-    /// rm.ensure_fit().unwrap();
-    ///
-    /// let bytes: &[u8] = &[1,2,3];
-    /// let rm = RefMaker::<_, u32>::new(bytes);
-    /// assert!(rm.ensure_fit().is_err());
-    /// ```
-    pub fn ensure_fit(&self) -> anyhow::Result<()> {
-        let have = self.bytes().len();
-        let need = Self::target_size();
-        ensure!(
-            need <= have,
-            "Buffer is undersized at {have} bytes (need {need} bytes)!"
-        );
-        Ok(())
     }
 }
 
@@ -302,7 +320,10 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     /// let data_ref: Ref<&mut [u8], Data> = RefMaker::<_, Data>::new(&mut bytes[..]).make_zeroized().unwrap();
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// ```
-    pub fn make_zeroized(self) -> anyhow::Result<Ref<B, T>> {
+    pub fn make_zeroized(self) -> anyhow::Result<Ref<B, T>>
+    where
+        T: KnownLayout + Immutable,
+    {
         self.zeroized().parse()
     }
 
