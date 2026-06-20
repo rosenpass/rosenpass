@@ -9,7 +9,7 @@
 //! To achieve this we utilize the zerocopy library.
 //!
 use std::mem::size_of;
-use zerocopy::{IntoBytes, FromBytes};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::RosenpassError;
 use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
@@ -76,7 +76,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 /// assert_eq!(ih3.msg_type, 42);
 /// ```
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes, Clone)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Clone)]
 pub struct Envelope<M: IntoBytes + FromBytes> {
     /// [MsgType] of this message
     pub msg_type: u8,
@@ -126,7 +126,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct InitHello {
     /// Randomly generated connection id
     pub sidi: [u8; 4],
@@ -175,7 +175,7 @@ pub struct InitHello {
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct RespHello {
     /// Randomly generated connection id
     pub sidr: [u8; 4],
@@ -226,7 +226,7 @@ pub struct RespHello {
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes, Debug)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Debug)]
 pub struct InitConf {
     /// Copied from InitHello
     pub sidi: [u8; 4],
@@ -284,7 +284,7 @@ pub struct InitConf {
 /// assert_eq!(ih.payload.sid, [1,2,3,4]);
 /// ```
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes, Clone, Copy)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Clone, Copy)]
 pub struct EmptyData {
     /// Copied from RespHello
     pub sid: [u8; 4],
@@ -311,7 +311,7 @@ pub struct EmptyData {
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct Biscuit {
     /// H(spki) – Ident ifies the initiator
     pub pidi: [u8; KEY_LEN],
@@ -336,7 +336,7 @@ pub struct Biscuit {
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes)]
+#[derive(IntoBytes, FromBytes, Immutable)]
 pub struct CookieReplyInner {
     /// [MsgType] of this message
     pub msg_type: u8,
@@ -363,7 +363,7 @@ pub struct CookieReplyInner {
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
 #[repr(packed)]
-#[derive(IntoBytes, FromBytes)]
+#[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct CookieReply {
     pub inner: CookieReplyInner,
     pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],

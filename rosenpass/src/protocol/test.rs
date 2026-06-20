@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, fmt::Display, net::SocketAddrV4, ops::DerefMut};
 
 use anyhow::{Context, Result};
 use serial_test::serial;
-use zerocopy::{IntoBytes, FromBytes};
+use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
@@ -539,10 +539,10 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
         srv.initiate_handshake(peer, buf.as_mut_slice())?
             .discard_result();
         let msg = truncating_cast_into::<Envelope<InitHello>>(buf.borrow_mut())?;
-        Ok(msg.read())
+        Ok(Ref::read(&msg))
     }
 
-    fn proc_msg<Rx: IntoBytes + FromBytes, Tx: IntoBytes + FromBytes>(
+    fn proc_msg<Rx: IntoBytes + FromBytes + Immutable, Tx: IntoBytes + FromBytes + Immutable>(
         srv: &mut CryptoServer,
         rx: &Envelope<Rx>,
     ) -> anyhow::Result<Envelope<Tx>> {
@@ -552,7 +552,7 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
             .context("Failed to produce RespHello message")?
             .discard_result();
         let msg = truncating_cast_into::<Envelope<Tx>>(buf.borrow_mut())?;
-        Ok(msg.read())
+        Ok(Ref::read(&msg))
     }
 
     fn proc_init_hello(
@@ -583,17 +583,21 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
     }
 
     // TODO: Implement Clone on our message types
-    fn clone_msg<Msg: IntoBytes + FromBytes>(msg: &Msg) -> anyhow::Result<Msg> {
-        Ok(truncating_cast_into_nomut::<Msg>(msg.as_bytes())?.read())
+    fn clone_msg<Msg: IntoBytes + FromBytes + KnownLayout + Immutable>(
+        msg: &Msg,
+    ) -> anyhow::Result<Msg> {
+        Ok(Ref::read(&truncating_cast_into_nomut::<Msg>(
+            msg.as_bytes(),
+        )?))
     }
 
-    fn break_payload<Msg: IntoBytes + FromBytes>(
+    fn break_payload<Msg: IntoBytes + FromBytes + Immutable>(
         srv: &mut CryptoServer,
         peer: PeerPtr,
         msg: &Envelope<Msg>,
     ) -> anyhow::Result<Envelope<Msg>> {
         let mut msg = clone_msg(msg)?;
-        msg.as_bytes_mut()[memoffset::offset_of!(Envelope<Msg>, payload)] ^= 0x01;
+        msg.as_mut_bytes()[memoffset::offset_of!(Envelope<Msg>, payload)] ^= 0x01;
         msg.seal(peer, srv)?; // Recalculate seal; we do not want to focus on "seal broken" errs
         Ok(msg)
     }

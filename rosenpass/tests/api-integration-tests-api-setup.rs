@@ -27,7 +27,7 @@ use rosenpass_util::{
 };
 use std::os::fd::{AsFd, AsRawFd};
 use tempfile::TempDir;
-use zerocopy::AsBytes;
+use zerocopy::IntoBytes;
 
 struct KillChild(std::process::Child);
 

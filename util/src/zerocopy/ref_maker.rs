@@ -158,9 +158,8 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     }
 }
 impl<B: SplitByteSlice, T> RefMaker<B, T> {
-    
     /// Splits the buffer into two `RefMaker`s, with the first containing the
-    /// first containing the beginning `point` bytes and the second containing the 
+    /// first containing the beginning `point` bytes and the second containing the
     /// following bytes.
     ///
     /// # Errors

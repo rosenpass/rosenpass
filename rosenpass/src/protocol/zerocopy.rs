@@ -2,20 +2,20 @@
 
 use std::mem::size_of;
 
-use zerocopy::{FromBytes, Ref};
+use zerocopy::{FromBytes, Immutable, KnownLayout, Ref};
 
 use crate::RosenpassError;
 
 /// Used to parse a network message using [zerocopy]
-pub fn truncating_cast_into<T: FromBytes>(
+pub fn truncating_cast_into<T: FromBytes + KnownLayout + Immutable>(
     buf: &mut [u8],
 ) -> Result<Ref<&mut [u8], T>, RosenpassError> {
-    Ref::new(&mut buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
+    Ref::from_bytes(&mut buf[..size_of::<T>()]).map_err(|_| RosenpassError::BufferSizeMismatch)
 }
 
 /// Used to parse a network message using [zerocopy], mutably
-pub fn truncating_cast_into_nomut<T: FromBytes>(
+pub fn truncating_cast_into_nomut<T: FromBytes + KnownLayout + Immutable>(
     buf: &[u8],
 ) -> Result<Ref<&[u8], T>, RosenpassError> {
-    Ref::new(&buf[..size_of::<T>()]).ok_or(RosenpassError::BufferSizeMismatch)
+    Ref::from_bytes(&buf[..size_of::<T>()]).map_err(|_| RosenpassError::BufferSizeMismatch)
 }

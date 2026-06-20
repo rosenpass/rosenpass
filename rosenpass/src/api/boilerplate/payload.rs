@@ -1,5 +1,5 @@
 use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-use zerocopy::{IntoBytes, ByteSliceMut, FromBytes, Ref};
+use zerocopy::{ByteSliceMut, FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use super::{Message, RawMsgType, RequestMsgType, ResponseMsgType};
 
@@ -12,7 +12,7 @@ pub const MAX_REQUEST_FDS: usize = 2;
 
 /// Message envelope for API messages
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, KnownLayout, Immutable, PartialEq, Eq)]
 pub struct Envelope<M: IntoBytes + FromBytes> {
     /// Which message this is
     pub msg_type: RawMsgType,
@@ -27,7 +27,7 @@ pub type ResponseEnvelope<M> = Envelope<M>;
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct PingRequestPayload {
     /// Randomly generated connection id
     pub echo: [u8; 256],
@@ -68,7 +68,7 @@ impl Message for PingRequest {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct PingResponsePayload {
     /// Randomly generated connection id
     pub echo: [u8; 256],
@@ -109,7 +109,7 @@ impl Message for PingResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct SupplyKeypairRequestPayload {}
 
 #[allow(missing_docs)]
@@ -169,7 +169,7 @@ pub mod supply_keypair_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct SupplyKeypairResponsePayload {
     #[allow(missing_docs)]
     pub status: u128,
@@ -210,7 +210,7 @@ impl Message for SupplyKeypairResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddListenSocketRequestPayload {}
 
 #[allow(missing_docs)]
@@ -264,7 +264,7 @@ pub mod add_listen_socket_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddListenSocketResponsePayload {
     pub status: u128,
 }
@@ -304,7 +304,7 @@ impl Message for AddListenSocketResponse {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddPskBrokerRequestPayload {}
 
 #[allow(missing_docs)]
@@ -359,7 +359,7 @@ pub mod add_psk_broker_response_status {
 
 #[allow(missing_docs)]
 #[repr(packed)]
-#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddPskBrokerResponsePayload {
     pub status: u128,
 }
