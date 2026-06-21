@@ -9,9 +9,19 @@
     # for rust nightly with llvm-tools-preview
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      treefmt-nix,
+      ...
+    }@inputs:
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
 
       #
@@ -243,6 +253,7 @@
             inherit system;
           };
           packages = self.packages.${system};
+          treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
         in
         {
           #
@@ -327,21 +338,10 @@
 
 
           checks = {
-            cargo-fmt = pkgs.runCommand "check-cargo-fmt"
-              { inherit (self.devShells.${system}.default) nativeBuildInputs buildInputs; } ''
-              cargo fmt --manifest-path=${./.}/Cargo.toml --check && touch $out
-            '';
-            nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
-              { nativeBuildInputs = [ pkgs.nixpkgs-fmt ]; } ''
-              nixpkgs-fmt --check ${./.} && touch $out
-            '';
-            prettier-check = pkgs.runCommand "check-with-prettier"
-              { nativeBuildInputs = [ pkgs.prettier ]; } ''
-              cd ${./.} && prettier --check . && touch $out
-            '';
+            formatting = treefmtEval.config.build.check self;
           };
 
-          formatter = pkgs.nixpkgs-fmt;
+          formatter = treefmtEval.config.build.wrapper;
         }))
     ];
 }
