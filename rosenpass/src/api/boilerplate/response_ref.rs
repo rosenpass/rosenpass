@@ -25,7 +25,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
     /// ```
     /// use zerocopy::IntoBytes;
     ///
-    /// use rosenpass::api::{PingResponse, ResponseRef, ResponseMsgType};
+    /// use rosenpass::api::{PingResponse, ResponseMsgType, ResponseRef};
     /// // Produce the original PingResponse
     /// let msg = PingResponse::new([0u8; 256]);
     ///
@@ -54,7 +54,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
         ResponseRefMaker::new(buf)?.from_prefix()?.parse()
     }
 
-    /// Produce a [ResponseRef] from the prefix of a raw message buffer,
+    /// Produce a [ResponseRef] from the suffix of a raw message buffer,
     /// reading the type from the buffer.
     pub fn parse_from_suffix(buf: B) -> anyhow::Result<Self> {
         ResponseRefMaker::new(buf)?.from_suffix()?.parse()
@@ -140,9 +140,9 @@ impl<B: SplitByteSlice> ResponseRefMaker<B> {
         self.ensure_fit()?;
         let point = self.buf.len() - self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf
+        let (_, buf) = buf
             .split_at(point)
-            .map_err(|_| anyhow!("ResponseRefMaker::from_suffix: can not split buiffer"))?;
+            .map_err(|_| anyhow!("split_at failed after ensure_fit; this should be unreachable"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -196,5 +196,27 @@ where
             Self::AddListenSocket(r) => Ref::bytes_mut(r),
             Self::AddPskBroker(r) => Ref::bytes_mut(r),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use zerocopy::IntoBytes;
+
+    use super::*;
+
+    #[test]
+    fn parse_from_suffix_returns_suffix_response() -> anyhow::Result<()> {
+        let prefix = PingResponse::new([1; 256]);
+        let suffix = PingResponse::new([2; 256]);
+        let mut buf = Vec::new();
+        buf.extend_from_slice(prefix.as_bytes());
+        buf.extend_from_slice(suffix.as_bytes());
+
+        let msg_ref = ResponseRef::parse_from_suffix(buf.as_slice())?;
+
+        assert!(matches!(msg_ref, ResponseRef::Ping(_)));
+        assert_eq!(msg_ref.bytes(), suffix.as_bytes());
+        Ok(())
     }
 }
