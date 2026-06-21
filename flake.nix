@@ -311,7 +311,7 @@
               cmake # override the fakecmake from the main step above
               cargo-release
               clippy
-              nodePackages.prettier
+              prettier
               rustfmt
               packages.proverif-patched
             ];
@@ -332,7 +332,7 @@
               nixpkgs-fmt --check ${./.} && touch $out
             '';
             prettier-check = pkgs.runCommand "check-with-prettier"
-              { nativeBuildInputs = [ pkgs.nodePackages.prettier ]; } ''
+              { nativeBuildInputs = [ pkgs.prettier ]; } ''
               cd ${./.} && prettier --check . && touch $out
             '';
           };
