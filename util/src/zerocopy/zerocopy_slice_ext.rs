@@ -1,7 +1,7 @@
 //! Extension traits for parsing slices into [`zerocopy::Ref`] values using the
 //! [`RefMaker`] abstraction.
 
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Immutable, KnownLayout, Ref, SplitByteSlice};
 
 use super::RefMaker;
 
@@ -15,10 +15,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u32);
     ///
@@ -39,10 +39,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
     ///
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u16, u16);
     /// #[repr(align(4))]
@@ -52,7 +52,10 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// assert_eq!(data_ref.0, 0x0201);
     /// assert_eq!(data_ref.1, 0x0403);
     /// ```
-    fn zk_parse<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().parse()
     }
 
@@ -67,9 +70,9 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Header(u32);
     /// #[repr(align(4))]
@@ -80,7 +83,11 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// let header_ref = bytes.0.zk_parse_prefix::<Header>().unwrap();
     /// assert_eq!(header_ref.0, 0xDDCCBBAA);
     /// ```
-    fn zk_parse_prefix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse_prefix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        Self: SplitByteSlice,
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().from_prefix()?.parse()
     }
 
@@ -95,9 +102,9 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopySliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Header(u32);
     /// #[repr(align(4))]
@@ -108,7 +115,11 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     /// let header_ref = bytes.0.zk_parse_suffix::<Header>().unwrap();
     /// assert_eq!(header_ref.0, 0x30201000);
     /// ```
-    fn zk_parse_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_parse_suffix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        Self: SplitByteSlice,
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().from_suffix()?.parse()
     }
 }
@@ -131,9 +142,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]
@@ -143,7 +154,10 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0, 0, 0, 0]);
     /// ```
-    fn zk_zeroized<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().make_zeroized()
     }
 
@@ -159,9 +173,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]
@@ -171,7 +185,11 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0, 0, 0, 0, 0xFF, 0xFF]);
     /// ```
-    fn zk_zeroized_from_prefix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized_from_prefix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        Self: SplitByteSlice,
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().from_prefix()?.make_zeroized()
     }
 
@@ -187,9 +205,9 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// # Example
     ///
     /// ```
-    /// # use zerocopy::{AsBytes, FromBytes, FromZeroes};
+    /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
-    /// #[derive(FromBytes, FromZeroes, AsBytes)]
+    /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
     /// #[repr(align(4))]
@@ -199,7 +217,11 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     /// assert_eq!(data_ref.0, [0,0,0,0]);
     /// assert_eq!(bytes.0, [0xFF, 0xFF, 0, 0, 0, 0]);
     /// ```
-    fn zk_zeroized_from_suffix<T>(self) -> anyhow::Result<Ref<Self, T>> {
+    fn zk_zeroized_from_suffix<T>(self) -> anyhow::Result<Ref<Self, T>>
+    where
+        Self: SplitByteSlice,
+        T: KnownLayout + Immutable,
+    {
         self.zk_ref_maker().from_suffix()?.make_zeroized()
     }
 }

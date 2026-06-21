@@ -78,14 +78,14 @@ where
         let typ = msgs::MsgType::try_from(*typ)?;
         let msgs::MsgType::SetPsk = typ; // Assert type
 
-        let req =
-            zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::new(req).ok_or(InvalidMessage)?;
-        let mut res =
-            zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::new(res).ok_or(InvalidMessage)?;
+        let req = zerocopy::Ref::<&[u8], Envelope<SetPskRequest>>::from_bytes(req)
+            .map_err(|_| InvalidMessage)?;
+        let mut res = zerocopy::Ref::<&mut [u8], Envelope<SetPskResponse>>::from_bytes(res)
+            .map_err(|_| InvalidMessage)?;
         res.msg_type = msgs::MsgType::SetPsk as u8;
         self.handle_set_psk(&req.payload, &mut res.payload)?;
 
-        Ok(res.bytes().len())
+        Ok(zerocopy::Ref::bytes(&res).len())
     }
 
     /// Sets the pre-shared key for the interface identified in `req` to the pre-shared key
@@ -138,7 +138,7 @@ mod tests {
     use crate::brokers::netlink::SetPskError;
     use crate::{SerializedBrokerConfig, WireGuardBroker};
     use rosenpass_secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
-    use zerocopy::AsBytes;
+    use zerocopy::IntoBytes;
 
     #[derive(Debug, Clone)]
     struct MockWireGuardBroker {

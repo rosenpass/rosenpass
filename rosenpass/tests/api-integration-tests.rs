@@ -14,7 +14,7 @@ use rosenpass_util::{
 };
 use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use tempfile::TempDir;
-use zerocopy::AsBytes;
+use zerocopy::IntoBytes;
 
 use rosenpass::config::ProtocolVersion;
 use rosenpass::protocol::basic_types::SymKey;

@@ -1,6 +1,6 @@
 use super::{ByteSliceRefExt, Message, PingRequest, PingResponse, RequestRef, RequestResponsePair};
 use std::{collections::VecDeque, os::fd::OwnedFd};
-use zerocopy::{ByteSlice, ByteSliceMut};
+use zerocopy::{ByteSlice, ByteSliceMut, SplitByteSlice, SplitByteSliceMut};
 
 /// The rosenpass API implementation functions.
 ///
@@ -182,8 +182,8 @@ pub trait Server {
         res: ResBuf,
     ) -> anyhow::Result<usize>
     where
-        ReqBuf: ByteSlice,
-        ResBuf: ByteSliceMut,
+        ReqBuf: SplitByteSlice,
+        ResBuf: SplitByteSliceMut,
     {
         let req = req.parse_request_from_prefix()?;
         // TODO: This is not pretty; This match should be moved into RequestRef

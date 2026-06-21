@@ -1,4 +1,4 @@
-use zerocopy::{ByteSlice, Ref};
+use zerocopy::{Ref, SplitByteSlice};
 
 use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
 
@@ -7,7 +7,7 @@ use super::{
     ResponseMsgType, ResponseRef, SupplyKeypairRequest, SupplyKeypairResponse,
 };
 
-pub trait ByteSliceRefExt: ByteSlice {
+pub trait ByteSliceRefExt: SplitByteSlice {
     /// Shorthand for the typed use of [ZerocopySliceExt::zk_ref_maker].
     fn msg_type_maker(self) -> RefMaker<Self, RawMsgType> {
         self.zk_ref_maker()
@@ -259,4 +259,4 @@ pub trait ByteSliceRefExt: ByteSlice {
     }
 }
 
-impl<B: ByteSlice> ByteSliceRefExt for B {}
+impl<B: SplitByteSlice> ByteSliceRefExt for B {}

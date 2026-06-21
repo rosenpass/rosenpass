@@ -1,7 +1,7 @@
 // TODO: This is copied verbatim from ResponseRef…not pretty
-use anyhow::ensure;
+use anyhow::{anyhow, ensure};
 
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Ref, SplitByteSlice};
 
 use super::{ByteSliceRefExt, MessageAttributes, PingResponse, ResponseMsgType};
 
@@ -16,14 +16,14 @@ struct ResponseRefMaker<B> {
     msg_type: ResponseMsgType,
 }
 
-impl<B: ByteSlice> ResponseRef<B> {
+impl<B: SplitByteSlice> ResponseRef<B> {
     /// Produce a [ResponseRef] from a raw message buffer,
     /// reading the type from the buffer
     ///
     /// # Examples
     ///
     /// ```
-    /// use zerocopy::AsBytes;
+    /// use zerocopy::IntoBytes;
     ///
     /// use rosenpass::api::{PingResponse, ResponseRef, ResponseMsgType};
     /// // Produce the original PingResponse
@@ -99,7 +99,7 @@ impl<B> From<Ref<B, super::AddPskBrokerResponse>> for ResponseRef<B> {
     }
 }
 
-impl<B: ByteSlice> ResponseRefMaker<B> {
+impl<B: SplitByteSlice> ResponseRefMaker<B> {
     fn new(buf: B) -> anyhow::Result<Self> {
         let msg_type = buf.deref().response_msg_type_from_prefix()?;
         Ok(Self { buf, msg_type })
@@ -129,7 +129,9 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
         self.ensure_fit()?;
         let point = self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (buf, _) = buf
+            .split_at(point)
+            .map_err(|_| anyhow!("ResponseRefMaker::from_prefix: can not split buffer"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -138,7 +140,9 @@ impl<B: ByteSlice> ResponseRefMaker<B> {
         self.ensure_fit()?;
         let point = self.buf.len() - self.target_size();
         let Self { buf, msg_type } = self;
-        let (buf, _) = buf.split_at(point);
+        let (buf, _) = buf
+            .split_at(point)
+            .map_err(|_| anyhow!("ResponseRefMaker::from_suffix: can not split buiffer"))?;
         Ok(Self { buf, msg_type })
     }
 
@@ -172,10 +176,10 @@ where
     /// See [Self::parse].
     pub fn bytes(&self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes(),
-            Self::SupplyKeypair(r) => r.bytes(),
-            Self::AddListenSocket(r) => r.bytes(),
-            Self::AddPskBroker(r) => r.bytes(),
+            Self::Ping(r) => Ref::bytes(r),
+            Self::SupplyKeypair(r) => Ref::bytes(r),
+            Self::AddListenSocket(r) => Ref::bytes(r),
+            Self::AddPskBroker(r) => Ref::bytes(r),
         }
     }
 }
@@ -187,10 +191,10 @@ where
     /// Access the byte data of this reference; mutably
     pub fn bytes_mut(&mut self) -> &[u8] {
         match self {
-            Self::Ping(r) => r.bytes_mut(),
-            Self::SupplyKeypair(r) => r.bytes_mut(),
-            Self::AddListenSocket(r) => r.bytes_mut(),
-            Self::AddPskBroker(r) => r.bytes_mut(),
+            Self::Ping(r) => Ref::bytes_mut(r),
+            Self::SupplyKeypair(r) => Ref::bytes_mut(r),
+            Self::AddListenSocket(r) => Ref::bytes_mut(r),
+            Self::AddPskBroker(r) => Ref::bytes_mut(r),
         }
     }
 }
