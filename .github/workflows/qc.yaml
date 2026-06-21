@@ -13,15 +13,20 @@ permissions:
   contents: read
 
 jobs:
-  prettier:
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  rustfmt:
+    name: Code Formatting
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - uses: actionsx/prettier@v3
+      - uses: cachix/install-nix-action@v31
         with:
-          args: --check .
+          nix_path: nixpkgs=channel:nixos-26.05
+      - uses: cachix/cachix-action@v17
+        with:
+          name: rosenpass
+          rosenpass authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: run nix format
+        run: nix fmt -- --fail-on-change
 
   shellcheck:
     name: Shellcheck
