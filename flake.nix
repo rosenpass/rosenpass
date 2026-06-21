@@ -136,6 +136,10 @@
                       ''
                       );
 
+                    preCheck = lib.optionalString (!isStatic && p.stdenv.isLinux) ''
+                      export LD_LIBRARY_PATH="${lib.makeLibraryPath [ p.libsodium ]}:''${LD_LIBRARY_PATH:-}"
+                    '';
+
                     # fortify is only compatible with dynamic linking
                     hardeningDisable = lib.optional isStatic "fortify";
                   };
