@@ -15,7 +15,7 @@ jobs:
       - i686-linux---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -31,7 +31,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -48,7 +48,7 @@ jobs:
       - i686-linux---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -63,7 +63,7 @@ jobs:
       - ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -80,7 +80,7 @@ jobs:
       - x86_64-darwin---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -98,7 +98,7 @@ jobs:
       - x86_64-darwin---rosenpass-oci-image
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -114,7 +114,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -131,7 +131,7 @@ jobs:
       - x86_64-darwin---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -146,7 +146,7 @@ jobs:
       - macos-13
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -163,7 +163,7 @@ jobs:
       - x86_64-linux---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -180,7 +180,7 @@ jobs:
       - x86_64-linux---proverif-patched
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -196,7 +196,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -214,7 +214,7 @@ jobs:
       - x86_64-linux---rosenpass-static
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -230,7 +230,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -247,7 +247,7 @@ jobs:
       - x86_64-linux---rosenpass
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -263,7 +263,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -280,7 +280,7 @@ jobs:
       - x86_64-linux---rosenpass-static
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -296,7 +296,7 @@ jobs:
     needs: []
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -311,7 +311,7 @@ jobs:
       - ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
@@ -326,7 +326,7 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v12
