@@ -12,7 +12,7 @@ jobs:
   prettier:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actionsx/prettier@v2
         with:
           args: --check .
@@ -21,14 +21,14 @@ jobs:
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
   cargo-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -36,7 +36,7 @@ jobs:
   cargo-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions/cache@v3
         with:
           path: |
@@ -57,7 +57,7 @@ jobs:
   cargo-doc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions/cache@v3
         with:
           path: |
@@ -78,7 +78,7 @@ jobs:
   cargo-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions/cache@v3
         with:
           path: |
@@ -99,7 +99,7 @@ jobs:
     runs-on:
       - ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions/cache@v3
         with:
           path: |
