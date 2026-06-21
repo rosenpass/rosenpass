@@ -6,11 +6,15 @@ on:
   push:
     branches:
       - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   i686-linux---default:
     name: Build i686-linux.default
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - i686-linux---rosenpass
     steps:
@@ -26,8 +30,7 @@ jobs:
         run: nix build .#packages.i686-linux.default --print-build-logs
   i686-linux---rosenpass:
     name: Build i686-linux.rosenpass
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -42,8 +45,7 @@ jobs:
         run: nix build .#packages.i686-linux.rosenpass --print-build-logs
   i686-linux---rosenpass-oci-image:
     name: Build i686-linux.rosenpass-oci-image
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - i686-linux---rosenpass
     steps:
@@ -59,8 +61,7 @@ jobs:
         run: nix build .#packages.i686-linux.rosenpass-oci-image --print-build-logs
   i686-linux---check:
     name: Run Nix checks on i686-linux
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -74,8 +75,7 @@ jobs:
         run: nix flake check . --print-build-logs
   x86_64-darwin---default:
     name: Build x86_64-darwin.default
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     needs:
       - x86_64-darwin---rosenpass
     steps:
@@ -91,8 +91,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.default --print-build-logs
   x86_64-darwin---release-package:
     name: Build x86_64-darwin.release-package
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     needs:
       - x86_64-darwin---rosenpass
       - x86_64-darwin---rosenpass-oci-image
@@ -109,8 +108,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.release-package --print-build-logs
   x86_64-darwin---rosenpass:
     name: Build x86_64-darwin.rosenpass
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -125,8 +123,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.rosenpass --print-build-logs
   x86_64-darwin---rosenpass-oci-image:
     name: Build x86_64-darwin.rosenpass-oci-image
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     needs:
       - x86_64-darwin---rosenpass
     steps:
@@ -142,8 +139,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.rosenpass-oci-image --print-build-logs
   x86_64-darwin---check:
     name: Run Nix checks on x86_64-darwin
-    runs-on:
-      - macos-13
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -157,8 +153,7 @@ jobs:
         run: nix flake check . --print-build-logs
   x86_64-linux---default:
     name: Build x86_64-linux.default
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - x86_64-linux---rosenpass
     steps:
@@ -174,8 +169,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.default --print-build-logs
   x86_64-linux---proof-proverif:
     name: Build x86_64-linux.proof-proverif
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - x86_64-linux---proverif-patched
     steps:
@@ -191,8 +185,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.proof-proverif --print-build-logs
   x86_64-linux---proverif-patched:
     name: Build x86_64-linux.proverif-patched
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -207,8 +200,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.proverif-patched --print-build-logs
   x86_64-linux---release-package:
     name: Build x86_64-linux.release-package
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - x86_64-linux---rosenpass-static-oci-image
       - x86_64-linux---rosenpass-static
@@ -225,8 +217,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.release-package --print-build-logs
   x86_64-linux---rosenpass:
     name: Build x86_64-linux.rosenpass
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -241,8 +232,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.rosenpass --print-build-logs
   x86_64-linux---rosenpass-oci-image:
     name: Build x86_64-linux.rosenpass-oci-image
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - x86_64-linux---rosenpass
     steps:
@@ -258,8 +248,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.rosenpass-oci-image --print-build-logs
   x86_64-linux---rosenpass-static:
     name: Build x86_64-linux.rosenpass-static
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -274,8 +263,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.rosenpass-static --print-build-logs
   x86_64-linux---rosenpass-static-oci-image:
     name: Build x86_64-linux.rosenpass-static-oci-image
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs:
       - x86_64-linux---rosenpass-static
     steps:
@@ -291,8 +279,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.rosenpass-static-oci-image --print-build-logs
   x86_64-linux---whitepaper:
     name: Build x86_64-linux.whitepaper
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -307,8 +294,7 @@ jobs:
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
   x86_64-linux---check:
     name: Run Nix checks on x86_64-linux
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -322,7 +308,7 @@ jobs:
         run: nix flake check . --print-build-logs
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v7

@@ -4,13 +4,17 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   checks: write
   contents: read
 
 jobs:
   prettier:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actionsx/prettier@v3
@@ -19,14 +23,14 @@ jobs:
 
   shellcheck:
     name: Shellcheck
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
   cargo-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actions-rs/audit-check@v1
@@ -34,7 +38,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo-clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actions/cache@v5
@@ -55,7 +59,7 @@ jobs:
           args: --all-features
 
   cargo-doc:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actions/cache@v5
@@ -76,7 +80,7 @@ jobs:
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
 
   cargo-test:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actions/cache@v5
@@ -96,8 +100,7 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo test
 
   cargo-test-nix-devshell-x86_64-linux:
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - uses: actions/cache@v5
