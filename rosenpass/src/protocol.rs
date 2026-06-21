@@ -76,7 +76,7 @@ use crate::{
     sodium::*,
     util::*,
 };
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use std::collections::hash_map::{
     Entry::{Occupied, Vacant},
     HashMap,
@@ -685,11 +685,7 @@ impl Mortal for SessionPtr {
 impl Mortal for BiscuitKeyPtr {
     fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
         let t = self.get(srv).created_at;
-        if t < 0.0 {
-            None
-        } else {
-            Some(t)
-        }
+        if t < 0.0 { None } else { Some(t) }
     }
 
     fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {

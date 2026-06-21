@@ -403,7 +403,10 @@ impl AppServer {
                 Some(Ok(v)) => v,
                 None => true,
                 Some(Err(e)) => {
-                    warn!("Unable to detect whether the IPv6 socket supports dual-stack operation: {}", e);
+                    warn!(
+                        "Unable to detect whether the IPv6 socket supports dual-stack operation: {}",
+                        e
+                    );
                     true
                 }
             };

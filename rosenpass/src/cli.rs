@@ -8,7 +8,7 @@ use crate::util::{LoadValue, LoadValueB64};
 use crate::{
     // app_server::{AppServer, LoadValue, LoadValueB64},
     coloring::Secret,
-    pqkem::{StaticKEM, KEM},
+    pqkem::{KEM, StaticKEM},
     protocol::{SPk, SSk, SymKey},
 };
 
@@ -141,7 +141,9 @@ impl Cli {
                     }
                     (_, Some(pkf), Some(skf)) => (pkf, skf),
                     _ => {
-                        bail!("either a config-file or both public-key and secret-key file are required")
+                        bail!(
+                            "either a config-file or both public-key and secret-key file are required"
+                        )
                     }
                 };
 

@@ -59,10 +59,15 @@ The code uses a variety of optimizations to speed up analysis such as using secr
 A wrapper script provides instant feedback about which queries execute as expected in color: A red cross if a query fails and a green check if it succeeds.
 
 [^liboqs]: https://openquantumsafe.org/liboqs/
+
 [^libsodium]: https://doc.libsodium.org/
+
 [^wg]: https://www.wireguard.com/
+
 [^pqwg]: https://eprint.iacr.org/2020/379
+
 [^pqwg-statedis]: Unless supplied with a pre-shared-key, but this defeats the purpose of a key exchange protocol
+
 [^wg-statedis]: https://lists.zx2c4.com/pipermail/wireguard/2021-August/006916.htmlA
 
 # Getting Rosenpass

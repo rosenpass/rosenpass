@@ -6,7 +6,7 @@ use rosenpass::{
     sodium::sodium_init,
 };
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn handle(
     tx: &mut CryptoServer,
