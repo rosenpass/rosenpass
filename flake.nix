@@ -290,6 +290,10 @@
             inherit system;
           };
           packages = self.packages.${system};
+          devShellLibraryPath = pkgs.lib.makeLibraryPath [
+            pkgs.libsodium
+            pkgs.stdenv.cc.cc.lib
+          ];
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
         in
         {
@@ -391,6 +395,7 @@
           devShells.default = pkgs.mkShell {
             inherit (packages.proof-proverif) CRYPTOVERIF_LIB;
             inputsFrom = [ packages.default ];
+            LD_LIBRARY_PATH = devShellLibraryPath;
             nativeBuildInputs = with pkgs; [
               cmake # override the fakecmake from the main step above
               cargo-release
@@ -402,6 +407,7 @@
           };
           devShells.coverage = pkgs.mkShell {
             inputsFrom = [ packages.default ];
+            LD_LIBRARY_PATH = devShellLibraryPath;
             nativeBuildInputs = with pkgs; [
               inputs.fenix.packages.${system}.complete.toolchain
               cargo-llvm-cov
