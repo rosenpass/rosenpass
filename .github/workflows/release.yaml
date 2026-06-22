@@ -28,7 +28,7 @@ jobs:
           files: result/*
   x86_64-darwin---release:
     name: Build release artifacts for x86_64-darwin
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
