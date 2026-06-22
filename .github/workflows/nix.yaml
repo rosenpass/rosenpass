@@ -75,7 +75,7 @@ jobs:
         run: nix flake check . --print-build-logs
   x86_64-darwin---default:
     name: Build x86_64-darwin.default
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - x86_64-darwin---rosenpass
     steps:
@@ -91,7 +91,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.default --print-build-logs
   x86_64-darwin---release-package:
     name: Build x86_64-darwin.release-package
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - x86_64-darwin---rosenpass
       - x86_64-darwin---rosenpass-oci-image
@@ -108,7 +108,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.release-package --print-build-logs
   x86_64-darwin---rosenpass:
     name: Build x86_64-darwin.rosenpass
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -123,7 +123,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.rosenpass --print-build-logs
   x86_64-darwin---rosenpass-oci-image:
     name: Build x86_64-darwin.rosenpass-oci-image
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - x86_64-darwin---rosenpass
     steps:
@@ -139,7 +139,7 @@ jobs:
         run: nix build .#packages.x86_64-darwin.rosenpass-oci-image --print-build-logs
   x86_64-darwin---check:
     name: Run Nix checks on x86_64-darwin
-    runs-on: macos-13
+    runs-on: warp-macos-26-arm64-6x
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
