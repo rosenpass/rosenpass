@@ -1,7 +1,9 @@
 name: QC Mac
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - upgrade-ci-macos
   workflow_call:
 
 concurrency:
