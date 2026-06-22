@@ -314,10 +314,12 @@
                     doclicense
                     fancyvrb
                     fontspec
+                    framed
                     gobble
                     koma-script
                     ifmtarg
                     latexmk
+                    lineno
                     lm
                     markdown
                     mathtools
@@ -327,7 +329,9 @@
                     pgf
                     soul
                     unicode-math
+                    upquote
                     lualatex-math
+                    lua-ul
                     paralist
                     gitinfo2
                     eso-pic
@@ -335,9 +339,11 @@
                     biblatex-trad
                     biblatex-software
                     xkeyval
+                    xstring
                     xurl
                     xifthen
                     biber
+                    dirtytalk
                     ;
                 }
               );

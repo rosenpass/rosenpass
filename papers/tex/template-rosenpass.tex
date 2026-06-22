@@ -2,6 +2,7 @@
 \usepackage{amssymb}
 \usepackage{mathtools}
 \usepackage{fontspec}
+\usepackage{dirtytalk}
 
 %font fallback
 \directlua{luaotfload.add_fallback
@@ -29,7 +30,7 @@
 }
 
 
-\usepackage{minted}
+\usepackage{minted2}
 
 \setminted{bgcolor=rosenpass-gray!20,breaklines}
 
@@ -177,7 +178,11 @@ version={4.0},
 		\titlehead{\centerline{\includegraphics[width=4cm]{RosenPass-Logo}}}
 		\title{\inserttitle}
 	}
-	\author{\csname insertauthor\endcsname}
+	\ifx\csname insertauthor\endcsname\relax
+	\author{}
+	\else
+	\author{\parbox{\linewidth}{\centering\insertauthor}}
+	\fi
 	\subject{\csname insertsubject\endcsname}
 	\date{\vspace{-1cm}}
 }

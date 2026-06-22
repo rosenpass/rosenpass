@@ -1,32 +1,36 @@
 \newcommand\markdownRendererJekyllDataBooleanPrototype[2]{#1}
 \newcommand\markdownRendererJekyllDataEmptyPrototype[1]{#1}
 \newcommand\markdownRendererJekyllDataNumberPrototype[2]{#1}
-\newcommand\markdownRendererJekyllDataStringPrototype[2]{#1}
+\newcommand\markdownRendererJekyllDataTypographicStringPrototype[2]{#1}
+\newcommand\markdownRendererJekyllDataProgrammaticStringPrototype[2]{}
 \newcommand\markdownRendererJekyllDataEnd[1]{#1}
 
 \RequirePackage[%
-	  contentBlocks,
-%	  debugExtensions,
-	  definitionLists,
-	  fancy_lists,
-	  fencedCode,
-	  hashEnumerators,
-	  inlineNotes,
-	  jekyllData,
-	  notes,
-	  pipeTables,
-	  rawAttribute,
-	  smartEllipses,
-	  strikeThrough,
-	  subscripts,
-	  superscripts,
-	  tableCaptions,
-	  taskLists,
-	  citations,
-	  tightLists=false,
-	  html,
-	  hybrid,
-	  relativeReferences=true,
+	% debugExtensions,
+	contentBlocks,
+	definitionLists,
+	fancy_lists,
+	fencedCode,
+	hashEnumerators,
+	inlineNotes,
+	jekyllData,
+	notes,
+	pipeTables,
+	rawAttribute,
+	smartEllipses,
+	strikeThrough,
+	subscripts,
+	superscripts,
+	tableCaptions,
+	taskLists,
+	texMathDollars,
+	texMathSingleBackslash,
+	texMathDoubleBackslash,
+	citations,
+	tightLists=false,
+	html,
+	hybrid,
+relativeReferences=true,
 ]{markdown}
 
 \makeatletter
@@ -86,21 +90,38 @@
 \tl_new:N \l__markdown_sequence_tl
 
 \markdownSetup{
-	rendererPrototypes = {
-		jekyllDataString = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
-		jekyllDataNumber = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
-		jekyllDataBoolean = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = {#2}}},
-		jekyllDataEmpty = {\keys_set:nn {Markdown/Template/jekyllData}{{#1} = }},
-		jekyllDataSequenceBegin = {
-			\begingroup
-			\renewcommand*{\markdownRendererJekyllDataString}[2]{
-			\seq_if_exist:cF {g__ptxcd_#1_seq}  {\seq_new:c {g__ptxcd_#1_seq}}
-			\seq_gput_right:cn {g__ptxcd_#1_seq} {##2}
-		}},
-		jekyllDataSequenceEnd = {
-			\endgroup
+  renderers = {
+    jekyllDataTypographicString = {
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+    },
+    jekyllDataProgrammaticString = {},
+    jekyllDataNumber = {
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+    },
+    jekyllDataBoolean = {
+      	\keys_set:nn { Markdown/Template/jekyllData } { {#1} = {#2} }
+    },
+    jekyllDataEmpty = {
+        \keys_set:nn { Markdown/Template/jekyllData } { {#1} = {} }
+    },
+    jekyllDataSequenceBegin = {
+		\begingroup
+
+		\seq_if_exist:cTF { g__ptxcd_#1_seq }
+			{ \seq_gclear:c { g__ptxcd_#1_seq } }
+			{ \seq_new:c { g__ptxcd_#1_seq } }
+
+		\renewcommand*{\markdownRendererJekyllDataTypographicString}[2]{
+			\seq_gput_right:cn { g__ptxcd_#1_seq } { ##2 }
 		}
-	}
+
+		\renewcommand*{\markdownRendererJekyllDataProgrammaticString}[2]{}
+	},
+    jekyllDataSequenceEnd = {
+      	\endgroup
+    }%,
+	% backslash = {\\},
+  }
 }
 
 \def\insertauthor{
@@ -148,8 +169,9 @@
 \UseHook{markdownInput/end}%
 
 \markdownSetup{rendererPrototypes={
-		backslash = {\\},
+	backslash = {\\},
 }}
+
 
 \AddToHook{markdownInput/end}{\TemplateEnd}
 \AddToHook{markdownInput/begin}{\TemplateBegin}
