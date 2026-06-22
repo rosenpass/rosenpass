@@ -147,6 +147,17 @@
 
                 doCheck = true;
 
+                LD_LIBRARY_PATH = lib.makeLibraryPath (
+                  [
+                    # Needed by Cargo itself on i686-linux: libatomic.so.1
+                    pkgs.stdenv.cc.cc.lib
+                  ]
+                  ++ lib.optionals (!isStatic && p.stdenv.isLinux) [
+                    # Needed by dynamically linked Rosenpass test binaries
+                    p.libsodium
+                  ]
+                );
+
                 nativeBuildInputs = with pkgs; [
                   p.stdenv.cc
                   cmake # for oqs build in the oqs-sys crate
@@ -170,10 +181,6 @@
                         NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -march=armv8-a+crypto"
                       ''
                     );
-
-                  preCheck = lib.optionalString (!isStatic && p.stdenv.isLinux) ''
-                    export LD_LIBRARY_PATH="${lib.makeLibraryPath [ p.libsodium ]}:''${LD_LIBRARY_PATH:-}"
-                  '';
 
                   # fortify is only compatible with dynamic linking
                   hardeningDisable = lib.optional isStatic "fortify";
