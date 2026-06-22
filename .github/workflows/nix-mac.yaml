@@ -14,7 +14,7 @@ concurrency:
 jobs:
   aarch64-darwin---default:
     name: Build aarch64-darwin.default
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - aarch64-darwin---rosenpass
     steps:
@@ -30,7 +30,7 @@ jobs:
         run: nix build .#packages.aarch64-darwin.default --print-build-logs
   aarch64-darwin---release-package:
     name: Build aarch64-darwin.release-package
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - aarch64-darwin---rosenpass
       - aarch64-darwin---rp
@@ -48,7 +48,7 @@ jobs:
         run: nix build .#packages.aarch64-darwin.release-package --print-build-logs
   aarch64-darwin---rosenpass:
     name: Build aarch64-darwin.rosenpass
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -63,7 +63,7 @@ jobs:
         run: nix build .#packages.aarch64-darwin.rosenpass --print-build-logs
   aarch64-darwin---rp:
     name: Build aarch64-darwin.rp
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     needs: []
     steps:
       - uses: actions/checkout@v7
@@ -78,7 +78,7 @@ jobs:
         run: nix build .#packages.aarch64-darwin.rp --print-build-logs
   aarch64-darwin---rosenpass-oci-image:
     name: Build aarch64-darwin.rosenpass-oci-image
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     needs:
       - aarch64-darwin---rosenpass
     steps:
@@ -94,7 +94,7 @@ jobs:
         run: nix build .#packages.aarch64-darwin.rosenpass-oci-image --print-build-logs
   aarch64-darwin---check:
     name: Run Nix checks on aarch64-darwin
-    runs-on: warp-macos-13-arm64-6x
+    runs-on: warp-macos-26-arm64-6x
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v30
