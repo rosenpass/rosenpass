@@ -4,40 +4,51 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   checks: write
   contents: read
 
 jobs:
-  prettier:
-    runs-on: ubuntu-latest
+  formatting:
+    name: Code Formatting
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
-      - uses: actionsx/prettier@v2
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
         with:
-          args: --check .
+          nix_path: nixpkgs=channel:nixos-26.05
+      - uses: cachix/cachix-action@v17
+        with:
+          name: rosenpass
+          rosenpass authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: run nix format
+        run: nix fmt -- --fail-on-change
 
   shellcheck:
     name: Shellcheck
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
 
   cargo-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo-clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -55,10 +66,10 @@ jobs:
           args: --all-features
 
   cargo-doc:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -76,10 +87,10 @@ jobs:
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
 
   cargo-test:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -96,11 +107,10 @@ jobs:
       - run: RUST_MIN_STACK=8388608 cargo test
 
   cargo-test-nix-devshell-x86_64-linux:
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -109,10 +119,10 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: cachix/install-nix-action@v21
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@v17
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}

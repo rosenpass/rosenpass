@@ -1,7 +1,7 @@
 //! Bindings and helpers for accessing libsodium functions
 
 use crate::util::*;
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use libsodium_sys as libsodium;
 use log::trace;
 use static_assertions::const_assert_eq;

@@ -9,14 +9,14 @@ on:
 
 jobs:
   update-website:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Clone rosenpass-website repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           repository: rosenpass/rosenpass-website
           ref: main
@@ -40,10 +40,10 @@ jobs:
           done
 
       - name: Commit changes to website repo
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v10
         with:
           author_name: GitHub Actions
           author_email: actions@github.com
           message: Update docs
           cwd: rosenpass-website/static/docs
-          github_token: ${{ secrets.PRIVACC }
+          github_token: ${{ secrets.PRIVACC }}

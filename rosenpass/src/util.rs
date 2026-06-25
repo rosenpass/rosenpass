@@ -1,5 +1,5 @@
 //! Helper functions and macros
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 use base64::{
     display::Base64Display as B64Display, read::DecoderReader as B64Reader,
     write::EncoderWriter as B64Writer,
@@ -90,11 +90,7 @@ pub fn b64_reader<R: Read>(r: R) -> B64Reader<'static, Base64Engine, R> {
 
 // TODO remove this once std::cmp::max becomes const
 pub const fn max_usize(a: usize, b: usize) -> usize {
-    if a > b {
-        a
-    } else {
-        b
-    }
+    if a > b { a } else { b }
 }
 
 #[derive(Clone, Debug)]

@@ -2,7 +2,7 @@
 use {
     crate::{
         coloring::Secret,
-        sodium::{hmac, hmac_into, KEY_SIZE},
+        sodium::{KEY_SIZE, hmac, hmac_into},
     },
     anyhow::Result,
 };

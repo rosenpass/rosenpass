@@ -1,12 +1,12 @@
 use anyhow::Result;
+use criterion::{Criterion, criterion_group, criterion_main};
 use rosenpass::pqkem::KEM;
 use rosenpass::{
     pqkem::StaticKEM,
     protocol::{CryptoServer, HandleMsgResult, MsgBuf, PeerPtr, SPk, SSk, SymKey},
     sodium::sodium_init,
 };
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn handle(
     tx: &mut CryptoServer,
