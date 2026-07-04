@@ -3,11 +3,21 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      non-critical:
+        update-types:
+          - "minor"
+          - "patch"
     # open-pull-requests-limit: 0 # temporarily disable dependabot
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      non-critical:
+        update-types:
+          - "minor"
+          - "patch"
     # open-pull-requests-limit: 0 # temporarily disable dependabot
