@@ -738,6 +738,7 @@ class QuerySecret(MarzipanAST):
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
+            # "secret" IDENT ["public_vars" ident_list] [";" query]
             "secret {ident}"
             + ("public_vars {public_vars:list.gterm}" if self.public_vars else "")
             + ("; {query}" if self.query else ""),
@@ -852,18 +853,25 @@ lemma_public_vars_secret: gterm "for" "{" "secret" IDENT [ "public_vars" ident_l
 lemma: lemma_gterm
          | lemma_public_vars
          | lemma_public_vars_secret
+
 lemma_annotation: _LEMMA ESCAPED_STRING
 lemma_decl: [lemma_annotation] lemma_decl_core
 lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
 
-query_gterm: gterm ["public_vars" ident_list] [";" query]
-query_secret: "secret" IDENT ["public_vars" ident_list] [";" query]
-query_putbegin: "putbegin" "event" ":" ident_list [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
-query_putbegin_inj: "putbegin" "inj-event" ":" ident_list [";" query]
-query: query_gterm
-        | query_secret
-        | query_putbegin
-        | query_putbegin_inj
+//query_gterm: gterm ["public_vars" ident_list] [";" query]
+//query_secret: "secret" IDENT ["public_vars" ident_list] [";" query]
+//query_putbegin: "putbegin" "event" ":" ident_list [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
+//query_putbegin_inj: "putbegin" "inj-event" ":" ident_list [";" query]
+//?query: query_gterm
+//        | query_secret
+//        | query_putbegin
+//        | query_putbegin_inj
+
+query: gterm ["public_vars" ident_list] [";" query]         -> query_gterm
+    | "secret" IDENT ["public_vars" ident_list] [";" query] -> query_secret
+    // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
+    | "putbegin" "event" ":" ident_list [";" query]         -> query_putbegin
+    | "putbegin" "inj-event" ":" ident_list [";" query]     -> query_putbegin_inj
 
 query_annotation: _QUERY ESCAPED_STRING
 reachable_annotation: _REACHABLE ESCAPED_STRING
@@ -1043,6 +1051,8 @@ def pretty_print(asttree: list):
 
 def parse(input: str):
     global DEBUG
+    # print(parser.source_grammar)
+
     parsetree = parser.parse(input)
     # print("=" * 100)
     # print("print parsetree")
