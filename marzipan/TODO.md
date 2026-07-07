@@ -55,6 +55,11 @@
       * newly discovered Lark features:
         * %extend makes it possible to first load the original ProVerif grammar
           and then load a small file that adapts it
+          ```
+          MARZIPAN:
+          lemma_annotation: "@lemma" ESCAPED_STRING
+          %extend lemma_decl: [lemma_annotation] "lemma"       [ typedecl ";"] lemma options{OPTIONS_LEMMA} "."
+          ```
         * -> can be used to give different names to branches of a rule, this
           spares us from splitting rules manually
       * [Update: do we need to do this?]cyclic dependencies are problematic if we wanted to split the grammar into multiple files and import within a lark grammar, because Lark would then complain when one file is not self-containing/completely resolvable
@@ -88,6 +93,7 @@
 * usability feature: functionality to help modify a grammar, as seen in the modify_decl_rule function
   * Lark does not seem to have a pretty printer for the internal grammar representation,
     source_grammar is exactly the input string
+* nice to have: LSP for syntax highlighting and more by running ProVerif
 
 ## Idea
 
