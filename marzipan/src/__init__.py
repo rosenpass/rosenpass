@@ -1,7 +1,8 @@
 # from rich.console import Console
 import click
 
-from .parser import *
+import .parser as parser
+
 from .util import export, pkgs, rename, setup_exports
 
 target_subdir = "target/proverif"

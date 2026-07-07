@@ -19,6 +19,7 @@ from lark import Lark, Token, Transformer, Tree, ast_utils, tree, v_args
 from lark.tree import Meta
 from typing_extensions import Type
 
+from proverif.ast.attributemap import AttrMap
 from util import T
 
 this_module = sys.modules[__name__]
@@ -27,22 +28,18 @@ pp = pprint.PrettyPrinter(indent=4, width=50)
 
 DEBUG = False
 
+PTERM_LIST_CONFIG = {
+    "list_separator": ", ",
+    "left_bracket": "(",
+    "right_bracket": ")",
+    "empty_brackets": True,
+    "none_representation": "",
+}
+
 CONFIG = {
     "space": " ",
-    "list.pterm": {
-        "list_separator": ", ",
-        "left_bracket": "(",
-        "right_bracket": ")",
-        "empty_brackets": True,
-        "none_representation": "",
-    },
-    "list.default": {
-        "list_separator": ", ",
-        "left_bracket": "(",
-        "right_bracket": ")",
-        "empty_brackets": True,
-        "none_representation": "",
-    },
+    "list.pterm": PTERM_LIST_CONFIG,
+    "list.default": PTERM_LIST_CONFIG,
     "list.gterm": {
         "list_separator": ", ",
         "left_bracket": "",
@@ -56,37 +53,6 @@ CONFIG = {
     "empty_lines_after_decl": "\n" * 1,
     "break_after_n_list_elements": 4,
 }
-
-
-class AttrMap(Mapping):
-    """
-    Small wrapper so that dict values can be accessed as {ctx.foo}
-    instead of only {ctx["foo"]} inside our custom format strings.
-    """
-
-    def __init__(self, mapping: Mapping[str, Any]):
-        self._mapping = mapping
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            return self._mapping[name]
-        except KeyError:
-            raise AttributeError(name) from None
-
-    def __getitem__(self, name: str) -> Any:
-        return self._mapping[name]
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._mapping
-
-    def __str__(self) -> str:
-        return str(self._mapping)
-
-    def __iter__(self) -> Iterator[Any]:
-        return self._mapping.__iter__()
-
-    def __len__(self) -> int:
-        return len(self._mapping)
 
 
 def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
@@ -106,6 +72,25 @@ def get_list_config(format_spec: str, ctx: Mapping[str, Any] | None = None):
         raise KeyError(
             f"Cannot find pretty printer configuration for list type {format_spec}."
         )
+
+
+format_spec_parser = Lark("""
+start: list_config | linebreaks
+
+LIST_PREFIX: "list"
+LIST_TYPES: "pterm" | "gterm" | "default"
+list_config: LIST_PREFIX "." LIST_TYPES
+
+linebreaks: "indentline" | "newline"
+""")
+
+
+def check_format_spec(format_spec: str):
+    if not format_spec == "":
+        # This raises an error in case the format spec string
+        # does not match the grammar
+        format_spec_parser.parse(format_spec)
+    return True
 
 
 def pretty(
@@ -228,6 +213,8 @@ class PrettyFormatter(Formatter):
 
     def format_field(self, value: Any, format_spec: str) -> str:
         """This function override injects the column and configuration context"""
+        if not check_format_spec(format_spec):
+            raise ValueError(f"invalid format spec {format_spec}")
         return pretty(value, column=self.column, format_spec=format_spec, ctx=self.ctx)
 
 
@@ -247,7 +234,7 @@ class MarzipanAST(ast_utils.Ast, ABC):
 
 @dataclass
 class TypeDecl(MarzipanAST):
-    ident: Token
+    ident: Ident
 
     def pretty_print(self, column: int = 0) -> str:
         template = "type {ident}."
@@ -256,7 +243,7 @@ class TypeDecl(MarzipanAST):
 
 @dataclass
 class Typeid(MarzipanAST):
-    ident: Token
+    ident: Ident
 
     def pretty_print(self, column: int = 0) -> str:
         template = "{ident}"
@@ -273,22 +260,39 @@ class Pterm(MarzipanAST, ast_utils.AsList):
 
 
 @dataclass
-class Gbinding(MarzipanAST):
-    value: int | Ident
+class GbindingNat(MarzipanAST):
+    value: int
     gterm: Gterm
     gbinding: Optional[Gbinding] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        result = ""
-        if type(self.value) is int:
-            result = pretty_format(self, "!{value}={gterm}", column=column)
-        else:
-            result = pretty_format(self, "{value}={gterm}", column=column)
+        return pretty_format(
+            self,
+            "!{value}={gterm}" + (";{gbinding}" if self.gbinding else ""),
+            column=column,
+        )
 
-        if self.gbinding is not None:
-            result += pretty_format(self, ";{gbinding}", column=column)
 
-        return result
+@dataclass
+class GbindingIdent(MarzipanAST):
+    value: Ident
+    gterm: Gterm
+    gbinding: Optional[Gbinding] = None
+
+    def pretty_print(self, column: int = 0) -> str:
+        return pretty_format(
+            self,
+            "{value}={gterm}" + (";{gbinding}" if self.gbinding else ""),
+            column=column,
+        )
+
+
+@dataclass
+class Gbinding(MarzipanAST):
+    gbinding: GbindingNat | GbindingIdent
+
+    def pretty_print(self, column: int = 0) -> str:
+        return pretty_format(self, "{gbinding}", column=column)
 
 
 @dataclass
@@ -318,8 +322,10 @@ class FunGterm(MarzipanAST):
         return pretty_format(
             self,
             "{fun_gterm}({gterm_list})"
+            # phase is an int, so we need to check for None explicitly,
+            # because the int might be 0, and 0 would be interpreted as false.
             + (" phase {phase}" if self.phase is not None else "")
-            + (" @ {at}" if self.at is not None else ""),
+            + (" @ {at}" if self.at else ""),
             column=column,
         )
 
@@ -332,17 +338,17 @@ class InfixGterm(MarzipanAST):
 
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
-            self, "{first_infix_gterm} {self.infix} {second_infix_gterm}", column=column
+            self, "{first_infix_gterm} {infix} {second_infix_gterm}", column=column
         )
 
 
 @dataclass
 class ChoiceGterm(MarzipanAST):
-    choice_gterm: Tuple[Gterm, Gterm]
+    left: Gterm
+    right: Gterm
 
     def pretty_print(self, column: int = 0) -> str:
-        left, right = self.choice_gterm
-        return f"choice [ {left.pretty_print()}, {right.pretty_print()} ]"
+        return pretty_format(self, "choice [{left}, {right}]", column=column)
 
 
 @dataclass
@@ -352,7 +358,7 @@ class ArithGterm(MarzipanAST):
     value: int
 
     def pretty_print(self, column: int = 0) -> str:
-        return f"{self.arith_gterm.pretty_print()} {self.operand} {self.value}"
+        return pretty_format(self, "{arith_gterm} {operand} {value}", column=column)
 
 
 @dataclass
@@ -361,7 +367,7 @@ class Arith2Gterm(MarzipanAST):
     arith_gterm: Gterm
 
     def pretty_print(self, column: int = 0) -> str:
-        return f"{self.value} + {self.arith_gterm.pretty_print()}"
+        return pretty_format(self, "{value} + {arith_gterm}", column=column)
 
 
 @dataclass
@@ -370,10 +376,11 @@ class InjeventGterm(MarzipanAST):
     at: Optional[Ident] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        result = f"inj-event ( {self.event_gterms.pretty_print()} )"
-        if self.at is not None:
-            result += f"@ {self.at}"
-        return result
+        return pretty_format(
+            self,
+            "inj-event ( {event_gterms} )" + ("@ {at}" if self.at else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -382,7 +389,7 @@ class ImpliesGterm(MarzipanAST):
     right: Gterm
 
     def pretty_print(self, column: int = 0) -> str:
-        return f"{self.left.pretty_print()} ==> {self.right.pretty_print()}"
+        return pretty_format(self, "{left} ==> {right}", column=column)
 
 
 @dataclass
@@ -393,8 +400,7 @@ class EventGterm(MarzipanAST):
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
-            "event ({event_gterms:list.gterm})"
-            + ("@{at}" if self.at is not None else ""),
+            "event ({event_gterms:list.gterm})" + ("@{at}" if self.at else ""),
             column=column,
         )
 
@@ -428,15 +434,16 @@ class LetGterm(MarzipanAST):
 @dataclass
 class SampleGterm(MarzipanAST):
     ident: Ident
+    # The implementation here does not allow to reproduce empty square brackets.
+    # Empty square brackets in the input will result in no square brackets in the output.
     gbinding: Optional[Gbinding] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = f"new {self.ident.value}"
-        if self.gbinding is not None:
-            str += "["
-            str += self.gbinding.pretty_print()
-            str += "]"
-        return str
+        return pretty_format(
+            self,
+            "new {ident}" + ("[{gbinding}]" if self.gbinding else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -484,24 +491,17 @@ class Gterm(MarzipanAST):
 
 @dataclass
 class Typedecl(MarzipanAST):
-    type_list: List[Ident]
+    type_list: IdentList
     typeid: Typeid
     optional_typedecl: Optional[Typedecl] = None
 
-    # _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        # str += ", ".join([t.pretty_print() for t in self.type_list])
-        if isinstance(self.type_list, List):
-            str += ", ".join([t for t in self.type_list])
-        elif isinstance(self.type_list, Token):
-            str += self.type_list.value
-        str += ": "
-        str += self.typeid.pretty_print()
-        if self.optional_typedecl is not None:
-            str += ", "
-            str += self.optional_typedecl.pretty_print()
-        return str
+        return pretty_format(
+            self,
+            "{type_list:list.gterm}: {typeid}"
+            + (", {optional_typedecl}" if self.optional_typedecl else ""),
+            column=column,
+        )
 
 
 @dataclass
@@ -514,7 +514,7 @@ class LetfunDecl(MarzipanAST):
         return pretty_format(
             self,
             "letfun {ident}"
-            + ("({typedecl})" if self.typedecl is not None else "")
+            + ("({typedecl})" if self.typedecl else "")
             + " =\n{pterm:indentline}."
             + "{ctx.empty_lines_after_decl}",
             column=column,
@@ -529,53 +529,50 @@ class LemmaGterm(MarzipanAST):
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
-            "{gterm}" + ("; {lemma}" if self.lemma is not None else ""),
+            "{gterm}" + ("; {lemma}" if self.lemma else ""),
             column=column,
         )
 
 
 @dataclass
+class IdentList(MarzipanAST, ast_utils.AsList):
+    idents: List[Ident]
+
+    def pretty_print(self, column: int = 0) -> str:
+        return pretty_format(self, "{idents:list.gterm}", column=column)
+
+
+@dataclass
 class LemmaPublicVars(MarzipanAST):
     gterm: Gterm
-    public_vars: List
+    public_vars: IdentList
     lemma: Optional[Lemma] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = self.gterm.pretty_print()
-        str += "for { public_vars"
-        str += ",".join(
-            [
-                v.pretty_print() if hasattr(v, "pretty_print") else str(v)
-                for v in self.public_vars
-            ]
+        return pretty_format(
+            self,
+            "{gterm} for {{ public_vars {public_vars} }}"
+            + ("; {lemma}" if self.lemma else ""),
+            column=column,
         )
-        str += "}"
-        if self.lemma is not None:
-            str += ";" + self.lemma.pretty_print()
-        return str
 
 
 @dataclass
 class LemmaPublicVarsSecret(MarzipanAST):
     gterm: Gterm
     secret: Ident
-    public_vars: List
+    public_vars: Optional[IdentList]
     lemma: Optional[Lemma] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = self.gterm.pretty_print()
-        str += "for { secret"
-        str += self.secret.value
-        str += ",".join(
-            [
-                v.pretty_print() if hasattr(v, "pretty_print") else str(v)
-                for v in self.public_vars
-            ]
+        return pretty_format(
+            self,
+            "{gterm} for {{ secret {secret}"
+            + ("public_vars {public_vars}" if self.public_vars else "")
+            + "[real_or_random] }}"
+            + ("; {lemma}" if self.lemma else ""),
+            column=column,
         )
-        str += "[real_or_random] }"
-        if self.lemma is not None:
-            str += ";" + self.lemma.pretty_print()
-        return str
 
 
 @dataclass
@@ -608,7 +605,7 @@ class LemmaDeclCore(MarzipanAST):
         return pretty_format(
             self,
             "lemma "
-            + ("{typedecl};" if self.typedecl is not None else "")
+            + ("{typedecl};" if self.typedecl else "")
             + "\n"
             + "{lemma:indentline}."
             + "{ctx.empty_lines_after_decl}",
@@ -621,9 +618,7 @@ class LemmaAnnotation(MarzipanAST):
     annotation: str
 
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        str += self.annotation
-        return str
+        return pretty_format(self, "{annotation}", column=column)
 
 
 @dataclass
@@ -632,21 +627,22 @@ class LemmaDecl(MarzipanAST):
     lemma_decl_core: LemmaDeclCore
 
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        if self.lemma_decl_annotation is not None:
-            str += f"@lemma {self.lemma_decl_annotation}\n"
-        str += f"{self.lemma_decl_core.pretty_print()}"
-        return str
+        return pretty_format(
+            self,
+            ("@lemma {lemma_decl_annotation}" if self.lemma_decl_annotation else "")
+            + "{lemma_decl_core}",
+            column=column,
+        )
 
     # "{% if lemma_decl_annotation %}@lemma {{lemma_decl_annotation}}{% endif %}{{lemma_decl_core}}"
 
     # def pretty_print(self, column=0, indent=2):
-    #    return f"{'@lemma' + a if a is not None else ''}{l}"
+    #    return f"{'@lemma' + a if a else ''}{l}"
 
     # def pretty_print(self, column=0, indent=2):
     #    a = self.lemma_decl_annotation
     #    l = self.lemma_decl_core
-    #    return f"{'@lemma' + a.pretty_print(column, indent) if a is not None else ''}{l.pretty_print(column, indent)}"
+    #    return f"{'@lemma' + a.pretty_print(column, indent) if a else ''}{l.pretty_print(column, indent)}"
 
 
 @dataclass
@@ -654,7 +650,7 @@ class Query(MarzipanAST):
     query: QueryGterm | QuerySecret | QueryPutBegin
 
     def pretty_print(self, column: int = 0) -> str:
-        return self.query.pretty_print()
+        return pretty_format(self, "{query}", column=column)
 
 
 @dataclass
@@ -662,7 +658,7 @@ class QueryAnnotation(MarzipanAST):
     annotation: str
 
     def pretty_print(self, column: int = 0) -> str:
-        return self.annotation
+        return pretty_format(self, "{annotation}", column=column)
 
 
 @dataclass
@@ -670,7 +666,7 @@ class ReachableAnnotation(MarzipanAST):
     annotation: str
 
     def pretty_print(self, column: int = 0) -> str:
-        return self.annotation
+        return pretty_format(self, "{annotation}", column=column)
 
 
 @dataclass
@@ -682,9 +678,9 @@ class QueryDeclCore(MarzipanAST):
         return pretty_format(
             self,
             "query "
-            + ("{typedecl};" if self.typedecl is not None else "")
+            + ("{typedecl};" if self.typedecl else "")
             + "\n"
-            + "{query:newline}."
+            + "{query:indentline}."
             + "{ctx.empty_lines_after_decl}",
             column=column,
         )
@@ -692,101 +688,117 @@ class QueryDeclCore(MarzipanAST):
 
 @dataclass
 class QueryDecl(MarzipanAST):
-    query_decl_annotation: Optional[QueryAnnotation | ReachableAnnotation]
+    annotation: Optional[QueryAnnotation]
     query_decl_core: QueryDeclCore
 
     def pretty_print(self, column: int = 0) -> str:
-        str = ""
-        if self.query_decl_annotation is not None:
-            if isinstance(self.query_decl_annotation, QueryAnnotation):
-                str += f"@query {self.query_decl_annotation.pretty_print()}\n"
-            elif isinstance(self.query_decl_annotation, ReachableAnnotation):
-                str += f"@reachable {self.query_decl_annotation.pretty_print()}\n"
-        str += self.query_decl_core.pretty_print()
-        return str
+        return pretty_format(
+            self,
+            ("@query {annotation}" if self.annotation else "") + "{query_decl_core}",
+            column=column,
+        )
+
+
+@dataclass
+class ReachableDecl(MarzipanAST):
+    annotation: Optional[ReachableAnnotation]
+    query_decl_core: QueryDeclCore
+
+    def pretty_print(self, column: int = 0) -> str:
+        return pretty_format(
+            self,
+            ("@reachable {annotation}" if self.annotation else "")
+            + "{query_decl_core}",
+            column=column,
+        )
 
 
 @dataclass
 class QueryGterm(MarzipanAST):
     gterm: Gterm
-    public_vars: Optional[List[Ident]] = None
+    public_vars: Optional[IdentList] = None
     query: Optional[Query] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = self.gterm.pretty_print()
-        if self.public_vars is not None:
-            str += "public_vars "
-            str += ", ".join(
-                [
-                    v.pretty_print() if hasattr(v, "pretty_print") else str(v)
-                    for v in self.public_vars
-                ]
-            )
-        if self.query is not None:
-            str += ";" + self.query.pretty_print()
-        return str
+        return pretty_format(
+            self,
+            "{gterm}"
+            + ("public_vars {public_vars:list.gterm}" if self.public_vars else "")
+            + ("; {query}" if self.query else ""),
+            column=column,
+        )
 
 
 @dataclass
 class QuerySecret(MarzipanAST):
     ident: Ident
-    public_vars: Optional[List[Ident]] = None
+    public_vars: Optional[IdentList] = None
     query: Optional[Query] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = "secret"
-        str += self.ident.pretty_print()
-        if self.public_vars is not None:
-            str += "public_vars "
-            str += ", ".join(
-                [
-                    v.pretty_print() if hasattr(v, "pretty_print") else str(v)
-                    for v in self.public_vars
-                ]
-            )
-        if self.query is not None:
-            str += ";" + self.query.pretty_print()
-        return str
+        return pretty_format(
+            self,
+            "secret {ident}"
+            + ("public_vars {public_vars:list.gterm}" if self.public_vars else "")
+            + ("; {query}" if self.query else ""),
+            column=column,
+        )
 
 
 @dataclass
 class QueryPutBegin(MarzipanAST):
-    event_list: List[Ident]
+    event_list: IdentList
     query: Optional[Query] = None
 
     def pretty_print(self, column: int = 0) -> str:
-        str = "putbegin event :"
-        str += ", ".join(
-            [
-                e.pretty_print() if hasattr(e, "pretty_print") else str(e)
-                for e in self.event_list
-            ]
+        return pretty_format(
+            self,
+            "putbegin event :"
+            + ("{event_list:list.gterm}" if self.event_list else "")
+            + ("; {query}" if self.query else ""),
+            column=column,
         )
-        if self.query is not None:
-            str += ";" + self.query.pretty_print()
-        return str
+
+
+@dataclass
+class QueryPutBeginInj(MarzipanAST):
+    event_list: IdentList
+    query: Optional[Query] = None
+
+    def pretty_print(self, column: int = 0) -> str:
+        return pretty_format(
+            self,
+            "putbegin inj-event :"
+            + ("{event_list:list.gterm}" if self.event_list else "")
+            + ("; {query}" if self.query else ""),
+            column=column,
+        )
 
 
 @dataclass
 class Decl(MarzipanAST):
-    decl: LemmaDecl | QueryDecl | TypeDecl | LetfunDecl
+    decl: LemmaDecl | QueryDecl | ReachableDecl | TypeDecl | LetfunDecl
 
     def pretty_print(self, column: int = 0) -> str:
-        return self.decl.pretty_print()
+        return pretty_format(
+            self,
+            "{decl}",
+            column=column,
+        )
 
 
 parser = Lark("""
 start: decl*
-decl: lemma_decl | query_decl | type_decl | letfun_decl
+decl: lemma_decl | query_decl | reachable_decl | type_decl | letfun_decl
 _non_empty_seq{x}: x ("," x)*
 _maybe_empty_seq{x}: [ _non_empty_seq{x} ]
 IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
-NAT: DIGIT+
+NAT: DIGIT+ // ProVerif Manual 4.1.3: 0 is considered as natural number
 typeid: IDENT
 
 type_decl: "type" IDENT "."
 
-typedecl: _non_empty_seq{IDENT} ":" typeid [ "," typedecl ]
+typedecl: ident_list ":" typeid [ "," typedecl ]
 pterm: IDENT | NAT | "(" _maybe_empty_seq{pterm} ")"
 letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
 _QUERY: "@query"
@@ -827,12 +839,16 @@ paren_gterm: "(" gterm_list ")"
 sample_gterm: "new" IDENT [ "[" [ gbinding ] "]" ]
 let_gterm: "let" IDENT "=" gterm "in" gterm
 
-gbinding: "!" NAT "=" gterm [";" gbinding]
-        | IDENT "=" gterm [";" gbinding]
+gbinding_nat: "!" NAT "=" gterm [";" gbinding]
+gbinding_ident: IDENT "=" gterm [";" gbinding]
 
+gbinding: gbinding_nat
+        | gbinding_ident
+
+ident_list: _non_empty_seq{IDENT}
 lemma_gterm: gterm [";" lemma]
-lemma_public_vars: gterm "for" "{" "public_vars" _non_empty_seq{IDENT} "}" [";" lemma]
-lemma_public_vars_secret: gterm "for" "{" "secret" IDENT [ "public_vars" _non_empty_seq{IDENT}] "[real_or_random]" "}" [";" lemma]
+lemma_public_vars: gterm "for" "{" "public_vars" ident_list "}" [";" lemma]
+lemma_public_vars_secret: gterm "for" "{" "secret" IDENT [ "public_vars" ident_list] "[real_or_random]" "}" [";" lemma]
 lemma: lemma_gterm
          | lemma_public_vars
          | lemma_public_vars_secret
@@ -840,16 +856,20 @@ lemma_annotation: _LEMMA ESCAPED_STRING
 lemma_decl: [lemma_annotation] lemma_decl_core
 lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
 
-query_gterm: gterm ["public_vars" _non_empty_seq{IDENT}] [";" query]
-query_secret: "secret" IDENT ["public_vars" _non_empty_seq{IDENT}] [";" query]
-query_putbegin: "putbegin" "event" ":" _non_empty_seq{IDENT} [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
-| "putbegin" "inj-event" ":" _non_empty_seq{IDENT} [";" query]
+query_gterm: gterm ["public_vars" ident_list] [";" query]
+query_secret: "secret" IDENT ["public_vars" ident_list] [";" query]
+query_putbegin: "putbegin" "event" ":" ident_list [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
+query_putbegin_inj: "putbegin" "inj-event" ":" ident_list [";" query]
 query: query_gterm
         | query_secret
         | query_putbegin
+        | query_putbegin_inj
+
 query_annotation: _QUERY ESCAPED_STRING
 reachable_annotation: _REACHABLE ESCAPED_STRING
-query_decl: [ query_annotation | reachable_annotation] query_decl_core
+
+query_decl: [query_annotation] query_decl_core
+reachable_decl: [reachable_annotation] query_decl_core
 query_decl_core: "query" [ typedecl ";"] query "."
 
 %import common (DIGIT, WS, ESCAPED_STRING)
@@ -858,13 +878,21 @@ query_decl_core: "query" [ typedecl ";"] query "."
 
 
 class ToAst(Transformer):
-    def IDENT(self, str):
-        return str
+    def IDENT(self, token: Token) -> str:
+        return str(token.value)
 
-    def NAT(self, n):
-        n = int(n)
+    def INFIX(self, token: Token) -> str:
+        return str(token.value)
+
+    def NAT(self, token: Token) -> int:
+        n = int(token.value)
         assert n >= 0, "NAT must be an integer >= 0"
         return n
+
+    # This captures all tokens that are not explicitly handled by other methods,
+    # like ESCAPED_STRING, etc, that we import in our grammar.
+    def __default_token__(self, token: Token) -> Any:
+        return token.value
 
     # @v_args(inline=True)
     def start(self, x):
@@ -1019,6 +1047,7 @@ def parse(input: str):
     # print("=" * 100)
     # print("print parsetree")
     # print(parsetree.pretty())
+    # print(parsetree)
     ast = transformer.transform(parsetree)
     # print("=" * 100)
     # print("print_tree ast")

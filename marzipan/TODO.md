@@ -45,7 +45,24 @@
 
 ## Next Steps
 
+* refactor letfundecl.py into separate modules, shorter functions, …
+* write a test framework
+  * file in, test succeeds if parsing succeeds
+  * file in, test succeeds if parsing and pretty printing succeeds and matches input up to whitespace, and opinionated things like empty square brackets.
 * integrate marzipan.awk into Python, somehow
+  * review letfundecl.py
+    * [X] distill what we learned about grammar style
+      * cyclic dependencies are problematic if we wanted to split the grammar into multiple files and import within a lark grammar, because Lark would then complain when one file is not self-containing/completely resolvable
+      * rules with multiple sub-rules, if the sub-rules have differently long or different "type signatures", or different constants, except if all sub-rules only have one base type and no different constants
+      * rules that have list values in them together with other values: the list value must be moved into a dedicated rule to not be problematic with the AsList class inheritance
+      * in the transformer class, each terminal must have a function that handles it
+    * [X] learnings w.r.t. pretty_format
+      * if an optional attribute is an integer that can be 0, `is not None` must be used explicitly, otherwise 0 will be treated as false; for strings this is fine because we do not want to print empty strings
+    * all rules shall have a test file that touches/uses them
+  * scale letfundecl.py to the entire grammar
+    * rewrite the grammar in the new style
+    * generate/write the dataclasses
+    * write a test framework that computes test coverage for rules
 * options term special cases (c.f. manual page 133, starting with "fun" term)
   * complete with CryptoVerif options
 * do not assume that the repo path has subdir marzipan

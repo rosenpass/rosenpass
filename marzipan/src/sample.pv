@@ -28,7 +28,7 @@ query k:key;
 @lemma "secrecy: The adversary can learn a trusted kem pk only by using the reveal oracle"
 lemma skp:kem_sk_prec;
     attacker(kem_pub(trusted_kem_sk(skp)))
-        ==> event(RevealPk(kem_pub(trusted_kem_sk(skp)))).
+        ==> event(RevealPk(kem_pub(trusted_kem_sk(skp))))  for { public_vars a, b}.
 
 @lemma "secrecy: Attacker knowledge of a kem sk implies the key is not trusted"
 lemma k:kem_sk, kp:kem_sk_prec;
