@@ -597,7 +597,7 @@ class Lemma(MarzipanAST):
 
 
 @dataclass
-class LemmaDeclCore(MarzipanAST):
+class LemmaDecl(MarzipanAST):
     typedecl: Optional[Typedecl]
     lemma: Lemma
 
@@ -622,15 +622,19 @@ class LemmaAnnotation(MarzipanAST):
 
 
 @dataclass
-class LemmaDecl(MarzipanAST):
-    lemma_decl_annotation: Optional[LemmaAnnotation]
-    lemma_decl_core: LemmaDeclCore
+class AnnotatedLemmaDecl(MarzipanAST):
+    lemma_annotation: LemmaAnnotation
+    typedecl: Optional[Typedecl]
+    lemma: Lemma
 
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
-            ("@lemma {lemma_decl_annotation}" if self.lemma_decl_annotation else "")
-            + "{lemma_decl_core}",
+            "@lemma {lemma_decl_annotation} lemma "
+            + ("{typedecl};" if self.typedecl else "")
+            + "\n"
+            + "{lemma:indentline}."
+            + "{ctx.empty_lines_after_decl}",
             column=column,
         )
 
@@ -670,7 +674,7 @@ class ReachableAnnotation(MarzipanAST):
 
 
 @dataclass
-class QueryDeclCore(MarzipanAST):
+class QueryDecl(MarzipanAST):
     typedecl: Optional[Typedecl]
     query: Query
 
@@ -687,28 +691,37 @@ class QueryDeclCore(MarzipanAST):
 
 
 @dataclass
-class QueryDecl(MarzipanAST):
-    annotation: Optional[QueryAnnotation]
-    query_decl_core: QueryDeclCore
+class AnnotatedQueryDecl(MarzipanAST):
+    query_annotation: QueryAnnotation
+    typedecl: Optional[Typedecl]
+    query: Query
 
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
-            ("@query {annotation}" if self.annotation else "") + "{query_decl_core}",
+            "@query {annotation} query "
+            + ("{typedecl};" if self.typedecl else "")
+            + "\n"
+            + "{query:indentline}."
+            + "{ctx.empty_lines_after_decl}",
             column=column,
         )
 
 
 @dataclass
-class ReachableDecl(MarzipanAST):
-    annotation: Optional[ReachableAnnotation]
-    query_decl_core: QueryDeclCore
+class ReachableQueryDecl(MarzipanAST):
+    reachable_annotation: ReachableAnnotation
+    typedecl: Optional[Typedecl]
+    query: Query
 
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
             self,
-            ("@reachable {annotation}" if self.annotation else "")
-            + "{query_decl_core}",
+            "@reachable {annotation} query "
+            + ("{typedecl};" if self.typedecl else "")
+            + "\n"
+            + "{query:indentline}."
+            + "{ctx.empty_lines_after_decl}",
             column=column,
         )
 
@@ -778,7 +791,7 @@ class QueryPutBeginInj(MarzipanAST):
 
 @dataclass
 class Decl(MarzipanAST):
-    decl: LemmaDecl | QueryDecl | ReachableDecl | TypeDecl | LetfunDecl
+    decl: LemmaDecl | QueryDecl | TypeDecl | LetfunDecl
 
     def pretty_print(self, column: int = 0) -> str:
         return pretty_format(
@@ -788,101 +801,7 @@ class Decl(MarzipanAST):
         )
 
 
-parser = Lark("""
-start: decl*
-decl: lemma_decl | query_decl | reachable_decl | type_decl | letfun_decl
-_non_empty_seq{x}: x ("," x)*
-_maybe_empty_seq{x}: [ _non_empty_seq{x} ]
-IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
-NAT: DIGIT+ // ProVerif Manual 4.1.3: 0 is considered as natural number
-typeid: IDENT
-
-type_decl: "type" IDENT "."
-
-typedecl: ident_list ":" typeid [ "," typedecl ]
-pterm: IDENT | NAT | "(" _maybe_empty_seq{pterm} ")"
-letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
-_QUERY: "@query"
-_REACHABLE: "@reachable"
-_LEMMA: "@lemma"
-
-INFIX: "||"
-        | "&&"
-        | "="
-        | "<>"
-        | "<="
-        | ">="
-        | "<"
-        | ">"
-gterm: ident_gterm
-        | event_gterm
-        | fun_gterm
-        | choice_gterm
-        | infix_gterm
-        | arith_gterm
-        | arith2_gterm
-        | injevent_gterm
-        | implies_gterm
-        | paren_gterm
-        | sample_gterm
-        | let_gterm
-gterm_list: _maybe_empty_seq{gterm}
-ident_gterm: IDENT
-fun_gterm: IDENT "(" gterm_list ")" ["phase" NAT] ["@" IDENT]
-choice_gterm: "choice" "[" gterm "," gterm "]"
-infix_gterm: gterm INFIX gterm
-arith_gterm: gterm ( "+" | "-" ) NAT
-arith2_gterm: NAT "+" gterm
-event_gterm: "event" "(" gterm_list ")" ["@" IDENT]
-injevent_gterm: "inj-event" "(" gterm_list ")" ["@" IDENT]
-implies_gterm: gterm "==>" gterm
-paren_gterm: "(" gterm_list ")"
-sample_gterm: "new" IDENT [ "[" [ gbinding ] "]" ]
-let_gterm: "let" IDENT "=" gterm "in" gterm
-
-gbinding_nat: "!" NAT "=" gterm [";" gbinding]
-gbinding_ident: IDENT "=" gterm [";" gbinding]
-
-gbinding: gbinding_nat
-        | gbinding_ident
-
-ident_list: _non_empty_seq{IDENT}
-lemma_gterm: gterm [";" lemma]
-lemma_public_vars: gterm "for" "{" "public_vars" ident_list "}" [";" lemma]
-lemma_public_vars_secret: gterm "for" "{" "secret" IDENT [ "public_vars" ident_list] "[real_or_random]" "}" [";" lemma]
-lemma: lemma_gterm
-         | lemma_public_vars
-         | lemma_public_vars_secret
-
-lemma_annotation: _LEMMA ESCAPED_STRING
-lemma_decl: [lemma_annotation] lemma_decl_core
-lemma_decl_core: "lemma" [ typedecl ";"] lemma "."
-
-//query_gterm: gterm ["public_vars" ident_list] [";" query]
-//query_secret: "secret" IDENT ["public_vars" ident_list] [";" query]
-//query_putbegin: "putbegin" "event" ":" ident_list [";" query] // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
-//query_putbegin_inj: "putbegin" "inj-event" ":" ident_list [";" query]
-//?query: query_gterm
-//        | query_secret
-//        | query_putbegin
-//        | query_putbegin_inj
-
-query: gterm ["public_vars" ident_list] [";" query]         -> query_gterm
-    | "secret" IDENT ["public_vars" ident_list] [";" query] -> query_secret
-    // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
-    | "putbegin" "event" ":" ident_list [";" query]         -> query_putbegin
-    | "putbegin" "inj-event" ":" ident_list [";" query]     -> query_putbegin_inj
-
-query_annotation: _QUERY ESCAPED_STRING
-reachable_annotation: _REACHABLE ESCAPED_STRING
-
-query_decl: [query_annotation] query_decl_core
-reachable_decl: [reachable_annotation] query_decl_core
-query_decl_core: "query" [ typedecl ";"] query "."
-
-%import common (DIGIT, WS, ESCAPED_STRING)
-%ignore WS
-""")
+parser = Lark.open('grammars/marzipan_minimal.lark')
 
 
 class ToAst(Transformer):
@@ -920,13 +839,24 @@ def ast_deepcopy_except(node):
             return None
 
         dataclass_type = type(node)
+
+        # The following classes need to be transformed to classes
+        # with fewer attributes.
+        if isinstance(node, (AnnotatedQueryDecl, ReachableQueryDecl)):
+            dataclass_type = QueryDecl
+        elif isinstance(node, AnnotatedLemmaDecl):
+            dataclass_type = LemmaDecl
+
         kwargs = {}
 
         for field in fields(node):
-            if isinstance(node, QueryDecl) and field.name == "query_decl_annotation":
-                kwargs[field.name] = None
-            elif isinstance(node, LemmaDecl) and field.name == "lemma_decl_annotation":
-                kwargs[field.name] = None
+            # For a few classes, we skip the annotation attribute
+            if isinstance(node, ReachableQueryDecl) and field.name == "reachable_annotation":
+                continue
+            elif isinstance(node, AnnotatedQueryDecl) and field.name == "query_annotation":
+                continue
+            elif isinstance(node, AnnotatedLemmaDecl) and field.name == "lemma_annotation":
+                continue
             else:
                 child_node = getattr(node, field.name)
                 child_node_deepcopy = ast_deepcopy_except(child_node)

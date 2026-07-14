@@ -1,0 +1,80 @@
+start: decl*
+decl: lemma_decl
+    | query_decl
+    | type_decl
+    | letfun_decl
+
+IDENT: /[a-zA-Z][a-zA-Z0-9À-ÿ'_]*/
+NAT: DIGIT+ // ProVerif Manual 4.1.3: 0 is considered as natural number
+
+_non_empty_seq{x}: x ("," x)*
+_maybe_empty_seq{x}: [ _non_empty_seq{x} ]
+
+typeid: IDENT
+
+type_decl: "type" IDENT "."
+
+typedecl: ident_list ":" typeid [ "," typedecl ]
+pterm: IDENT
+     | NAT
+     | "(" _maybe_empty_seq{pterm} ")"
+letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
+_QUERY: "@query"
+_REACHABLE: "@reachable"
+_LEMMA: "@lemma"
+
+INFIX: "||"
+        | "&&"
+        | "="
+        | "<>"
+        | "<="
+        | ">="
+        | "<"
+        | ">"
+
+gterm: IDENT                                                 -> ident_gterm
+        | "event" "(" gterm_list ")" ["@" IDENT]             -> event_gterm
+        | "inj-event" "(" gterm_list ")" ["@" IDENT]         -> injevent_gterm
+        | IDENT "(" gterm_list ")" ["phase" NAT] ["@" IDENT] -> fun_gterm
+        | "choice" "[" gterm "," gterm "]"                   -> choice_gterm
+        | gterm INFIX gterm                                  -> infix_gterm
+        | gterm ( "+" | "-" ) NAT                            -> arith_gterm
+        | NAT "+" gterm                                      -> arith2_gterm
+        | gterm "==>" gterm                                  -> implies_gterm
+        | "(" gterm_list ")"                                 -> paren_gterm
+        | "new" IDENT [ "[" [ gbinding ] "]" ]               -> sample_gterm
+        | "let" IDENT "=" gterm "in" gterm                   -> let_gterm
+
+gterm_list: _maybe_empty_seq{gterm}
+
+gbinding: "!" NAT "=" gterm [";" gbinding] -> gbinding_nat
+        | IDENT "=" gterm [";" gbinding]   -> gbinding_ident
+
+ident_list: _non_empty_seq{IDENT}
+lemma: gterm [";" lemma]                                                                             -> lemma_gterm
+     | gterm "for" "{" "public_vars" ident_list "}" [";" lemma]                                      -> lemma_public_vars
+     | gterm "for" "{" "secret" IDENT [ "public_vars" ident_list] "[real_or_random]" "}" [";" lemma] -> lemma_public_vars_secret
+
+lemma_decl: "lemma" [ typedecl ";"] lemma "."
+
+query: gterm ["public_vars" ident_list] [";" query]          -> query_gterm
+     | "secret" IDENT ["public_vars" ident_list] [";" query] -> query_secret
+     // Opportunistically left a space between "event" and ":", ProVerif might not accept it with spaces.
+     | "putbegin" "event" ":" ident_list [";" query]         -> query_putbegin
+     | "putbegin" "inj-event" ":" ident_list [";" query]     -> query_putbegin_inj
+
+query_decl: "query" [ typedecl ";"] query "."
+
+%import common (DIGIT, WS, ESCAPED_STRING)
+%ignore WS
+
+// additional rules
+
+query_annotation: _QUERY ESCAPED_STRING
+reachable_annotation: _REACHABLE ESCAPED_STRING
+
+%extend query_decl: query_annotation "query" [ typedecl ";"] query "."     -> annotated_query_decl
+                  | reachable_annotation "query" [ typedecl ";"] query "." -> reachable_query_decl
+
+lemma_annotation: _LEMMA ESCAPED_STRING
+%extend lemma_decl: lemma_annotation "lemma" [ typedecl ";"] lemma "." -> annotated_lemma_decl
