@@ -1,41 +1,21 @@
-final: prev: {
+final: prev:
 
-  #
-  ### Actual rosenpass software ###
-  #
-  rosenpass = final.callPackage ./pkgs/rosenpass.nix { };
-  rosenpass-oci-image = final.callPackage ./pkgs/rosenpass-oci-image.nix { };
-  rp = final.callPackage ./pkgs/rosenpass.nix { package = "rp"; };
+let
+  inherit (prev) lib;
 
-  release-package = final.callPackage ./pkgs/release-package.nix { };
+  # root dir of this flake
+  flakeRoot = ./.;
 
-  #
-  ### Appendix ###
-  #
-  proverif-patched = prev.proverif.overrideAttrs (old: {
-    postInstall = ''
-      install -D -t $out/lib cryptoverif.pvl
-    '';
-  });
+  # all packages from the local tree
+  rosenpassPackages = lib.filesystem.packagesFromDirectoryRecursive {
+    # a special callPackage variant that contains our flakeRoot
+    callPackage = lib.callPackageWith (final // { inherit flakeRoot; });
 
-  proof-proverif = final.stdenv.mkDerivation {
-    name = "rosenpass-proverif-proof";
-    version = "unstable";
-    src = final.lib.sources.sourceByRegex ./. [
-      "analyze.sh"
-      "marzipan(/marzipan.awk)?"
-      "analysis(/.*)?"
-    ];
-    nativeBuildInputs = [
-      final.proverif
-      final.graphviz
-    ];
-    CRYPTOVERIF_LIB = final.proverif-patched + "/lib/cryptoverif.pvl";
-    installPhase = ''
-      mkdir -p $out
-      bash analyze.sh -color -html $out
-    '';
+    # local tree of packages
+    directory = ./pkgs;
   };
-
-  whitepaper = final.callPackage ./pkgs/whitepaper.nix { };
+in
+{
+  inherit rosenpassPackages;
 }
+// rosenpassPackages
