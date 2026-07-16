@@ -5,7 +5,6 @@
 
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
-    nix-vm-test.inputs.flake-utils.follows = "flake-utils";
 
     # for rust nightly with llvm-tools-preview
     rust-overlay.url = "github:oxalica/rust-overlay";

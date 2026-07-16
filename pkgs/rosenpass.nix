@@ -56,7 +56,7 @@ let
   };
 
   # parsed Cargo.toml
-  cargoToml = builtins.fromTOML (builtins.readFile (src + "/rosenpass/Cargo.toml"));
+  cargoToml = lib.trivial.importTOML (src + "/rosenpass/Cargo.toml");
 in
 rustPlatform.buildRustPackage {
   name = cargoToml.package.name;

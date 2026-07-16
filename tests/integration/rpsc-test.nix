@@ -42,18 +42,18 @@ let
         ''
           public_key = "${rosenpassKeyFolder}/self.pk"
           secret_key = "${rosenpassKeyFolder}/self.sk"
-          listen = ["[::]:${builtins.toString rpPort}"]
+          listen = ["[::]:${toString rpPort}"]
           verbosity = "Verbose"
 
           [[peers]]
           public_key = "${rosenpassKeyFolder}/peer-b.pk"
-          endpoint = "peerbkeyexchanger:${builtins.toString rpPort}"
+          endpoint = "peerbkeyexchanger:${toString rpPort}"
           key_out = "${keyExchangePathAB}"
         ''
         + (lib.optionalString multiPeer ''
           [[peers]]
           public_key = "${rosenpassKeyFolder}/peer-c.pk"
-          endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+          endpoint = "peerckeyexchanger:${toString rpPort}"
           key_out = "${keyExchangePathAC}"
         '')
       );
@@ -66,18 +66,18 @@ let
         ''
           public_key = "${rosenpassKeyFolder}/self.pk"
           secret_key = "${rosenpassKeyFolder}/self.sk"
-          listen = ["[::]:${builtins.toString rpPort}"]
+          listen = ["[::]:${toString rpPort}"]
           verbosity = "Verbose"
 
           [[peers]]
           public_key = "${rosenpassKeyFolder}/peer-a.pk"
-          endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
+          endpoint = "peerakeyexchanger:${toString rpPort}"
           key_out = "${keyExchangePathBA}"
         ''
         + (lib.optionalString multiPeer ''
           [[peers]]
           public_key = "${rosenpassKeyFolder}/peer-c.pk"
-          endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+          endpoint = "peerckeyexchanger:${toString rpPort}"
           key_out = "${keyExchangePathBC}"
         '')
       );
@@ -92,15 +92,15 @@ let
       rosenpassConfig = builtins.toFile "peer-c.toml" ''
         public_key = "${rosenpassKeyFolder}/self.pk"
         secret_key = "${rosenpassKeyFolder}/self.sk"
-        listen = ["[::]:${builtins.toString rpPort}"]
+        listen = ["[::]:${toString rpPort}"]
         verbosity = "Verbose"
         [[peers]]
         public_key = "${rosenpassKeyFolder}/peer-a.pk"
-        endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
+        endpoint = "peerakeyexchanger:${toString rpPort}"
         key_out = "${keyExchangePathCA}"
         [[peers]]
         public_key = "${rosenpassKeyFolder}/peer-b.pk"
-        endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+        endpoint = "peerckeyexchanger:${toString rpPort}"
         key_out = "${keyExchangePathCB}"
       '';
     };
@@ -146,7 +146,7 @@ in
           rpHost = "peerakeyexchanger";
           peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathAB;
-          endpoint = "peerB:${builtins.toString wgPort}";
+          endpoint = "peerB:${toString wgPort}";
           allowedIps = "${staticConfig.peerB.innerIp}/32";
         };
       }
@@ -158,7 +158,7 @@ in
           rpHost = "peerakeyexchanger";
           peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathAC;
-          endpoint = "peerC:${builtins.toString wgPort}";
+          endpoint = "peerC:${toString wgPort}";
           allowedIps = "${staticConfig.peerC.innerIp}/32";
         };
       };
@@ -175,7 +175,7 @@ in
           rpHost = "peerbkeyexchanger";
           peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathBA;
-          endpoint = "peerA:${builtins.toString wgPort}";
+          endpoint = "peerA:${toString wgPort}";
           allowedIps = "${staticConfig.peerA.innerIp}/32";
         };
       }
@@ -187,7 +187,7 @@ in
           rpHost = "peerbkeyexchanger";
           peerPubkeyFile = staticConfig.peerC.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathBC;
-          endpoint = "peerC:${builtins.toString wgPort}";
+          endpoint = "peerC:${toString wgPort}";
           allowedIps = "${staticConfig.peerC.innerIp}/32";
         };
       };
@@ -235,7 +235,7 @@ in
           rpHost = "peerckeyexchanger";
           peerPubkeyFile = staticConfig.peerA.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathCA;
-          endpoint = "peerA:${builtins.toString wgPort}";
+          endpoint = "peerA:${toString wgPort}";
           allowedIps = "${staticConfig.peerA.innerIp}/32";
         };
         CB = {
@@ -245,7 +245,7 @@ in
           rpHost = "peerckeyexchanger";
           peerPubkeyFile = staticConfig.peerB.wgPublicKeyFile;
           remoteKeyPath = keyExchangePathCB;
-          endpoint = "peerB:${builtins.toString wgPort}";
+          endpoint = "peerB:${toString wgPort}";
           allowedIps = "${staticConfig.peerB.innerIp}/32";
         };
       };
@@ -315,7 +315,7 @@ in
     };
   };
 
-  testScript = (''
+  testScript = ''
     start_all()
 
     print("""Config file versions supported by peers
@@ -381,10 +381,10 @@ in
 
     # Set up wireguard on peerA
     peerA.succeed("ip link add ${wgInterface} type wireguard")
-    peerA.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerA.wgPrivateKeyFile} listen-port ${builtins.toString wgPort}")
-    peerA.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerBWgPk} allowed-ips ${staticConfig.peerB.innerIp}/32 endpoint peerB:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerB.psk")
+    peerA.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerA.wgPrivateKeyFile} listen-port ${toString wgPort}")
+    peerA.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerBWgPk} allowed-ips ${staticConfig.peerB.innerIp}/32 endpoint peerB:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerB.psk")
     ${lib.optionalString multiPeer ''
-      peerA.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerCWgPk} allowed-ips ${staticConfig.peerC.innerIp}/32 endpoint peerC:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerC.psk")
+      peerA.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerCWgPk} allowed-ips ${staticConfig.peerC.innerIp}/32 endpoint peerC:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerC.psk")
     ''}
     peerA.succeed("ip addr add ${staticConfig.peerA.innerIp}/32 dev ${wgInterface}")
     peerA.succeed("ip link set ${wgInterface} up")
@@ -395,10 +395,10 @@ in
 
     # Set up wireguard on peerB
     peerB.succeed("ip link add ${wgInterface} type wireguard")
-    peerB.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerB.wgPrivateKeyFile} listen-port ${builtins.toString wgPort}")
-    peerB.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerAWgPk} allowed-ips ${staticConfig.peerA.innerIp}/32 endpoint peerA:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerA.psk")
+    peerB.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerB.wgPrivateKeyFile} listen-port ${toString wgPort}")
+    peerB.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerAWgPk} allowed-ips ${staticConfig.peerA.innerIp}/32 endpoint peerA:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerA.psk")
     ${lib.optionalString multiPeer ''
-      peerB.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerCWgPk} allowed-ips ${staticConfig.peerC.innerIp}/32 endpoint peerC:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerC.psk")
+      peerB.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerCWgPk} allowed-ips ${staticConfig.peerC.innerIp}/32 endpoint peerC:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerC.psk")
     ''}
     peerB.succeed("ip addr add ${staticConfig.peerB.innerIp}/32 dev ${wgInterface}")
     peerB.succeed("ip link set ${wgInterface} up")
@@ -410,9 +410,9 @@ in
     # Set up wireguard on peerC
     ${lib.optionalString multiPeer ''
       peerC.succeed("ip link add ${wgInterface} type wireguard")
-      peerC.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerC.wgPrivateKeyFile} listen-port ${builtins.toString wgPort}")
-      peerC.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerAWgPk} allowed-ips ${staticConfig.peerA.innerIp}/32 endpoint peerA:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerA.psk")
-      peerC.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerBWgPk} allowed-ips ${staticConfig.peerB.innerIp}/32 endpoint peerB:${builtins.toString wgPort} preshared-key ${wireguardKeyFolder}/peerB.psk")
+      peerC.succeed("${pkgs.wireguard-tools}/bin/wg set ${wgInterface} private-key ${staticConfig.peerC.wgPrivateKeyFile} listen-port ${toString wgPort}")
+      peerC.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerAWgPk} allowed-ips ${staticConfig.peerA.innerIp}/32 endpoint peerA:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerA.psk")
+      peerC.succeed(f"${pkgs.wireguard-tools}/bin/wg set ${wgInterface} peer {peerBWgPk} allowed-ips ${staticConfig.peerB.innerIp}/32 endpoint peerB:${toString wgPort} preshared-key ${wireguardKeyFolder}/peerB.psk")
       peerC.succeed("ip addr add ${staticConfig.peerC.innerIp}/32 dev ${wgInterface}")
       peerC.succeed("ip link set ${wgInterface} up")
       peerC.succeed("ip route add ${staticConfig.peerA.innerIp} dev ${wgInterface} scope link")
@@ -578,5 +578,5 @@ in
       peerC.succeed("${pkgs.wireguard-tools}/bin/wg show all preshared-keys 1>&2")
     ''}
 
-  '');
+  '';
 }
