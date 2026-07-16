@@ -62,25 +62,22 @@
             };
           in
           {
-            packages = {
-              default = pkgs.rosenpass;
-              rosenpass = pkgs.rosenpass;
-              rosenpass-oci-image = pkgs.rosenpass-oci-image;
-              rp = pkgs.rp;
+            packages =
+              pkgs.rosenpassPackages
+              // {
+                default = pkgs.rosenpassPackages.rosenpass;
 
-              release-package = pkgs.release-package;
-
-              # for good measure, we also offer to cross compile to Linux on Arm
-              aarch64-linux-rosenpass-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rosenpass;
-              aarch64-linux-rp-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rp;
-            }
-            //
-              # We only offer static builds for linux, as this is not supported on OS X
-              (nixpkgs.lib.attrsets.optionalAttrs pkgs.stdenv.isLinux {
-                rosenpass-static = pkgs.pkgsStatic.rosenpass;
-                rosenpass-static-oci-image = pkgs.pkgsStatic.rosenpass-oci-image;
-                rp-static = pkgs.pkgsStatic.rp;
-              });
+                # for good measure, we also offer to cross compile to Linux on Arm
+                aarch64-linux-rosenpass-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rosenpass;
+                aarch64-linux-rp-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rp;
+              }
+              //
+                # We only offer static builds for linux, as this is not supported on OS X
+                (nixpkgs.lib.attrsets.optionalAttrs pkgs.stdenv.isLinux {
+                  rosenpass-static = pkgs.pkgsStatic.rosenpass;
+                  rosenpass-static-oci-image = pkgs.pkgsStatic.rosenpass-oci-image;
+                  rp-static = pkgs.pkgsStatic.rp;
+                });
           }
         )
       )
