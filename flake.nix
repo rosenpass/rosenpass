@@ -37,6 +37,28 @@
       { overlays.default = import ./overlay.nix; }
 
       #
+      ### Export the overlay.nix from this flake ###
+      #
+      {
+        ciJobs =
+          let
+            inherit (nixpkgs) lib;
+          in
+          {
+            checks = lib.attrsets.recurseIntoAttrs (self.checks or { });
+            homeConfigurations = lib.attrsets.recurseIntoAttrs (
+              lib.attrsets.mapAttrs (name: value: value.activationPackage) (self.homeConfigurations or { })
+            );
+            nixosConfigurations = lib.attrsets.recurseIntoAttrs (
+              lib.attrsets.mapAttrs (name: value: value.config.system.build.toplevel) (
+                self.nixosConfigurations or { }
+              )
+            );
+            packages = lib.attrsets.recurseIntoAttrs (self.packages or { });
+          };
+      }
+
+      #
       ### Actual Rosenpass Package and Docker Container Images ###
       #
       (flake-utils.lib.eachSystem
@@ -46,7 +68,7 @@
 
           # unsuported best-effort
           "i686-linux"
-          "x86_64-darwin"
+          # "x86_64-darwin"
           "aarch64-darwin"
           # "x86_64-windows"
         ]
