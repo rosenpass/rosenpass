@@ -1,0 +1,68 @@
+name: Cargo Update
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "23 4 * * 1"
+
+concurrency:
+  group: cargo-update
+  cancel-in-progress: false
+
+jobs:
+  cargo-update:
+    name: Update Cargo dependencies
+    runs-on: ubicloud-standard-2
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: main
+          fetch-depth: 0 # fetch entire git history
+
+      - name: cargo update
+        run: cargo update --verbose
+      - name: Validate updated lockfile
+        run: cargo metadata --locked --no-deps > /dev/null
+      - name: cargo vet regenerate exemptions
+        run: cargo vet regenerate exemptions
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.CARGO_UPDATE_TOKEN || github.token }}
+
+          base: main
+          branch: automation/cargo-update
+          delete-branch: true
+
+          add-paths: |
+            Cargo.lock
+            supply-chain/
+
+          commit-message: "chore(deps): cargo update"
+          title: "chore(deps): cargo update"
+
+          body: |
+            This pull request was generated automatically by GitHub Workflow `Cargo Update`.
+
+            It executes:
+
+            ```bash
+            cargo update
+            cargo vet regenerate exemptions
+            ```
+
+          labels: |
+            dependencies
+            rust
+            maintenance
+
+          draft: false
