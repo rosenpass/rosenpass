@@ -1185,6 +1185,12 @@ criteria = "safe-to-deploy"
 delta = "0.2.8 -> 0.2.9"
 notes = "No changes to Rust code between 0.2.8 and 0.2.9"
 
+[[audits.isrg.audits.fiat-crypto]]
+who = "Tim Geoghegan <timg@divviup.org>"
+criteria = "safe-to-deploy"
+delta = "0.2.9 -> 0.3.0"
+notes = "The diff is huge, but that's because it introduces a wrapper around indexing into arrays which is used in many many places. There is no new unsafe code and no change to build scripts I can detect."
+
 [[audits.isrg.audits.once_cell]]
 who = "J.C. Jones <jc@insufficient.coffee>"
 criteria = "safe-to-deploy"
