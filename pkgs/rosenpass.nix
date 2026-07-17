@@ -3,7 +3,7 @@
   stdenv,
   rustPlatform,
   cmake,
-  mandoc,
+  mandoc ? null,
   removeReferencesTo,
   bash,
   package ? "rosenpass",
@@ -56,7 +56,7 @@ let
   };
 
   # parsed Cargo.toml
-  cargoToml = builtins.fromTOML (builtins.readFile (src + "/rosenpass/Cargo.toml"));
+  cargoToml = lib.trivial.importTOML (src + "/rosenpass/Cargo.toml");
 in
 rustPlatform.buildRustPackage {
   name = cargoToml.package.name;
@@ -88,10 +88,13 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     stdenv.cc
     cmake # for oqs build in the oqs-sys crate
-    mandoc # for the built-in manual
     removeReferencesTo
     rustPlatform.bindgenHook # for C-bindings in the crypto libs
-  ];
+  ]
+  ++ lib.lists.optional (
+    lib.meta.availableOn stdenv.hostPlatform mandoc && !mandoc.meta.broken
+  ) mandoc # for the built-in manual
+  ;
   buildInputs = [ bash ];
 
   hardeningDisable = lib.optional isStatic "fortify";

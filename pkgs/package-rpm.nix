@@ -1,6 +1,6 @@
 {
   lib,
-  system,
+  stdenvNoCC,
   runCommand,
   rosenpass,
   rpm,
@@ -10,7 +10,7 @@ let
   splitVersion = lib.strings.splitString "-" rosenpass.version;
   version = builtins.head splitVersion;
   release = if builtins.length splitVersion != 2 then "release" else builtins.elemAt splitVersion 1;
-  arch = builtins.head (builtins.split "-" system);
+  arch = builtins.head (builtins.split "-" stdenvNoCC.hostPlatform.system);
 in
 
 runCommand "rosenpass-${version}.rpm" { } ''

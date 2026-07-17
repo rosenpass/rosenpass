@@ -5,7 +5,6 @@
 
     nix-vm-test.url = "github:numtide/nix-vm-test";
     nix-vm-test.inputs.nixpkgs.follows = "nixpkgs";
-    nix-vm-test.inputs.flake-utils.follows = "flake-utils";
 
     # for rust nightly with llvm-tools-preview
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -38,6 +37,28 @@
       { overlays.default = import ./overlay.nix; }
 
       #
+      ### Export the overlay.nix from this flake ###
+      #
+      {
+        ciJobs =
+          let
+            inherit (nixpkgs) lib;
+          in
+          {
+            checks = lib.attrsets.recurseIntoAttrs (self.checks or { });
+            homeConfigurations = lib.attrsets.recurseIntoAttrs (
+              lib.attrsets.mapAttrs (name: value: value.activationPackage) (self.homeConfigurations or { })
+            );
+            nixosConfigurations = lib.attrsets.recurseIntoAttrs (
+              lib.attrsets.mapAttrs (name: value: value.config.system.build.toplevel) (
+                self.nixosConfigurations or { }
+              )
+            );
+            packages = lib.attrsets.recurseIntoAttrs (self.packages or { });
+          };
+      }
+
+      #
       ### Actual Rosenpass Package and Docker Container Images ###
       #
       (flake-utils.lib.eachSystem
@@ -47,7 +68,7 @@
 
           # unsuported best-effort
           "i686-linux"
-          "x86_64-darwin"
+          # "x86_64-darwin"
           "aarch64-darwin"
           # "x86_64-windows"
         ]
@@ -63,25 +84,22 @@
             };
           in
           {
-            packages = {
-              default = pkgs.rosenpass;
-              rosenpass = pkgs.rosenpass;
-              rosenpass-oci-image = pkgs.rosenpass-oci-image;
-              rp = pkgs.rp;
+            packages =
+              pkgs.rosenpassPackages
+              // {
+                default = pkgs.rosenpassPackages.rosenpass;
 
-              release-package = pkgs.release-package;
-
-              # for good measure, we also offer to cross compile to Linux on Arm
-              aarch64-linux-rosenpass-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rosenpass;
-              aarch64-linux-rp-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rp;
-            }
-            //
-              # We only offer static builds for linux, as this is not supported on OS X
-              (nixpkgs.lib.attrsets.optionalAttrs pkgs.stdenv.isLinux {
-                rosenpass-static = pkgs.pkgsStatic.rosenpass;
-                rosenpass-static-oci-image = pkgs.pkgsStatic.rosenpass-oci-image;
-                rp-static = pkgs.pkgsStatic.rp;
-              });
+                # for good measure, we also offer to cross compile to Linux on Arm
+                aarch64-linux-rosenpass-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rosenpass;
+                aarch64-linux-rp-static = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic.rp;
+              }
+              //
+                # We only offer static builds for linux, as this is not supported on OS X
+                (nixpkgs.lib.attrsets.optionalAttrs pkgs.stdenv.isLinux {
+                  rosenpass-static = pkgs.pkgsStatic.rosenpass;
+                  rosenpass-static-oci-image = pkgs.pkgsStatic.rosenpass-oci-image;
+                  rp-static = pkgs.pkgsStatic.rp;
+                });
           }
         )
       )

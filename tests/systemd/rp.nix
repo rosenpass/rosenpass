@@ -59,8 +59,6 @@ in
       shared =
         peer:
         {
-          config,
-          modulesPath,
           pkgs,
           ...
         }:

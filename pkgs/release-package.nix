@@ -1,30 +1,26 @@
 {
-  lib,
   stdenvNoCC,
   runCommand,
   pkgsStatic,
   rosenpass,
   rosenpass-oci-image,
   rp,
-}@args:
+}:
 
 let
   version = rosenpass.version;
 
   # select static packages on Linux, default packages otherwise
-  package = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rosenpass else args.rosenpass;
-  rp = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rp else args.rp;
-  oci-image =
-    if stdenvNoCC.hostPlatform.isLinux then
-      pkgsStatic.rosenpass-oci-image
-    else
-      args.rosenpass-oci-image;
+  rosenpass' = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rosenpass else rosenpass;
+  rp' = if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rp else rp;
+  rosenpass-oci-image' =
+    if stdenvNoCC.hostPlatform.isLinux then pkgsStatic.rosenpass-oci-image else rosenpass-oci-image;
 in
 runCommand "lace-result" { } ''
   mkdir {bin,$out}
   tar -cvf $out/rosenpass-${stdenvNoCC.hostPlatform.system}-${version}.tar \
-    -C ${package} bin/rosenpass lib/systemd \
-    -C ${rp} bin/rp
-  cp ${oci-image} \
+    -C ${rosenpass'} bin/rosenpass lib/systemd \
+    -C ${rp'} bin/rp
+  cp ${rosenpass-oci-image'} \
     $out/rosenpass-oci-image-${stdenvNoCC.hostPlatform.system}-${version}.tar.gz
 ''
