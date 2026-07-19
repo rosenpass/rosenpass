@@ -173,7 +173,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: digests-rp-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
@@ -237,7 +237,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: digests-rosenpass-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
@@ -255,7 +255,7 @@ jobs:
         target: [rp, rosenpass]
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: ${{ runner.temp }}/digests
           pattern: digests-${{ matrix.target }}-*

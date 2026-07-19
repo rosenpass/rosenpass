@@ -11,7 +11,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v30
+      - uses: cachix/install-nix-action@v31
       - uses: cachix/cachix-action@v17
         with:
           name: rosenpass
@@ -19,7 +19,7 @@ jobs:
       - name: Build release
         run: nix build .#release-package --print-build-logs
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
@@ -29,7 +29,7 @@ jobs:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v30
+      - uses: cachix/install-nix-action@v31
       - uses: cachix/cachix-action@v17
         with:
           name: rosenpass
@@ -37,7 +37,7 @@ jobs:
       - name: Build release
         run: nix build .#release-package --print-build-logs
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v30
+      - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v17
@@ -57,7 +57,7 @@ jobs:
       - name: Build release
         run: nix build .#release-package --print-build-logs
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v30
+      - uses: cachix/install-nix-action@v31
       - uses: cachix/cachix-action@v17
         with:
           name: rosenpass
@@ -77,7 +77,7 @@ jobs:
           mkdir packages
           for f in $(nix build .#package-deb .#package-rpm --print-out-paths); do cp "$f" "packages/${f#*-}"; done
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
