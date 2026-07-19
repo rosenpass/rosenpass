@@ -3,27 +3,43 @@ updates:
   # upgrade cargo patch versions once per week
   # see `workflows/upgrade.yml`
 
-  # major and minor cargo upgrades only once per week
+  # disabled for now for testing...
+  # # upgrade major and minor cargo dependencies soon
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "daily"
+  #   allow:
+  #     - update-types:
+  #       - "major"
+  #       - "minor"
+  #   # open-pull-requests-limit: 0 # temporarily disable dependabot
+
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "06:00"
+      time: "04:12"
       timezone: "Europe/Berlin"
+    # allow:
+    #   - update-types:
+    #     - "patch"
     groups:
-      weekly-patch-updates:
+      # group patches for better visibility
+      weekly-cargo-patches:
         applies-to: "version-updates"
         patterns:
           - "*"
         update-types:
-          - "major"
-          - "minor"
-    # open-pull-requests-limit: 0 # temporarily disable dependabot
+          - "patch"
 
-  # upgrade all GitHub Actions soon
+  # upgrade all GitHub Actions once per week
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
+      time: "04:23"
+      timezone: "Europe/Berlin"
     # open-pull-requests-limit: 0 # temporarily disable dependabot
