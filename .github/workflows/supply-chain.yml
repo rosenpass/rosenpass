@@ -159,7 +159,7 @@ jobs:
         run: cargo vet regenerate exemptions
       - name: Commit and push changes if we are in the context of a PR created by dependabot and the last commit is by dependabot or a regeneration of cargo vet exemptions was explicitly requested.
         if: env.IN_DEPENDABOT_PR_CONTEXT == 'true' && (env.LAST_COMMIT_IS_BY_DEPENDABOT == 'true' || env.REGEN_EXEMP=='true')
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Regenerate cargo vet exemptions
           commit_user_name: rosenpass-ci-bot[bot]
