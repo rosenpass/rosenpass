@@ -56,39 +56,89 @@ pub fn secret_policy_use_only_malloc_secrets() {
     log::info!("Secrets will be allocated using {:?}", alloc_type);
 }
 
+#[cfg(test)]
 pub mod test {
+    use std::sync::{Mutex, OnceLock};
+
+    const POLICY_INDEX_ENV: &str = "ROSENPASS_SECRET_MEMORY_TEST_POLICY_INDEX";
+
+    pub fn policy_test_spawn_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    pub fn child_policy_index(policy_count: usize) -> Option<usize> {
+        let index = std::env::var(POLICY_INDEX_ENV).ok()?;
+        let index = index
+            .parse::<usize>()
+            .expect("policy index must be a valid integer");
+        assert!(
+            index < policy_count,
+            "policy index {index} out of range for {policy_count} policies"
+        );
+        Some(index)
+    }
+
+    pub fn spawn_current_test_with_policy(policy_index: usize) {
+        let current_test = std::thread::current()
+            .name()
+            .expect("test thread should be named by libtest")
+            .to_owned();
+        let current_exe = std::env::current_exe().expect("test binary path should be available");
+        let output = std::process::Command::new(current_exe)
+            .arg("--exact")
+            .arg(current_test)
+            .env(POLICY_INDEX_ENV, policy_index.to_string())
+            .output()
+            .expect("failed to spawn child test process");
+
+        if !output.status.success() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            panic!(
+                "child test process failed for policy index {policy_index}: {}",
+                output.status
+            );
+        }
+    }
+
     #[macro_export]
     macro_rules! test_spawn_process_with_policies {
-        ($body:block, $($f: expr),*) => {
-            $(
-                let handle = procspawn::spawn((), |_| {
-
-                $f();
-
-                $body
-
-                });
-                handle.join().unwrap();
-            )*
+        ($body:block, $($f: expr),* $(,)?) => {
+            {
+                let policies: &[fn()] = &[$($f),*];
+                if let Some(policy_index) = $crate::policy::test::child_policy_index(policies.len()) {
+                    policies[policy_index]();
+                    $body
+                } else {
+                    let _guard = $crate::policy::test::policy_test_spawn_lock()
+                        .lock()
+                        .expect("policy test spawn lock should not be poisoned");
+                    for policy_index in 0..policies.len() {
+                        $crate::policy::test::spawn_current_test_with_policy(policy_index);
+                    }
+                }
+            }
             };
         }
 
     #[macro_export]
     macro_rules! test_spawn_process_provided_policies {
         ($body: block) => {
+            #[cfg(target_os = "linux")]
+            $crate::test_spawn_process_with_policies!(
+                $body,
+                $crate::policy::secret_policy_try_use_memfd_secrets,
+                $crate::secret_policy_use_only_malloc_secrets,
+                $crate::policy::secret_policy_use_only_memfd_secrets
+            );
+
+            #[cfg(not(target_os = "linux"))]
             $crate::test_spawn_process_with_policies!(
                 $body,
                 $crate::policy::secret_policy_try_use_memfd_secrets,
                 $crate::secret_policy_use_only_malloc_secrets
             );
-
-            #[cfg(target_os = "linux")]
-            {
-                $crate::test_spawn_process_with_policies!(
-                    $body,
-                    $crate::policy::secret_policy_use_only_memfd_secrets
-                );
-            }
         };
     }
 }
