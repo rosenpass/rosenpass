@@ -23,6 +23,12 @@ rosenpass help
 
 Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up and running.
 
+### netctl integration
+
+For Arch Linux users of `netctl`, upstream support is being added in
+[joukewitteveen/netctl#196](https://github.com/joukewitteveen/netctl/pull/196)
+as a dedicated `Connection=rosenpass` profile type.
+
 ## Contributing
 
 Contributions are generally welcome. Join our [Matrix Chat](https://matrix.to/#/#rosenpass:matrix.org) if you are looking for guidance on how to contribute or for people to collaborate with.
