@@ -371,13 +371,11 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::{secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies};
+    use crate::{test_spawn_process_provided_policies, test_spawn_process_with_policies};
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};
     use tempfile::tempdir;
-
-    procspawn::enable_test_support!();
 
     /// Check that we can alloc using the magic pool.
     #[test]
@@ -520,28 +518,36 @@ mod test {
     /// function.
     #[test]
     fn test_zeroizing_secret_box_new() {
-        struct DummyZeroizing {
-            inner_dummy: [u8; 32],
-        }
-        impl Zeroize for DummyZeroizing {
-            fn zeroize(&mut self) {
-                self.inner_dummy = [0; 32];
-            }
-        }
-        let dummy = DummyZeroizing {
-            inner_dummy: [42; 32],
-        };
-        secret_policy_use_only_malloc_secrets();
-        let mut zsb: ZeroizingSecretBox<DummyZeroizing> = ZeroizingSecretBox::new(dummy);
-        zsb.zeroize();
-        assert_eq!(zsb.inner_dummy, [0; 32]);
+        test_spawn_process_with_policies!(
+            {
+                struct DummyZeroizing {
+                    inner_dummy: [u8; 32],
+                }
+                impl Zeroize for DummyZeroizing {
+                    fn zeroize(&mut self) {
+                        self.inner_dummy = [0; 32];
+                    }
+                }
+                let dummy = DummyZeroizing {
+                    inner_dummy: [42; 32],
+                };
+                let mut zsb: ZeroizingSecretBox<DummyZeroizing> = ZeroizingSecretBox::new(dummy);
+                zsb.zeroize();
+                assert_eq!(zsb.inner_dummy, [0; 32]);
+            },
+            crate::secret_policy_use_only_malloc_secrets
+        );
     }
 
     /// Test the debug print of [Secret].
     #[test]
     fn test_debug_secret() {
-        secret_policy_use_only_malloc_secrets();
-        let my_secret: Secret<32> = Secret::zero();
-        assert_eq!(format!("{:?}", my_secret), "<SECRET>");
+        test_spawn_process_with_policies!(
+            {
+                let my_secret: Secret<32> = Secret::zero();
+                assert_eq!(format!("{:?}", my_secret), "<SECRET>");
+            },
+            crate::secret_policy_use_only_malloc_secrets
+        );
     }
 }
