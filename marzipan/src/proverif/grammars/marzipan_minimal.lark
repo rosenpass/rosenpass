@@ -67,8 +67,7 @@ query_decl: "query" [ typedecl ";"] query "."
 
 %import common (DIGIT, WS, ESCAPED_STRING)
 %ignore WS
-
-// additional rules
+// Additional rules for Marzipan extension
 
 query_annotation: _QUERY ESCAPED_STRING
 reachable_annotation: _REACHABLE ESCAPED_STRING

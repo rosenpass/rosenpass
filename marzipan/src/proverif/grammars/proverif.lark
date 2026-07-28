@@ -1,7 +1,3 @@
-
-QUERY: "@query"
-REACHABLE: "@reachable"
-LEMMA: "@lemma"
 PROCESS: "process"
 EQUIVALENCE: "equivalence"
 YIELD: "yield"
@@ -292,9 +288,7 @@ nounifoption: "hypothesis"
             | "inductionOn" "=" IDENT
             | "inductionOn" "=" "{" _non_empty_seq{IDENT} "}"
 
-query_annotation: [(REACHABLE|QUERY) ESCAPED_STRING]
-query_decl: query_annotation query_decl_core
-query_decl_core: "query" [ typedecl ";"] query options{OPTIONS_QUERY} "."
+query_decl: "query" [ typedecl ";"] query options{OPTIONS_QUERY} "."
 not_decl: "not" [ typedecl ";"] gterm "."
 TAG: IDENT
 lemma: gterm [";" lemma]
@@ -302,9 +296,7 @@ lemma: gterm [";" lemma]
          | gterm "for" "{" "secret" IDENT [ "public_vars" _non_empty_seq{IDENT}] "[real_or_random]" "}" [";" lemma]
 axiom_decl:       "axiom"       [ typedecl ";"] lemma options{OPTIONS_AXIOM} "."
 restriction_decl: "restriction" [ typedecl ";"] lemma options{OPTIONS_RESTRICTION} "."
-lemma_annotation: [LEMMA ESCAPED_STRING]
-lemma_decl: lemma_annotation lemma_decl_core
-lemma_decl_core:       "lemma"       [ typedecl ";"] lemma options{OPTIONS_LEMMA} "."
+lemma_decl:       "lemma"       [ typedecl ";"] lemma options{OPTIONS_LEMMA} "."
 gterm: ident_gterm
         | fun_gterm
         | choice_gterm

@@ -181,12 +181,19 @@ lemma_rules = modify_decl_rule(
 )
 
 grammar = (
-    common_rules
+    "# common\n"
+    + common_rules
+    + "# decl\n"
     + decl_rules
+    + "# process\n"
     + process_rules
+    + "# query\n"
     + query_rules
+    + "# lemma\n"
     + lemma_rules
+    + "# term\n"
     + term_rules
+    + "# cryptoverif\n"
     + cryptoverif_rules
 )
 
