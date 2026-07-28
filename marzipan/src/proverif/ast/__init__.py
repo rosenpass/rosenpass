@@ -6,8 +6,8 @@ from typing import Any
 
 from lark import Token, Transformer, Tree, ast_utils
 
-from proverif.ast import ast_dataclasses
-from proverif.ast.ast_dataclasses import (
+from . import ast_dataclasses
+from .ast_dataclasses import (
     AnnotatedLemmaDecl,
     AnnotatedQueryDecl,
     LemmaAnnotation,

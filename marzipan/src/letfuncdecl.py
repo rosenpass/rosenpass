@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from proverif import parse_marzipan_to_proverif
+from .proverif import parse_marzipan_to_proverif
 
 # def parse(input: str):
 #     #global DEBUG

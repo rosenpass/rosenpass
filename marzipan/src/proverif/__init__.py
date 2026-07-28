@@ -1,10 +1,15 @@
+from pathlib import Path
+
 from lark import Lark
 
-from proverif.ast import ast_deepcopy_except, create_transformer, pretty_print
+from .ast import ast_deepcopy_except, create_transformer, pretty_print
+
+
+_GRAMMAR = Path(__file__).parent / "grammars" / "marzipan_minimal.lark"
 
 
 def parse_marzipan_to_proverif(input) -> str | None:
-    parser = Lark.open('proverif/grammars/marzipan_minimal.lark')
+    parser = Lark.open(_GRAMMAR)
     parsetree = parser.parse(input)
     transformer = create_transformer()
     ast = transformer.transform(parsetree)

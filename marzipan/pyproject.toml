@@ -8,7 +8,8 @@ authors = ["Author Name <author@example.com>"]
 packages = [
     { include = "**/*.[hp]y", from = "src", to = "rosenpass_marzipan" },
     { include = "**/*.sh", from = "src", to = "rosenpass_marzipan" },
-    #{ include = "**/*.lark", from = "src", to = "rosenpass_marzipan" },
+    # Include the ProVerif package data (in particular its Lark grammar).
+    { include = "proverif", from = "src", to = "rosenpass_marzipan" },
 ]
 
 [tool.poetry.scripts]

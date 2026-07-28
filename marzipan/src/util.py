@@ -12,7 +12,7 @@ def setup_exports() -> Tuple[List[str], Callable[[T], T]]:
     Helper to provide an export() function with little boilerplate.
 
     ```
-    from marzipan.util import setup_exports
+    from rosenpass_marzipan.util import setup_exports
     (__all__, export) = setup_exports()
     ```
     """

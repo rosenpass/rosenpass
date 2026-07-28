@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from lark import ast_utils
 
-from proverif.ast.formatting_helpers import MarzipanAST, pretty_format
+from .formatting_helpers import MarzipanAST, pretty_format
 
 type Ident = str
 type Infix = str

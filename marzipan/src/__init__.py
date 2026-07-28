@@ -1,9 +1,7 @@
-# from rich.console import Console
 import click
 
-import .parser as parser
-
 from .util import export, pkgs, rename, setup_exports
+from .proverif import parse_marzipan_to_proverif
 
 target_subdir = "target/proverif"
 
@@ -13,6 +11,14 @@ export(setup_exports)
 
 console = pkgs.rich.console.Console()
 logger = pkgs.logging.getLogger(__name__)
+
+
+def parse_main(*args, **kwargs):
+    # Import lazily: the legacy parser loads its grammar at import time, but
+    # commands using the self-contained ProVerif parser do not need it.
+    from .parser import parse_main as parse_main_impl
+
+    return parse_main_impl(*args, **kwargs)
 
 
 def set_logging_logrecordfactory(filename):
@@ -337,6 +343,45 @@ def parse(i_path, o_path):
         logger.error(f"Unsupported file extension for file {i_path}")
         exit(2)
 
+
+def _read_marzipan_and_output_proverif(i_path, o_path):
+    with open(i_path, "r", encoding="utf-8") as f:
+        input = f.read()
+
+    output = parse_marzipan_to_proverif(input)
+
+    if output:
+        with open(o_path, "w", encoding="utf-8") as f:
+            f.write(output)
+    else:
+        print("Parsing returned None")
+
+
+@main.command()
+@click.argument("i_path")
+@click.argument("o_path")
+def minimal_grammar(i_path, o_path):
+    if not pkgs.os.path.isfile(i_path):
+        logger.error(f"{i_path} is not a file or does not exist.")
+        exit(1)
+
+    if i_path.lower().endswith(".pv"):
+        logger.info(f"Parsing ProVerif .pv file {i_path}")
+        try:
+            _read_marzipan_and_output_proverif(i_path, o_path)
+        except pkgs.lark.exceptions.UnexpectedCharacters as e:
+            logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
+    elif i_path.lower().endswith(".pcv"):
+        with pkgs.tempfile.NamedTemporaryFile(suffix=".pv", delete_on_close=False) as f:
+            m4(i_path, f)
+            try:
+                _read_marzipan_and_output_proverif(f.name, o_path)
+            except pkgs.lark.exceptions.UnexpectedCharacters as e:
+                logger.error(f"Error {type(e).__name__} parsing {i_path}: {e}")
+
+    else:
+        logger.error(f"Unsupported file extension for file {i_path}")
+        exit(2)
 
 if __name__ == "__main__":
     main()
