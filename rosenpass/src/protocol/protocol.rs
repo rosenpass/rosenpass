@@ -1989,6 +1989,7 @@ impl CryptoServer {
         tx_buf: &mut [u8],
         host_identification: &H,
     ) -> Result<HandleMsgResult> {
+        ensure!(!rx_buf.is_empty(), "received empty message");
         let mut active_cookie_value: Option<[u8; COOKIE_SIZE]> = None;
         let mut rx_cookie = [0u8; COOKIE_SIZE];
         let mut rx_mac = [0u8; MAC_SIZE];
