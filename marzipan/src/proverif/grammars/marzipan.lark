@@ -440,3 +440,18 @@ proof_decl: "proof" "{" [ _no_braces ] "}"
 
 def_decl: "def" IDENT "(" _maybe_empty_seq{typeid} ")" "{" decl* "}"
 expand_decl: "expand" IDENT "(" _maybe_empty_seq{typeid} ")" "."
+
+// Additional rules for Marzipan extension
+
+_QUERY: "@query"
+_REACHABLE: "@reachable"
+_LEMMA: "@lemma"
+
+query_annotation: _QUERY ESCAPED_STRING
+reachable_annotation: _REACHABLE ESCAPED_STRING
+
+%extend query_decl: query_annotation "query" [ typedecl ";"] query "."     -> annotated_query_decl
+                  | reachable_annotation "query" [ typedecl ";"] query "." -> reachable_query_decl
+
+lemma_annotation: _LEMMA ESCAPED_STRING
+%extend lemma_decl: lemma_annotation "lemma" [ typedecl ";"] lemma "." -> annotated_lemma_decl

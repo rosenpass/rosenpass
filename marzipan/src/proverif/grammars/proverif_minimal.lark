@@ -19,9 +19,6 @@ pterm: IDENT
      | NAT
      | "(" _maybe_empty_seq{pterm} ")"
 letfun_decl: "letfun" IDENT [ "(" [ typedecl ] ")" ] "=" pterm "."
-_QUERY: "@query"
-_REACHABLE: "@reachable"
-_LEMMA: "@lemma"
 
 INFIX: "||"
         | "&&"
