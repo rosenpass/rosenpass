@@ -1,7 +1,7 @@
-from typing import Callable, Any, Tuple, List, TypeVar
-from types import ModuleType as Module
-from importlib import import_module
 from dataclasses import dataclass
+from importlib import import_module
+from types import ModuleType as Module
+from typing import Any, Callable, List, Tuple, TypeVar
 
 T = TypeVar('T')
 
