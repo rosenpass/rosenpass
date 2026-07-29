@@ -154,6 +154,7 @@
               inputsFrom = [ pkgs.rosenpass ];
               nativeBuildInputs = with pkgs; [
                 cargo-audit
+                cargo-deny
                 cargo-msrv
                 cargo-release
                 cargo-vet

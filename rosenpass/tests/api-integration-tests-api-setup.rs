@@ -27,19 +27,20 @@ use rosenpass_util::{
 };
 use std::os::fd::{AsFd, AsRawFd};
 use tempfile::TempDir;
-use zerocopy::AsBytes;
+use zerocopy::IntoBytes;
 
 struct KillChild(std::process::Child);
 
 impl Drop for KillChild {
     fn drop(&mut self) {
-        use rustix::process::{Pid, Signal::Term, kill_process};
+        const TERM: rustix::process::Signal = rustix::process::Signal::TERM;
+        use rustix::process::{Pid, kill_process};
         let pid = Pid::from_child(&self.0);
         // We seriously need to start handling signals with signalfd, our current signal handling
         // system is a bit broken; there is probably a few functions that just restart on EINTR
         // so the signal is absorbed
         loop {
-            kill_process(pid, Term).discard_result();
+            kill_process(pid, TERM).discard_result();
             if self.0.try_wait().unwrap().is_some() {
                 break;
             }
@@ -155,7 +156,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
             .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
             .fd_mappings(vec![FdMapping {
-                parent_fd: deliberate_fail_api_server.move_here().as_raw_fd(),
+                parent_fd: deliberate_fail_api_server.move_here().into(),
                 child_fd: 3,
             }])?
             .args([

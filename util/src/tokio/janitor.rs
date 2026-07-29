@@ -475,7 +475,7 @@ impl<T, E> EnsureJanitorResult<T, E> {
             ),
             (Some(Err(jerr)), Err(cerr)) => panic!(
                 "Both the calee and the janitor or \
-                some of its deamons falied in enter_janitor()/ensure_janitor():\n\
+                some of its deamons failed in enter_janitor()/ensure_janitor():\n\
                 \n\
                 Janitor/Daemon error: {jerr:?}
                 \n\

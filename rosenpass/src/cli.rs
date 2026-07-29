@@ -30,7 +30,6 @@ use {
     rosenpass_wireguard_broker::WireguardBrokerMio,
     rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
     rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
-    std::os::fd::AsRawFd,
     std::os::unix::net,
     std::process::Command,
     std::thread,
@@ -583,7 +582,7 @@ impl CliArgs {
                 let mut child = Command::new("rosenpass-wireguard-broker-socket-handler")
                     .args(["--stream-fd", "3"])
                     .fd_mappings(vec![FdMapping {
-                        parent_fd: theirs.as_raw_fd(),
+                        parent_fd: theirs,
                         child_fd: 3,
                     }])?
                     .spawn()?;

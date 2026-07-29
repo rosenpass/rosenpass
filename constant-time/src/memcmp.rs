@@ -37,8 +37,8 @@ pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
 mod tests {
     use super::*;
     use core::hint::black_box;
+    use rand::rng;
     use rand::seq::SliceRandom;
-    use rand::thread_rng;
     use std::time::Instant;
 
     #[test]
@@ -68,7 +68,7 @@ mod tests {
         let mut tests = (0..n)
             .map(|i| (i < n / 2, std::time::Duration::ZERO))
             .collect::<Vec<_>>();
-        tests.shuffle(&mut thread_rng());
+        tests.shuffle(&mut rng());
 
         // run comparisons / call function to test
         for test in tests.iter_mut() {

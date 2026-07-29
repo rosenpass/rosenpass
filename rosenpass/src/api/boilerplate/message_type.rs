@@ -1,6 +1,6 @@
 use hex_literal::hex;
 use rosenpass_util::zerocopy::RefMaker;
-use zerocopy::ByteSlice;
+use zerocopy::{ByteSlice, Ref};
 
 use crate::RosenpassError::{self, InvalidApiMessageType};
 
@@ -171,10 +171,10 @@ pub trait RefMakerRawMsgTypeExt {
 
 impl<B: ByteSlice> RefMakerRawMsgTypeExt for RefMaker<B, RawMsgType> {
     fn parse_request_msg_type(self) -> anyhow::Result<RequestMsgType> {
-        Ok(self.parse()?.read().try_into()?)
+        Ok(Ref::read(&self.parse()?).try_into()?)
     }
 
     fn parse_response_msg_type(self) -> anyhow::Result<ResponseMsgType> {
-        Ok(self.parse()?.read().try_into()?)
+        Ok(Ref::read(&self.parse()?).try_into()?)
     }
 }

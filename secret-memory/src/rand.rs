@@ -5,5 +5,5 @@ pub type Rng = rand::rngs::ThreadRng;
 
 /// Get the default [Rng].
 pub fn rng() -> Rng {
-    rand::thread_rng()
+    rand::rng()
 }

@@ -1,7 +1,7 @@
 use rosenpass_util::zerocopy::{
     RefMaker, ZerocopyEmancipateExt, ZerocopyEmancipateMutExt, ZerocopySliceExt,
 };
-use zerocopy::{ByteSlice, ByteSliceMut, Ref};
+use zerocopy::{ByteSlice, ByteSliceMut, Ref, SplitByteSliceMut};
 
 use super::{Message, PingRequest, PingResponse};
 use super::{RequestRef, ResponseRef, ZerocopyResponseMakerSetupMessageExt};
@@ -22,14 +22,14 @@ pub trait RequestMsg: Sized + Message {
     }
 
     /// Setup a response maker from a buffer prefix (through [Message::setup]) for this request message type
-    fn setup_response_from_prefix<B: ByteSliceMut>(
+    fn setup_response_from_prefix<B: SplitByteSliceMut>(
         buf: B,
     ) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
         Self::zk_response_maker(buf).from_prefix()?.setup_msg()
     }
 
     /// Setup a response maker from a buffer suffix (through [Message::setup]) for this request message type
-    fn setup_response_from_suffix<B: ByteSliceMut>(
+    fn setup_response_from_suffix<B: SplitByteSliceMut>(
         buf: B,
     ) -> anyhow::Result<Ref<B, Self::ResponseMsg>> {
         Self::zk_response_maker(buf).from_prefix()?.setup_msg()

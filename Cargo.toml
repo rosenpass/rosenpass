@@ -33,50 +33,45 @@ rosenpass-oqs = { path = "oqs" }
 rosenpass-wireguard-broker = { path = "wireguard-broker" }
 doc-comment = "0.3.3"
 base64ct = { version = "1.6.0", default-features = false }
-zeroize = "1.8.1"
+zeroize = "1.9"
 memoffset = "0.9.1"
-thiserror = "1.0.69"
+thiserror = "2"
 paste = "1.0.15"
-env_logger = "0.10.2"
-toml = "0.7.8"
+env_logger = "0.11"
+toml = "1.1.2"
 static_assertions = "1.1.0"
-allocator-api2 = "0.2.14"
+allocator-api2 = "0.3"
 memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = [
   "alloc_ext",
 ] }
-rand = "0.8.5"
+rand = "0.10"
 typenum = "1.17.0"
 log = { version = "0.4.27" }
 clap = { version = "4.5.23", features = ["derive"] }
-clap_mangen = "0.2.29"
+clap_mangen = "0.3.0"
 clap_complete = "4.5.40"
 serde = { version = "1.0.217", features = ["derive"] }
 arbitrary = { version = "1.4.1", features = ["derive"] }
-anyhow = { version = "1.0.98", features = ["backtrace", "std"] }
+anyhow = { version = "1.0", features = ["backtrace", "std"] }
 mio = { version = "1.0.3", features = ["net", "os-poll"] }
-signal-hook-mio = { version = "0.2.4", features = ["support-v1_0"] }
-signal-hook = "0.3.17"
-oqs-sys = { version = "0.9.1", default-features = false, features = [
+signal-hook-mio = { version = "0.3", features = ["support-v1_0"] }
+signal-hook = "0.4.4"
+oqs-sys = { version = "0.11.0", default-features = false, features = [
   'classic_mceliece',
   'kyber',
 ] }
 blake2 = "0.10.6"
-sha3 = "0.10.8"
+shake = "0.1.0"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
   "std",
-  "heapless",
 ] }
-zerocopy = { version = "0.7.35", features = ["derive"] }
-home = "=0.5.9" # 5.11 requires rustc 1.81
-derive_builder = "0.20.1"
+zerocopy = { version = "0.8", features = ["derive"] }
+home = "0.5.12"
+derive_builder = "0.20.2"
 tokio = { version = "1.46", features = ["macros", "rt-multi-thread"] }
-postcard = { version = "1.1.1", features = ["alloc"] }
-libcrux = { version = "0.0.2-pre.2" }
-libcrux-chacha20poly1305 = { version = "0.0.2-beta.3" }
-libcrux-ml-kem = { version = "0.0.2-beta.3" }
-libcrux-blake2 = { git = "https://github.com/cryspen/libcrux.git", rev = "10ce653e9476" }
+postcard = { version = "1.1.1", default-features = false, features = ["alloc"] }
 libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f" }
-hex-literal = { version = "0.4.1" }
+hex-literal = { version = "1.1.0" }
 hex = { version = "0.4.3" }
 heck = { version = "0.5.0" }
 libc = { version = "0.2" }
@@ -84,22 +79,28 @@ uds = { git = "https://github.com/rosenpass/uds" }
 lazy_static = "1.5"
 
 #Dev dependencies
-assert_tv = { version = "0.6.4" }
-base64 = { version = "0.22.1" }
+assert_tv = { version = "0.6" }
+base64 = { version = "0.23.0" }
 serial_test = "3.2.0"
 tempfile = "3"
 stacker = "0.1.21"
 libfuzzer-sys = "0.4"
-test_bin = "0.4.0"
-criterion = "0.5.1"
-allocator-api2-tests = "0.2.15"
+test_bin = "0.6"
+criterion = "0.8.2"
+allocator-api2-tests = "0.3"
 procspawn = { version = "1.0.1", features = ["test-support"] }
 serde_json = { version = "1.0.140" }
 
 #Broker dependencies (might need cleanup or changes)
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
-command-fds = "0.2.3"
-rustix = { version = "0.38.42", features = ["net", "fs", "process"] }
+command-fds = "0.3.3"
+rustix = { version = "1.1.4", features = ["net", "fs", "process"] }
 futures = "0.3"
 futures-util = "0.3"
 x25519-dalek = "2"
+ctrlc = "3.2"
+genetlink = "0.2"
+rtnetlink = "0.21"
+netlink-packet-core = "0.8.1"
+netlink-packet-generic = "0.4"
+netlink-packet-wireguard = "0.4"

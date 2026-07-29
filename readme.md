@@ -8,7 +8,7 @@
 This repository contains
 
 1. A description of the [Rosenpass protocol](https://github.com/rosenpass/rosenpass/raw/papers-pdf/whitepaper.pdf)
-2. The reference implementation of the protocol – the [rosenpass tool](./src)
+2. The reference implementation of the protocol – the [rosenpass tool](./rosenpass)
 3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rp)
 4. [Security analysis](./analysis) of the protocol using proverif
 
@@ -105,10 +105,6 @@ benchmark of `rosenpass-ciphers`. Run the benchmarks and view their results usin
 ```
 cargo bench -p rosenpass-ciphers --bench primitives -F bench
 ```
-
-Note that the `bench` feature enables the inclusion of the libcrux-backed
-trait implementations in the module tree, but does not enable them
-as default.
 
 ### Protocol Benchmarks
 
