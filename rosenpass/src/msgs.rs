@@ -8,6 +8,7 @@
 //! [https://sinusoid.es/misc/lager/lenses.pdf](https://sinusoid.es/misc/lager/lenses.pdf)
 //! To achieve this we utilize the zerocopy library.
 //!
+use num_enum::TryFromPrimitive;
 use std::mem::size_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -376,6 +377,7 @@ pub struct CookieReply {
 /// ```
 /// use rosenpass::msgs::MsgType;
 /// use rosenpass::msgs::MsgType as M;
+/// use rosenpass::RosenpassError;
 ///
 /// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData, M::CookieReply];
 /// let values_u8 = values.map(|v| -> u8 { v.into() });
@@ -393,12 +395,14 @@ pub struct CookieReply {
 /// for v in invalid_values {
 ///     let res : Result<MsgType, _> = v.try_into();
 ///     assert!(res.is_err());
+///     assert!(res.is_err_and(|e| matches!(e, RosenpassError::InvalidMessageType(v))));
 /// }
 ///
 /// Ok::<(), anyhow::Error>(())
 /// ```
 #[repr(u8)]
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy, TryFromPrimitive)]
+#[num_enum(error_type(name=RosenpassError, constructor=construct_invalid_message_type_error))]
 pub enum MsgType {
     /// MsgType for [InitHello]
     InitHello = 0x81,
@@ -412,19 +416,8 @@ pub enum MsgType {
     CookieReply = 0x86,
 }
 
-impl TryFrom<u8> for MsgType {
-    type Error = RosenpassError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0x81 => MsgType::InitHello,
-            0x82 => MsgType::RespHello,
-            0x83 => MsgType::InitConf,
-            0x84 => MsgType::EmptyData,
-            0x86 => MsgType::CookieReply,
-            _ => return Err(RosenpassError::InvalidMessageType(value)),
-        })
-    }
+fn construct_invalid_message_type_error(unsupported_value: u8) -> RosenpassError {
+    RosenpassError::InvalidMessageType(unsupported_value)
 }
 
 impl From<MsgType> for u8 {
