@@ -1,7 +1,7 @@
 # Rosenpass Changelog
 
 
-## v0.2.3 (TODO)
+## v0.2.3 (2026-08-03)
 This is a backport release with upgraded dependencies.
 
 ### Fixes
