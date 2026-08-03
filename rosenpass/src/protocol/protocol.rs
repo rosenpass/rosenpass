@@ -2169,9 +2169,9 @@ impl CryptoServer {
 
         ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
 
-        let msg_type: MsgType = rx_buf[0].try_into()?;
-
+        let msg_type: Result<MsgType, _> = rx_buf[0].try_into();
         log::debug!("Rx {:?}, processing", msg_type);
+        let msg_type = msg_type?;
 
         let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
 
