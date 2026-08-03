@@ -2169,14 +2169,14 @@ impl CryptoServer {
 
         ensure!(!rx_buf.is_empty(), "received empty message, ignoring it");
 
-        let msg_type = rx_buf[0].try_into();
+        let msg_type: MsgType = rx_buf[0].try_into()?;
 
         log::debug!("Rx {:?}, processing", msg_type);
 
         let mut msg_out = truncating_cast_into::<Envelope<RespHello>>(tx_buf)?;
 
         let peer = match msg_type {
-            Ok(MsgType::InitHello) => {
+            MsgType::InitHello => {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
@@ -2210,7 +2210,7 @@ impl CryptoServer {
                 len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
                 peer
             }
-            Ok(MsgType::RespHello) => {
+            MsgType::RespHello => {
                 let msg_in: Ref<&[u8], Envelope<RespHello>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
@@ -2227,7 +2227,7 @@ impl CryptoServer {
                 exchanged = true;
                 peer
             }
-            Ok(MsgType::InitConf) => {
+            MsgType::InitConf => {
                 let msg_in: Ref<&[u8], Envelope<InitConf>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
@@ -2295,21 +2295,18 @@ impl CryptoServer {
                 len = self.seal_and_commit_msg(peer, MsgType::EmptyData, &mut msg_out)?;
                 peer
             }
-            Ok(MsgType::EmptyData) => {
+            MsgType::EmptyData => {
                 let msg_in: Ref<&[u8], Envelope<EmptyData>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
                 self.handle_resp_conf(&msg_in, seal_broken.to_string())?
             }
-            Ok(MsgType::CookieReply) => {
+            MsgType::CookieReply => {
                 let msg_in: Ref<&[u8], CookieReply> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
                 let peer = self.handle_cookie_reply(&msg_in)?;
                 len = 0;
                 peer
-            }
-            Err(_) => {
-                bail!("CookieReply handling not implemented!")
             }
         };
 
