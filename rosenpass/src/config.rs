@@ -44,7 +44,7 @@ pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
-    pub keypair: Option<config::rp_keypair::Keypair>,
+    pub keypair: Option<config::rp_keypair::RosenpassKeypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -439,7 +439,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(rp_keypair::Keypair::new(pk, sk)))
+        Self::new(Some(rp_keypair::RosenpassKeypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -450,7 +450,7 @@ impl Rosenpass {
     #[doc = "```ignore"]
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<rp_keypair::Keypair>) -> Self {
+    pub fn new(keypair: Option<rp_keypair::RosenpassKeypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
@@ -498,7 +498,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(rp_keypair::Keypair::new("", "")));
+        let mut config = Self::new(Some(rp_keypair::RosenpassKeypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
