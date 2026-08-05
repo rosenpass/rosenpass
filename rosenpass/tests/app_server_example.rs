@@ -7,7 +7,7 @@ use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt,
 
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
-use rosenpass::{config::ProtocolVersion, protocol::osk_domain_separator::OskDomainSeparator};
+use rosenpass::{config::{verbosity::Verbosity, ProtocolVersion}, protocol::osk_domain_separator::OskDomainSeparator};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
@@ -118,7 +118,7 @@ impl TestServer {
                                               // ipv4_any_binding(), // any IPv4 interface
                                               // ipv6_any_binding(), // any IPv6 interface
         ];
-        let verbosity = rosenpass::config::Verbosity::Verbose;
+        let verbosity = Verbosity::Verbose;
         let test_helpers = Some(AppServerTest {
             enable_dos_permanently: false,
             termination_handler: Some(termination_queue),

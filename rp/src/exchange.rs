@@ -11,7 +11,7 @@ use serde::Deserialize;
 use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, BrokerPeer},
-    config::Verbosity,
+    config::verbosity::Verbosity,
     protocol::{
         basic_types::{SPk, SSk, SymKey},
         osk_domain_separator::OskDomainSeparator,

@@ -22,9 +22,11 @@ use crate::protocol::osk_domain_separator::OskDomainSeparator;
 
 use crate::app_server::AppServer;
 
-use crate::config;
+use crate::config::{verbosity::Verbosity, rosenpass_keypair::RosenpassKeypair, wireguard::WireGuard};
 pub mod wireguard;
-pub mod rp_keypair;
+pub mod rosenpass_keypair;
+pub mod verbosity;
+
 
 #[cfg(feature = "experiment_api")]
 fn empty_api_config() -> crate::api::config::ApiConfig {
@@ -44,7 +46,7 @@ pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
-    pub keypair: Option<config::rp_keypair::RosenpassKeypair>,
+    pub keypair: Option<RosenpassKeypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -64,7 +66,7 @@ pub struct Rosenpass {
     ///
     /// This is subject to change. See [`Verbosity`] for details.
     #[serde(default)]
-    pub verbosity: Verbosity,
+    pub verbosity: verbosity::Verbosity,
 
     /// list of peers
     ///
@@ -77,19 +79,6 @@ pub struct Rosenpass {
     /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
-}
-
-/// Level of verbosity for [crate::app_server::AppServer]
-///
-/// The value of the field [crate::app_server::AppServer::verbosity]. See the field documentation
-/// for details.
-///
-/// - TODO: replace this type with [`log::LevelFilter`], also see <https://github.com/rosenpass/rosenpass/pull/246>
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
-#[serde(deny_unknown_fields)]
-pub enum Verbosity {
-    Quiet,
-    Verbose,
 }
 
 /// The protocol version to be used by a peer.
@@ -130,7 +119,7 @@ pub struct RosenpassPeer {
 
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
-    pub wg: Option<config::wireguard::WireGuard>,
+    pub wg: Option<WireGuard>,
 
     #[serde(default)]
     /// The protocol version to use for the exchange
@@ -439,7 +428,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(rp_keypair::RosenpassKeypair::new(pk, sk)))
+        Self::new(Some(rosenpass_keypair::RosenpassKeypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -450,7 +439,7 @@ impl Rosenpass {
     #[doc = "```ignore"]
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<rp_keypair::RosenpassKeypair>) -> Self {
+    pub fn new(keypair: Option<rosenpass_keypair::RosenpassKeypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
@@ -498,7 +487,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(rp_keypair::RosenpassKeypair::new("", "")));
+        let mut config = Self::new(Some(rosenpass_keypair::RosenpassKeypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
@@ -683,13 +672,6 @@ impl Rosenpass {
         }
 
         Ok(config)
-    }
-}
-
-impl Default for Verbosity {
-    /// Self::Quiet
-    fn default() -> Self {
-        Self::Quiet
     }
 }
 
@@ -888,7 +870,7 @@ mod test {
 
         assert_eq!(
             config.keypair,
-            Some(Keypair::new("/my/public-key", "/my/secret-key"))
+            Some(RosenpassKeypair::new("/my/public-key", "/my/secret-key"))
         );
         assert_eq!(config.verbosity, Verbosity::Verbose);
         assert!(&config.listen.is_empty());

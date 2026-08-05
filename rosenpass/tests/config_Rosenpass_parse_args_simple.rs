@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use rosenpass::config::{rp_keypair::RosenpassKeypair, Rosenpass, RosenpassPeer, Verbosity};
+use rosenpass::config::{rosenpass_keypair::RosenpassKeypair, Rosenpass, RosenpassPeer, verbosity::Verbosity};
 
 #[test]
 fn parse_simple() {
@@ -16,7 +16,7 @@ fn parse_simple() {
 
     assert_eq!(
         config.keypair,
-        Some(Keypair::new("/my/public-key", "/my/secret-key"))
+        Some(RosenpassKeypair::new("/my/public-key", "/my/secret-key"))
     );
     assert_eq!(config.verbosity, Verbosity::Verbose);
     assert_eq!(

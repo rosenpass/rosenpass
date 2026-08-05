@@ -14,7 +14,7 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
-use rosenpass::config::ProtocolVersion;
+use rosenpass::config::{ProtocolVersion, verbosity::Verbosity};
 use rosenpass::protocol::basic_types::SymKey;
 use rosenpass_util::{
     b64::B64Display,
@@ -90,7 +90,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         config_file_path: tempfile!("a.config"),
         keypair: None,
         listen: vec![], // TODO: This could collide by accident
-        verbosity: config::Verbosity::Verbose,
+        verbosity: Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
@@ -116,7 +116,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],
-        verbosity: config::Verbosity::Verbose,
+        verbosity: Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],

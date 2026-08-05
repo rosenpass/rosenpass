@@ -26,7 +26,7 @@ use rosenpass_util::{
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
-use crate::config::{ProtocolVersion, Verbosity};
+use crate::config::{ProtocolVersion, verbosity::Verbosity};
 
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;

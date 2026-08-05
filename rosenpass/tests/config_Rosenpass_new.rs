@@ -1,4 +1,4 @@
-use rosenpass::config::{self, Rosenpass, rp_keypair::RosenpassKeypair};
+use rosenpass::config::{self, Rosenpass, rosenpass_keypair::RosenpassKeypair};
 
 #[test]
 fn example_config_rosenpass_new() {
@@ -9,10 +9,10 @@ fn example_config_rosenpass_new() {
 
     assert_eq!(
         Rosenpass::from_sk_pk(sk, pk),
-        Rosenpass::new(Some(Keypair::new(pk, sk)))
+        Rosenpass::new(Some(RosenpassKeypair::new(pk, sk)))
     );
 
     let mut v = Rosenpass::empty();
-    v.keypair = Some(config::rp_keypair::RosenpassKeypair::new(pk, sk));
+    v.keypair = Some(RosenpassKeypair::new(pk, sk));
     assert_eq!(Rosenpass::from_sk_pk(sk, pk), v);
 }
