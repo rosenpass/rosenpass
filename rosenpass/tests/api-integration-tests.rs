@@ -66,7 +66,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
 
     use rosenpass::config;
 
-    let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = config::rp_keypair::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
     let peer_a = config::Rosenpass {
         config_file_path: tempfile!("a.config"),
         keypair: Some(peer_a_keypair.clone()),

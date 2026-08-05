@@ -23,7 +23,8 @@ use crate::protocol::osk_domain_separator::OskDomainSeparator;
 use crate::app_server::AppServer;
 
 use crate::config;
-mod wireguard;
+pub mod wireguard;
+pub mod rp_keypair;
 
 #[cfg(feature = "experiment_api")]
 fn empty_api_config() -> crate::api::config::ApiConfig {
@@ -43,7 +44,7 @@ pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
-    pub keypair: Option<Keypair>,
+    pub keypair: Option<config::rp_keypair::Keypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -76,29 +77,6 @@ pub struct Rosenpass {
     /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
-}
-
-/// Public key and secret key locations.
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct Keypair {
-    /// path to the public key file
-    pub public_key: PathBuf,
-
-    /// path to the secret key file
-    pub secret_key: PathBuf,
-}
-
-impl Keypair {
-    /// Construct a keypair from its fields
-    pub fn new<Pk: AsRef<Path>, Sk: AsRef<Path>>(public_key: Pk, secret_key: Sk) -> Self {
-        let public_key = public_key.as_ref().to_path_buf();
-        let secret_key = secret_key.as_ref().to_path_buf();
-        Self {
-            public_key,
-            secret_key,
-        }
-    }
 }
 
 /// Level of verbosity for [crate::app_server::AppServer]
@@ -461,7 +439,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(Keypair::new(pk, sk)))
+        Self::new(Some(rp_keypair::Keypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -472,7 +450,7 @@ impl Rosenpass {
     #[doc = "```ignore"]
     #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<Keypair>) -> Self {
+    pub fn new(keypair: Option<rp_keypair::Keypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
@@ -520,7 +498,7 @@ impl Rosenpass {
     #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(Keypair::new("", "")));
+        let mut config = Self::new(Some(rp_keypair::Keypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
