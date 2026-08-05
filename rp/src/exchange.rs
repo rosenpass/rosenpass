@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail, ensure};
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
-use rosenpass::config::ProtocolVersion;
+use rosenpass::config::protocol_version::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, BrokerPeer},
     config::verbosity::Verbosity,

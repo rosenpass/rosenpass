@@ -25,6 +25,7 @@ use crate::config::{
     verbosity::Verbosity, 
     rosenpass_keypair::RosenpassKeypair,
     rosenpass_peer::RosenpassPeer,
+    protocol_version::ProtocolVersion,
 };
 pub mod peer_osk_domain_seperator;
 pub mod rosenpass_keypair;
@@ -32,6 +33,7 @@ pub mod util;
 pub mod verbosity;
 pub mod wireguard;
 pub mod rosenpass_peer;
+pub mod protocol_version;
 
 
 #[cfg(feature = "experiment_api")]
@@ -85,15 +87,6 @@ pub struct Rosenpass {
     /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
-}
-
-/// The protocol version to be used by a peer.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub enum ProtocolVersion {
-    #[default]
-    V02,
-    V03,
 }
 
 impl Default for Rosenpass {

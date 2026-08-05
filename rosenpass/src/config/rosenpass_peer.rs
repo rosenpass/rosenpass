@@ -1,5 +1,5 @@
 use crate::config::{
-    ProtocolVersion,
+    protocol_version::ProtocolVersion,
     wireguard::WireGuard,
     peer_osk_domain_seperator::RosenpassPeerOskDomainSeparator
 };

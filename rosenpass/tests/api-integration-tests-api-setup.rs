@@ -15,7 +15,7 @@ use rosenpass::api::{
     supply_keypair_response_status,
 };
 use rosenpass::config::{
-    ProtocolVersion, 
+    protocol_version::ProtocolVersion, 
     verbosity::Verbosity,
     rosenpass_peer::RosenpassPeer,
     wireguard::WireGuard,

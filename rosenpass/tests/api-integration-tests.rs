@@ -17,7 +17,7 @@ use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
 use rosenpass::config::{
-    ProtocolVersion, 
+    protocol_version::ProtocolVersion, 
     verbosity::Verbosity,
     rosenpass_peer::RosenpassPeer,
     rosenpass_keypair::RosenpassKeypair
