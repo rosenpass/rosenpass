@@ -14,7 +14,12 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
-use rosenpass::config::{ProtocolVersion, verbosity::Verbosity};
+use rosenpass::config::{
+    ProtocolVersion, 
+    verbosity::Verbosity,
+    rosenpass_peer::RosenpassPeer,
+    wireguard::WireGuard,
+};
 use rosenpass::protocol::basic_types::SymKey;
 use rosenpass_util::{
     b64::B64Display,
@@ -96,12 +101,12 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![config::RosenpassPeer {
+        peers: vec![RosenpassPeer {
             public_key: tempfile!("b.pk"),
             key_out: None,
             endpoint: None,
             pre_shared_key: None,
-            wg: Some(config::wireguard::WireGuard {
+            wg: Some(WireGuard {
                 device: peer_b_wg_device.to_string(),
                 peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
                 extra_params: vec![],
@@ -122,7 +127,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![config::RosenpassPeer {
+        peers: vec![RosenpassPeer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),

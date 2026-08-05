@@ -3,7 +3,12 @@ use std::{
     path::PathBuf,
 };
 
-use rosenpass::config::{rosenpass_keypair::RosenpassKeypair, Rosenpass, RosenpassPeer, verbosity::Verbosity};
+use rosenpass::config::{
+    rosenpass_keypair::RosenpassKeypair, 
+    rosenpass_peer::RosenpassPeer, 
+    verbosity::Verbosity,
+    Rosenpass,
+};
 
 #[test]
 fn parse_simple() {
