@@ -285,7 +285,7 @@ impl CliArgs {
                     "config file {config_file:?} already exists"
                 );
 
-                std::fs::write(config_file, config::EXAMPLE_CONFIG)?;
+                std::fs::write(config_file, config::statics::EXAMPLE_CONFIG)?;
             }
 
             // Deprecated - use gen-keys instead

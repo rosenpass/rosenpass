@@ -9,7 +9,7 @@ use std::{
 use tempfile::tempdir;
 
 use clap::Parser;
-use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
+use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::statics::EXAMPLE_CONFIG};
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
 use serial_test::serial;
@@ -148,7 +148,7 @@ fn check_example_config() {
 
     config_file
         .write_all(
-            EXAMPLE_CONFIG
+            modname::EXAMPLE_CONFIG
                 .replace("/path/to", tmp_dir.path().to_str().unwrap())
                 .as_bytes(),
         )
