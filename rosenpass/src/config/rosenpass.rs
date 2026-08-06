@@ -1,0 +1,541 @@
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::path::{Path, PathBuf};
+use std::{collections::HashSet, fs, io::Write};
+
+use anyhow::{bail, ensure};
+
+use serde::{Deserialize, Serialize};
+
+use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
+
+use crate::protocol::basic_types::{SPk, SSk};
+
+use crate::app_server::AppServer;
+
+use crate::config::{
+    verbosity::Verbosity, 
+    rosenpass_keypair::RosenpassKeypair,
+    rosenpass_peer::RosenpassPeer,
+};
+
+
+/// Configuration for the Rosenpass key exchange
+///
+/// i.e. configuration for the `rosenpass exchange` and `rosenpass exchange-config` commands
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Rosenpass {
+    // TODO: Raise error if secret key or public key alone is set during deserialization
+    // SEE: https://github.com/serde-rs/serde/issues/2793
+    #[serde(flatten)]
+    pub keypair: Option<RosenpassKeypair>,
+
+    /// Location of the API listen sockets
+    #[cfg(feature = "experiment_api")]
+    #[serde(default = "empty_api_config")]
+    pub api: crate::api::config::ApiConfig,
+
+    /// list of [`SocketAddr`] to listen on
+    ///
+    /// Examples:
+    ///
+    /// - `0.0.0.0:123` – Listen on any interface using IPv4, port 123
+    /// - `[::1]:1234` – Listen on IPv6 localhost, port 1234
+    /// - `[::]:4476` – Listen on any IPv4 or IPv6 interface, port 4476
+    pub listen: Vec<SocketAddr>,
+
+    /// log verbosity
+    ///
+    /// This is subject to change. See [`Verbosity`] for details.
+    #[serde(default)]
+    pub verbosity: verbosity::Verbosity,
+
+    /// list of peers
+    ///
+    /// See the [`RosenpassPeer`] type for more information and examples.
+    pub peers: Vec<RosenpassPeer>,
+
+    /// path to the file which provided this configuration
+    ///
+    /// This item is of course not read from the TOML but is added by the algorithm that parses
+    /// the config file.
+    #[serde(skip)]
+    pub config_file_path: PathBuf,
+}
+
+impl Default for Rosenpass {
+    /// Generate an empty configuration
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl Rosenpass {
+    /// load configuration from a TOML file
+    ///
+    /// NOTE: no validation is conducted, e.g. the paths specified in the configuration are not
+    /// checked whether they even exist.
+    ///
+    /// ## TODO
+    ///
+    /// - consider using a different algorithm to determine home directory – the below one may
+    ///   behave unexpectedly on Windows
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = "```"]
+    pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
+        // read file and deserialize
+        let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
+
+        // resolve `~` (see https://github.com/rosenpass/rosenpass/issues/237)
+        use util::resolve_path_with_tilde;
+        if let Some(ref mut keypair) = config.keypair {
+            resolve_path_with_tilde(&mut keypair.public_key);
+            resolve_path_with_tilde(&mut keypair.secret_key);
+        }
+        for peer in config.peers.iter_mut() {
+            resolve_path_with_tilde(&mut peer.public_key);
+            if let Some(ref mut psk) = &mut peer.pre_shared_key {
+                resolve_path_with_tilde(psk);
+            }
+            if let Some(ref mut ko) = &mut peer.key_out {
+                resolve_path_with_tilde(ko);
+            }
+        }
+
+        // add path to "self"
+        p.as_ref().clone_into(&mut config.config_file_path);
+
+        // return
+        Ok(config)
+    }
+
+    /// Encode a configuration object as toml and write it to a file
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = "```"]
+    pub fn store<P: AsRef<Path>>(&self, p: P) -> anyhow::Result<()> {
+        let serialized_config =
+            toml::to_string_pretty(&self).expect("unable to serialize the default config");
+        fs::write(p, serialized_config)?;
+        Ok(())
+    }
+
+    /// Commit the configuration to where it came from, overwriting the original file
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = "```"]
+    pub fn commit(&self) -> anyhow::Result<()> {
+        let mut f = fopen_w(&self.config_file_path, Visibility::Public)?;
+        f.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
+
+        self.store(&self.config_file_path)
+    }
+
+    /// Apply the configuration in this object to the given [crate::app_server::AppServer]
+    pub fn apply_to_app_server(&self, _srv: &mut AppServer) -> anyhow::Result<()> {
+        #[cfg(feature = "experiment_api")]
+        self.api.apply_to_app_server(_srv)?;
+        Ok(())
+    }
+
+    /// Check that the configuration is sound, ensuring
+    /// for instance that the referenced files exist
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = "```"]
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if let Some(ref keypair) = self.keypair {
+            // check the public key file exists
+            ensure!(
+                keypair.public_key.is_file(),
+                "could not find public-key file {:?}: no such file. Consider running `rosenpass gen-keys` to generate a new keypair.",
+                keypair.public_key
+            );
+
+            // check the public-key file is a valid key
+            ensure!(
+                SPk::load(&keypair.public_key).is_ok(),
+                "could not load public-key file {:?}: invalid key",
+                keypair.public_key
+            );
+
+            // check the secret-key file exists
+            ensure!(
+                keypair.secret_key.is_file(),
+                "could not find secret-key file {:?}: no such file. Consider running `rosenpass gen-keys` to generate a new keypair.",
+                keypair.secret_key
+            );
+
+            // check the secret-key file is a valid key
+            ensure!(
+                SSk::load(&keypair.secret_key).is_ok(),
+                "could not load secret-key file {:?}: invalid key",
+                keypair.secret_key
+            );
+        }
+
+        for (i, peer) in self.peers.iter().enumerate() {
+            // check peer's public-key file exists
+            ensure!(
+                peer.public_key.is_file(),
+                "peer {i} public-key file {:?} does not exist",
+                peer.public_key
+            );
+
+            // check peer's public-key file is a valid key
+            ensure!(
+                SPk::load(&peer.public_key).is_ok(),
+                "peer {i} public-key file {:?} is invalid",
+                peer.public_key
+            );
+
+            // check endpoint is usable
+            if let Some(addr) = peer.endpoint.as_ref() {
+                ensure!(
+                    addr.to_socket_addrs().is_ok(),
+                    "peer {i} endpoint {} can not be parsed to a socket address",
+                    addr
+                );
+            }
+
+            // check if `key_out` or `device` and `peer` are defined
+            if peer.key_out.is_none() {
+                if let Some(wg) = &peer.wg {
+                    if wg.device.is_empty() || wg.peer.is_empty() {
+                        ensure!(
+                            false,
+                            "peer {i} has neither `key_out` nor valid wireguard config defined"
+                        );
+                    }
+                } else {
+                    ensure!(
+                        false,
+                        "peer {i} has neither `key_out` nor valid wireguard config defined"
+                    );
+                }
+            }
+
+            if let Err(e) = peer.osk_domain_separator.validate() {
+                bail!("Invalid OSK domain separation configuration for peer {i}: {e}");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check that the configuration is useful given the feature set Rosenpass was compiled with
+    /// and the configuration values.
+    ///
+    /// This was introduced when we introduced a unix-socket API feature allowing the server
+    /// keypair to be supplied via the API; in this process we also made [Self::keypair] optional.
+    /// With respect to this particular feature, this function ensures that [Self::keypair] is set
+    /// when Rosenpass is compiles without the `experiment_api` flag. When `experiment_api` is
+    /// used, the function ensures that [Self::keypair] is only `None`, if the Rosenpass API is
+    /// enabled in the configuration.
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = "```"]
+    pub fn check_usefullness(&self) -> anyhow::Result<()> {
+        #[cfg(not(feature = "experiment_api"))]
+        ensure!(self.keypair.is_some(), "Server keypair missing.");
+
+        #[cfg(feature = "experiment_api")]
+        ensure!(
+            self.keypair.is_some() || self.api.has_api_sources(),
+            "{}{}",
+            "Specify a server keypair or some API connections to configure the keypair with.",
+            "Without a keypair, rosenpass can not operate."
+        );
+
+        Ok(())
+    }
+
+    /// Produce an empty confuguration
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    pub fn empty() -> Self {
+        Self::new(None)
+    }
+
+    /// Produce configuration from the keypair
+    ///
+    /// Shorthand for calling [Self::new] with Some([Keypair]::new(sk, pk)).
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
+        Self::new(Some(rosenpass_keypair::RosenpassKeypair::new(pk, sk)))
+    }
+
+    /// Initialize a minimal configuration with the [Self::keypair] field supplied
+    /// as a parameter
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    pub fn new(keypair: Option<rosenpass_keypair::RosenpassKeypair>) -> Self {
+        Self {
+            keypair,
+            listen: vec![],
+            #[cfg(feature = "experiment_api")]
+            api: crate::api::config::ApiConfig::default(),
+            verbosity: Verbosity::Quiet,
+            peers: vec![],
+            config_file_path: PathBuf::new(),
+        }
+    }
+
+    /// Add IPv4 __and__ IPv6 IF_ANY address to the listen interfaces
+    ///
+    /// I.e. listen on any interface.
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_add_if_any.rs")]
+    #[doc = "```"]
+    pub fn add_if_any(&mut self, port: u16) {
+        let ipv4_any = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
+        let ipv6_any = SocketAddr::V6(SocketAddrV6::new(
+            Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0),
+            port,
+            0,
+            0,
+        ));
+        self.listen.push(ipv4_any);
+        self.listen.push(ipv6_any);
+    }
+
+    /// Parser for the old, IP style grammar.
+    ///
+    /// See out manual page rosenpass-exchange(1) on details about the grammar.
+    ///
+    /// This function parses the grammar and turns it into an instance of the configuration
+    /// struct.
+    ///
+    /// TODO: the grammar is undecidable, what do we do here?
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
+    #[doc = "```"]
+    pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
+        let mut config = Self::new(Some(rosenpass_keypair::RosenpassKeypair::new("", "")));
+
+        #[derive(Debug, Hash, PartialEq, Eq)]
+        enum State {
+            Own,
+            OwnPublicKey,
+            OwnSecretKey,
+            OwnListen,
+            Peer,
+            PeerPsk,
+            PeerPublicKey,
+            PeerEndpoint,
+            PeerOutfile,
+            PeerWireguardDev,
+            PeerWireguardPeer,
+            PeerWireguardExtraArgs,
+        }
+
+        let mut already_set = HashSet::new();
+
+        // TODO idea: use config.peers.len() to give index of peer with conflicting argument
+        use State::*;
+        let mut state = Own;
+        let mut current_peer = None;
+        let p_exists = "a peer should exist by now";
+        let wg_exists = "a peer wireguard should exist by now";
+        for arg in args {
+            state = match (state, arg.as_str(), &mut current_peer) {
+                (Own, "public-key", None) => OwnPublicKey,
+                (Own, "secret-key", None) => OwnSecretKey,
+                (Own, "private-key", None) => {
+                    log::warn!(
+                        "the private-key argument is deprecated, please use secret-key instead"
+                    );
+                    OwnSecretKey
+                }
+                (Own, "listen", None) => OwnListen,
+                (Own, "verbose", None) => {
+                    config.verbosity = Verbosity::Verbose;
+                    Own
+                }
+                (Own, "peer", None) => {
+                    ensure!(
+                        already_set.contains(&OwnPublicKey),
+                        "public-key file must be set"
+                    );
+                    ensure!(
+                        already_set.contains(&OwnSecretKey),
+                        "secret-key file must be set"
+                    );
+
+                    already_set.clear();
+                    current_peer = Some(RosenpassPeer::default());
+
+                    Peer
+                }
+                (OwnPublicKey, pk, None) => {
+                    ensure!(
+                        already_set.insert(OwnPublicKey),
+                        "public-key was already set"
+                    );
+                    config.keypair.as_mut().unwrap().public_key = pk.into();
+                    Own
+                }
+                (OwnSecretKey, sk, None) => {
+                    ensure!(
+                        already_set.insert(OwnSecretKey),
+                        "secret-key was already set"
+                    );
+                    config.keypair.as_mut().unwrap().secret_key = sk.into();
+                    Own
+                }
+                (OwnListen, l, None) => {
+                    already_set.insert(OwnListen); // multiple listen directives are allowed
+                    for socket_addr in l.to_socket_addrs()? {
+                        config.listen.push(socket_addr);
+                    }
+
+                    Own
+                }
+                (Peer | PeerWireguardExtraArgs, "peer", maybe_peer @ Some(_)) => {
+                    // TODO check current peer
+                    // commit current peer, create a new one
+                    config.peers.push(maybe_peer.take().expect(p_exists));
+
+                    already_set.clear();
+                    current_peer = Some(RosenpassPeer::default());
+
+                    Peer
+                }
+                (Peer, "public-key", Some(_)) => PeerPublicKey,
+                (Peer, "endpoint", Some(_)) => PeerEndpoint,
+                (Peer, "preshared-key", Some(_)) => PeerPsk,
+                (Peer, "outfile", Some(_)) => PeerOutfile,
+                (Peer, "wireguard", Some(_)) => PeerWireguardDev,
+                (PeerPublicKey, pk, Some(peer)) => {
+                    ensure!(
+                        already_set.insert(PeerPublicKey),
+                        "public-key was already set"
+                    );
+                    peer.public_key = pk.into();
+                    Peer
+                }
+                (PeerEndpoint, e, Some(peer)) => {
+                    ensure!(already_set.insert(PeerEndpoint), "endpoint was already set");
+                    peer.endpoint = Some(e.to_owned());
+                    Peer
+                }
+                (PeerPsk, psk, Some(peer)) => {
+                    ensure!(already_set.insert(PeerEndpoint), "peer psk was already set");
+                    peer.pre_shared_key = Some(psk.into());
+                    Peer
+                }
+                (PeerOutfile, of, Some(peer)) => {
+                    ensure!(
+                        already_set.insert(PeerOutfile),
+                        "peer outfile was already set"
+                    );
+                    peer.key_out = Some(of.into());
+                    Peer
+                }
+                (PeerWireguardDev, dev, Some(peer)) => {
+                    ensure!(
+                        already_set.insert(PeerWireguardDev),
+                        "peer wireguard-dev was already set"
+                    );
+                    assert!(peer.wg.is_none());
+                    peer.wg = Some(wireguard::WireGuard {
+                        device: dev.to_string(),
+                        ..Default::default()
+                    });
+
+                    PeerWireguardPeer
+                }
+                (PeerWireguardPeer, p, Some(peer)) => {
+                    ensure!(
+                        already_set.insert(PeerWireguardPeer),
+                        "peer wireguard-peer was already set"
+                    );
+                    peer.wg.as_mut().expect(wg_exists).peer = p.to_string();
+                    PeerWireguardExtraArgs
+                }
+                (PeerWireguardExtraArgs, arg, Some(peer)) => {
+                    peer.wg
+                        .as_mut()
+                        .expect(wg_exists)
+                        .extra_params
+                        .push(arg.to_string());
+                    PeerWireguardExtraArgs
+                }
+
+                // error cases
+                (Own, x, None) => {
+                    bail!("unrecognised argument {x}");
+                }
+                (Own | OwnPublicKey | OwnSecretKey | OwnListen, _, Some(_)) => {
+                    panic!("current_peer is not None while in Own* state, this must never happen")
+                }
+
+                (State::Peer, arg, Some(_)) => {
+                    bail!("unrecongnised argument {arg}");
+                }
+                (
+                    Peer
+                    | PeerEndpoint
+                    | PeerOutfile
+                    | PeerPublicKey
+                    | PeerPsk
+                    | PeerWireguardDev
+                    | PeerWireguardPeer
+                    | PeerWireguardExtraArgs,
+                    _,
+                    None,
+                ) => {
+                    panic!("got peer options but no peer was created")
+                }
+            };
+        }
+
+        if let Some(p) = current_peer {
+            // TODO ensure peer is propagated with sufficient information
+            config.peers.push(p);
+        }
+
+        Ok(config)
+    }
+}
