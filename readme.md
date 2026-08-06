@@ -21,7 +21,7 @@ rp help
 rosenpass help
 ```
 
-Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up and running.
+Follow [quick start instructions](https://rosenpass.eu/docs/rosenpass-tool/guides/) to get a VPN up and running.
 
 ## Contributing
 
@@ -31,7 +31,7 @@ We also have a – as of now, very minimal – [contributors guide](CONTRIBUTING
 
 ## Software architecture
 
-The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
+The [rosenpass tool](./rosenpass) is written in Rust and uses liboqs[^liboqs]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
 
 As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
 
