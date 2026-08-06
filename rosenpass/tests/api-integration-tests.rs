@@ -71,8 +71,8 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
 
     use rosenpass::config;
 
-    let peer_a_keypair = config::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
-    let peer_a = config::RosenpassConfig {
+    let peer_a_keypair = RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a = RosenpassConfig {
         config_file_path: tempfile!("a.config"),
         keypair: Some(peer_a_keypair.clone()),
         listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
@@ -94,7 +94,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
     };
 
     let peer_b_keypair = RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::RosenpassConfig {
+    let peer_b = RosenpassConfig {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],

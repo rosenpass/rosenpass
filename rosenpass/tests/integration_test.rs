@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 use tempfile::tempdir;
+
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
 use rosenpass_secret_memory::{Public, Secret};

@@ -2,7 +2,7 @@
 //! the actual cryptographic code lives in the [crate::protocol] module
 
 use std::collections::{HashMap, VecDeque};
-use std::io::{stdout, ErrorKind, Write};
+use std::io::{ErrorKind, Write, stdout};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
@@ -10,23 +10,24 @@ use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
 use mio::{Interest, Token};
 use signal_hook_mio::v1_0 as signal_hook_mio;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use derive_builder::Builder;
 use log::{error, info, warn};
 use zerocopy::IntoBytes;
 
 use rosenpass_util::attempt;
 use rosenpass_util::fmt::debug::NullDebug;
-use rosenpass_util::functional::{run, ApplyExt};
+use rosenpass_util::functional::{ApplyExt, run};
 use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
 use rosenpass_util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
 use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WireguardBrokerCfg, WireguardBrokerMio, WG_KEY_LEN};
+use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};
+
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
 use crate::protocol::timing::Timing;
