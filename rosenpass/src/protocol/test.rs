@@ -98,7 +98,8 @@ fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
         while let Some(l) = msglen {
             std::mem::swap(&mut me, &mut they);
             std::mem::swap(&mut msgbuf, &mut resbuf);
-            msglen = test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf);
+            msglen =
+                test_incorrect_sizes_for_msg(&mut me, &*msgbuf, l, &mut *resbuf, OVERSIZED_MESSAGE);
         }
 
         assert_eq!(
@@ -116,10 +117,11 @@ fn test_incorrect_sizes_for_msg(
     msgbuf: &[u8],
     msglen: usize,
     resbuf: &mut [u8],
+    oversized_message_size: usize,
 ) -> Option<usize> {
     resbuf.fill(0);
 
-    for l in 0..(((msglen as f32) * 1.2) as usize) {
+    for l in 0..oversized_message_size {
         if l == msglen {
             continue;
         }
