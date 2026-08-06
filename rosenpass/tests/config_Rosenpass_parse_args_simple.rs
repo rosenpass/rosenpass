@@ -2,11 +2,10 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-
 use rosenpass::config::{
-    rosenpass_keypair::RosenpassKeypair, 
-    rosenpass_peer::RosenpassPeer, 
-    verbosity::Verbosity,
+    RosenpassKeypair, 
+    RosenpassPeer, 
+    Verbosity,
     RosenpassConfig,
 };
 

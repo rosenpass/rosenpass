@@ -3,7 +3,7 @@
 //! [CliArgs::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
-use anyhow::{Context, bail, ensure};
+use anyhow::{bail, ensure, Context};
 use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
@@ -18,8 +18,7 @@ use std::path::PathBuf;
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
 use crate::protocol::basic_types::{SPk, SSk, SymKey};
-
-use super::config;
+use crate::config;
 
 #[cfg(feature = "experiment_api")]
 use {
@@ -27,9 +26,9 @@ use {
     log::{error, info},
     mio::net::UnixStream,
     rosenpass_util::fd::claim_fd,
-    rosenpass_wireguard_broker::WireguardBrokerMio,
     rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
-    rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
+    rosenpass_wireguard_broker::WireguardBrokerMio,
+    rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
     std::os::unix::net,
     std::process::Command,
     std::thread,
@@ -285,7 +284,7 @@ impl CliArgs {
                     "config file {config_file:?} already exists"
                 );
 
-                std::fs::write(config_file, config::statics::EXAMPLE_CONFIG)?;
+                std::fs::write(config_file, config::EXAMPLE_CONFIG)?;
             }
 
             // Deprecated - use gen-keys instead

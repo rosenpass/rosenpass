@@ -8,10 +8,10 @@ use anyhow::{Context, Result, bail, ensure};
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
-use rosenpass::config::protocol_version::ProtocolVersion;
+use rosenpass::config::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, BrokerPeer},
-    config::verbosity::Verbosity,
+    config::Verbosity,
     protocol::{
         basic_types::{SPk, SSk, SymKey},
         osk_domain_separator::OskDomainSeparator,

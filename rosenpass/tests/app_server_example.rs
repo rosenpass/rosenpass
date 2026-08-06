@@ -8,7 +8,7 @@ use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt,
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
 use rosenpass::{
-    config::{protocol_version::ProtocolVersion, verbosity::Verbosity},
+    config::{ProtocolVersion, Verbosity},
     protocol::osk_domain_separator::OskDomainSeparator,
 };
 

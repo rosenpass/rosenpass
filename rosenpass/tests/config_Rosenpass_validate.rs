@@ -1,5 +1,4 @@
 use std::fs;
-
 use rosenpass::{cli::generate_and_save_keypair, config::RosenpassConfig};
 
 #[test]

@@ -15,10 +15,10 @@ use rosenpass::api::{
     supply_keypair_response_status,
 };
 use rosenpass::config::{
-    protocol_version::ProtocolVersion, 
-    verbosity::Verbosity,
-    rosenpass_peer::RosenpassPeer,
-    wireguard::WireGuard,
+    ProtocolVersion, 
+    Verbosity,
+    RosenpassPeer,
+    WireGuard,
 };
 use rosenpass::protocol::basic_types::SymKey;
 use rosenpass_util::{
@@ -79,7 +79,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
-    let peer_a_keypair = config::rosenpass_keypair::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = config::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
 
     let peer_b_osk = tempfile!("b.osk");
     let peer_b_wg_device = "mock_device";
@@ -116,7 +116,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         }],
     };
 
-    let peer_b_keypair = config::rosenpass_keypair::RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b_keypair = config::RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
     let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),

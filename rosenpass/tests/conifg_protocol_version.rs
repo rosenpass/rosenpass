@@ -1,4 +1,4 @@
-use rosenpass::config::{RosenpassConfig, rosenpass_peer::RosenpassPeer, protocol_version::ProtocolVersion};
+use rosenpass::config::{ProtocolVersion, RosenpassConfig, RosenpassPeer};
 mod common;
 use common::assert_toml_round;
 

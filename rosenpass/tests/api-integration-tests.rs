@@ -17,10 +17,10 @@ use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
 use rosenpass::config::{
-    protocol_version::ProtocolVersion, 
-    verbosity::Verbosity,
-    rosenpass_peer::RosenpassPeer,
-    rosenpass_keypair::RosenpassKeypair
+    ProtocolVersion, 
+    Verbosity,
+    RosenpassPeer,
+    RosenpassKeypair
 };
 use rosenpass::protocol::basic_types::SymKey;
 
@@ -71,7 +71,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
 
     use rosenpass::config;
 
-    let peer_a_keypair = config::rosenpass_keypair::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = config::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
     let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
         keypair: Some(peer_a_keypair.clone()),

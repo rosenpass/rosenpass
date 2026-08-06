@@ -160,11 +160,11 @@ impl ProtocolVersion {
     }
 }
 
-impl From<crate::config::protocol_version::ProtocolVersion> for ProtocolVersion {
-    fn from(v: crate::config::protocol_version::ProtocolVersion) -> Self {
+impl From<crate::config::ProtocolVersion> for ProtocolVersion {
+    fn from(v: crate::config::ProtocolVersion) -> Self {
         match v {
-            crate::config::protocol_version::ProtocolVersion::V02 => ProtocolVersion::V02,
-            crate::config::protocol_version::ProtocolVersion::V03 => ProtocolVersion::V03,
+            crate::config::ProtocolVersion::V02 => ProtocolVersion::V02,
+            crate::config::ProtocolVersion::V03 => ProtocolVersion::V03,
         }
     }
 }
