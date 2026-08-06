@@ -25,7 +25,7 @@ use rosenpass_util::{
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
-use std::os::fd::{AsFd, AsRawFd};
+use std::os::fd::AsFd;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 

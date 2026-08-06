@@ -39,17 +39,17 @@ pub trait B64Display {
     /// # Examples
     ///
     /// See [B64Display].
-    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F>;
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<'_, F>;
 }
 
 impl B64Display for [u8] {
-    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F> {
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<'_, F> {
         B64DisplayHelper(self)
     }
 }
 
 impl<T: AsRef<[u8]>> B64Display for T {
-    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<F> {
+    fn fmt_b64<const F: usize>(&self) -> B64DisplayHelper<'_, F> {
         B64DisplayHelper(self.as_ref())
     }
 }
