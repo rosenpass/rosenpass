@@ -20,6 +20,14 @@ use crate::config::{
     wireguard::WireGuard
 };
 
+#[cfg(feature = "experiment_api")]
+fn empty_api_config() -> crate::api::config::ApiConfig {
+    crate::api::config::ApiConfig {
+        listen_path: Vec::new(),
+        listen_fd: Vec::new(),
+        stream_fd: Vec::new(),
+    }
+}
 
 /// Configuration for the Rosenpass key exchange
 ///

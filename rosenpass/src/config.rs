@@ -17,12 +17,3 @@ pub mod protocol_version;
 pub mod statics;
 mod rosenpass_config;
 pub use rosenpass_config::*;
-
-#[cfg(feature = "experiment_api")]
-fn empty_api_config() -> crate::api::config::ApiConfig {
-    crate::api::config::ApiConfig {
-        listen_path: Vec::new(),
-        listen_fd: Vec::new(),
-        stream_fd: Vec::new(),
-    }
-}
