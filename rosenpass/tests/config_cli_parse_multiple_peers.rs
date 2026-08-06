@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use rosenpass::config::{Rosenpass, rosenpass_peer::RosenpassPeer, verbosity::Verbosity, rosenpass_keypair::RosenpassKeypair};
+use rosenpass::config::{RosenpassConfig, rosenpass_peer::RosenpassPeer, verbosity::Verbosity, rosenpass_keypair::RosenpassKeypair};
 
 fn split_str(s: &str) -> Vec<String> {
     s.split(' ').map(|s| s.to_string()).collect()
@@ -14,7 +14,7 @@ fn test_cli_parse_multiple_peers() {
             peer public-key /peer-b/public-key outfile /peer-b/rp-out",
     );
 
-    let config = Rosenpass::parse_args(args).unwrap();
+    let config = RosenpassConfig::parse_args(args).unwrap();
 
     assert_eq!(
         config.keypair,

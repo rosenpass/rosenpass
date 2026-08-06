@@ -1,10 +1,10 @@
-use rosenpass::config::{Rosenpass, rosenpass_peer::RosenpassPeer, protocol_version::ProtocolVersion};
+use rosenpass::config::{RosenpassConfig, rosenpass_peer::RosenpassPeer, protocol_version::ProtocolVersion};
 mod common;
 use common::assert_toml_round;
 
 #[test]
 fn test_protocol_version() {
-    let mut rosenpass = Rosenpass::empty();
+    let mut rosenpass = RosenpassConfig::empty();
     let mut peer_v_02 = RosenpassPeer::default();
     peer_v_02.protocol_version = ProtocolVersion::V02;
     rosenpass.peers.push(peer_v_02);

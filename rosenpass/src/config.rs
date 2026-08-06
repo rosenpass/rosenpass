@@ -15,8 +15,8 @@ pub mod wireguard;
 pub mod rosenpass_peer;
 pub mod protocol_version;
 pub mod statics;
-mod rosenpass;
-pub use rosenpass::*;
+mod rosenpass_config;
+pub use rosenpass_config::*;
 
 #[cfg(feature = "experiment_api")]
 fn empty_api_config() -> crate::api::config::ApiConfig {

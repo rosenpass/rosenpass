@@ -1,4 +1,4 @@
-use rosenpass::config::Rosenpass;
+use rosenpass::config::RosenpassConfig;
 mod common;
 use common::assert_toml_round;
 
@@ -6,7 +6,7 @@ use common::assert_toml_round;
 fn toml_serialization() -> anyhow::Result<()> {
     #[cfg(feature = "experiment_api")]
     assert_toml_round(
-        Rosenpass::empty(),
+        RosenpassConfig::empty(),
         r#"
         listen = []
         verbosity = "Quiet"
@@ -21,7 +21,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "experiment_api"))]
     assert_toml_round(
-        Rosenpass::empty(),
+        RosenpassConfig::empty(),
         r#"
         listen = []
         verbosity = "Quiet"
@@ -31,7 +31,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(feature = "experiment_api")]
     assert_toml_round(
-        Rosenpass::from_sk_pk("/my/sk", "/my/pk"),
+        RosenpassConfig::from_sk_pk("/my/sk", "/my/pk"),
         r#"
         public_key = "/my/pk"
         secret_key = "/my/sk"
@@ -48,7 +48,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "experiment_api"))]
     assert_toml_round(
-        Rosenpass::from_sk_pk("/my/sk", "/my/pk"),
+        RosenpassConfig::from_sk_pk("/my/sk", "/my/pk"),
         r#"
         public_key = "/my/pk"
         secret_key = "/my/sk"

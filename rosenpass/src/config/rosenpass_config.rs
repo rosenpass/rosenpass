@@ -16,6 +16,8 @@ use crate::config::{
     verbosity::Verbosity, 
     rosenpass_keypair::RosenpassKeypair,
     rosenpass_peer::RosenpassPeer,
+    util,
+    wireguard::WireGuard
 };
 
 
@@ -24,7 +26,7 @@ use crate::config::{
 /// i.e. configuration for the `rosenpass exchange` and `rosenpass exchange-config` commands
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct Rosenpass {
+pub struct RosenpassConfig {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
@@ -48,7 +50,7 @@ pub struct Rosenpass {
     ///
     /// This is subject to change. See [`Verbosity`] for details.
     #[serde(default)]
-    pub verbosity: verbosity::Verbosity,
+    pub verbosity: Verbosity,
 
     /// list of peers
     ///
@@ -63,20 +65,20 @@ pub struct Rosenpass {
     pub config_file_path: PathBuf,
 }
 
-impl Default for Rosenpass {
+impl Default for RosenpassConfig {
     /// Generate an empty configuration
     ///
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     fn default() -> Self {
         Self::empty()
     }
 }
 
-impl Rosenpass {
+impl RosenpassConfig {
     /// load configuration from a TOML file
     ///
     /// NOTE: no validation is conducted, e.g. the paths specified in the configuration are not
@@ -90,7 +92,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_store.rs")]
     #[doc = "```"]
     pub fn load<P: AsRef<Path>>(p: P) -> anyhow::Result<Self> {
         // read file and deserialize
@@ -124,7 +126,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_store.rs")]
     #[doc = "```"]
     pub fn store<P: AsRef<Path>>(&self, p: P) -> anyhow::Result<()> {
         let serialized_config =
@@ -138,7 +140,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_store.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_store.rs")]
     #[doc = "```"]
     pub fn commit(&self) -> anyhow::Result<()> {
         let mut f = fopen_w(&self.config_file_path, Visibility::Public)?;
@@ -160,7 +162,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_validate.rs")]
     #[doc = "```"]
     pub fn validate(&self) -> anyhow::Result<()> {
         if let Some(ref keypair) = self.keypair {
@@ -255,7 +257,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_validate.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_validate.rs")]
     #[doc = "```"]
     pub fn check_usefullness(&self) -> anyhow::Result<()> {
         #[cfg(not(feature = "experiment_api"))]
@@ -277,7 +279,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn empty() -> Self {
         Self::new(None)
@@ -290,10 +292,10 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(rosenpass_keypair::RosenpassKeypair::new(pk, sk)))
+        Self::new(Some(RosenpassKeypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -302,9 +304,9 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_new.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<rosenpass_keypair::RosenpassKeypair>) -> Self {
+    pub fn new(keypair: Option<RosenpassKeypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
@@ -323,7 +325,7 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_add_if_any.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_add_if_any.rs")]
     #[doc = "```"]
     pub fn add_if_any(&mut self, port: u16) {
         let ipv4_any = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
@@ -349,10 +351,10 @@ impl Rosenpass {
     /// # Examples
     ///
     #[doc = "```ignore"]
-    #[doc = include_str!("../tests/config_Rosenpass_parse_args_simple.rs")]
+    #[doc = include_str!("../../tests/config_Rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(rosenpass_keypair::RosenpassKeypair::new("", "")));
+        let mut config = Self::new(Some(RosenpassKeypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
@@ -479,7 +481,7 @@ impl Rosenpass {
                         "peer wireguard-dev was already set"
                     );
                     assert!(peer.wg.is_none());
-                    peer.wg = Some(wireguard::WireGuard {
+                    peer.wg = Some(WireGuard {
                         device: dev.to_string(),
                         ..Default::default()
                     });

@@ -7,7 +7,7 @@ use rosenpass::config::{
     rosenpass_keypair::RosenpassKeypair, 
     rosenpass_peer::RosenpassPeer, 
     verbosity::Verbosity,
-    Rosenpass,
+    RosenpassConfig,
 };
 
 #[test]
@@ -17,7 +17,7 @@ fn parse_simple() {
                 peer.test:9999 outfile /peer/rp-out";
     let argv = argv.split(' ').map(|s| s.to_string()).collect();
 
-    let config = Rosenpass::parse_args(argv).unwrap();
+    let config = RosenpassConfig::parse_args(argv).unwrap();
 
     assert_eq!(
         config.keypair,

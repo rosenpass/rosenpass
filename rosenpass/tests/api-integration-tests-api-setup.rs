@@ -91,7 +91,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     );
 
     use rosenpass::config;
-    let peer_a = config::Rosenpass {
+    let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
         keypair: None,
         listen: vec![], // TODO: This could collide by accident
@@ -117,7 +117,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     };
 
     let peer_b_keypair = config::rosenpass_keypair::RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::Rosenpass {
+    let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],

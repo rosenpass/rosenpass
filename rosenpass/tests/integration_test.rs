@@ -148,7 +148,7 @@ fn check_example_config() {
 
     config_file
         .write_all(
-            modname::EXAMPLE_CONFIG
+            EXAMPLE_CONFIG
                 .replace("/path/to", tmp_dir.path().to_str().unwrap())
                 .as_bytes(),
         )

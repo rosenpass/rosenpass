@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rosenpass::config::{Rosenpass, verbosity::Verbosity};
+use rosenpass::config::{RosenpassConfig, verbosity::Verbosity};
 
 #[test]
 fn example_config_rosenpass_store() -> anyhow::Result<()> {
@@ -12,7 +12,7 @@ fn example_config_rosenpass_store() -> anyhow::Result<()> {
     let pk = tmpdir.path().join("example.pk");
     let cfg = tmpdir.path().join("config.toml");
 
-    let mut c = Rosenpass::from_sk_pk(&sk, &pk);
+    let mut c = RosenpassConfig::from_sk_pk(&sk, &pk);
 
     // Can not commit config, path not known
     assert!(c.commit().is_err());
@@ -25,7 +25,7 @@ fn example_config_rosenpass_store() -> anyhow::Result<()> {
 
     // We can reload the config now and the configurations
     // are equal if we adjust the commitment path
-    let mut c2 = Rosenpass::load(&cfg)?;
+    let mut c2 = RosenpassConfig::load(&cfg)?;
     c.config_file_path = PathBuf::from(&cfg);
     assert_eq!(c, c2);
 
@@ -34,7 +34,7 @@ fn example_config_rosenpass_store() -> anyhow::Result<()> {
     c2.commit()?;
 
     // And the changes actually made it to disk
-    let c3 = Rosenpass::load(cfg)?;
+    let c3 = RosenpassConfig::load(cfg)?;
     assert_eq!(c2, c3);
     assert_ne!(c, c3);
 
