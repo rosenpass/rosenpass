@@ -610,109 +610,111 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
         assert!(res.is_err());
     }
 
-    // we this as a closure in orer to use the protocol_version variable in it.
-    let check_retransmission = |srv: &mut CryptoServer,
-                                ic: &Envelope<InitConf>,
-                                ic_broken: &Envelope<InitConf>,
-                                rc: &Envelope<EmptyData>|
-     -> Result<()> {
-        // Processing the same RespHello package again leads to retransmission (i.e. exactly the
-        // same output)
-        let rc_dup = proc_init_conf(srv, ic)?;
-        assert_eq!(rc.as_bytes(), rc_dup.as_bytes());
+    stacker::grow(8 * 1024 * 1024, || -> anyhow::Result<()> {
+        // we this as a closure in orer to use the protocol_version variable in it.
+        let check_retransmission = |srv: &mut CryptoServer,
+                                    ic: &Envelope<InitConf>,
+                                    ic_broken: &Envelope<InitConf>,
+                                    rc: &Envelope<EmptyData>|
+         -> Result<()> {
+            // Processing the same RespHello package again leads to retransmission (i.e. exactly the
+            // same output)
+            let rc_dup = proc_init_conf(srv, ic)?;
+            assert_eq!(rc.as_bytes(), rc_dup.as_bytes());
 
-        // Though if we directly call handle_resp_hello() we get an error since
-        // retransmission is not being handled by the cryptographic code
-        let mut discard_resp_conf = EmptyData::new_zeroed();
-        let res = srv.handle_init_conf(
-            &ic.payload,
-            &mut discard_resp_conf,
-            protocol_version.clone().keyed_hash(),
+            // Though if we directly call handle_resp_hello() we get an error since
+            // retransmission is not being handled by the cryptographic code
+            let mut discard_resp_conf = EmptyData::new_zeroed();
+            let res = srv.handle_init_conf(
+                &ic.payload,
+                &mut discard_resp_conf,
+                protocol_version.clone().keyed_hash(),
+            );
+            assert!(res.is_err());
+
+            // Obviously, a broken InitConf message should still be rejected
+            check_faulty_proc_init_conf(srv, ic_broken);
+
+            Ok(())
+        };
+
+        let (ska, pka) = keypair()?;
+        let (skb, pkb) = keypair()?;
+
+        // initialize server and a pre-shared key
+        let mut a = CryptoServer::new(ska, pka.clone());
+        let mut b = CryptoServer::new(skb, pkb.clone());
+
+        // introduce peers to each other
+        let b_peer = a.add_peer(
+            None,
+            pkb,
+            protocol_version.clone(),
+            OskDomainSeparator::default(),
+        )?;
+        let a_peer = b.add_peer(
+            None,
+            pka,
+            protocol_version.clone(),
+            OskDomainSeparator::default(),
+        )?;
+
+        // Execute protocol up till the responder confirmation (EmptyData)
+        let ih1 = proc_initiation(&mut a, b_peer)?;
+        let rh1 = proc_init_hello(&mut b, &ih1)?;
+        let ic1 = proc_resp_hello(&mut a, &rh1)?;
+        let rc1 = proc_init_conf(&mut b, &ic1)?;
+
+        // Modified version of ic1 and rc1, for tests that require it
+        let ic1_broken = break_payload(&mut a, b_peer, &ic1)?;
+        assert_ne!(ic1.as_bytes(), ic1_broken.as_bytes());
+
+        // Modified version of rc1, for tests that require it
+        let rc1_broken = break_payload(&mut b, a_peer, &rc1)?;
+        assert_ne!(rc1.as_bytes(), rc1_broken.as_bytes());
+
+        // Retransmission works as designed
+        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+
+        // Even with a couple of poll operations in between (which clears the cache
+        // after a time out of two minutes…we should never hit this time out in this
+        // cache)
+        for _ in 0..4 {
+            poll(&mut b)?;
+            check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+        }
+        // We can even validate that the data is coming out of the cache by changing the cache
+        // to use our broken messages. It does not matter that these messages are cryptographically
+        // broken since we insert them manually into the cache
+        // a_peer.known_init_conf_response()
+        KnownInitConfResponsePtr::insert_for_request_msg(
+            &mut b,
+            a_peer,
+            &ic1_broken,
+            rc1_broken.clone(),
         );
-        assert!(res.is_err());
+        check_retransmission(&mut b, &ic1_broken, &ic1, &rc1_broken)?;
 
-        // Obviously, a broken InitConf message should still be rejected
-        check_faulty_proc_init_conf(srv, ic_broken);
+        // Lets reset to the correct message though
+        KnownInitConfResponsePtr::insert_for_request_msg(&mut b, a_peer, &ic1, rc1.clone());
 
-        Ok(())
-    };
-
-    let (ska, pka) = keypair()?;
-    let (skb, pkb) = keypair()?;
-
-    // initialize server and a pre-shared key
-    let mut a = CryptoServer::new(ska, pka.clone());
-    let mut b = CryptoServer::new(skb, pkb.clone());
-
-    // introduce peers to each other
-    let b_peer = a.add_peer(
-        None,
-        pkb,
-        protocol_version.clone(),
-        OskDomainSeparator::default(),
-    )?;
-    let a_peer = b.add_peer(
-        None,
-        pka,
-        protocol_version.clone(),
-        OskDomainSeparator::default(),
-    )?;
-
-    // Execute protocol up till the responder confirmation (EmptyData)
-    let ih1 = proc_initiation(&mut a, b_peer)?;
-    let rh1 = proc_init_hello(&mut b, &ih1)?;
-    let ic1 = proc_resp_hello(&mut a, &rh1)?;
-    let rc1 = proc_init_conf(&mut b, &ic1)?;
-
-    // Modified version of ic1 and rc1, for tests that require it
-    let ic1_broken = break_payload(&mut a, b_peer, &ic1)?;
-    assert_ne!(ic1.as_bytes(), ic1_broken.as_bytes());
-
-    // Modified version of rc1, for tests that require it
-    let rc1_broken = break_payload(&mut b, a_peer, &rc1)?;
-    assert_ne!(rc1.as_bytes(), rc1_broken.as_bytes());
-
-    // Retransmission works as designed
-    check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-
-    // Even with a couple of poll operations in between (which clears the cache
-    // after a time out of two minutes…we should never hit this time out in this
-    // cache)
-    for _ in 0..4 {
+        // Again, nothing changes after calling poll
         poll(&mut b)?;
         check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-    }
-    // We can even validate that the data is coming out of the cache by changing the cache
-    // to use our broken messages. It does not matter that these messages are cryptographically
-    // broken since we insert them manually into the cache
-    // a_peer.known_init_conf_response()
-    KnownInitConfResponsePtr::insert_for_request_msg(
-        &mut b,
-        a_peer,
-        &ic1_broken,
-        rc1_broken.clone(),
-    );
-    check_retransmission(&mut b, &ic1_broken, &ic1, &rc1_broken)?;
 
-    // Lets reset to the correct message though
-    KnownInitConfResponsePtr::insert_for_request_msg(&mut b, a_peer, &ic1, rc1.clone());
+        // Except if we jump forward into the future past the point where the responder
+        // starts to initiate rekeying; in this case, the automatic time out is triggered and the cache is cleared
+        super::testutils::time_travel_forward(&mut b, REKEY_AFTER_TIME_RESPONDER);
 
-    // Again, nothing changes after calling poll
-    poll(&mut b)?;
-    check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
+        // As long as we do not call poll, everything is fine
+        check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
 
-    // Except if we jump forward into the future past the point where the responder
-    // starts to initiate rekeying; in this case, the automatic time out is triggered and the cache is cleared
-    super::testutils::time_travel_forward(&mut b, REKEY_AFTER_TIME_RESPONDER);
-
-    // As long as we do not call poll, everything is fine
-    check_retransmission(&mut b, &ic1, &ic1_broken, &rc1)?;
-
-    // But after we do, the response is gone and can not be recreated
-    // since the biscuit is stale
-    poll(&mut b)?;
-    check_faulty_proc_init_conf(&mut b, &ic1); // ic1 is now effectively broken
-    assert!(b.peers[0].known_init_conf_response.is_none()); // The cache is gone
-
+        // But after we do, the response is gone and can not be recreated
+        // since the biscuit is stale
+        poll(&mut b)?;
+        check_faulty_proc_init_conf(&mut b, &ic1); // ic1 is now effectively broken
+        assert!(b.peers[0].known_init_conf_response.is_none()); // The cache is gone
+        Ok(())
+    })?;
     Ok(())
 }
