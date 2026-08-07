@@ -516,12 +516,14 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
 }
 
 #[test]
+#[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn init_conf_retransmission_v02() -> Result<()> {
     init_conf_retransmission(ProtocolVersion::V02)
 }
 
 #[test]
+#[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn init_conf_retransmission_v03() -> Result<()> {
     init_conf_retransmission(ProtocolVersion::V03)
