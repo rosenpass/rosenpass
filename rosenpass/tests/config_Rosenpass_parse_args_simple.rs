@@ -2,8 +2,12 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-
-use rosenpass::config::{Keypair, Rosenpass, RosenpassPeer, Verbosity};
+use rosenpass::config::{
+    RosenpassKeypair, 
+    RosenpassPeer, 
+    Verbosity,
+    RosenpassConfig,
+};
 
 #[test]
 fn parse_simple() {
@@ -12,11 +16,11 @@ fn parse_simple() {
                 peer.test:9999 outfile /peer/rp-out";
     let argv = argv.split(' ').map(|s| s.to_string()).collect();
 
-    let config = Rosenpass::parse_args(argv).unwrap();
+    let config = RosenpassConfig::parse_args(argv).unwrap();
 
     assert_eq!(
         config.keypair,
-        Some(Keypair::new("/my/public-key", "/my/secret-key"))
+        Some(RosenpassKeypair::new("/my/public-key", "/my/secret-key"))
     );
     assert_eq!(config.verbosity, Verbosity::Verbose);
     assert_eq!(
