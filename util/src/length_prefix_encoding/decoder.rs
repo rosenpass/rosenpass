@@ -300,7 +300,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     pub fn read_from_stdio<R: io::Read>(
         &mut self,
         mut r: R,
-    ) -> Result<ReadFromIoReturn, ReadFromIoError> {
+    ) -> Result<ReadFromIoReturn<'_>, ReadFromIoError> {
         Ok(match self.next_slice_to_write_to()? {
             // Read some bytes; any MessageTooLargeError in the call to self.message_mut() is
             // ignored to ensure this function changes no state upon errors; the user should rerun

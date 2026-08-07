@@ -13,7 +13,7 @@ async fn janitor_demo() -> anyhow::Result<()> {
     let count = Arc::new(AtomicUsize::new(0));
 
     // Make sure the program has access to an ambient janitor
-    {
+    let result = {
         let count = count.clone();
         enter_janitor(async move {
             let _drop_guard = AsyncDropDemo::new(count.clone()).await;
@@ -48,6 +48,7 @@ async fn janitor_demo() -> anyhow::Result<()> {
         })
     }
     .await;
+    assert!(result.is_ok(), "janitor demo failed: {result:?}");
 
     // At this point, all background jobs have finished, now we can check the result of all our
     // additions

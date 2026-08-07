@@ -114,7 +114,7 @@ impl WireGuardDeviceImpl {
     }
 
     async fn open(&mut self, device_name: String) -> anyhow::Result<()> {
-        let mut rtnl_link = self.rtnl_netlink_handle()?.link();
+        let rtnl_link = self.rtnl_netlink_handle()?.link();
         let device_name_ref = &device_name;
 
         // Make sure that there is no device called `device_name` before we start
