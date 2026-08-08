@@ -140,7 +140,7 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - run: nix develop --command cargo test --workspace --all-features
+      - run: nix develop --command cargo test --workspace --all-features -- --test-threads=1
 
   cargo-fuzz:
     runs-on: ubicloud-standard-2
