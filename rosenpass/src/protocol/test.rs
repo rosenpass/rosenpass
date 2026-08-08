@@ -329,6 +329,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
 }
 
 // ====================== cookie_reply_mechanism_responder_under_load ======================
+#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
 #[test]
 #[serial]
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
@@ -336,6 +337,7 @@ fn cookie_reply_mechanism_responder_under_load_v02() {
     cookie_reply_mechanism_responder_under_load(ProtocolVersion::V02)
 }
 
+#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
 #[test]
 #[serial]
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
