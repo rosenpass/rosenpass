@@ -1875,6 +1875,10 @@ impl CryptoServer {
     ///
     /// Will panic if the given buffer `tx_buf` is not large enough.
     ///
+    /// # Return
+    ///
+    /// returns the number of bytes written into the `tx_buf` parameter
+    ///
     /// # Example
     ///
     /// See the example on how to use this function without [Self::poll] in [crate::protocol].
@@ -1894,6 +1898,10 @@ impl CryptoServer {
     /// Use this function with [`assert_tv::TestVectorActive`] in tests that require
     /// applying actual test vectors. See the `tests::test_vector_crypto_server`
     /// test for an example
+    ///
+    /// # Return
+    ///
+    /// returns the number of bytes written into the `tx_buf` parameter
     pub fn initiate_handshake_with_test_vector<TV: TestVector>(
         &mut self,
         peer: PeerPtr,
