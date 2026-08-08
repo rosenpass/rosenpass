@@ -53,6 +53,7 @@ fn setup_logging() {
     let _ = log_builder.try_init();
 }
 
+// ====================== handles_incorrect_size_messages ======================
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
@@ -165,6 +166,7 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
     Ok((a, b))
 }
 
+// ====================== test_regular_exchange ======================
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
@@ -238,6 +240,7 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
     });
 }
 
+// ====================== test_regular_init_conf_retransmit ======================
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
@@ -325,18 +328,21 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     });
 }
 
+// ====================== cookie_reply_mechanism_responder_under_load ======================
+#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
 #[test]
 #[serial]
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
 fn cookie_reply_mechanism_responder_under_load_v02() {
-    cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
+    cookie_reply_mechanism_responder_under_load(ProtocolVersion::V02)
 }
 
+#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
 #[test]
 #[serial]
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
 fn cookie_reply_mechanism_responder_under_load_v03() {
-    cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
+    cookie_reply_mechanism_responder_under_load(ProtocolVersion::V03)
 }
 
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
@@ -440,6 +446,7 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
     });
 }
 
+// ====================== cookie_reply_mechanism_initiator_bails_on_message_under_load ======================
 #[test]
 #[serial]
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
@@ -515,6 +522,7 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
     });
 }
 
+// ====================== init_conf_retransmission ======================
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE

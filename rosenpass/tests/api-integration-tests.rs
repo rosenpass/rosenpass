@@ -13,6 +13,7 @@ use rosenpass_util::{
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
 };
 use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
+use serial_test::serial;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
@@ -39,10 +40,13 @@ impl Drop for KillChild {
 }
 
 #[test]
+#[serial]
 fn api_integration_test_v02() -> anyhow::Result<()> {
     api_integration_test(ProtocolVersion::V02)
 }
 
+#[test]
+#[serial]
 fn api_integration_test_v03() -> anyhow::Result<()> {
     api_integration_test(ProtocolVersion::V03)
 }
