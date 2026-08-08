@@ -129,4 +129,7 @@ Don't want to use GitHub or only have an IPv6 connection? Rosenpass has set up t
 
 # Supported by
 
-Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
+Rosenpass has been funded through:
+
+- [NLNet](https://nlnet.nl/) with financial support for the European Commission's [NGI Assure](https://nlnet.nl/assure) program
+- [Sovereign Tech Fund](https://www.sovereign.tech/programs/fund) with financial support from German [Federal Ministry for Digital Transformation and Government Modernisation](https://bmds.bund.de/en/)
