@@ -1,8 +1,7 @@
+# documentation: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+
 version: 2
 updates:
-  # upgrade cargo patch versions once per week
-  # see `workflows/upgrade.yml`
-
   # disabled for now for testing...
   # # upgrade major and minor cargo dependencies soon
   # - package-ecosystem: "cargo"
@@ -13,17 +12,17 @@ updates:
   #     - update-types:
   #       - "major"
   #       - "minor"
-  #   # open-pull-requests-limit: 0 # temporarily disable dependabot
 
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:12"
+      interval: "cron"
+      cronjob: "12 4 * * MON,THU" # 4:12 in the morning twice per week
       timezone: "Europe/Berlin"
     allow:
       - dependency-type: "all" # update both Cargo.toml and Cargo.lock
+    cooldown:
+      default-days: 3
     groups:
       # group patches for better visibility
       weekly-cargo-patches:
@@ -41,4 +40,5 @@ updates:
       day: "monday"
       time: "04:23"
       timezone: "Europe/Berlin"
-    # open-pull-requests-limit: 0 # temporarily disable dependabot
+    cooldown:
+      default-days: 3
