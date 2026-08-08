@@ -22,9 +22,8 @@ updates:
       day: "monday"
       time: "04:12"
       timezone: "Europe/Berlin"
-    # allow:
-    #   - update-types:
-    #     - "patch"
+    allow:
+      - dependency-type: "all" # update both Cargo.toml and Cargo.lock
     groups:
       # group patches for better visibility
       weekly-cargo-patches:
