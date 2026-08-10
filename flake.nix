@@ -145,6 +145,7 @@
                 rustfmt
                 prettier
                 nushell # for the .ci/gen-workflow-files.nu script
+                man-db # renders generated manual pages in Rust integration tests
                 proverif-patched
               ];
             };
@@ -161,6 +162,7 @@
                 rustfmt
                 prettier
                 nushell # for the .ci/gen-workflow-files.nu script
+                man-db # renders generated manual pages in Rust integration tests
                 proverif-patched
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
