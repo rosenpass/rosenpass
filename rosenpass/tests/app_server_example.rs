@@ -8,23 +8,23 @@ use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt,
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
 use rosenpass::{
-    config::{ProtocolVersion, Verbosity},
+    config,
     protocol::osk_domain_separator::OskDomainSeparator,
 };
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn key_exchange_with_app_server_v02() -> anyhow::Result<()> {
-    key_exchange_with_app_server(ProtocolVersion::V02)
+    key_exchange_with_app_server(config::ProtocolVersion::V02)
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn key_exchange_with_app_server_v03() -> anyhow::Result<()> {
-    key_exchange_with_app_server(ProtocolVersion::V03)
+    key_exchange_with_app_server(config::ProtocolVersion::V03)
 }
 
-fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
+fn key_exchange_with_app_server(protocol_version: config::ProtocolVersion) -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
     let outfile_a = tmpdir.path().join("osk_a");
     let outfile_b = tmpdir.path().join("osk_b");
@@ -121,7 +121,7 @@ impl TestServer {
                                               // ipv4_any_binding(), // any IPv4 interface
                                               // ipv6_any_binding(), // any IPv6 interface
         ];
-        let verbosity = Verbosity::Verbose;
+        let verbosity = config::Verbosity::Verbose;
         let test_helpers = Some(AppServerTest {
             enable_dos_permanently: false,
             termination_handler: Some(termination_queue),

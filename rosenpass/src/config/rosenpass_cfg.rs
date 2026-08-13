@@ -1,5 +1,5 @@
 use crate::app_server::AppServer;
-use crate::config::{util, RosenpassKeypair, RosenpassPeer, Verbosity, WireGuard};
+use crate::config;
 use crate::protocol::basic_types::{SPk, SSk};
 use anyhow::{bail, ensure};
 use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
@@ -22,11 +22,11 @@ fn empty_api_config() -> crate::api::config::ApiConfig {
 /// i.e. configuration for the `rosenpass exchange` and `rosenpass exchange-config` commands
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct RosenpassConfig {
+pub struct RosenpassCfg {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
-    pub keypair: Option<RosenpassKeypair>,
+    pub keypair: Option<config::RosenpassKeypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -46,12 +46,12 @@ pub struct RosenpassConfig {
     ///
     /// This is subject to change. See [`Verbosity`] for details.
     #[serde(default)]
-    pub verbosity: Verbosity,
+    pub verbosity: config::Verbosity,
 
     /// list of peers
     ///
     /// See the [`RosenpassPeer`] type for more information and examples.
-    pub peers: Vec<RosenpassPeer>,
+    pub peers: Vec<config::RosenpassPeer>,
 
     /// path to the file which provided this configuration
     ///
@@ -61,7 +61,7 @@ pub struct RosenpassConfig {
     pub config_file_path: PathBuf,
 }
 
-impl Default for RosenpassConfig {
+impl Default for RosenpassCfg {
     /// Generate an empty configuration
     ///
     /// # Examples
@@ -74,7 +74,7 @@ impl Default for RosenpassConfig {
     }
 }
 
-impl RosenpassConfig {
+impl RosenpassCfg {
     /// load configuration from a TOML file
     ///
     /// NOTE: no validation is conducted, e.g. the paths specified in the configuration are not
@@ -95,7 +95,7 @@ impl RosenpassConfig {
         let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
 
         // resolve `~` (see https://github.com/rosenpass/rosenpass/issues/237)
-        use util::resolve_path_with_tilde;
+        use config::util::resolve_path_with_tilde;
         if let Some(ref mut keypair) = config.keypair {
             resolve_path_with_tilde(&mut keypair.public_key);
             resolve_path_with_tilde(&mut keypair.secret_key);
@@ -291,7 +291,7 @@ impl RosenpassConfig {
     #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(RosenpassKeypair::new(pk, sk)))
+        Self::new(Some(config::RosenpassKeypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -302,13 +302,13 @@ impl RosenpassConfig {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<RosenpassKeypair>) -> Self {
+    pub fn new(keypair: Option<config::RosenpassKeypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
             #[cfg(feature = "experiment_api")]
             api: crate::api::config::ApiConfig::default(),
-            verbosity: Verbosity::Quiet,
+            verbosity: config::Verbosity::Quiet,
             peers: vec![],
             config_file_path: PathBuf::new(),
         }
@@ -350,7 +350,7 @@ impl RosenpassConfig {
     #[doc = include_str!("../../tests/config_Rosenpass_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(RosenpassKeypair::new("", "")));
+        let mut config = Self::new(Some(config::RosenpassKeypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {
@@ -388,7 +388,7 @@ impl RosenpassConfig {
                 }
                 (Own, "listen", None) => OwnListen,
                 (Own, "verbose", None) => {
-                    config.verbosity = Verbosity::Verbose;
+                    config.verbosity = config::Verbosity::Verbose;
                     Own
                 }
                 (Own, "peer", None) => {
@@ -402,7 +402,7 @@ impl RosenpassConfig {
                     );
 
                     already_set.clear();
-                    current_peer = Some(RosenpassPeer::default());
+                    current_peer = Some(config::RosenpassPeer::default());
 
                     Peer
                 }
@@ -436,7 +436,7 @@ impl RosenpassConfig {
                     config.peers.push(maybe_peer.take().expect(p_exists));
 
                     already_set.clear();
-                    current_peer = Some(RosenpassPeer::default());
+                    current_peer = Some(config::RosenpassPeer::default());
 
                     Peer
                 }
@@ -477,7 +477,7 @@ impl RosenpassConfig {
                         "peer wireguard-dev was already set"
                     );
                     assert!(peer.wg.is_none());
-                    peer.wg = Some(WireGuard {
+                    peer.wg = Some(config::WireGuard {
                         device: dev.to_string(),
                         ..Default::default()
                     });

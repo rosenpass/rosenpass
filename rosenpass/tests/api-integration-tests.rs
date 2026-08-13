@@ -16,12 +16,7 @@ use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
-use rosenpass::config::{
-    ProtocolVersion, 
-    Verbosity,
-    RosenpassPeer,
-    RosenpassKeypair
-};
+use rosenpass::config;
 use rosenpass::protocol::basic_types::SymKey;
 
 struct KillChild(std::process::Child);
@@ -45,14 +40,14 @@ impl Drop for KillChild {
 
 #[test]
 fn api_integration_test_v02() -> anyhow::Result<()> {
-    api_integration_test(ProtocolVersion::V02)
+    api_integration_test(config::ProtocolVersion::V02)
 }
 
 fn api_integration_test_v03() -> anyhow::Result<()> {
-    api_integration_test(ProtocolVersion::V03)
+    api_integration_test(config::ProtocolVersion::V03)
 }
 
-fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
+fn api_integration_test(protocol_version: config::ProtocolVersion) -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
@@ -69,20 +64,18 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
     let peer_a_osk = tempfile!("a.osk");
     let peer_b_osk = tempfile!("b.osk");
 
-    use rosenpass::config;
-
-    let peer_a_keypair = RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
-    let peer_a = RosenpassConfig {
+    let peer_a_keypair = config::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a = config::RosenpassCfg {
         config_file_path: tempfile!("a.config"),
         keypair: Some(peer_a_keypair.clone()),
         listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
-        verbosity: Verbosity::Verbose,
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("b.pk"),
             key_out: Some(peer_a_osk.clone()),
             endpoint: None,
@@ -93,18 +86,18 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
         }],
     };
 
-    let peer_b_keypair = RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = RosenpassConfig {
+    let peer_b_keypair = config::RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = config::RosenpassCfg {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],
-        verbosity: Verbosity::Verbose,
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),

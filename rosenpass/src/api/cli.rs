@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use crate::config::RosenpassConfig as RosenpassConfig;
+use crate::config;
 
 use super::config::ApiConfig;
 
@@ -28,9 +28,9 @@ pub struct ApiCli {
 }
 
 impl ApiCli {
-    /// Copy the parameters set here into the [RosenpassConfig].
+    /// Copy the parameters set here into the [config::RosenpassCfg].
     /// Forwards to [Self::apply_to_api_config]:
-    pub fn apply_to_config(&self, cfg: &mut RosenpassConfig) -> anyhow::Result<()> {
+    pub fn apply_to_config(&self, cfg: &mut config::RosenpassCfg) -> anyhow::Result<()> {
         self.apply_to_api_config(&mut cfg.api)
     }
 

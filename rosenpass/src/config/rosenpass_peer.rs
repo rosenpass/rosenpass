@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::config::{ProtocolVersion, RosenpassPeerOskDomainSeparator, WireGuard};
+use crate::config;
 
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,13 +31,13 @@ pub struct RosenpassPeer {
 
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
-    pub wg: Option<WireGuard>,
+    pub wg: Option<config::WireGuard>,
 
     #[serde(default)]
     /// The protocol version to use for the exchange
-    pub protocol_version: ProtocolVersion,
+    pub protocol_version: config::ProtocolVersion,
 
     /// Allows using a custom domain separator
     #[serde(flatten)]
-    pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
+    pub osk_domain_separator: config::RosenpassPeerOskDomainSeparator,
 }

@@ -1,5 +1,5 @@
 use std::fs;
-use rosenpass::{cli::generate_and_save_keypair, config::RosenpassConfig};
+use rosenpass::{cli::generate_and_save_keypair, config};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
@@ -9,14 +9,14 @@ fn example_config_rosenpass_validate() -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
 
     // Empty validates OK
-    assert!(RosenpassConfig::empty().validate().is_ok());
+    assert!(config::RosenpassCfg::empty().validate().is_ok());
 
     // Missing secret key does not pass usefulness
-    assert!(RosenpassConfig::empty().check_usefullness().is_err());
+    assert!(config::RosenpassCfg::empty().check_usefullness().is_err());
 
     let sk = tmpdir.path().join("example.sk");
     let pk = tmpdir.path().join("example.pk");
-    let cfg = RosenpassConfig::from_sk_pk(&sk, &pk);
+    let cfg = config::RosenpassCfg::from_sk_pk(&sk, &pk);
 
     // Missing secret key does not validate
     assert!(cfg.validate().is_err());

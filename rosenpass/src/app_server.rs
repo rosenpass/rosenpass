@@ -26,7 +26,7 @@ use rosenpass_util::{
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
-use crate::config::{ProtocolVersion, Verbosity};
+use crate::config;
 
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
@@ -353,7 +353,7 @@ pub struct AppServer {
     pub peers: Vec<AppPeer>,
     /// If set to [Verbosity::Verbose], then some extra information will be printed
     /// at the info log level
-    pub verbosity: Verbosity,
+    pub verbosity: config::Verbosity,
     /// Used by [AppServer::try_recv] to ensure that all packages have been read
     /// from the UDP sockets
     pub all_sockets_drained: bool,
@@ -804,7 +804,7 @@ impl AppServer {
     pub fn new(
         keypair: Option<(SSk, SPk)>,
         addrs: Vec<SocketAddr>,
-        verbosity: Verbosity,
+        verbosity: config::Verbosity,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<Self> {
         // Setup Mio itself
@@ -970,7 +970,7 @@ impl AppServer {
     /// If set to [Verbosity::Verbose], then some extra information will be printed
     /// at the info log level
     pub fn verbose(&self) -> bool {
-        matches!(self.verbosity, Verbosity::Verbose)
+        matches!(self.verbosity, config::Verbosity::Verbose)
     }
 
     /// Used by [Self::new] to register a new udp listen source
@@ -1045,7 +1045,7 @@ impl AppServer {
         outfile: Option<PathBuf>,
         broker_peer: Option<BrokerPeer>,
         hostname: Option<String>,
-        protocol_version: ProtocolVersion,
+        protocol_version: config::ProtocolVersion,
         osk_domain_separator: OskDomainSeparator,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {

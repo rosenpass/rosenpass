@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
 use crate::protocol::basic_types::{SPk, SSk, SymKey};
-use crate::config;
+use super::config;
 
 #[cfg(feature = "experiment_api")]
 use {
@@ -26,8 +26,7 @@ use {
     log::{error, info},
     mio::net::UnixStream,
     rosenpass_util::fd::claim_fd,
-    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
-    rosenpass_wireguard_broker::WireguardBrokerMio,
+    rosenpass_wireguard_broker::{brokers::mio_client::MioBrokerClient, WireguardBrokerMio},
     rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
     std::os::unix::net,
     std::process::Command,
@@ -116,7 +115,7 @@ impl CliArgs {
     ///
     /// Generally the flow of control here is that all the command line parameters
     /// are merged into the configuration file to avoid much code duplication.
-    pub fn apply_to_config(&self, _cfg: &mut config::RosenpassConfig) -> anyhow::Result<()> {
+    pub fn apply_to_config(&self, _cfg: &mut config::RosenpassCfg) -> anyhow::Result<()> {
         #[cfg(feature = "experiment_api")]
         self.api.apply_to_config(_cfg)?;
         Ok(())
@@ -337,7 +336,7 @@ impl CliArgs {
                             "config file {config_file:?} does not exist"
                         );
 
-                        let config = config::RosenpassConfig::load(config_file)?;
+                        let config = config::RosenpassCfg::load(config_file)?;
                         let keypair = config
                             .keypair
                             .context("Config file present, but no keypair is specified.")?;
@@ -380,7 +379,7 @@ impl CliArgs {
                     "config file '{config_file:?}' does not exist"
                 );
 
-                let mut config = config::RosenpassConfig::load(config_file)?;
+                let mut config = config::RosenpassCfg::load(config_file)?;
                 config.validate()?;
                 self.apply_to_config(&mut config)?;
                 config.check_usefullness()?;
@@ -396,7 +395,7 @@ impl CliArgs {
                 let mut rest_of_args = rest_of_args.clone();
                 rest_of_args.insert(0, first_arg.clone());
                 let args = rest_of_args;
-                let mut config = config::RosenpassConfig::parse_args(args)?;
+                let mut config = config::RosenpassCfg::parse_args(args)?;
 
                 if let Some(p) = config_file {
                     config.store(p)?;
@@ -411,7 +410,7 @@ impl CliArgs {
 
             Some(Validate { config_files }) => {
                 for file in config_files {
-                    match config::RosenpassConfig::load(file) {
+                    match config::RosenpassCfg::load(file) {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
                             match config.validate() {
@@ -432,7 +431,7 @@ impl CliArgs {
 
     /// Used by [Self::run] to start the Rosenpass key exchange server
     fn event_loop(
-        config: config::RosenpassConfig,
+        config: config::RosenpassCfg,
         broker_interface: Option<BrokerInterface>,
         test_helpers: Option<AppServerTest>,
     ) -> anyhow::Result<()> {
