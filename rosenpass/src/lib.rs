@@ -22,6 +22,11 @@ pub mod hash_domains;
 pub mod msgs;
 pub mod protocol;
 
+#[cfg(not(feature="expose_internal_modules"))]
+pub(crate) mod internal;
+#[cfg(feature = "expose_internal_modules")]
+pub mod internal;
+
 /// Error types used in diverse places across Rosenpass
 #[derive(thiserror::Error, Debug)]
 pub enum RosenpassError {

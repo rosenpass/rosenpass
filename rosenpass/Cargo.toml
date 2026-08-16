@@ -110,6 +110,7 @@ experiment_api = [
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["hex", "heck"]
 trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
+expose_internal_modules = []
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
