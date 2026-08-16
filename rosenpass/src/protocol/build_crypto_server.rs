@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use rosenpass_util::mem::{DiscardResultExt, SwapWithDefaultExt};
-use rosenpass_util::{build::Build, result::ensure_or};
+use rosenpass::internal::util::mem::{DiscardResultExt, SwapWithDefaultExt};
+use rosenpass::internal::util::{build::Build, result::ensure_or};
 
 use crate::config::ProtocolVersion;
 
@@ -143,12 +143,12 @@ pub struct MissingKeypair;
 /// The setup will be much simplified if one is provided, at the cost of some flexibility.
 /// It's however possible to defer this step in case your application requires it.
 ///
-/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site] and [ConstructionSite][rosenpass_util::build::ConstructionSite].
+/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site] and [ConstructionSite][rosenpass::internal::util::build::ConstructionSite].
 ///
 /// # Example
 ///
 /// ```rust
-/// use rosenpass_util::build::Build;
+/// use rosenpass::internal::util::build::Build;
 /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
 ///
 /// use rosenpass::config::ProtocolVersion;
@@ -279,7 +279,7 @@ impl BuildCryptoServer {
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
     ///
     /// // Deferred initialization: Create builder first, add the key pair later
@@ -304,7 +304,7 @@ impl BuildCryptoServer {
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair, KeypairAlreadySet};
     ///
     /// // In this case, we'll create a functional builder from its various components
@@ -331,7 +331,7 @@ impl BuildCryptoServer {
     /// ```rust
     /// use rosenpass::config::ProtocolVersion;
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -400,7 +400,7 @@ impl BuildCryptoServer {
     ///  Extracting the server configuration from a builder:
     ///
     /// ```rust
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     ///
     /// use rosenpass::config::ProtocolVersion;

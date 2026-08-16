@@ -15,7 +15,7 @@ use anyhow::{bail, ensure};
 
 use serde::{Deserialize, Serialize};
 
-use rosenpass_util::file::{LoadValue, Visibility, fopen_w};
+use rosenpass::internal::util::file::{LoadValue, Visibility, fopen_w};
 
 use crate::protocol::basic_types::{SPk, SSk};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;

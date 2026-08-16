@@ -18,10 +18,10 @@ use rosenpass::{
     },
 };
 use rosenpass_secret_memory::Secret;
-use rosenpass_util::file::{LoadValue as _, LoadValueB64};
-use rosenpass_util::functional::{ApplyExt, MutatingExt};
-use rosenpass_util::result::OkExt;
-use rosenpass_util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
+use rosenpass::internal::util::file::{LoadValue as _, LoadValueB64};
+use rosenpass::internal::util::functional::{ApplyExt, MutatingExt};
+use rosenpass::internal::util::result::OkExt;
+use rosenpass::internal::util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
 };

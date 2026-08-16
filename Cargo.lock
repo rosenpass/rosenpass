@@ -1994,7 +1994,6 @@ dependencies = [
  "rosenpass-constant-time",
  "rosenpass-secret-memory",
  "rosenpass-to",
- "rosenpass-util",
  "rosenpass-wireguard-broker",
  "rustix",
  "serde",
@@ -2007,6 +2006,7 @@ dependencies = [
  "tempfile",
  "test_bin",
  "thiserror 2.0.20",
+ "tokio",
  "toml",
  "uds",
  "zerocopy",
@@ -2038,7 +2038,6 @@ dependencies = [
  "rosenpass-oqs",
  "rosenpass-secret-memory",
  "rosenpass-to",
- "rosenpass-util",
  "shake",
  "static_assertions",
  "thiserror 2.0.20",
@@ -2077,7 +2076,6 @@ dependencies = [
  "rosenpass-cipher-traits",
  "rosenpass-constant-time",
  "rosenpass-secret-memory",
- "rosenpass-util",
 ]
 
 [[package]]
@@ -2100,7 +2098,6 @@ dependencies = [
  "rosenpass-cipher-traits",
  "rosenpass-ciphers",
  "rosenpass-secret-memory",
- "rosenpass-util",
  "rosenpass-wireguard-broker",
  "rtnetlink",
  "serde",
@@ -2127,7 +2124,6 @@ dependencies = [
  "procspawn",
  "rand 0.10.2",
  "rosenpass-to",
- "rosenpass-util",
  "serde",
  "serde_json",
  "tempfile",
@@ -2139,26 +2135,6 @@ name = "rosenpass-to"
 version = "0.1.0"
 dependencies = [
  "doc-comment",
-]
-
-[[package]]
-name = "rosenpass-util"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64ct",
- "libcrux-test-utils",
- "log",
- "mio",
- "rustix",
- "static_assertions",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "typenum",
- "uds",
- "zerocopy",
- "zeroize",
 ]
 
 [[package]]
@@ -2176,7 +2152,6 @@ dependencies = [
  "rand 0.10.2",
  "rosenpass-secret-memory",
  "rosenpass-to",
- "rosenpass-util",
  "rustix",
  "thiserror 2.0.20",
  "tokio",

@@ -1,6 +1,6 @@
 use zerocopy::{Ref, SplitByteSlice};
 
-use rosenpass_util::zerocopy::{RefMaker, ZerocopySliceExt};
+use rosenpass::internal::util::zerocopy::{RefMaker, ZerocopySliceExt};
 
 use super::{
     PingRequest, PingResponse, RawMsgType, RefMakerRawMsgTypeExt, RequestMsgType, RequestRef,

@@ -4,8 +4,8 @@ use std::os::fd::OwnedFd;
 
 use mio::net::UnixStream;
 use rosenpass_secret_memory::Secret;
-use rosenpass_util::mio::ReadWithFileDescriptors;
-use rosenpass_util::{
+use rosenpass::internal::util::mio::ReadWithFileDescriptors;
+use rosenpass::internal::util::{
     io::{IoResultKindHintExt, TryIoResultKindHintExt},
     length_prefix_encoding::{
         decoder::{self as lpe_decoder, LengthPrefixDecoder},

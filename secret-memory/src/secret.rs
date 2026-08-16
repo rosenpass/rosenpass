@@ -7,17 +7,17 @@ use std::path::Path;
 use anyhow::Context;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use rosenpass_util::b64::{b64_decode, b64_encode};
-use rosenpass_util::file::{
+use rosenpass::internal::util::b64::{b64_decode, b64_encode};
+use rosenpass::internal::util::file::{
     LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
     fopen_r,
 };
-use rosenpass_util::functional::mutating;
+use rosenpass::internal::util::functional::mutating;
 
 use crate::alloc::{SecretBox, SecretVec, secret_box};
 use crate::file::StoreSecret;
 
-use rosenpass_util::file::{Visibility, fopen_w};
+use rosenpass::internal::util::file::{Visibility, fopen_w};
 use std::io::Write;
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will

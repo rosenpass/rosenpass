@@ -1,4 +1,4 @@
-use rosenpass_util::zerocopy::{
+use rosenpass::internal::util::zerocopy::{
     RefMaker, ZerocopyEmancipateExt, ZerocopyEmancipateMutExt, ZerocopySliceExt,
 };
 use zerocopy::{ByteSlice, ByteSliceMut, Ref, SplitByteSliceMut};

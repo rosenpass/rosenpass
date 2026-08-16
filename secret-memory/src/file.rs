@@ -1,7 +1,7 @@
 //! Objects that implement this Trait provide a way to store their data in way that respects the
 //! confidentiality of its data. Specifically, an object implementing this Trait guarantees
 //! if its data with [store_secret](StoreSecret::store_secret) are saved in the file with visibility
-//! equivalent to [rosenpass_util::file::Visibility::Secret].
+//! equivalent to [rosenpass::internal::util::file::Visibility::Secret].
 
 use std::path::Path;
 
@@ -13,7 +13,7 @@ use std::path::Path;
 /// use std::path::Path;
 /// use rosenpass_secret_memory::file::StoreSecret;
 ///
-/// use rosenpass_util::file::{fopen_w, Visibility};
+/// use rosenpass::internal::util::file::{fopen_w, Visibility};
 ///
 /// struct MyWeirdI32 {
 ///     _priv_i32: [u8; 4],
@@ -37,10 +37,10 @@ pub trait StoreSecret {
     type Error;
 
     /// Stores the object securely. In particular, it ensures that the visibility is equivalent to
-    /// [rosenpass_util::file::Visibility::Secret].
+    /// [rosenpass::internal::util::file::Visibility::Secret].
     fn store_secret<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>;
 
     /// Stores the object. No requirement on the visibility is given, but it is common to store
-    /// the data with visibility equivalent to [rosenpass_util::file::Visibility::Public].
+    /// the data with visibility equivalent to [rosenpass::internal::util::file::Visibility::Public].
     fn store<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>;
 }

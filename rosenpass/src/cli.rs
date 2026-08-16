@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::file::StoreSecret;
-use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
+use rosenpass::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
@@ -26,7 +26,7 @@ use {
     command_fds::{CommandFdExt, FdMapping},
     log::{error, info},
     mio::net::UnixStream,
-    rosenpass_util::fd::claim_fd,
+    rosenpass::internal::util::fd::claim_fd,
     rosenpass_wireguard_broker::WireguardBrokerMio,
     rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
     rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},

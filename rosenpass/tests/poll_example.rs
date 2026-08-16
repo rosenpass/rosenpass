@@ -7,7 +7,7 @@ use std::{
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
-use rosenpass_util::result::OkExt;
+use rosenpass::internal::util::result::OkExt;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;

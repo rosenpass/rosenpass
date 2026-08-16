@@ -1,4 +1,4 @@
-use rosenpass_util::functional::ApplyExt;
+use rosenpass::internal::util::functional::ApplyExt;
 
 fn expect_section(manpage: &str, section: &str) -> anyhow::Result<()> {
     anyhow::ensure!(manpage.lines().any(|line| { line.starts_with(section) }));

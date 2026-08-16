@@ -15,11 +15,11 @@ use derive_builder::Builder;
 use log::{error, info, warn};
 use zerocopy::IntoBytes;
 
-use rosenpass_util::attempt;
-use rosenpass_util::fmt::debug::NullDebug;
-use rosenpass_util::functional::{ApplyExt, run};
-use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
-use rosenpass_util::{
+use rosenpass::internal::util::attempt;
+use rosenpass::internal::util::fmt::debug::NullDebug;
+use rosenpass::internal::util::functional::{ApplyExt, run};
+use rosenpass::internal::util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
+use rosenpass::internal::util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
@@ -204,7 +204,7 @@ impl AppPeer {
     ///
     /// ```
     /// use rosenpass::app_server::{Endpoint, AppPeer};
-    /// use rosenpass_util::functional::run;
+    /// use rosenpass::internal::util::functional::run;
     ///
     /// let mut peer = AppPeer {
     ///   outfile: None,

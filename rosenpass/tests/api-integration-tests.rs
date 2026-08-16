@@ -8,11 +8,11 @@ use std::{
 use anyhow::{Context, bail};
 use rosenpass::api;
 use rosenpass_to::{To, ops::copy_slice_least_src};
-use rosenpass_util::{
+use rosenpass::internal::util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
 };
-use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
+use rosenpass::internal::util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use serial_test::serial;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;

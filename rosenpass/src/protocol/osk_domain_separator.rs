@@ -17,7 +17,7 @@
 //! in particular.
 
 use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
-use rosenpass_util::result::OkExt;
+use rosenpass::internal::util::result::OkExt;
 
 use crate::hash_domains;
 

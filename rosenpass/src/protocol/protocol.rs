@@ -27,7 +27,7 @@ use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
 use rosenpass_constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass_util::{
+use rosenpass::internal::util::{
     cat,
     functional::ApplyExt,
     mem::{DiscardResultExt, cpy_min},
@@ -57,7 +57,7 @@ use super::timing::{BCE, Timing, UNENDING, has_happened};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
 #[cfg(feature = "trace_bench")]
-use rosenpass_util::trace_bench::Trace as _;
+use rosenpass::internal::util::trace_bench::Trace as _;
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 /// This is the implementation of our cryptographic protocol.
@@ -3512,7 +3512,7 @@ impl CryptoServer {
 macro_rules! protocol_section {
     ($label:expr, $body:block) => {{
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span($label);
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span($label);
 
         #[allow(unused_braces)]
         $body
@@ -3544,7 +3544,7 @@ impl CryptoServer {
         let test_values: HandleInitiationTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_initiation");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_initiation");
 
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
@@ -3671,7 +3671,7 @@ impl CryptoServer {
         let test_values: HandleInitHelloTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_hello");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_init_hello");
 
         let mut core = HandshakeState::zero(keyed_hash);
 
@@ -3802,7 +3802,7 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_hello");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
 
         // RHI2
         let peer = self
@@ -3926,7 +3926,7 @@ impl CryptoServer {
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_conf");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_init_conf");
 
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
@@ -4033,7 +4033,7 @@ impl CryptoServer {
         seal_broken: String,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_conf");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_resp_conf");
 
         let rc: &EmptyData = &msg_in.payload;
         let sid = SessionId::from_slice(&rc.sid);
@@ -4089,7 +4089,7 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_cookie_reply");
+        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
 
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))

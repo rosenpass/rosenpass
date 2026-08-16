@@ -1,6 +1,6 @@
 use std::{fs, process::exit};
 
-use rosenpass_util::tokio::janitor::ensure_janitor;
+use rosenpass::internal::util::tokio::janitor::ensure_janitor;
 
 use rosenpass_secret_memory::policy;
 

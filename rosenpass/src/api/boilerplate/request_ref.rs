@@ -6,8 +6,8 @@ use super::{ByteSliceRefExt, MessageAttributes, PingRequest, RequestMsgType};
 
 /// Helper for producing API message request references, [RequestRef].
 ///
-/// This is to [RequestRef] as [rosenpass_util::zerocopy::RefMaker] is to
-/// [zerocopy::Ref].
+/// This is to [`RequestRef`] as [`rosenpass::internal::util::zerocopy::RefMaker`] is to
+/// [`zerocopy::Ref`].
 struct RequestRefMaker<B> {
     buf: B,
     msg_type: RequestMsgType,

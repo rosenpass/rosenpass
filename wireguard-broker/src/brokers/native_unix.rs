@@ -38,8 +38,8 @@ use derive_builder::Builder;
 use log::{debug, error};
 use postcard::{from_bytes, to_allocvec};
 use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_util::b64::b64_decode;
-use rosenpass_util::{b64::B64Display, file::StoreValueB64Writer};
+use rosenpass::internal::util::b64::b64_decode;
+use rosenpass::internal::util::{b64::B64Display, file::StoreValueB64Writer};
 
 use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio};
 use crate::{WG_KEY_LEN, WG_PEER_LEN};

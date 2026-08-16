@@ -51,9 +51,9 @@ use anyhow::{Context, bail};
 use mio::Interest;
 use rosenpass_secret_memory::Secret;
 use rosenpass_to::{To, ops::copy_slice_least_src};
-use rosenpass_util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
-use rosenpass_util::length_prefix_encoding::decoder::LengthPrefixDecoder;
-use rosenpass_util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+use rosenpass::internal::util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
+use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
+use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
 use std::borrow::{Borrow, BorrowMut};
 use std::os::fd::AsFd;
 

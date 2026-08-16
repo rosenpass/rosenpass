@@ -16,7 +16,7 @@ use rosenpass::api::{
 };
 use rosenpass::config::ProtocolVersion;
 use rosenpass::protocol::basic_types::SymKey;
-use rosenpass_util::{
+use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
     io::IoErrorKind,

@@ -1,12 +1,12 @@
 use crate::debug::debug_crypto_array;
 use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass_util::b64::{b64_decode, b64_encode};
-use rosenpass_util::file::{
+use rosenpass::internal::util::b64::{b64_decode, b64_encode};
+use rosenpass::internal::util::file::{
     LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue, StoreValueB64,
     StoreValueB64Writer, Visibility, fopen_r, fopen_w,
 };
-use rosenpass_util::functional::mutating;
+use rosenpass::internal::util::functional::mutating;
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
 use std::io::Write;
@@ -371,7 +371,7 @@ mod tests {
     #[allow(clippy::module_inception)]
     mod tests {
         use crate::{Public, PublicBox};
-        use rosenpass_util::{
+        use rosenpass::internal::util::{
             b64::b64_encode,
             file::{
                 LoadValue, LoadValueB64, StoreValue, StoreValueB64, StoreValueB64Writer,

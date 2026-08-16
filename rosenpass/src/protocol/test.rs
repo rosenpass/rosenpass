@@ -7,7 +7,7 @@ use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::Public;
-use rosenpass_util::mem::DiscardResultExt;
+use rosenpass::internal::util::mem::DiscardResultExt;
 
 use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MAX_MESSAGE_LEN, MsgType, RespHello};
 

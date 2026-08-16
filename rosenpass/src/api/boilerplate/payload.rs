@@ -1,4 +1,4 @@
-use rosenpass_util::zerocopy::ZerocopyMutSliceExt;
+use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
 use zerocopy::{ByteSliceMut, FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use super::{Message, RawMsgType, RequestMsgType, ResponseMsgType};

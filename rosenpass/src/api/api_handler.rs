@@ -5,7 +5,7 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass_util::{
+use rosenpass::internal::util::{
     fd::FdIo,
     functional::{ApplyExt, run},
     io::ReadExt,
@@ -168,7 +168,7 @@ where
             let construction_site = self.app_server_mut().crypto_site.borrow_mut();
 
             // Retrieve the builder
-            use rosenpass_util::build::ConstructionSite as C;
+            use rosenpass::internal::util::build::ConstructionSite as C;
             let maybe_builder = match construction_site {
                 C::Builder(builder) => Some(builder),
                 C::Product(_) => None,
@@ -243,7 +243,7 @@ where
                 .context("Invalid request – socket missing.")?;
             // TODO: We need to have this outside linux
             #[cfg(target_os = "linux")]
-            rosenpass_util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
+            rosenpass::internal::util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
             mio::net::UdpSocket::from_std(sock).ok()

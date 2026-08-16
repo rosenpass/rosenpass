@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use rosenpass_util::file::{LoadValueB64, StoreValue, StoreValueB64};
+use rosenpass::internal::util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::basic_types::{SPk, SSk};
@@ -121,8 +121,8 @@ mod tests {
     use rosenpass::protocol::basic_types::{SPk, SSk};
     use rosenpass_secret_memory::Secret;
     use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
-    use rosenpass_util::file::LoadValue;
-    use rosenpass_util::file::LoadValueB64;
+    use rosenpass::internal::util::file::LoadValue;
+    use rosenpass::internal::util::file::LoadValueB64;
     use tempfile::tempdir;
 
     use crate::key::{WG_B64_LEN, genkey, pubkey};

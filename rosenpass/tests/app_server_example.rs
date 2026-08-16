@@ -3,7 +3,7 @@ use std::{net::SocketAddr, ops::DerefMut, str::FromStr, sync::mpsc, time::Durati
 
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
-use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
+use rosenpass::internal::util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};

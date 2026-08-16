@@ -45,7 +45,6 @@ name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-util = { path = "../util" }
 rosenpass-constant-time = { path = "../constant-time" }
 rosenpass-ciphers = { path = "../ciphers" }
 rosenpass-cipher-traits = { path = "../cipher-traits" }
@@ -84,6 +83,11 @@ assert_tv = { version = "0.6" } #Dev dependencies
 base64 = { version = "0.23.0" }
 serde_json = { version = "1.0.140" }
 num_enum = "0.7.6"
+# dependencies of `rosenpass_util`, now `rosenpass::internal::util`:
+tokio = { version = "1.46", optional = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+base64ct = { version = "1.6.0", default-features = false }
+typenum = { version = "1.17.0" }
+
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
@@ -105,13 +109,18 @@ experiment_api = [
   "dep:uds",
   "dep:command-fds",
   "dep:rustix",
-  "rosenpass-util/experiment_file_descriptor_passing",
+  "experiment_file_descriptor_passing",
   "rosenpass-wireguard-broker/experiment_api",
 ]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
-trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
+trace_bench = ["dep:libcrux-test-utils"]
 expose_internal_modules = []
+# features of `rosenpass_util`:
+experiment_file_descriptor_passing = ["dep:uds"]
+tokio = ["dep:tokio"]
+
+
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
