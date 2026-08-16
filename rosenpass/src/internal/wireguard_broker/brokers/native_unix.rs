@@ -8,8 +8,8 @@
 //!
 //! ```no_run
 //! use rosenpass::internal::secret_memory::{Public, Secret};
-//! use rosenpass_wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
-//! use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
+//! use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
+//! use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
 //!
 //! # fn main() -> Result<(), anyhow::Error> {
 //! // Create a broker instance
@@ -37,12 +37,12 @@ use std::thread;
 use derive_builder::Builder;
 use log::{debug, error};
 use postcard::{from_bytes, to_allocvec};
-use rosenpass::internal::secret_memory::{Public, Secret};
-use rosenpass::internal::util::b64::b64_decode;
-use rosenpass::internal::util::{b64::B64Display, file::StoreValueB64Writer};
+use crate::internal::secret_memory::{Public, Secret};
+use crate::internal::util::b64::b64_decode;
+use crate::internal::util::{b64::B64Display, file::StoreValueB64Writer};
 
-use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio};
-use crate::{WG_KEY_LEN, WG_PEER_LEN};
+use crate::internal::wireguard_broker::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio};
+use crate::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN};
 
 /// Maximum size of a base64-encoded WireGuard key in bytes
 const MAX_B64_KEY_SIZE: usize = WG_KEY_LEN * 5 / 3;
@@ -162,9 +162,9 @@ impl WireguardBrokerMio for NativeUnixBroker {
 /// # Examples
 ///
 /// ```
-/// use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
+/// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
 /// use rosenpass::internal::secret_memory::Public;
-/// use rosenpass_wireguard_broker::WG_PEER_LEN;
+/// use rosenpass::internal::wireguard_broker::WG_PEER_LEN;
 ///
 /// let config = NativeUnixBrokerConfigBase {
 ///     interface: "wg0".to_string(),
@@ -195,7 +195,7 @@ impl NativeUnixBrokerConfigBaseBuilder {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use rosenpass_wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
+    /// use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
     /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
     /// // set peer id to [48;32] encoded as base64
     /// peer_cfg.peer_id_b64("MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=")?;
@@ -231,7 +231,7 @@ impl NativeUnixBrokerConfigBaseBuilder {
     /// # Examples
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
+    /// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
     ///
     /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
     /// // Set typical wireguard parameters

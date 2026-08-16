@@ -19,6 +19,23 @@ name = "rosenpass-gen-ipc-msg-types"
 path = "src/bin/gen-ipc-msg-types.rs"
 required-features = ["experiment_api", "internal_bin_gen_ipc_msg_types"]
 
+[[bin]]
+# from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+name = "rosenpass-wireguard-broker-privileged"
+path = "src/internal/wireguard_broker/bin/priviledged.rs"
+test = false
+doc = false
+required-features = ["experiment_api"]
+
+[[bin]]
+# from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+name = "rosenpass-wireguard-broker-socket-handler"
+test = false
+path = "src/internal/wireguard_broker/bin/socket_handler.rs"
+doc = false
+required-features = ["experiment_api"]
+
+
 [[test]]
 name = "api-integration-tests"
 required-features = ["experiment_api", "internal_testing"]
@@ -65,7 +82,6 @@ rand = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 home = "0.5.12"
 derive_builder = "0.20.2"
-rosenpass-wireguard-broker = { path = "../wireguard-broker" }
 zeroize = "1.9"
 hex-literal = { version = "1.1.0", optional = true }
 hex = { version = "0.4.3", optional = true }
@@ -89,6 +105,11 @@ shake = "0.1.0"
 # dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
 memsec = { workspace = true }
 allocator-api2 = { workspace = true }
+# dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+wireguard-uapi = { workspace = true }
+postcard = { workspace = true } # Socket handler only
+libc = { workspace = true, optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
@@ -111,14 +132,14 @@ procspawn = { version = "1.0.1", features = ["test-support"] }
 
 [features]
 experiment_cookie_dos_mitigation = []
-experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
+experiment_memfd_secret = []
 experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
   "dep:rustix",
+  "dep:libc", # from `rosenpass-wireguard-broker
   "experiment_file_descriptor_passing",
-  "rosenpass-wireguard-broker/experiment_api",
 ]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
@@ -129,6 +150,7 @@ experiment_file_descriptor_passing = ["dep:uds"]
 tokio = ["dep:tokio"]
 # featrues of `rosenpass-ciphers`:
 bench = []
+
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

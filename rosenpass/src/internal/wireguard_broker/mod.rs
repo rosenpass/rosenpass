@@ -1,16 +1,20 @@
 //! A broker interface for managing WireGuard pre-shared keys (PSK).
 //!
-//! This crate provides traits and implementations for interacting with WireGuard interfaces
+//! This module provides traits and implementations for interacting with WireGuard interfaces
 //! to set pre-shared keys for peers. It supports different backend implementations including:
 //! - Native Unix command-line interface
 //! - Linux netlink interface
 //! - Custom Unix socket protocol
+//! 
+//! It also contains a small application purpose-built to supply WireGuard in the linux kernel with pre-shared keys.
+//! 
+//! This is an internal library; not guarantee is made about its API at this point in time.
 //!
-//! # Examples
+//! ## Examples
 //!
 //! ```no_run
 //! # use rosenpass::internal::secret_memory::{Public, Secret};
-//! # use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
+//! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! # use std::error::Error;
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
@@ -20,7 +24,7 @@
 //! # let psk = Secret::<WG_KEY_LEN>::zero();
 //!
 //! // Create a native Unix broker
-//! let mut broker = rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBroker::new();
+//! let mut broker = rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBroker::new();
 //!
 //! // Configure and set PSK
 //! let config = SerializedBrokerConfig {
@@ -34,6 +38,7 @@
 //! # Ok(())
 //! # }
 //! ```
+//! 
 
 use rosenpass::internal::secret_memory::{Public, Secret};
 use std::fmt::Debug;

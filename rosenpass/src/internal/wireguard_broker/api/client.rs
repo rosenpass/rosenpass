@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use rosenpass_wireguard_broker::api::client::{BrokerClient, BrokerClientIo};
+//! use rosenpass::internal::wireguard_broker::api::client::{BrokerClient, BrokerClientIo};
 //! #[derive(Debug)]
 //! struct MyIo;
 //!
@@ -34,11 +34,11 @@
 //! # Protocol
 //!
 //! The client implements a simple request-response protocol for setting WireGuard pre-shared keys.
-//! Messages are serialized using a binary format defined in the [`crate::api::msgs`] module.
+//! Messages are serialized using a binary format defined in the [`super::msgs`] module.
 
 use std::{borrow::BorrowMut, fmt::Debug};
 
-use crate::{
+use super::super::{
     SerializedBrokerConfig, WireGuardBroker,
     api::{
         config::NetworkBrokerConfig,

@@ -8,12 +8,12 @@
 //!
 //! ```no_run
 //! # use mio::net::UnixStream;
-//! # use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
-//! # use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
+//! # use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+//! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
 //! # use mio::{Events, Interest, Poll, Token};
 //! # use rosenpass::internal::secret_memory::{Public, Secret};
-//! # use rosenpass_wireguard_broker::api::config::NetworkBrokerConfig;
-//! # use rosenpass_wireguard_broker::SerializedBrokerConfig;
+//! # use rosenpass::internal::wireguard_broker::api::config::NetworkBrokerConfig;
+//! # use rosenpass::internal::wireguard_broker::SerializedBrokerConfig;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let socket = UnixStream::connect("/path/to/broker.sock")?;
 //! let mut client = MioBrokerClient::new(socket);
@@ -49,18 +49,18 @@
 
 use anyhow::{Context, bail};
 use mio::Interest;
-use rosenpass::internal::secret_memory::Secret;
+use crate::internal::secret_memory::Secret;
 use rosenpass_to::{To, ops::copy_slice_least_src};
-use rosenpass::internal::util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
-use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
-use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+use crate::internal::util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
+use crate::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
+use crate::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
 use std::borrow::{Borrow, BorrowMut};
 use std::os::fd::AsFd;
 
-use crate::api::client::{
+use crate::internal::wireguard_broker::api::client::{
     BrokerClient, BrokerClientIo, BrokerClientPollResponseError, BrokerClientSetPskError,
 };
-use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
+use crate::internal::wireguard_broker::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 
 /// WireGuard broker client using mio for non-blocking I/O operations.
 ///
@@ -73,8 +73,8 @@ use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 ///
 /// ```no_run
 /// use mio::net::UnixStream;
-/// use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
-/// use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
+/// use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+/// use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
 /// use rosenpass::internal::secret_memory::{Public, Secret};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {

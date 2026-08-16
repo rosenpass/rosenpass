@@ -21,9 +21,9 @@ pub mod linux {
 
     use std::io::{Read, Write, stdin, stdout};
 
-    use rosenpass_wireguard_broker::api::msgs;
-    use rosenpass_wireguard_broker::api::server::BrokerServer;
-    use rosenpass_wireguard_broker::brokers::netlink as wg;
+    use rosenpass::internal::wireguard_broker::api::msgs;
+    use rosenpass::internal::wireguard_broker::api::server::BrokerServer;
+    use rosenpass::internal::wireguard_broker::brokers::netlink as wg;
 
     /// Represents errors that can occur during WireGuard broker operations
     #[derive(thiserror::Error, Debug)]

@@ -7,10 +7,10 @@
 
 use std::borrow::BorrowMut;
 
-use rosenpass::internal::secret_memory::{Public, Secret};
+use crate::internal::secret_memory::{Public, Secret};
 
-use crate::WireGuardBroker;
-use crate::api::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
+use crate::internal::wireguard_broker::WireGuardBroker;
+use super::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
 
 use super::config::{NetworkBrokerConfigBuilder, NetworkBrokerConfigErr};
 
@@ -132,11 +132,11 @@ where
 #[cfg(all(feature = "experiment_api", target_os = "linux"))]
 #[cfg(test)]
 mod tests {
-    use crate::api::msgs;
-    use crate::api::msgs::{Envelope, SetPskRequest};
-    use crate::api::server::BrokerServer;
-    use crate::brokers::netlink::SetPskError;
-    use crate::{SerializedBrokerConfig, WireGuardBroker};
+    use super::msgs;
+    use super::msgs::{Envelope, SetPskRequest};
+    use super::BrokerServer;
+    use super::super::super::brokers::netlink::SetPskError;
+    use super::super::super::{SerializedBrokerConfig, WireGuardBroker};
     use rosenpass::internal::secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
     use zerocopy::IntoBytes;
 

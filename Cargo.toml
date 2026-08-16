@@ -7,10 +7,9 @@ members = [
   "to",
   "fuzz",
   "rp",
-  "wireguard-broker",
 ]
 
-default-members = ["rosenpass", "rp", "wireguard-broker"]
+default-members = ["rosenpass", "rp"]
 
 [workspace.metadata.release]
 # ensure that adding `--package` as argument to `cargo release` still creates version tags in the form of `vx.y.z`
@@ -20,7 +19,6 @@ tag-prefix = ""
 rosenpass = { path = "rosenpass" }
 rosenpass-to = { path = "to" }
 rosenpass-oqs = { path = "oqs" }
-rosenpass-wireguard-broker = { path = "wireguard-broker" }
 doc-comment = "0.3.3"
 base64ct = { version = "1.6.0", default-features = false }
 zeroize = "1.9"

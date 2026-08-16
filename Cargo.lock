@@ -1977,6 +1977,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "home",
+ "libc",
  "libcrux-test-utils",
  "log",
  "memoffset",
@@ -1984,10 +1985,10 @@ dependencies = [
  "mio",
  "num_enum",
  "paste",
+ "postcard",
  "procspawn",
  "rand 0.10.2",
  "rosenpass-to",
- "rosenpass-wireguard-broker",
  "rustix",
  "serde",
  "serde_json",
@@ -2004,6 +2005,7 @@ dependencies = [
  "toml",
  "typenum",
  "uds",
+ "wireguard-uapi",
  "zerocopy",
  "zeroize",
 ]
@@ -2044,7 +2046,6 @@ dependencies = [
  "netlink-packet-generic",
  "netlink-packet-wireguard",
  "rosenpass",
- "rosenpass-wireguard-broker",
  "rtnetlink",
  "serde",
  "stacker",
@@ -2060,27 +2061,6 @@ name = "rosenpass-to"
 version = "0.1.0"
 dependencies = [
  "doc-comment",
-]
-
-[[package]]
-name = "rosenpass-wireguard-broker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "derive_builder 0.20.2",
- "env_logger",
- "libc",
- "log",
- "mio",
- "postcard",
- "rand 0.10.2",
- "rosenpass-to",
- "rustix",
- "thiserror 2.0.20",
- "tokio",
- "wireguard-uapi",
- "zerocopy",
 ]
 
 [[package]]
@@ -2497,12 +2477,9 @@ version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
- "bytes",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite",
- "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

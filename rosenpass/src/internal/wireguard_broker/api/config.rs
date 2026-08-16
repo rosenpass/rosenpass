@@ -1,21 +1,21 @@
-//! This module provides [NetworkBrokerConfig] for configuring a
-//! [BrokerServer](crate::api::server::BrokerServer) and tooling to serialize and deserialize these
+//! This module provides [`NetworkBrokerConfig`] for configuring a
+//! [`BrokerServer`](super::server::BrokerServer) and tooling to serialize and deserialize these
 //! configurations.
 
-use crate::{SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
+use super::super::{SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 use derive_builder::Builder;
 use rosenpass::internal::secret_memory::{Public, Secret};
 
 #[derive(Builder, Debug)]
 #[builder(pattern = "mutable")]
 //TODO: Use generics for iface, add additional params
-/// Specifies a configuration for a [BrokerServer](crate::api::server::BrokerServer).
+/// Specifies a configuration for a [`BrokerServer`](super::server::BrokerServer).
 pub struct NetworkBrokerConfig<'a> {
-    /// The interface for the [BrokerServer](crate::api::server::BrokerServer).
+    /// The interface for the [`BrokerServer`](super::server::BrokerServer).
     pub iface: &'a str,
-    /// The peer identifier for the [BrokerServer](crate::api::server::BrokerServer).
+    /// The peer identifier for the [`BrokerServer``](super::server::BrokerServer).
     pub peer_id: &'a Public<WG_PEER_LEN>,
-    /// The pre-shared key for the [BrokerServer](crate::api::server::BrokerServer) and the
+    /// The pre-shared key for the [`BrokerServer`](super::server::BrokerServer) and the
     /// interface.
     pub psk: &'a Secret<WG_KEY_LEN>,
 }

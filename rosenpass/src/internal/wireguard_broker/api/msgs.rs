@@ -128,7 +128,7 @@ impl TryFrom<u8> for SetPskResponseReturnCode {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass_wireguard_broker::api::msgs::{InvalidSetPskResponseError, SetPskResponseReturnCode};
+    /// # use rosenpass::internal::wireguard_broker::api::msgs::{InvalidSetPskResponseError, SetPskResponseReturnCode};
     /// let return_code: u8 = 0x00; // Usually specifically set or comes out of a message.
     /// let res = SetPskResponseReturnCode::try_from(return_code);
     /// assert!(res.is_ok());
@@ -179,7 +179,7 @@ impl From<SetPskResult> for SetPskResponseReturnCode {
     }
 }
 
-/// The types of messages supported by this crate. At the time of writing, this is only
+/// The types of messages supported by [`wireguard_broker`](rosenpass::internal::wireguard_broker). At the time of writing, this is only
 /// the message to set a pre-shared key.
 ///
 /// [MsgType] is represented by a single `u8` as required by the protocol.
@@ -187,7 +187,7 @@ impl From<SetPskResult> for SetPskResponseReturnCode {
 /// # Example
 /// It is usually used like this:
 /// ```
-/// # use rosenpass_wireguard_broker::api::msgs::{InvalidMessageTypeError, MsgType};
+/// # use rosenpass::internal::wireguard_broker::api::msgs::{InvalidMessageTypeError, MsgType};
 /// let typ: u8 = 0x01; // Usually specifically set or comes out of a message.
 /// let typ = MsgType::try_from(typ)?;
 /// let MsgType::SetPsk = typ; // Assert type.
@@ -211,7 +211,7 @@ impl TryFrom<u8> for MsgType {
     ///
     /// # Example
     /// ```rust
-    /// use rosenpass_wireguard_broker::api::msgs::MsgType;
+    /// use rosenpass::internal::wireguard_broker::api::msgs::MsgType;
     /// let msg_type = MsgType::try_from(0x01);
     /// assert!(msg_type.is_ok());
     /// assert_eq!(msg_type.unwrap(), MsgType::SetPsk);

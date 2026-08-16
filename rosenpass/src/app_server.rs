@@ -24,7 +24,7 @@ use rosenpass::internal::util::{
 };
 
 use rosenpass::internal::secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
+use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};
 

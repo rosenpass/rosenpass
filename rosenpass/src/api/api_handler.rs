@@ -13,7 +13,7 @@ use rosenpass::internal::util::{
     mio::UnixStreamExt,
     result::OkExt,
 };
-use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
+use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
 
 use crate::{
     api::{add_listen_socket_response_status, add_psk_broker_response_status},

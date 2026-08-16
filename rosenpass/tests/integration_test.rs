@@ -11,7 +11,7 @@ use tempfile::tempdir;
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
 use rosenpass::internal::secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
+use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
 use serial_test::serial;
 use std::io::Write;
 
@@ -369,12 +369,12 @@ impl WireguardBrokerMio for MockBroker {
     }
 }
 
-impl rosenpass_wireguard_broker::WireGuardBroker for MockBroker {
+impl rosenpass::internal::wireguard_broker::WireGuardBroker for MockBroker {
     type Error = anyhow::Error;
 
     fn set_psk(
         &mut self,
-        config: rosenpass_wireguard_broker::SerializedBrokerConfig<'_>,
+        config: rosenpass::internal::wireguard_broker::SerializedBrokerConfig<'_>,
     ) -> Result<(), Self::Error> {
         loop {
             let mut lock = self.inner.try_lock();

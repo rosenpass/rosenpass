@@ -22,7 +22,7 @@ use rosenpass::internal::util::file::{LoadValue as _, LoadValueB64};
 use rosenpass::internal::util::functional::{ApplyExt, MutatingExt};
 use rosenpass::internal::util::result::OkExt;
 use rosenpass::internal::util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
-use rosenpass_wireguard_broker::brokers::native_unix::{
+use rosenpass::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
 };
 use tokio::task::spawn_blocking;

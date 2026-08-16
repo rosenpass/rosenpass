@@ -9,7 +9,7 @@ use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
 use rosenpass::internal::secret_memory::file::StoreSecret;
 use rosenpass::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
-use rosenpass_wireguard_broker::brokers::native_unix::{
+use rosenpass::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
 use std::ops::DerefMut;
@@ -27,8 +27,8 @@ use {
     log::{error, info},
     mio::net::UnixStream,
     rosenpass::internal::util::fd::claim_fd,
-    rosenpass_wireguard_broker::WireguardBrokerMio,
-    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
+    rosenpass::internal::wireguard_broker::WireguardBrokerMio,
+    rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
     rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
     std::os::unix::net,
     std::process::Command,
