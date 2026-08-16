@@ -87,7 +87,7 @@ hex-literal = { version = "1.1.0", optional = true }
 hex = { version = "0.4.3", optional = true }
 heck = { version = "0.5.0", optional = true }
 command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
-rustix = { version = "1.1.4", features = ["net", "fs", "process"], optional = true } # Broker dependencies (might need cleanup or changes)
+rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dependencies (might need cleanup or changes)
 uds = { git = "https://github.com/rosenpass/uds", optional = true, features = ["mio_1xx"] }
 libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f", optional = true }
 assert_tv = { version = "0.6" } #Dev dependencies
@@ -141,7 +141,6 @@ experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:rustix",
   "dep:libc", # from `rosenpass-wireguard-broker
   "experiment_file_descriptor_passing",
 ]
