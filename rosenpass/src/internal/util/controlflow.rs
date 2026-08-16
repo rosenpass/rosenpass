@@ -1,3 +1,4 @@
+#![allow(unused)]
 //! A collection of control flow utility macros
 
 /// A simple for loop to repeat a $body a number of times
