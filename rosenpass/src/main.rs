@@ -87,26 +87,26 @@ pub fn main() {
     }
 }
 
-/// Custom main page section: Exit Status
+/// Custom man page section: Exit Status
 static EXIT_STATUS_MAN: &str = r"
 The rosenpass utility exits 0 on success, and >0 if an error occurs.";
 
-/// Custom main page section: See also.
+/// Custom man page section: See also.
 static SEE_ALSO_MAN: &str = r"
 rp(1), wg(1)
 
 Karolin Varner, Benjamin Lipp, Wanja Zaeske, and Lisa Schmidt, Rosenpass, https://rosenpass.eu/whitepaper.pdf, 2023.";
 
-/// Custom main page section: Standards.
+/// Custom man page section: Standards.
 static STANDARDS_MAN: &str = r"
 This tool is the reference implementation of the Rosenpass protocol, as
 specified within the whitepaper referenced above.";
 
-/// Custom main page section: Authors.
+/// Custom man page section: Authors.
 static AUTHORS_MAN: &str = r"
 Rosenpass was created by Karolin Varner, Benjamin Lipp, Wanja Zaeske, Marei
 Peischl, Stephan Ajuvo, and Lisa Schmidt.";
 
-/// Custom main page section: Bugs.
+/// Custom man page section: Bugs.
 static BUGS_MAN: &str = r"
 The bugs are tracked at https://github.com/rosenpass/rosenpass/issues.";
