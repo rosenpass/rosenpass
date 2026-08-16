@@ -40,7 +40,7 @@ rosenpass-util = { workspace = true }
 rand = { workspace = true }
 
 [features]
-experiment_api = ["rustix", "libc"]
+experiment_api = ["dep:rustix", "dep:libc"]
 experiment_memfd_secret = []
 
 [[bin]]

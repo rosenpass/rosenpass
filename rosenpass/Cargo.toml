@@ -101,15 +101,15 @@ serde_json = { version = "1.0.140" }
 experiment_cookie_dos_mitigation = []
 experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
 experiment_api = [
-  "hex-literal",
-  "uds",
-  "command-fds",
-  "rustix",
+  "dep:hex-literal",
+  "dep:uds",
+  "dep:command-fds",
+  "dep:rustix",
   "rosenpass-util/experiment_file_descriptor_passing",
   "rosenpass-wireguard-broker/experiment_api",
 ]
 internal_testing = []
-internal_bin_gen_ipc_msg_types = ["hex", "heck"]
+internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
 trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
 expose_internal_modules = []
 

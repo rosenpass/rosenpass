@@ -34,6 +34,6 @@ tokio = { workspace = true, optional = true, features = [
 log = { workspace = true }
 
 [features]
-experiment_file_descriptor_passing = ["uds"]
+experiment_file_descriptor_passing = ["dep:uds"]
 trace_bench = ["dep:libcrux-test-utils"]
 tokio = ["dep:tokio"]
