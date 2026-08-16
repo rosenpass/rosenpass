@@ -6,7 +6,7 @@ use super::{ByteSliceRefExt, MessageAttributes, PingRequest, RequestMsgType};
 
 /// Helper for producing API message request references, [RequestRef].
 ///
-/// This is to [`RequestRef`] as [`rosenpass::internal::util::zerocopy::RefMaker`] is to
+/// This is to [`RequestRef`] as [`crate::internal::util::zerocopy::RefMaker`] is to
 /// [`zerocopy::Ref`].
 struct RequestRefMaker<B> {
     buf: B,
@@ -22,13 +22,13 @@ impl<B: SplitByteSlice> RequestRef<B> {
     /// ```
     /// use zerocopy::IntoBytes;
     ///
-    /// use rosenpass::api::{PingRequest, RequestMsgType, RequestRef};
+    /// use crate::api::{PingRequest, RequestMsgType, RequestRef};
     ///
     /// let msg = PingRequest::new([0u8; 256]);
     ///
     /// // TODO: HEISENBUG: This is necessary for some reason to make the rest of the example work
     /// let typ = msg.msg_type;
-    /// assert_eq!(typ, rosenpass::api::PING_REQUEST);
+    /// assert_eq!(typ, crate::api::PING_REQUEST);
     ///
     /// let buf = msg.as_bytes();
     /// let msg_ref = RequestRef::parse(buf)?;

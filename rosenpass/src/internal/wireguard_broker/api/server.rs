@@ -137,7 +137,7 @@ mod tests {
     use super::BrokerServer;
     use super::super::super::brokers::netlink::SetPskError;
     use super::super::super::{SerializedBrokerConfig, WireGuardBroker};
-    use rosenpass::internal::secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
+    use crate::internal::secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
     use zerocopy::IntoBytes;
 
     #[derive(Debug, Clone)]

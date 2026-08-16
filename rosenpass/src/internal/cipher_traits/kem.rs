@@ -17,9 +17,9 @@
 //! In the example, we are using Kyber512, but any KEM that correctly implements the [Kem]
 //! trait could be used as well.
 //!```rust
-//! use rosenpass::internal::cipher_traits::Kem;
+//! use crate::internal::cipher_traits::Kem;
 //! use rosenpass_oqs::Kyber512;
-//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //!
 //! type MyKem = Kyber512;
 //! secret_policy_use_only_malloc_secrets();
@@ -43,7 +43,7 @@
 //! be implemented using a **HORRIBLY INSECURE** DummyKem that only uses static values for keys
 //! and ciphertexts as an example.  
 //!```rust
-//!# use rosenpass::internal::cipher_traits::Kem;
+//!# use crate::internal::cipher_traits::Kem;
 //!
 //! struct DummyKem {}
 //! impl Kem for DummyKem {
@@ -107,7 +107,7 @@
 //!         Ok(())
 //!     }
 //! }
-//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //! #
 //! # type MyKem = DummyKem;
 //! # secret_policy_use_only_malloc_secrets();

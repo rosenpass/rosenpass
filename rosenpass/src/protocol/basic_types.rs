@@ -1,8 +1,8 @@
 //! Key types and other fundamental types used in the Rosenpass protocol
 
-use rosenpass::internal::cipher_traits::primitives::{Aead, Kem};
-use rosenpass::internal::ciphers::{EphemeralKem, KEY_LEN, StaticKem, XAead};
-use rosenpass::internal::secret_memory::{Public, PublicBox, Secret};
+use crate::internal::cipher_traits::primitives::{Aead, Kem};
+use crate::internal::ciphers::{EphemeralKem, KEY_LEN, StaticKem, XAead};
+use crate::internal::secret_memory::{Public, PublicBox, Secret};
 
 use crate::msgs::{BISCUIT_ID_LEN, MAX_MESSAGE_LEN, SESSION_ID_LEN};
 

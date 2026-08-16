@@ -5,11 +5,11 @@
 
 use anyhow::{Context, bail, ensure};
 use clap::{Parser, Subcommand};
-use rosenpass::internal::cipher_traits::primitives::Kem;
-use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::file::StoreSecret;
-use rosenpass::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
-use rosenpass::internal::wireguard_broker::brokers::native_unix::{
+use crate::internal::cipher_traits::primitives::Kem;
+use crate::internal::ciphers::StaticKem;
+use crate::internal::secret_memory::file::StoreSecret;
+use crate::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
+use crate::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
 use std::ops::DerefMut;
@@ -26,9 +26,9 @@ use {
     command_fds::{CommandFdExt, FdMapping},
     log::{error, info},
     mio::net::UnixStream,
-    rosenpass::internal::util::fd::claim_fd,
-    rosenpass::internal::wireguard_broker::WireguardBrokerMio,
-    rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
+    crate::internal::util::fd::claim_fd,
+    crate::internal::wireguard_broker::WireguardBrokerMio,
+    crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
     rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
     std::os::unix::net,
     std::process::Command,

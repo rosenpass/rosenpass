@@ -4,10 +4,10 @@ use anyhow::{Context, Result};
 use serial_test::serial;
 use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 
-use rosenpass::internal::cipher_traits::primitives::Kem;
-use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::Public;
-use rosenpass::internal::util::mem::DiscardResultExt;
+use crate::internal::cipher_traits::primitives::Kem;
+use crate::internal::ciphers::StaticKem;
+use crate::internal::secret_memory::Public;
+use crate::internal::util::mem::DiscardResultExt;
 
 use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MAX_MESSAGE_LEN, MsgType, RespHello};
 
@@ -84,7 +84,7 @@ fn handles_incorrect_size_messages_v03() {
 /// i.e. an exchanged key must be produced in both servers.
 fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
     setup_logging();
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
         type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
@@ -183,7 +183,7 @@ fn test_regular_exchange_v03() {
 
 fn test_regular_exchange(protocol_version: ProtocolVersion) {
     setup_logging();
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
@@ -257,7 +257,7 @@ fn test_regular_init_conf_retransmit_v03() {
 
 fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     setup_logging();
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
@@ -352,7 +352,7 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
     use super::{Lifecycle, MortalExt};
 
     setup_logging();
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair(protocol_version.clone()).unwrap();
@@ -464,7 +464,7 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v03() {
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
 fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version: ProtocolVersion) {
     setup_logging();
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
@@ -538,7 +538,7 @@ fn init_conf_retransmission_v03() -> Result<()> {
 }
 
 fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 
     fn keypair() -> Result<(SSk, SPk)> {
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());

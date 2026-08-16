@@ -7,17 +7,17 @@ use std::path::Path;
 use anyhow::Context;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use rosenpass::internal::util::b64::{b64_decode, b64_encode};
-use rosenpass::internal::util::file::{
+use crate::internal::util::b64::{b64_decode, b64_encode};
+use crate::internal::util::file::{
     LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
     fopen_r,
 };
-use rosenpass::internal::util::functional::mutating;
+use crate::internal::util::functional::mutating;
 
 use super::alloc::{SecretBox, SecretVec, secret_box};
 use super::file::StoreSecret;
 
-use rosenpass::internal::util::file::{Visibility, fopen_w};
+use crate::internal::util::file::{Visibility, fopen_w};
 use std::io::Write;
 // This might become a problem in library usage; it's effectively a memory
 // leak which probably isn't a problem right now because most memory will
@@ -174,7 +174,7 @@ impl SecretMemoryPool {
 /// You can use a [Secret] as follows:
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+/// # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 ///
 /// // We have to define the security policy before using Secrets.
 /// secret_policy_use_only_malloc_secrets();

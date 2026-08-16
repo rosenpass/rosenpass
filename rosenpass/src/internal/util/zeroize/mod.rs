@@ -10,7 +10,7 @@
 //!
 //! ```rust
 //! use zeroize::Zeroize;
-//! use rosenpass::internal::util::zeroize::ZeroizedExt;
+//! use crate::internal::util::zeroize::ZeroizedExt;
 //!
 //! let mut value = String::from("hello");
 //! value.zeroize(); // Zeroizes in place

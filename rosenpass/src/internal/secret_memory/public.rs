@@ -1,12 +1,12 @@
 use super::debug::debug_crypto_array;
 use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass::internal::util::b64::{b64_decode, b64_encode};
-use rosenpass::internal::util::file::{
+use crate::internal::util::b64::{b64_decode, b64_encode};
+use crate::internal::util::file::{
     LoadValue, LoadValueB64, ReadExactToEnd, ReadSliceToEnd, StoreValue, StoreValueB64,
     StoreValueB64Writer, Visibility, fopen_r, fopen_w,
 };
-use rosenpass::internal::util::functional::mutating;
+use crate::internal::util::functional::mutating;
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt;
 use std::io::Write;
@@ -19,7 +19,7 @@ use std::path::Path;
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass::internal::secret_memory::{Public};
+/// # use crate::internal::secret_memory::{Public};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// // Fill with some random data that I can use a cryptographic key later on.
@@ -199,7 +199,7 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass::internal::secret_memory::{Public, PublicBox};
+/// # use crate::internal::secret_memory::{Public, PublicBox};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// let mut my_bbox: PublicBox<32> = PublicBox{ inner: Box::new(my_public_data)};
@@ -371,7 +371,7 @@ mod tests {
     #[allow(clippy::module_inception)]
     mod tests {
         use super::super::{Public, PublicBox};
-        use rosenpass::internal::util::{
+        use crate::internal::util::{
             b64::b64_encode,
             file::{
                 LoadValue, LoadValueB64, StoreValue, StoreValueB64, StoreValueB64Writer,

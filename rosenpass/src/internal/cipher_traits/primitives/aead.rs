@@ -13,7 +13,7 @@ use thiserror::Error;
 ///
 /// Example for encrypting a message with a specific [`Aead`] instance:
 /// ```
-/// use rosenpass::internal::cipher_traits::primitives::Aead;
+/// use crate::internal::cipher_traits::primitives::Aead;
 ///
 /// const KEY_LEN: usize = 32;
 /// const NONCE_LEN: usize = 12;
@@ -34,7 +34,7 @@ use thiserror::Error;
 /// If only the type (but no instance) is available, then we can still encrypt, as long as the type
 /// also is [`Default`]:
 /// ```
-/// use rosenpass::internal::cipher_traits::primitives::Aead;
+/// use crate::internal::cipher_traits::primitives::Aead;
 ///
 /// const KEY_LEN: usize = 32;
 /// const NONCE_LEN: usize = 12;

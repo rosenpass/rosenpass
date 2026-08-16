@@ -29,7 +29,7 @@ static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 /// ```rust
 /// # use std::alloc::Layout;
 /// # use allocator_api2::alloc::Allocator;
-/// # use rosenpass::internal::secret_memory::alloc::{set_secret_alloc_type, SecretAlloc, SecretAllocType};
+/// # use crate::internal::secret_memory::alloc::{set_secret_alloc_type, SecretAlloc, SecretAllocType};
 /// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
 /// let secret_alloc = SecretAlloc::default();
 /// unsafe {
@@ -49,7 +49,7 @@ pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
 /// ```rust
 /// # use std::alloc::Layout;
 /// # use allocator_api2::alloc::Allocator;
-/// # use rosenpass::internal::secret_memory::alloc::{get_or_init_secret_alloc_type, set_secret_alloc_type,
+/// # use crate::internal::secret_memory::alloc::{get_or_init_secret_alloc_type, set_secret_alloc_type,
 /// # SecretAlloc, SecretAllocType};
 /// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
 /// #[cfg(target_os = "linux")] {
@@ -83,9 +83,9 @@ impl Default for SecretAlloc {
             alloc_type: *ALLOC_TYPE.get().expect(
                 "Secret security policy not specified. \
                 Run the specifying policy function in \
-                 rosenpass::internal::secret_memory::policy or set a \
+                 crate::internal::secret_memory::policy or set a \
                  custom policy by initializing \
-                 rosenpass::internal::secret_memory::alloc::ALLOC_TYPE \
+                 crate::internal::secret_memory::alloc::ALLOC_TYPE \
                  before using secrets",
             ),
         }
@@ -124,9 +124,9 @@ pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 ///
 /// # Example
 /// ```rust
-/// # use rosenpass::internal::secret_memory::alloc::{secret_box_try, SecretBox};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
+/// # use crate::internal::secret_memory::alloc::{secret_box_try, SecretBox};
+/// # use crate::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
+/// use crate::internal::secret_memory::alloc::set_secret_alloc_type;
 /// set_secret_alloc_type(MemsecMalloc);
 /// let data: u8 = 42;
 /// let secret_box: SecretBox<u8> = secret_box_try(data)?;
@@ -142,9 +142,9 @@ pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
 ///
 /// # Example
 /// ```rust
-/// # use rosenpass::internal::secret_memory::alloc::{secret_box, SecretBox};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
+/// # use crate::internal::secret_memory::alloc::{secret_box, SecretBox};
+/// # use crate::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
+/// # use crate::internal::secret_memory::alloc::set_secret_alloc_type;
 /// set_secret_alloc_type(MemsecMalloc);
 /// let data: u8 = 42;
 /// let secret_box: SecretBox<u8> = secret_box(data);
@@ -159,9 +159,9 @@ pub fn secret_box<T>(x: T) -> SecretBox<T> {
 ///
 /// # Example
 /// ```rust
-/// # use rosenpass::internal::secret_memory::alloc::{secret_vec, SecretVec};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
+/// # use crate::internal::secret_memory::alloc::{secret_vec, SecretVec};
+/// # use crate::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
+/// # use crate::internal::secret_memory::alloc::set_secret_alloc_type;
 /// set_secret_alloc_type(MemsecMalloc);
 /// let mut secret_vec: SecretVec<u8> = secret_vec();
 /// secret_vec.push(0u8);

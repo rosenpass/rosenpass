@@ -27,7 +27,7 @@
 //! // matching on error kinds a bit less repetitive. [IoResultKindHintExt::io_err_kind_hint]
 //! // provides the basic functionality for use mostly with std::io::Result
 //!
-//! use rosenpass::internal::util::io::IoResultKindHintExt;
+//! use crate::internal::util::io::IoResultKindHintExt;
 //!
 //! loop {
 //!     match io_placeholder().io_err_kind_hint() {
@@ -45,7 +45,7 @@
 //! // The trait can be customized; firstly, you can use IoErrorKind
 //! // for error types that can be fully represented as std::io::ErrorKind
 //!
-//! use rosenpass::internal::util::io::IoErrorKind;
+//! use crate::internal::util::io::IoErrorKind;
 //!
 //! #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 //! enum MyErrno {
@@ -75,7 +75,7 @@
 //! // And when an error can not fully be represented as an std::io::ErrorKind,
 //! // you can still use [TryIoErrorKind]
 //!
-//! use rosenpass::internal::util::io::TryIoErrorKind;
+//! use crate::internal::util::io::TryIoErrorKind;
 //!
 //! #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 //! enum MyErrnoOrBlue {
@@ -127,7 +127,7 @@
 //! // By implementing IoErrorKind, we can automatically make use of IoResultKindHintExt<T>
 //! // with our custom error type
 //!
-//! //use rosenpass::internal::util::io::IoResultKindHintExt;
+//! //use crate::internal::util::io::IoResultKindHintExt;
 //!
 //! assert_eq!(
 //!     Ok::<_, MyErrno>(42).io_err_kind_hint(),
@@ -142,7 +142,7 @@
 //! // Correspondingly, TryIoResultKindHintExt can be used for Results with Errors
 //! // that implement TryIoErrorKind
 //!
-//! use crate::rosenpass::internal::util::io::TryIoResultKindHintExt;
+//! use crate::internal::util::io::TryIoResultKindHintExt;
 //!
 //! assert_eq!(
 //!     Ok::<_, MyErrnoOrBlue>(42).try_io_err_kind_hint(),
@@ -157,7 +157,7 @@
 //! // SubstituteForIoErrorKindExt serves as a helper to handle specific ErrorKinds
 //! // using a method chaining style. It works on anything that implements TryIoErrorKind.
 //!
-//! use rosenpass::internal::util::io::SubstituteForIoErrorKindExt;
+//! use crate::internal::util::io::SubstituteForIoErrorKindExt;
 //!
 //! assert_eq!(Ok(42),
 //!     Err(MyErrnoOrBlue::Interrupted)
@@ -210,7 +210,7 @@
 //! // in cases where the action should simply be rerun; it can handle any error type
 //! // that implements TryIoErrorKind. It lets other errors and Ok(_) pass through.
 //!
-//! use rosenpass::internal::util::io::handle_interrupted;
+//! use crate::internal::util::io::handle_interrupted;
 //!
 //! let mut ctr = 0u32;
 //! let mut simulate_io = || -> Result<u32, MyErrnoOrBlue> {
@@ -232,7 +232,7 @@
 //! // nonblocking_handle_io_errors performs the same job, except that
 //! // WouldBlock is substituted with Ok(None)
 //!
-//! use rosenpass::internal::util::io::nonblocking_handle_io_errors;
+//! use crate::internal::util::io::nonblocking_handle_io_errors;
 //!
 //! assert_eq!(Ok(Some(42)), nonblocking_handle_io_errors(&mut simulate_io));
 //! assert_eq!(Err(MyErrnoOrBlue::FeelingBlue), nonblocking_handle_io_errors(&mut simulate_io));
@@ -504,7 +504,7 @@ pub trait ReadExt {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::internal::util::io::ReadExt;
+    /// use crate::internal::util::io::ReadExt;
     ///
     /// let mut buf = [0u8; 4];
     ///

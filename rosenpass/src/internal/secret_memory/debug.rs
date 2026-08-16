@@ -8,7 +8,7 @@ use std::fmt;
 ///
 /// ```rust
 /// use std::fmt::{Debug, Formatter};
-/// use rosenpass::internal::secret_memory::debug::debug_crypto_array;
+/// use crate::internal::secret_memory::debug::debug_crypto_array;
 ///
 /// struct U8Wrapper {
 ///     pub u_eigt: Vec<u8>

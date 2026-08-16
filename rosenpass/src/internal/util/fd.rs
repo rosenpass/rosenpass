@@ -4,7 +4,7 @@ use anyhow::bail;
 use rustix::io::fcntl_dupfd_cloexec;
 use std::os::fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
 
-use crate::{mem::Forgetting, result::OkExt};
+use super::{mem::Forgetting, result::OkExt};
 
 /// Prepare a file descriptor for use in Rust code.
 ///
@@ -23,7 +23,7 @@ use crate::{mem::Forgetting, result::OkExt};
 /// use std::io::Write;
 /// use std::os::fd::{IntoRawFd, AsRawFd};
 /// use tempfile::tempdir;
-/// use rosenpass::internal::util::fd::{claim_fd, FdIo};
+/// use crate::internal::util::fd::{claim_fd, FdIo};
 ///
 /// // Open a file and turn it into a raw file descriptor
 /// let orig = tempfile::tempfile()?.into_raw_fd();
@@ -62,7 +62,7 @@ pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
 /// use std::io::Write;
 /// use std::os::fd::IntoRawFd;
 /// use tempfile::tempdir;
-/// use rosenpass::internal::util::fd::{claim_fd_inplace, FdIo};
+/// use crate::internal::util::fd::{claim_fd_inplace, FdIo};
 ///
 /// // Open a file and turn it into a raw file descriptor
 /// let fd = tempfile::tempfile()?.into_raw_fd();
@@ -97,7 +97,7 @@ pub fn claim_fd_inplace(fd: RawFd) -> rustix::io::Result<OwnedFd> {
 /// # use std::os::unix::io::{AsRawFd, FromRawFd};
 /// # use std::os::fd::IntoRawFd;
 /// # use rustix::fd::AsFd;
-/// # use rosenpass::internal::util::fd::mask_fd;
+/// # use crate::internal::util::fd::mask_fd;
 ///
 /// // Open a temporary file
 /// let fd = tempfile::tempfile().unwrap().into_raw_fd();
@@ -160,7 +160,7 @@ pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::R
 /// ```
 /// use std::{fs::File, io::Write, os::fd::IntoRawFd};
 /// use rustix::fd::FromRawFd;
-/// use rosenpass::internal::util::fd::open_nullfd;
+/// use crate::internal::util::fd::open_nullfd;
 ///
 /// let nullfd = open_nullfd().unwrap();
 /// ```
@@ -177,7 +177,7 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
 /// ```
 /// use std::io::ErrorKind as EK;
 /// use rustix::io::Errno;
-/// use rosenpass::internal::util::fd::IntoStdioErr;
+/// use crate::internal::util::fd::IntoStdioErr;
 ///
 /// let e = Errno::INTR.into_stdio_err();
 /// assert!(matches!(e.kind(), EK::Interrupted));
@@ -238,7 +238,7 @@ pub trait StatExt {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::internal::util::fd::StatExt;
+    /// use crate::internal::util::fd::StatExt;
     /// assert!(rustix::fs::stat("/")?.is_socket() == false);
     /// Ok::<(), rustix::io::Errno>(())
     /// ````
@@ -263,7 +263,7 @@ pub trait TryStatExt {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::internal::util::fd::TryStatExt;
+    /// use crate::internal::util::fd::TryStatExt;
     /// let fd = rustix::fs::open("/", rustix::fs::OFlags::empty(), rustix::fs::Mode::empty())?;
     /// assert!(matches!(fd.is_socket(), Ok(false)));
     /// Ok::<(), rustix::io::Errno>(())
@@ -358,7 +358,7 @@ pub trait GetUnixSocketType {
     /// # use std::os::fd::{AsFd, BorrowedFd};
     /// # use std::os::unix::net::UnixListener;
     /// # use tempfile::NamedTempFile;
-    /// # use rosenpass::internal::util::fd::GetUnixSocketType;
+    /// # use crate::internal::util::fd::GetUnixSocketType;
     /// let f = {
     ///     // Generate a temp file and take its path
     ///     // Remove the temp file
@@ -378,7 +378,7 @@ pub trait GetUnixSocketType {
     /// # use std::os::fd::{AsFd, BorrowedFd};
     /// # use std::os::unix::net::{UnixDatagram, UnixListener};
     /// # use tempfile::NamedTempFile;
-    /// # use rosenpass::internal::util::fd::GetUnixSocketType;
+    /// # use crate::internal::util::fd::GetUnixSocketType;
     /// let f = {
     ///     // Generate a temp file and take its path
     ///     // Remove the temp file
@@ -445,7 +445,7 @@ pub trait GetSocketProtocol {
     /// ```
     /// # use std::net::UdpSocket;
     /// # use std::os::fd::{AsFd, AsRawFd};
-    /// # use rosenpass::internal::util::fd::GetSocketProtocol;
+    /// # use crate::internal::util::fd::GetSocketProtocol;
     /// let socket = UdpSocket::bind("127.0.0.1:0")?;
     /// assert_eq!(socket.as_fd().socket_protocol().unwrap().unwrap(), rustix::net::ipproto::UDP);
     /// # Ok::<(), std::io::Error>(())
@@ -458,7 +458,7 @@ pub trait GetSocketProtocol {
     /// # use std::net::UdpSocket;
     /// # use std::net::TcpListener;
     /// # use std::os::fd::{AsFd, AsRawFd};
-    /// # use rosenpass::internal::util::fd::GetSocketProtocol;
+    /// # use crate::internal::util::fd::GetSocketProtocol;
     /// let socket = UdpSocket::bind("127.0.0.1:0")?;
     /// assert!(socket.as_fd().is_udp_socket().unwrap());
     ///
@@ -484,7 +484,7 @@ pub trait GetSocketProtocol {
     /// # use std::net::UdpSocket;
     /// # use std::net::TcpListener;
     /// # use std::os::fd::{AsFd, AsRawFd};
-    /// # use rosenpass::internal::util::fd::GetSocketProtocol;
+    /// # use crate::internal::util::fd::GetSocketProtocol;
     /// let socket = UdpSocket::bind("127.0.0.1:0")?;
     /// assert!(matches!(socket.as_fd().demand_udp_socket(), Ok(())));
     ///

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use zerocopy::{ByteSlice, ByteSliceMut, Immutable, KnownLayout, Ref, SplitByteSlice};
 use zeroize::Zeroize;
 
-use crate::zeroize::ZeroizedExt;
+use crate::internal::util::zeroize::ZeroizedExt;
 
 /// A convenience type for working with buffers and extracting [`zerocopy::Ref`]
 /// references.
@@ -20,7 +20,7 @@ use crate::zeroize::ZeroizedExt;
 ///
 /// ```
 /// # use zerocopy::{IntoBytes, FromBytes, Ref, KnownLayout, Immutable};
-/// # use rosenpass::internal::util::zerocopy::RefMaker;
+/// # use crate::internal::util::zerocopy::RefMaker;
 ///
 /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 /// #[repr(C)]
@@ -51,7 +51,7 @@ impl<B, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let buffer = [0u8; 10];
     /// let rm: RefMaker<_, u32> = RefMaker::new(buffer);
     /// ```
@@ -94,7 +94,7 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     ///
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Debug)]
     /// #[repr(C)]
@@ -134,7 +134,7 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let rm = RefMaker::<_, u32>::new(bytes);
     /// rm.ensure_fit().unwrap();
@@ -168,7 +168,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (head, tail) = RefMaker::<_, u32>::new(bytes).split_at_point(3).unwrap();
     /// assert_eq!(head, &[1,2,3]);
@@ -194,7 +194,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8];
     /// let (prefix_rm, tail) = RefMaker::<_, u32>::new(bytes).from_prefix_with_tail().unwrap();
     /// assert_eq!(prefix_rm.bytes(), &[1,2,3,4]);
@@ -217,7 +217,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// # Example
     ///
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (prefix_rm, tail) = RefMaker::<_, u32>::new(bytes).split_prefix().unwrap();
     /// assert_eq!(prefix_rm.bytes(), &[1,2,3,4]);
@@ -237,7 +237,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let prefix_rm = RefMaker::<_, u32>::new(bytes).from_prefix().unwrap();
     /// assert_eq!(prefix_rm.bytes(), &[1,2,3,4]);
@@ -255,7 +255,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (suffix_rm, head) = RefMaker::<_, u32>::new(bytes).from_suffix_with_head().unwrap();
     /// assert_eq!(suffix_rm.bytes(), &[7,8,9,10]);
@@ -278,7 +278,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (head, tail) = RefMaker::<_, u32>::new(bytes).split_suffix().unwrap();
     /// assert_eq!(head.bytes(), &[1,2,3,4,5,6]);
@@ -299,7 +299,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     /// ```
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let suffix_rm = RefMaker::<_, u32>::new(bytes).from_suffix().unwrap();
     /// assert_eq!(suffix_rm.bytes(), &[7,8,9,10]);
@@ -320,7 +320,7 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, FromZeros, Ref, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::RefMaker;
+    /// # use crate::internal::util::zerocopy::RefMaker;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);

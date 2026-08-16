@@ -20,7 +20,7 @@ use crate::{repeat, return_if};
 /// use std::os::fd::{AsFd, AsRawFd};
 ///
 /// use mio::net::UnixStream;
-/// use rosenpass::internal::util::mio::WriteWithFileDescriptors;
+/// use crate::internal::util::mio::WriteWithFileDescriptors;
 ///
 /// // Create socket descriptors that should be sent (not limited to UDP sockets)
 /// let peer_endpoint = "[::1]:0";

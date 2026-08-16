@@ -1,4 +1,4 @@
-use rosenpass::internal::cipher_traits::primitives::Aead as AeadTrait;
+use crate::internal::cipher_traits::primitives::Aead as AeadTrait;
 use static_assertions::const_assert;
 
 pub mod subtle;

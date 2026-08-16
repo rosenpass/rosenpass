@@ -23,8 +23,8 @@ use crate::fd::{IntoStdioErr, claim_fd_inplace};
 /// use std::os::fd::OwnedFd;
 ///
 /// use mio::net::UnixStream;
-/// use rosenpass::internal::util::mio::ReadWithFileDescriptors;
-/// use rosenpass::internal::util::io::TryIoResultKindHintExt;
+/// use crate::internal::util::mio::ReadWithFileDescriptors;
+/// use crate::internal::util::io::TryIoResultKindHintExt;
 ///
 /// const MAX_REQUEST_FDS : usize = 2; // Limit to 2 descriptors per read operation
 /// let mut read_fd_buffer = VecDeque::<OwnedFd>::new(); // File descriptor queue

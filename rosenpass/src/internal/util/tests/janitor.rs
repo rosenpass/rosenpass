@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use tokio::time::sleep;
 
-use rosenpass::internal::util::tokio::janitor::{enter_janitor, spawn_cleanup_job, try_spawn_daemon};
+use crate::internal::util::tokio::janitor::{enter_janitor, spawn_cleanup_job, try_spawn_daemon};
 
 #[tokio::test]
 async fn janitor_demo() -> anyhow::Result<()> {

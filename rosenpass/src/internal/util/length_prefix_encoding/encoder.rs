@@ -129,8 +129,8 @@ pub struct WriteToIoReturn {
 /// Simplified usage example:
 ///
 /// ```rust
-/// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
-/// use rosenpass::internal::util::length_prefix_encoding::encoder::HEADER_SIZE;
+/// use crate::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+/// use crate::internal::util::length_prefix_encoding::encoder::HEADER_SIZE;
 ///
 /// let message = String::from("hello world");
 /// let mut encoder = LengthPrefixEncoder::from_message(message.as_bytes());
@@ -158,7 +158,7 @@ pub struct WriteToIoReturn {
 /// Creating an encoder with invalid parameters triggers one of the various sanity checks:
 ///
 /// ```rust
-/// use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, MessageLenSanityError};
+/// use crate::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, MessageLenSanityError};
 ///
 /// let message_size = 32;
 /// let message = vec![0u8; message_size];
@@ -215,7 +215,7 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///	# Example
     ///
     /// ```rust
-    /// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+    /// use crate::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
     ///
     /// let msg = String::from("hello world");
     /// let encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
@@ -232,7 +232,7 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///	# Example
     ///
     /// ```rust
-    /// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+    /// use crate::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
     ///
     /// let msg = String::from("hello world");
     /// let encoder = LengthPrefixEncoder::from_message(msg.as_bytes());
@@ -263,7 +263,7 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     /// ```rust
     /// # use std::io::Cursor;
-    /// # use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, HEADER_SIZE};
+    /// # use crate::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, HEADER_SIZE};
     /// let msg = String::from("message in a bottle");
     /// let prefixed_msg_size = msg.len() + HEADER_SIZE;
     ///
@@ -299,7 +299,7 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     ///	```rust
     /// # use std::io::Cursor;
-    /// # use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, WriteToIoReturn, HEADER_SIZE};
+    /// # use crate::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, WriteToIoReturn, HEADER_SIZE};
     ///	let msg = String::from("Hello world");
     ///	let prefixed_msg_size = msg.len() + HEADER_SIZE;
     ///

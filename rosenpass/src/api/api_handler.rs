@@ -5,7 +5,7 @@ use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass::internal::util::{
+use crate::internal::util::{
     fd::FdIo,
     functional::{ApplyExt, run},
     io::ReadExt,
@@ -13,7 +13,7 @@ use rosenpass::internal::util::{
     mio::UnixStreamExt,
     result::OkExt,
 };
-use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+use crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
 
 use crate::{
     api::{add_listen_socket_response_status, add_psk_broker_response_status},
@@ -168,7 +168,7 @@ where
             let construction_site = self.app_server_mut().crypto_site.borrow_mut();
 
             // Retrieve the builder
-            use rosenpass::internal::util::build::ConstructionSite as C;
+            use crate::internal::util::build::ConstructionSite as C;
             let maybe_builder = match construction_site {
                 C::Builder(builder) => Some(builder),
                 C::Product(_) => None,
@@ -243,7 +243,7 @@ where
                 .context("Invalid request – socket missing.")?;
             // TODO: We need to have this outside linux
             #[cfg(target_os = "linux")]
-            rosenpass::internal::util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
+            crate::internal::util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
             mio::net::UdpSocket::from_std(sock).ok()
@@ -315,7 +315,7 @@ where
         let erase_ptr = {
             use crate::app_server::BrokerStorePtr;
             //
-            use rosenpass::internal::secret_memory::Public;
+            use crate::internal::secret_memory::Public;
             use zerocopy::IntoBytes;
             (self.app_server().brokers.store.len() - 1)
                 .apply(|x| x as u64)

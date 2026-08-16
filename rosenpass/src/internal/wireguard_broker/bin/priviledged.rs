@@ -21,9 +21,9 @@ pub mod linux {
 
     use std::io::{Read, Write, stdin, stdout};
 
-    use rosenpass::internal::wireguard_broker::api::msgs;
-    use rosenpass::internal::wireguard_broker::api::server::BrokerServer;
-    use rosenpass::internal::wireguard_broker::brokers::netlink as wg;
+    use crate::internal::wireguard_broker::api::msgs;
+    use crate::internal::wireguard_broker::api::server::BrokerServer;
+    use crate::internal::wireguard_broker::brokers::netlink as wg;
 
     /// Represents errors that can occur during WireGuard broker operations
     #[derive(thiserror::Error, Debug)]
@@ -50,7 +50,7 @@ pub mod linux {
 
     pub fn main() -> Result<(), BrokerAppError> {
         {
-            use rosenpass::internal::secret_memory as SM;
+            use crate::internal::secret_memory as SM;
             #[cfg(feature = "experiment_memfd_secret")]
             SM::secret_policy_try_use_memfd_secrets();
             #[cfg(not(feature = "experiment_memfd_secret"))]

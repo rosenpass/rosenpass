@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut};
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::cat;
+/// use crate::internal::util::cat;
 /// let arr = cat!(6; b"abc", b"def");
 /// assert_eq!(&arr, b"abcdef");
 ///
@@ -54,7 +54,7 @@ macro_rules! cat {
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::mem::cpy;
+/// use crate::internal::util::mem::cpy;
 /// let src = [1, 2, 3];
 /// let mut dst = [0; 3];
 /// cpy(&src, &mut dst);
@@ -70,7 +70,7 @@ pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: 
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::mem::cpy_min;
+/// use crate::internal::util::mem::cpy_min;
 /// let src = [1, 2, 3, 4];
 /// let mut dst = [0; 2];
 /// cpy_min(&src, &mut dst);
@@ -89,7 +89,7 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::mem::Forgetting;
+/// use crate::internal::util::mem::Forgetting;
 /// let f = Forgetting::new(String::from("hello"));
 /// assert_eq!(&*f, "hello");
 /// let val = f.extract();
@@ -159,7 +159,7 @@ impl<T> Drop for Forgetting<T> {
 /// # Examples
 ///
 /// ```rust
-/// # use rosenpass::internal::util::mem::DiscardResultExt;
+/// # use crate::internal::util::mem::DiscardResultExt;
 /// let result: () = (|| { return 42 })().discard_result(); // Just discard
 /// ```
 pub trait DiscardResultExt {
@@ -176,7 +176,7 @@ impl<T> DiscardResultExt for T {
 /// # Examples
 ///
 /// ```rust
-/// # use rosenpass::internal::util::mem::ForgetExt;
+/// # use crate::internal::util::mem::ForgetExt;
 /// let s = String::from("no drop");
 /// s.forget(); // destructor not run
 /// ```
@@ -196,7 +196,7 @@ impl<T> ForgetExt for T {
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::mem::SwapWithExt;
+/// use crate::internal::util::mem::SwapWithExt;
 /// let mut x = 10;
 /// let mut y = x.swap_with(20);
 /// assert_eq!(x, 20);
@@ -228,7 +228,7 @@ impl<T> SwapWithExt for T {
 /// # Examples
 ///
 /// ```rust
-/// # use rosenpass::internal::util::mem::SwapWithDefaultExt;
+/// # use crate::internal::util::mem::SwapWithDefaultExt;
 /// let mut s = String::from("abc");
 /// let old = s.swap_with_default();
 /// assert_eq!(old, "abc");
@@ -251,7 +251,7 @@ impl<T: Default> SwapWithDefaultExt for T {
 ///
 /// ```rust
 /// # use std::rc::Rc;
-/// use rosenpass::internal::util::mem::MoveExt;
+/// use crate::internal::util::mem::MoveExt;
 /// let val = 42;
 /// let another_val = val.move_here();
 /// assert_eq!(another_val, 42);

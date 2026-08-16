@@ -7,7 +7,7 @@ use super::{ByteSliceRefExt, MessageAttributes, PingResponse, ResponseMsgType};
 
 /// Helper for producing API message response references, [ResponseRef].
 ///
-/// This is to [ResponseRef] as [rosenpass::internal::util::zerocopy::RefMaker] is to
+/// This is to [ResponseRef] as [crate::internal::util::zerocopy::RefMaker] is to
 /// [zerocopy::Ref].
 struct ResponseRefMaker<B> {
     /// Buffer we are referencing
@@ -25,13 +25,13 @@ impl<B: SplitByteSlice> ResponseRef<B> {
     /// ```
     /// use zerocopy::IntoBytes;
     ///
-    /// use rosenpass::api::{PingResponse, ResponseMsgType, ResponseRef};
+    /// use crate::api::{PingResponse, ResponseMsgType, ResponseRef};
     /// // Produce the original PingResponse
     /// let msg = PingResponse::new([0u8; 256]);
     ///
     /// // TODO: HEISENBUG: This is necessary for some reason to make the rest of the example work
     /// let typ = msg.msg_type;
-    /// assert_eq!(typ, rosenpass::api::PING_RESPONSE);
+    /// assert_eq!(typ, crate::api::PING_RESPONSE);
     ///
     /// // Parse as a message type
     /// let buf = msg.as_bytes();

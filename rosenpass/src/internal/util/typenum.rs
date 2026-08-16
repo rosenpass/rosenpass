@@ -15,7 +15,7 @@ use typenum::uint::{UInt, UTerm};
 ///
 /// ```rust
 /// # use typenum::consts::U10;
-/// # use rosenpass::internal::util::typenum2const;
+/// # use crate::internal::util::typenum2const;
 ///
 /// const TEN: u32 = typenum2const!(U10 as u32);
 /// assert_eq!(TEN, 10);
@@ -26,7 +26,7 @@ macro_rules! typenum2const {
         typenum2const!($val as _)
     };
     ($val:ty as $type:ty) => {
-        <$val as $crate::typenum::IntoConst<$type>>::VALUE
+        <$val as $crate::internal::util::typenum::IntoConst<$type>>::VALUE
     };
 }
 
@@ -41,9 +41,9 @@ macro_rules! typenum2const {
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass::internal::util::typenum2const;
+/// use crate::internal::util::typenum2const;
 /// use typenum::consts::U42;
-/// use rosenpass::internal::util::typenum::IntoConst;
+/// use crate::internal::util::typenum::IntoConst;
 ///
 /// // Directly using IntoConst:
 /// const VALUE: u64 = <U42 as IntoConst<u64>>::VALUE;

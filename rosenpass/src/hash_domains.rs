@@ -10,10 +10,10 @@
 //! # Tutorial
 //!
 //! ```
-//! use rosenpass::{hash_domain, hash_domain_ns};
-//! use rosenpass::hash_domains::protocol;
+//! use crate::{hash_domain, hash_domain_ns};
+//! use crate::hash_domains::protocol;
 //!
-//! use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
+//! use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
 //!
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");
@@ -53,8 +53,8 @@
 //! ```
 
 use anyhow::Result;
-use rosenpass::internal::ciphers::hash_domain::HashDomain;
-use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
+use crate::internal::ciphers::hash_domain::HashDomain;
+use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
 
 /// Declare a hash function
 ///
@@ -68,7 +68,7 @@ use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
 macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<::rosenpass::internal::ciphers::hash_domain::HashDomain> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<::crate::internal::ciphers::hash_domain::HashDomain> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
@@ -87,7 +87,7 @@ macro_rules! hash_domain_ns {
 macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; ::rosenpass::internal::ciphers::KEY_LEN]> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; ::crate::internal::ciphers::KEY_LEN]> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())

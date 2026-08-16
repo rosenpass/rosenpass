@@ -16,7 +16,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::{RefMaker, ZerocopySliceExt};
+    /// # use crate::internal::util::zerocopy::{RefMaker, ZerocopySliceExt};
     ///
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
@@ -40,7 +40,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopySliceExt;
     ///
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
@@ -71,7 +71,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopySliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Header(u32);
@@ -103,7 +103,7 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopySliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Header(u32);
@@ -143,7 +143,7 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
@@ -174,7 +174,7 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);
@@ -206,7 +206,7 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
-    /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
+    /// # use crate::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data([u8; 4]);

@@ -3,9 +3,9 @@ use std::collections::VecDeque;
 use std::os::fd::OwnedFd;
 
 use mio::net::UnixStream;
-use rosenpass::internal::secret_memory::Secret;
-use rosenpass::internal::util::mio::ReadWithFileDescriptors;
-use rosenpass::internal::util::{
+use crate::internal::secret_memory::Secret;
+use crate::internal::util::mio::ReadWithFileDescriptors;
+use crate::internal::util::{
     io::{IoResultKindHintExt, TryIoResultKindHintExt},
     length_prefix_encoding::{
         decoder::{self as lpe_decoder, LengthPrefixDecoder},

@@ -23,7 +23,7 @@ pub enum Visibility {
 /// ```
 /// use std::io::{Write, Read};
 /// use tempfile::tempdir;
-/// use rosenpass::internal::util::file::{fopen_r, fopen_w, Visibility};
+/// use crate::internal::util::file::{fopen_r, fopen_w, Visibility};
 ///
 /// const CONTENTS : &[u8] = b"Hello World";
 ///
@@ -79,7 +79,7 @@ pub trait ReadSliceToEnd {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::internal::util::file::ReadSliceToEnd;
+    /// use crate::internal::util::file::ReadSliceToEnd;
     ///
     /// const DATA : &[u8] = b"Hello World";
     ///
@@ -141,7 +141,7 @@ pub trait ReadExactToEnd {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::internal::util::file::ReadExactToEnd;
+    /// use crate::internal::util::file::ReadExactToEnd;
     ///
     /// const DATA : &[u8] = b"Hello World";
     ///
@@ -197,7 +197,7 @@ pub trait LoadValue {
     /// use std::path::Path;
     /// use std::io::Write;
     /// use tempfile::tempdir;
-    /// use rosenpass::internal::util::file::{fopen_r, fopen_w, LoadValue, ReadExactToEnd, StoreValue, Visibility};
+    /// use crate::internal::util::file::{fopen_r, fopen_w, LoadValue, ReadExactToEnd, StoreValue, Visibility};
     ///
     /// #[derive(Debug, PartialEq, Eq)]
     /// struct MyInt(pub u32);
@@ -252,8 +252,8 @@ pub trait LoadValueB64 {
     /// ```
     /// use std::path::Path;
     /// use tempfile::tempdir;
-    /// use rosenpass::internal::util::b64::{b64_decode, b64_encode};
-    /// use rosenpass::internal::util::file::{
+    /// use crate::internal::util::b64::{b64_decode, b64_encode};
+    /// use crate::internal::util::file::{
     ///     fopen_r, fopen_w, LoadValueB64, ReadSliceToEnd, StoreValueB64, StoreValueB64Writer,
     ///     Visibility,
     /// };

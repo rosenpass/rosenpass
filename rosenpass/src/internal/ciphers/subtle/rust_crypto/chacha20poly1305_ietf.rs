@@ -1,14 +1,14 @@
 use rosenpass_to::To;
 use rosenpass_to::ops::copy_slice;
 
-use rosenpass::internal::cipher_traits::algorithms::AeadChaCha20Poly1305;
-use rosenpass::internal::cipher_traits::primitives::{Aead, AeadError};
+use crate::internal::cipher_traits::algorithms::AeadChaCha20Poly1305;
+use crate::internal::cipher_traits::primitives::{Aead, AeadError};
 
 use chacha20poly1305::ChaCha20Poly1305 as AeadImpl;
 use chacha20poly1305::aead::generic_array::GenericArray;
 use chacha20poly1305::{AeadInPlace, KeyInit};
 
-pub use rosenpass::internal::cipher_traits::algorithms::aead_chacha20poly1305::{KEY_LEN, NONCE_LEN, TAG_LEN};
+pub use crate::internal::cipher_traits::algorithms::aead_chacha20poly1305::{KEY_LEN, NONCE_LEN, TAG_LEN};
 
 /// Implements the [`Aead`] and [`AeadChaCha20Poly1305`] traits backed by the RustCrypto
 /// implementation.

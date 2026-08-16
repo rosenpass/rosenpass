@@ -18,7 +18,7 @@
 //! ## Example
 //! ```rust
 //! use zeroize::Zeroize;
-//! use rosenpass::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
+//! use crate::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
 //! secret_policy_try_use_memfd_secrets();
 //! let mut my_secret: Secret<32> = Secret::random();
 //! my_secret.zeroize();
@@ -32,7 +32,7 @@
 //! 2. The [debug] module provides functionality to easily create debug output for objects that are
 //!    backed by byte arrays or slices, like for example [`Secret`].
 //! 3. The [mod@file] module provides functionality to store [`Secrets`](Secret)
-//!    and [Public] in files such that the file's [Visibility](rosenpass::internal::util::file::Visibility)
+//!    and [Public] in files such that the file's [Visibility](crate::internal::util::file::Visibility)
 //!    corresponds to the confidentiality of the data.
 //! 4. The [rand] module provides a simple way of generating randomness.
 //! 

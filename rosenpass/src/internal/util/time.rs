@@ -9,7 +9,7 @@ use std::time::Instant;
 /// # Examples
 ///
 /// ```
-/// use rosenpass::internal::util::time::Timebase;
+/// use crate::internal::util::time::Timebase;
 ///
 /// let timebase = Timebase::default();
 /// let now = timebase.now();

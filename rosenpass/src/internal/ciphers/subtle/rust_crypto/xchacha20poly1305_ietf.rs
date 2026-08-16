@@ -1,14 +1,14 @@
 use rosenpass_to::To;
 use rosenpass_to::ops::copy_slice;
 
-use rosenpass::internal::cipher_traits::algorithms::aead_xchacha20poly1305::AeadXChaCha20Poly1305;
-use rosenpass::internal::cipher_traits::primitives::{Aead, AeadError, AeadWithNonceInCiphertext};
+use crate::internal::cipher_traits::algorithms::aead_xchacha20poly1305::AeadXChaCha20Poly1305;
+use crate::internal::cipher_traits::primitives::{Aead, AeadError, AeadWithNonceInCiphertext};
 
 use chacha20poly1305::XChaCha20Poly1305 as AeadImpl;
 use chacha20poly1305::aead::generic_array::GenericArray;
 use chacha20poly1305::{AeadInPlace, KeyInit};
 
-pub use rosenpass::internal::cipher_traits::algorithms::aead_xchacha20poly1305::{
+pub use crate::internal::cipher_traits::algorithms::aead_xchacha20poly1305::{
     KEY_LEN, NONCE_LEN, TAG_LEN,
 };
 /// Implements the [`Aead`] and [`AeadXChaCha20Poly1305`] traits backed by the RustCrypto
@@ -87,7 +87,7 @@ impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use crate::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// const PLAINTEXT_LEN: usize = 43;
 /// let plaintext = "post-quantum cryptography is very important".as_bytes();
 /// assert_eq!(PLAINTEXT_LEN, plaintext.len());
@@ -129,7 +129,7 @@ pub fn encrypt(
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use crate::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// let ciphertext: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /// # 0, 0, 0, 0, 8, 241, 229, 253, 200, 81, 248, 30, 183, 149, 134, 168, 149, 87, 109, 49, 159, 108,
 /// # 206, 89, 51, 232, 232, 197, 163, 253, 254, 208, 73, 76, 253, 13, 247, 162, 133, 184, 177, 44,

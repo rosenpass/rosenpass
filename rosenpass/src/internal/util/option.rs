@@ -3,7 +3,7 @@
 /// # Examples
 ///
 /// ```
-/// use rosenpass::internal::util::option::SomeExt;
+/// use crate::internal::util::option::SomeExt;
 ///
 /// let x = 42;
 /// let y = x.some();

@@ -19,15 +19,15 @@ use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
-use rosenpass::internal::cipher_traits::primitives::{
+use crate::internal::cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
-use rosenpass::internal::ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass::internal::ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
-use rosenpass::internal::constant_time as constant_time;
-use rosenpass::internal::secret_memory::{Public, Secret};
+use crate::internal::ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use crate::internal::ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
+use crate::internal::constant_time as constant_time;
+use crate::internal::secret_memory::{Public, Secret};
 use rosenpass_to::{To, ops::copy_slice};
-use rosenpass::internal::util::{
+use crate::internal::util::{
     cat,
     functional::ApplyExt,
     mem::{DiscardResultExt, cpy_min},
@@ -57,7 +57,7 @@ use super::timing::{BCE, Timing, UNENDING, has_happened};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
 #[cfg(feature = "trace_bench")]
-use rosenpass::internal::util::trace_bench::Trace as _;
+use crate::internal::util::trace_bench::Trace as _;
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 /// This is the implementation of our cryptographic protocol.
@@ -181,14 +181,14 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// ```
 /// use std::ops::DerefMut;
 ///
-/// use rosenpass::internal::ciphers::StaticKem;
-/// use rosenpass::internal::cipher_traits::primitives::Kem;
+/// use crate::internal::ciphers::StaticKem;
+/// use crate::internal::cipher_traits::primitives::Kem;
 ///
-/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-/// use rosenpass::protocol::{Peer, ProtocolVersion};
-/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+/// use crate::protocol::basic_types::{SSk, SPk, SymKey};
+/// use crate::protocol::{Peer, ProtocolVersion};
+/// use crate::protocol::osk_domain_separator::OskDomainSeparator;
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
@@ -273,9 +273,9 @@ impl Peer {
     /// This is dirty but allows us to perform easy incremental construction of [Self].
     ///
     /// ```
-    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
-    /// use rosenpass::protocol::{Peer, ProtocolVersion};
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// use crate::protocol::basic_types::{SymKey, SPk};
+    /// use crate::protocol::{Peer, ProtocolVersion};
+    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     /// let p = Peer::zero(ProtocolVersion::V03);
     /// assert_eq!(p.psk.secret(), SymKey::zero().secret());
     /// assert_eq!(p.spkt, SPk::zero());
@@ -334,7 +334,7 @@ impl HandshakeRole {
     /// Check if the value of this enum is [HandshakeRole::Initiator]
     ///
     /// ```
-    /// use rosenpass::protocol::HandshakeRole;
+    /// use crate::protocol::HandshakeRole;
     /// assert!(HandshakeRole::Initiator.is_initiator());
     /// assert!(!HandshakeRole::Responder.is_initiator());
     /// ```
@@ -465,10 +465,10 @@ pub type KnownResponseHash = Public<16>;
 ///
 /// ```
 /// use zerocopy::FromZeros;
-/// use rosenpass::protocol::KnownResponseHasher;
-/// use rosenpass::msgs::{Envelope, InitConf};
+/// use crate::protocol::KnownResponseHasher;
+/// use crate::msgs::{Envelope, InitConf};
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let h = KnownResponseHasher::new();
 ///
@@ -627,11 +627,11 @@ pub trait Mortal {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass::internal::ciphers::StaticKem;
-/// use rosenpass::protocol::basic_types::{SSk, SPk};
-/// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
+/// use crate::internal::ciphers::StaticKem;
+/// use crate::protocol::basic_types::{SSk, SPk};
+/// use crate::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (peer, (_, spkt), mut srv) = ServerForTesting::new(ProtocolVersion::V03)?.tuple();
 ///
@@ -1169,12 +1169,12 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::basic_types::{SSk, SPk};
-    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass::internal::ciphers::StaticKem;
-    /// use rosenpass::internal::cipher_traits::primitives::Kem;
+    /// use crate::protocol::basic_types::{SSk, SPk};
+    /// use crate::protocol::{CryptoServer, ProtocolVersion};
+    /// use crate::internal::ciphers::StaticKem;
+    /// use crate::internal::cipher_traits::primitives::Kem;
     ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1234,13 +1234,13 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
-    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass::internal::ciphers::StaticKem;
-    /// use rosenpass::internal::cipher_traits::primitives::Kem;
+    /// use crate::protocol::basic_types::{SSk, SPk, SymKey};
+    /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use crate::protocol::{CryptoServer, ProtocolVersion};
+    /// use crate::internal::ciphers::StaticKem;
+    /// use crate::internal::cipher_traits::primitives::Kem;
     ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1522,10 +1522,10 @@ impl Session {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Session, HandshakeRole};
-    /// use rosenpass::internal::ciphers::KeyedHash;
+    /// use crate::protocol::{Session, HandshakeRole};
+    /// use crate::internal::ciphers::KeyedHash;
     ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let s = Session::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
@@ -1741,10 +1741,10 @@ impl Mortal for KnownInitConfResponsePtr {
 ///
 /// ```
 /// use assert_tv::TestVector;
-/// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
-/// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
+/// use crate::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
+/// use crate::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// const M : Timing = 60.0;
 /// const H : Timing = 60.0 * M;
@@ -2104,7 +2104,7 @@ impl CryptoServer {
         {
             rand::Fill::fill_slice(
                 &mut msg_out.padding,
-                &mut rosenpass::internal::secret_memory::rand::rng(),
+                &mut crate::internal::secret_memory::rand::rng(),
             );
         }
 
@@ -2378,7 +2378,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::Wait;
+    /// use crate::protocol::Wait;
     ///
     /// assert_eq!(Wait::immediate().0, 0.0);
     /// ```
@@ -2392,7 +2392,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, timing::UNENDING};
+    /// use crate::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::hibernate().0, UNENDING);
     /// ```
@@ -2406,7 +2406,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, timing::UNENDING};
+    /// use crate::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::immediate_unless(false).0, 0.0);
     /// assert_eq!(Wait::immediate_unless(true).0, UNENDING);
@@ -2424,7 +2424,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, timing::UNENDING};
+    /// use crate::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_hibernate(None).0, UNENDING);
     /// assert_eq!(Wait::or_hibernate(Some(20.0)).0, 20.0);
@@ -2441,7 +2441,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, timing::UNENDING};
+    /// use crate::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_immediate(None).0, 0.0);
     /// assert_eq!(Wait::or_immediate(Some(20.0)).0, 20.0);
@@ -2458,7 +2458,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{Wait, timing::UNENDING};
+    /// use crate::protocol::{Wait, timing::UNENDING};
     ///
     ///
     /// assert_eq!(Wait(20.0).and(30.0).0, 30.0);
@@ -2530,7 +2530,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, timing::UNENDING};
+    /// use crate::protocol::{PollResult, timing::UNENDING};
     ///
     /// assert!(matches!(PollResult::hibernate(), PollResult::Sleep(UNENDING)));
     /// ```
@@ -2544,7 +2544,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr, timing::UNENDING};
+    /// use crate::protocol::{PollResult, PeerPtr, timing::UNENDING};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2576,7 +2576,7 @@ impl PollResult {
     /// Panics if both poll results are [PollResult::saturated]
     ///
     /// ```should_panic
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2587,7 +2587,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2619,7 +2619,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2684,7 +2684,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2720,7 +2720,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2762,7 +2762,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult};
+    /// use crate::protocol::{PollResult};
     ///
     /// use PollResult as P;
     /// assert!(matches!(P::Sleep(50.0).ok(), Ok(P::Sleep(50.0))));
@@ -2777,7 +2777,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::protocol::{PollResult, PeerPtr};
+    /// use crate::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2799,7 +2799,7 @@ impl PollResult {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::protocol::{begin_poll, PollResult, timing::UNENDING};
+/// use crate::protocol::{begin_poll, PollResult, timing::UNENDING};
 ///
 /// assert!(matches!(begin_poll(), PollResult::Sleep(UNENDING)));
 /// ```
@@ -2818,7 +2818,7 @@ pub fn begin_poll() -> PollResult {
 /// The best place to see this in action is the source code of [PeerPtr::poll]
 ///
 /// ```
-/// use rosenpass::protocol::{begin_poll, void_poll, PollResult, PeerPtr};
+/// use crate::protocol::{begin_poll, void_poll, PollResult, PeerPtr};
 ///
 /// let mut x = 0;
 ///
@@ -3512,7 +3512,7 @@ impl CryptoServer {
 macro_rules! protocol_section {
     ($label:expr, $body:block) => {{
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span($label);
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span($label);
 
         #[allow(unused_braces)]
         $body
@@ -3544,7 +3544,7 @@ impl CryptoServer {
         let test_values: HandleInitiationTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_initiation");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_initiation");
 
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
@@ -3671,7 +3671,7 @@ impl CryptoServer {
         let test_values: HandleInitHelloTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_init_hello");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_init_hello");
 
         let mut core = HandshakeState::zero(keyed_hash);
 
@@ -3802,7 +3802,7 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
 
         // RHI2
         let peer = self
@@ -3926,7 +3926,7 @@ impl CryptoServer {
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_init_conf");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_init_conf");
 
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
@@ -4033,7 +4033,7 @@ impl CryptoServer {
         seal_broken: String,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_resp_conf");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_resp_conf");
 
         let rc: &EmptyData = &msg_in.payload;
         let sid = SessionId::from_slice(&rc.sid);
@@ -4089,7 +4089,7 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
 
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))

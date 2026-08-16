@@ -6,8 +6,8 @@
 ///
 /// ```
 /// use std::borrow::Borrow;
-/// use rosenpass::internal::util::functional::{mutating, MutatingExt, sideeffect, SideffectExt, ApplyExt};
-/// use rosenpass::internal::util::mem::DiscardResultExt;
+/// use crate::internal::util::functional::{mutating, MutatingExt, sideeffect, SideffectExt, ApplyExt};
+/// use crate::internal::util::mem::DiscardResultExt;
 ///
 /// // Say you have a function that takes a mutable reference
 /// fn replace<T: Copy + Eq>(slice: &mut [T], targ: T, by: T) {
@@ -107,7 +107,7 @@
 ///                // And we can use apply to fix the return value – if we really want to go
 ///                // crazy and avoid using a {} block
 ///                .apply(|_| ())
-///                // [crate::mem::DiscardResult::discard_result] does the same job and it is more explicit.
+///                // [super::mem::DiscardResult::discard_result] does the same job and it is more explicit.
 ///                .discard_result())
 ///         .borrow() as &[u8]);
 /// assert_eq!(accu, 15);
@@ -232,7 +232,7 @@ impl<T> SideffectExt for T {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::internal::util::functional::run;
+/// use crate::internal::util::functional::run;
 ///
 /// fn add_and_mul(a: Option<u32>, b: Option<u32>, c: anyhow::Result<u32>, d: anyhow::Result<u32>) -> u32 {
 ///     run(|| -> anyhow::Result<u32> {

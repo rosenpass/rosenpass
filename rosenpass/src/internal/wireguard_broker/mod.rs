@@ -13,18 +13,18 @@
 //! ## Examples
 //!
 //! ```no_run
-//! # use rosenpass::internal::secret_memory::{Public, Secret};
-//! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
+//! # use crate::internal::secret_memory::{Public, Secret};
+//! # use crate::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! # use std::error::Error;
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! # rosenpass::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
+//! # crate::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
 //! # let interface = "wg0";
 //! # let peer_id = Public::<WG_PEER_LEN>::zero();
 //! # let psk = Secret::<WG_KEY_LEN>::zero();
 //!
 //! // Create a native Unix broker
-//! let mut broker = rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBroker::new();
+//! let mut broker = crate::internal::wireguard_broker::brokers::native_unix::NativeUnixBroker::new();
 //!
 //! // Configure and set PSK
 //! let config = SerializedBrokerConfig {
@@ -40,7 +40,7 @@
 //! ```
 //! 
 
-use rosenpass::internal::secret_memory::{Public, Secret};
+use crate::internal::secret_memory::{Public, Secret};
 use std::fmt::Debug;
 
 /// Length of a WireGuard key in bytes

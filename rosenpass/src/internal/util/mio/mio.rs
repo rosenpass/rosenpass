@@ -26,7 +26,7 @@ pub mod interest {
 ///
 /// ```rust
 /// use mio::net::{UnixListener, UnixStream};
-/// use rosenpass::internal::util::mio::{UnixListenerExt, UnixStreamExt};
+/// use crate::internal::util::mio::{UnixListenerExt, UnixStreamExt};
 ///
 /// use std::os::unix::io::{AsRawFd, IntoRawFd, RawFd};
 /// use std::path::Path;

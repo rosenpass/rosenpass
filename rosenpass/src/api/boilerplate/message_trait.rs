@@ -1,6 +1,6 @@
 use zerocopy::{ByteSliceMut, Ref};
 
-use rosenpass::internal::util::zerocopy::RefMaker;
+use crate::internal::util::zerocopy::RefMaker;
 
 use super::RawMsgType;
 
@@ -38,7 +38,7 @@ pub trait Message {
     fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>>;
 }
 
-/// Additional convenience functions for working with [rosenpass::internal::util::zerocopy::RefMaker]
+/// Additional convenience functions for working with [crate::internal::util::zerocopy::RefMaker]
 pub trait ZerocopyResponseMakerSetupMessageExt<B, T> {
     fn setup_msg(self) -> anyhow::Result<Ref<B, T>>;
 }
@@ -53,10 +53,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::api::{
+    /// use crate::api::{
     ///     PingRequest, ZerocopyResponseMakerSetupMessageExt, PING_REQUEST,
     /// };
-    /// use rosenpass::internal::util::zerocopy::RefMaker;
+    /// use crate::internal::util::zerocopy::RefMaker;
     /// use std::mem::size_of;
     ///
     /// let mut buf = [0u8; { size_of::<PingRequest>() }];

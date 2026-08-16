@@ -1,8 +1,8 @@
-use rosenpass::internal::cipher_traits::{
+use crate::internal::cipher_traits::{
     algorithms::KeyedHashIncorrectHmacBlake2b,
     primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
 };
-use rosenpass::internal::constant_time::xor;
+use crate::internal::constant_time::xor;
 use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 
@@ -25,8 +25,8 @@ pub const HASH_LEN: usize = 32;
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
-/// use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
+/// # use crate::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
+/// use crate::internal::cipher_traits::primitives::KeyedHashTo;
 /// use rosenpass_to::To;
 /// let key: [u8; 32] = [0; 32];
 /// let data: [u8; 32] = [255; 32];

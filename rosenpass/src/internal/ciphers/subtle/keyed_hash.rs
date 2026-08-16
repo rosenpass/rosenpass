@@ -2,7 +2,7 @@
 //! runtime (using enums) instead of at compile time (using generics).
 
 use anyhow::Result;
-use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
+use crate::internal::cipher_traits::primitives::KeyedHashInstance;
 use std::fmt::Display;
 
 use super::{

@@ -1,4 +1,4 @@
-use rosenpass::internal::util::zerocopy::{
+use crate::internal::util::zerocopy::{
     RefMaker, ZerocopyEmancipateExt, ZerocopyEmancipateMutExt, ZerocopySliceExt,
 };
 use zerocopy::{ByteSlice, ByteSliceMut, Ref, SplitByteSliceMut};

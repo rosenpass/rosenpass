@@ -24,7 +24,7 @@ use core::hint::black_box;
 /// # Examples
 ///
 /// ```
-/// use rosenpass::internal::constant_time::increment as inc;
+/// use crate::internal::constant_time::increment as inc;
 /// use rosenpass_to::To;
 ///
 /// fn testcase(v: &[u8], correct: &[u8]) {

@@ -13,9 +13,9 @@ use std::mem::size_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::RosenpassError;
-use rosenpass::internal::cipher_traits::primitives::{Aead as _, Kem};
-use rosenpass::internal::ciphers::{Aead, KEY_LEN, XAead};
-use rosenpass::internal::ciphers::{EphemeralKem, StaticKem};
+use crate::internal::cipher_traits::primitives::{Aead as _, Kem};
+use crate::internal::ciphers::{Aead, KEY_LEN, XAead};
+use crate::internal::ciphers::{EphemeralKem, StaticKem};
 
 /// Length of a session ID such as [InitHello::sidi]
 pub const SESSION_ID_LEN: usize = 4;
@@ -51,7 +51,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 /// # Examples
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitHello};
+/// use crate::msgs::{Envelope, InitHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::offset_of;
 ///
@@ -106,7 +106,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitHello};
+/// use crate::msgs::{Envelope, InitHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -155,7 +155,7 @@ pub struct InitHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, RespHello};
+/// use crate::msgs::{Envelope, RespHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -206,7 +206,7 @@ pub struct RespHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, InitConf};
+/// use crate::msgs::{Envelope, InitConf};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -264,7 +264,7 @@ pub struct InitConf {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use rosenpass::msgs::{Envelope, EmptyData};
+/// use crate::msgs::{Envelope, EmptyData};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -375,9 +375,9 @@ pub struct CookieReply {
 /// # Examples
 ///
 /// ```
-/// use rosenpass::msgs::MsgType;
-/// use rosenpass::msgs::MsgType as M;
-/// use rosenpass::RosenpassError;
+/// use crate::msgs::MsgType;
+/// use crate::msgs::MsgType as M;
+/// use crate::RosenpassError;
 ///
 /// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData, M::CookieReply];
 /// let values_u8 = values.map(|v| -> u8 { v.into() });
@@ -429,8 +429,8 @@ impl From<MsgType> for u8 {
 #[cfg(test)]
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
-    use rosenpass::internal::cipher_traits::primitives::Aead as _;
-    use rosenpass::internal::ciphers::{KEY_LEN, XAead};
+    use crate::internal::cipher_traits::primitives::Aead as _;
+    use crate::internal::ciphers::{KEY_LEN, XAead};
 
     #[test]
     fn sodium_keysize() {

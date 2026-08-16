@@ -15,16 +15,16 @@ use derive_builder::Builder;
 use log::{error, info, warn};
 use zerocopy::IntoBytes;
 
-use rosenpass::internal::util::attempt;
-use rosenpass::internal::util::fmt::debug::NullDebug;
-use rosenpass::internal::util::functional::{ApplyExt, run};
-use rosenpass::internal::util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
-use rosenpass::internal::util::{
+use crate::internal::util::attempt;
+use crate::internal::util::fmt::debug::NullDebug;
+use crate::internal::util::functional::{ApplyExt, run};
+use crate::internal::util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
+use crate::internal::util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
-use rosenpass::internal::secret_memory::{Public, Secret};
-use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
+use crate::internal::secret_memory::{Public, Secret};
+use crate::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};
 
@@ -87,7 +87,7 @@ impl MioTokenDispenser {
     /// Use is quite straightforward:
     ///
     /// ```
-    /// use rosenpass::app_server::MioTokenDispenser;
+    /// use crate::app_server::MioTokenDispenser;
     /// use mio::Token;
     ///
     /// let mut dispenser = MioTokenDispenser {
@@ -203,8 +203,8 @@ impl AppPeer {
     /// # Examples
     ///
     /// ```
-    /// use rosenpass::app_server::{Endpoint, AppPeer};
-    /// use rosenpass::internal::util::functional::run;
+    /// use crate::app_server::{Endpoint, AppPeer};
+    /// use crate::internal::util::functional::run;
     ///
     /// let mut peer = AppPeer {
     ///   outfile: None,
