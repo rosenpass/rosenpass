@@ -22,8 +22,8 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 use rosenpass::internal::cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
-use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
+use rosenpass::internal::ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use rosenpass::internal::ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
 use rosenpass::internal::constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_to::{To, ops::copy_slice};
@@ -181,7 +181,7 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// ```
 /// use std::ops::DerefMut;
 ///
-/// use rosenpass_ciphers::StaticKem;
+/// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
@@ -627,7 +627,7 @@ pub trait Mortal {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass_ciphers::StaticKem;
+/// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::protocol::basic_types::{SSk, SPk};
 /// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
@@ -1171,7 +1171,7 @@ impl CryptoServer {
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::StaticKem;
+    /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -1237,7 +1237,7 @@ impl CryptoServer {
     /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::StaticKem;
+    /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
@@ -1523,7 +1523,7 @@ impl Session {
     ///
     /// ```
     /// use rosenpass::protocol::{Session, HandshakeRole};
-    /// use rosenpass_ciphers::KeyedHash;
+    /// use rosenpass::internal::ciphers::KeyedHash;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///

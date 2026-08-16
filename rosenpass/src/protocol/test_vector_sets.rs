@@ -16,7 +16,7 @@ use assert_tv::TestValue;
 use assert_tv::TestVectorSet;
 use base64::Engine;
 use rosenpass::internal::cipher_traits::primitives::{Aead, Kem};
-use rosenpass_ciphers::{EphemeralKem, KEY_LEN, XAead};
+use rosenpass::internal::ciphers::{EphemeralKem, KEY_LEN, XAead};
 use rosenpass_secret_memory::{Public, Secret};
 use serde_json::Value;
 
@@ -64,7 +64,7 @@ pub struct HandleInitiationTestValues {
     #[test_vec(name = "ih.pidi_ct")]
     #[test_vec(serialize_with = "serialize_byte_arr")]
     #[test_vec(deserialize_with = "deserialize_byte_arr")]
-    pub init_hello_pidi_ct: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN + 32]>,
+    pub init_hello_pidi_ct: TestValue<[u8; rosenpass::internal::ciphers::Aead::TAG_LEN + 32]>,
 
     #[test_vec(name = "hs.core.ck 3")]
     pub init_handshake_mix_3: TestValue<Secret<KEY_LEN>>,
@@ -75,7 +75,7 @@ pub struct HandleInitiationTestValues {
     #[test_vec(name = "ih.auth")]
     #[test_vec(serialize_with = "serialize_byte_arr")]
     #[test_vec(deserialize_with = "deserialize_byte_arr")]
-    pub init_hello_auth: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN]>,
+    pub init_hello_auth: TestValue<[u8; rosenpass::internal::ciphers::Aead::TAG_LEN]>,
 
     #[test_vec(name = "hs.core.ck 5")]
     pub init_handshake_mix_5: TestValue<Secret<KEY_LEN>>,

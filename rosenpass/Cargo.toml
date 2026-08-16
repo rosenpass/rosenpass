@@ -45,7 +45,6 @@ name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-ciphers = { path = "../ciphers" }
 rosenpass-to = { path = "../to" }
 rosenpass-secret-memory = { path = "../secret-memory" }
 
@@ -85,7 +84,10 @@ num_enum = "0.7.6"
 tokio = { version = "1.46", optional = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
 base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
-
+# dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
+chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["std"] }
+blake2 = "0.10.6"
+shake = "0.1.0"
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
@@ -98,6 +100,9 @@ serial_test = "4.0"
 tempfile = "3"
 rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dependencies (might need cleanup or changes)
 serde_json = { version = "1.0.140" }
+# dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
+rand = "0.10"
+
 
 [features]
 experiment_cookie_dos_mitigation = []
@@ -117,8 +122,14 @@ expose_internal_modules = []
 # features of `rosenpass_util`:
 experiment_file_descriptor_passing = ["dep:uds"]
 tokio = ["dep:tokio"]
-
-
+# featrues of `rosenpass-ciphers`:
+bench = []
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
+
+# contents from `rosenpass-ciphers`:
+[[bench]]
+name = "primitives"
+harness = false
+required-features = ["bench"]

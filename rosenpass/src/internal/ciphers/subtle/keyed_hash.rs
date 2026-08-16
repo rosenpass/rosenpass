@@ -5,7 +5,7 @@ use anyhow::Result;
 use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 use std::fmt::Display;
 
-use crate::subtle::{
+use super::{
     custom::incorrect_hmac_blake2b::IncorrectHmacBlake2b, rust_crypto::keyed_shake256::SHAKE256_32,
 };
 

@@ -81,13 +81,13 @@ impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 /// Encrypts using XChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// `key` and `nonce` MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of
 /// [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN].
-/// In contrast to [chacha20poly1305_ietf::encrypt](crate::subtle::chacha20poly1305_ietf::encrypt),
+/// In contrast to [`chacha20poly1305_ietf::encrypt`](super::super::chacha20poly1305_ietf::encrypt),
 /// `nonce` is also written into `ciphertext` and therefore ciphertext MUST have a length
 /// of at least [NONCE_LEN] + `plaintext.len()` + [TAG_LEN].
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// const PLAINTEXT_LEN: usize = 43;
 /// let plaintext = "post-quantum cryptography is very important".as_bytes();
 /// assert_eq!(PLAINTEXT_LEN, plaintext.len());
@@ -124,12 +124,12 @@ pub fn encrypt(
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
 /// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN] - [NONCE_LEN].
 ///
-/// In contrast to [chacha20poly1305_ietf::decrypt](crate::subtle::chacha20poly1305_ietf::decrypt),
+/// In contrast to [`chacha20poly1305_ietf::decrypt`](`super::super::chacha20poly1305_ietf::decrypt`),
 /// `ciperhtext` MUST include the as it is not given otherwise.
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
+/// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// let ciphertext: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /// # 0, 0, 0, 0, 8, 241, 229, 253, 200, 81, 248, 30, 183, 149, 134, 168, 149, 87, 109, 49, 159, 108,
 /// # 206, 89, 51, 232, 232, 197, 163, 253, 254, 208, 73, 76, 253, 13, 247, 162, 133, 184, 177, 44,

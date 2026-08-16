@@ -5,7 +5,7 @@ use serial_test::serial;
 use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 
 use rosenpass::internal::cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
+use rosenpass::internal::ciphers::StaticKem;
 use rosenpass_secret_memory::Public;
 use rosenpass::internal::util::mem::DiscardResultExt;
 

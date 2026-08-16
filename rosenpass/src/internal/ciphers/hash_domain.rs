@@ -1,7 +1,7 @@
 //!
 //!```rust
-//! # use rosenpass_ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
-//! use rosenpass_ciphers::KeyedHash;
+//! # use rosenpass::internal::ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
+//! use rosenpass::internal::ciphers::KeyedHash;
 //! use rosenpass_secret_memory::Secret;
 //! # rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
 //!
@@ -31,7 +31,7 @@ use anyhow::Result;
 use rosenpass_secret_memory::Secret;
 use rosenpass_to::To as _;
 
-pub use crate::{KEY_LEN, KeyedHash};
+pub use super::{KEY_LEN, KeyedHash};
 
 use rosenpass::internal::cipher_traits::primitives::KeyedHashInstanceTo;
 
@@ -89,7 +89,7 @@ impl HashDomain {
     /// # Examples
     ///
     /// ```rust
-    /// use rosenpass_ciphers::{hash_domain::HashDomain, KeyedHash};
+    /// use rosenpass::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
     ///
     /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(
@@ -194,7 +194,7 @@ impl SecretHashDomain {
     /// # Examples
     ///
     /// ```rust
-    /// use rosenpass_ciphers::{hash_domain::HashDomain, KeyedHash};
+    /// use rosenpass::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
     ///
     /// rosenpass_secret_memory::secret_policy_use_only_malloc_secrets();
     ///

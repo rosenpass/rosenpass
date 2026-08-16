@@ -21,7 +21,7 @@
 //! TODO: CookieStore should not be used for cookie secrets sent from responder to initiator.
 //! TODO: Move cookie lifetime management functionality into here
 
-use rosenpass_ciphers::KEY_LEN;
+use rosenpass::internal::ciphers::KEY_LEN;
 use rosenpass_secret_memory::Secret;
 
 use super::{constants::COOKIE_SECRET_LEN, timing::Timing};

@@ -1972,6 +1972,8 @@ dependencies = [
  "assert_tv",
  "base64 0.23.1",
  "base64ct",
+ "blake2",
+ "chacha20poly1305",
  "clap",
  "clap_complete",
  "clap_mangen",
@@ -1990,8 +1992,6 @@ dependencies = [
  "num_enum",
  "paste",
  "rand 0.10.2",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
  "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-wireguard-broker",
@@ -1999,6 +1999,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "shake",
  "signal-hook",
  "signal-hook-mio",
  "stacker",
@@ -2015,44 +2016,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "rosenpass-cipher-traits"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "rosenpass-oqs",
- "rosenpass-secret-memory",
- "rosenpass-to",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "rosenpass-ciphers"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake2",
- "chacha20poly1305",
- "criterion",
- "rand 0.10.2",
- "rosenpass-cipher-traits",
- "rosenpass-oqs",
- "rosenpass-secret-memory",
- "rosenpass-to",
- "shake",
- "static_assertions",
- "thiserror 2.0.20",
- "zeroize",
-]
-
-[[package]]
 name = "rosenpass-fuzzing"
 version = "0.0.1"
 dependencies = [
  "arbitrary",
  "libfuzzer-sys",
  "rosenpass",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
  "rosenpass-secret-memory",
  "rosenpass-to",
  "stacker",
@@ -2064,7 +2033,6 @@ version = "0.1.0"
 dependencies = [
  "oqs-sys",
  "paste",
- "rosenpass-cipher-traits",
  "rosenpass-secret-memory",
 ]
 
@@ -2085,8 +2053,6 @@ dependencies = [
  "netlink-packet-generic",
  "netlink-packet-wireguard",
  "rosenpass",
- "rosenpass-cipher-traits",
- "rosenpass-ciphers",
  "rosenpass-secret-memory",
  "rosenpass-wireguard-broker",
  "rtnetlink",

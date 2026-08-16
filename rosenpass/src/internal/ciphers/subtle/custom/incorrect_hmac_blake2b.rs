@@ -6,7 +6,7 @@ use rosenpass::internal::constant_time::xor;
 use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 
-use crate::subtle::rust_crypto::blake2b::Blake2b;
+use super::rust_crypto::blake2b::Blake2b;
 use anyhow::Error;
 
 /// The key length, 32 bytes or 256 bits.
@@ -25,7 +25,7 @@ pub const HASH_LEN: usize = 32;
 ///
 /// # Examples
 ///```rust
-/// # use rosenpass_ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
+/// # use rosenpass::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
 /// use rosenpass_to::To;
 /// let key: [u8; 32] = [0; 32];

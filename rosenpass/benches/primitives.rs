@@ -123,15 +123,15 @@ mod aead {
 
     use criterion::Criterion;
 
-    const KEY_LEN: usize = rosenpass_ciphers::Aead::KEY_LEN;
-    const TAG_LEN: usize = rosenpass_ciphers::Aead::TAG_LEN;
+    const KEY_LEN: usize = rosenpass::internal::ciphers::Aead::KEY_LEN;
+    const TAG_LEN: usize = rosenpass::internal::ciphers::Aead::TAG_LEN;
 
     fn bench_xchachapoly_rustcrypto(c: &mut Criterion) {
         template(
             c,
             "xchacha20poly1305",
             "rustcrypto",
-            rosenpass_ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::XChaCha20Poly1305,
+            rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::XChaCha20Poly1305,
         );
     }
 
@@ -140,7 +140,7 @@ mod aead {
             c,
             "chacha20poly1305",
             "rustcrypto",
-            rosenpass_ciphers::subtle::rust_crypto::chacha20poly1305_ietf::ChaCha20Poly1305,
+            rosenpass::internal::ciphers::subtle::rust_crypto::chacha20poly1305_ietf::ChaCha20Poly1305,
         );
     }
 
@@ -265,7 +265,7 @@ mod keyed_hash {
             c,
             "shake256",
             "rustcrypto",
-            &rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core,
+            &rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core,
         );
     }
 
@@ -274,7 +274,7 @@ mod keyed_hash {
             c,
             "blake2b",
             "rustcrypto",
-            &rosenpass_ciphers::subtle::rust_crypto::blake2b::Blake2b,
+            &rosenpass::internal::ciphers::subtle::rust_crypto::blake2b::Blake2b,
         );
     }
 
