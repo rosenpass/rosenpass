@@ -52,6 +52,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c583acf993cf4245c4acb0a2cc2ab1f9cc097de73411bb6d3647ff6af2b1013d"
 
 [[package]]
+name = "allocator-api2-tests"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2277ca94b6a6fec01ae765ad46fd99a117e8ac92e10c191e2b07b4ce36c01e5"
+dependencies = [
+ "allocator-api2",
+]
+
+[[package]]
 name = "anes"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1960,6 +1969,7 @@ name = "rosenpass"
 version = "0.3.0-dev"
 dependencies = [
  "allocator-api2",
+ "allocator-api2-tests",
  "anyhow",
  "assert_tv",
  "base64 0.23.1",
@@ -1984,6 +1994,7 @@ dependencies = [
  "memsec",
  "mio",
  "num_enum",
+ "oqs-sys",
  "paste",
  "postcard",
  "procspawn",
@@ -2019,15 +2030,6 @@ dependencies = [
  "rosenpass",
  "rosenpass-to",
  "stacker",
-]
-
-[[package]]
-name = "rosenpass-oqs"
-version = "0.1.0"
-dependencies = [
- "oqs-sys",
- "paste",
- "rosenpass",
 ]
 
 [[package]]

@@ -43,12 +43,12 @@ mod kem {
             c,
             "classicmceliece460896",
             "oqs",
-            rosenpass_oqs::ClassicMceliece460896,
+            rosenpass::internal::oqs::ClassicMceliece460896,
         );
     }
 
     fn bench_kyber512_oqs(c: &mut Criterion) {
-        template(c, "kyber512", "oqs", rosenpass_oqs::Kyber512);
+        template(c, "kyber512", "oqs", rosenpass::internal::oqs::Kyber512);
     }
 
     use rosenpass::internal::cipher_traits::primitives::Kem;

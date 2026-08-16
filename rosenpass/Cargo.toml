@@ -103,12 +103,15 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["
 blake2 = "0.10.6"
 shake = "0.1.0"
 # dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
-memsec = { workspace = true }
-allocator-api2 = { workspace = true }
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = ["alloc_ext"] }
+allocator-api2-tests = "0.3"
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
-wireguard-uapi = { workspace = true }
-postcard = { workspace = true } # Socket handler only
-libc = { workspace = true, optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
+postcard = { version = "1.1.1", default-features = false, features = ["alloc"] } # Socket handler only
+libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+# dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
+oqs-sys = { version = "0.11.0", default-features = false, features = ['classic_mceliece', 'kyber'] }
+
 
 
 [build-dependencies]
