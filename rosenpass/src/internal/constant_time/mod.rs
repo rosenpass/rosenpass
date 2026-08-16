@@ -1,9 +1,9 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
-//! constant-time implementations of some primitives
+//! Rosenpass internal library providing basic constant-time operations of.
 //!
-//! Rosenpass internal library providing basic constant-time operations.
-//!
+//! This is an internal library; not guarantee is made about its API at this point in time.
+//! 
 //! ## TODO
 //! Figure out methodology to ensure that code is actually constant time, see
 //! <https://github.com/rosenpass/rosenpass/issues/232>
@@ -11,7 +11,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use rosenpass_constant_time::{memcmp, compare};
+//! use rosenpass::internal::constant_time::{memcmp, compare};
 //!
 //! let a = [1, 2, 3, 4];
 //! let b = [1, 2, 3, 4];

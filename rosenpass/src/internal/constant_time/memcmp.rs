@@ -13,7 +13,7 @@
 /// ## Examples
 ///
 /// ```rust
-/// use rosenpass_constant_time::memcmp;
+/// use rosenpass::internal::constant_time::memcmp;
 /// let a = [0, 0, 0, 0];
 /// let b = [0, 0, 0, 1];
 /// let c = [0, 0, 0];

@@ -711,7 +711,7 @@ impl ServerPtr {
 
         // Issue the successful exchange event if the OSKs are equal;
         // be careful to use constant time comparison for things like this!
-        if rosenpass_constant_time::memcmp(osk_a.secret(), osk_b.secret()) {
+        if rosenpass::internal::constant_time::memcmp(osk_a.secret(), osk_b.secret()) {
             self.enqueue_upcoming_poll_event(sim, TE::CompletedExchange(osk_a));
         } else {
             self.enqueue_upcoming_poll_event(sim, TE::FailedExchangeWithKeyMismatch(osk_a, osk_b));

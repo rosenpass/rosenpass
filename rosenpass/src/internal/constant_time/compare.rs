@@ -18,7 +18,7 @@ use core::ptr;
 /// let d = [1, 2, 2, 4];
 ///
 /// unsafe {
-///     use rosenpass_constant_time::memcmp_le;
+///     use rosenpass::internal::constant_time::memcmp_le;
 ///     assert_eq!(memcmp_le(a.as_ptr(), b.as_ptr(), 4), 0);
 ///     assert!(memcmp_le(a.as_ptr(), c.as_ptr(), 4) < 0);
 ///     assert!(memcmp_le(a.as_ptr(), d.as_ptr(), 4) > 0);
@@ -38,7 +38,7 @@ pub unsafe fn memcmp_le(b1: *const u8, b2: *const u8, len: usize) -> i32 {
 
 #[test]
 pub fn memcmp_le_test() {
-    // use rosenpass_constant_time::memcmp_le;
+    // use rosenpass::internal::constant_time::memcmp_le;
     let a = [0, 1, 0, 0];
     let b = [0, 0, 0, 1];
     assert_eq!(-1, unsafe { memcmp_le(a.as_ptr(), b.as_ptr(), 4) });
@@ -69,7 +69,7 @@ pub fn memcmp_le_test() {
 /// # Examples
 ///
 /// ```rust
-/// use rosenpass_constant_time::compare;
+/// use rosenpass::internal::constant_time::compare;
 /// let a = [0, 1, 0, 0];
 /// let b = [0, 0, 0, 1];
 /// assert_eq!(-1, compare(&a, &b));
@@ -82,7 +82,7 @@ pub fn memcmp_le_test() {
 /// This function will panic if the input arrays are of different lengths.
 ///
 /// ```should_panic
-/// use rosenpass_constant_time::compare;
+/// use rosenpass::internal::constant_time::compare;
 /// let a = [0, 1, 0];
 /// let b = [0, 0, 0, 1];
 /// compare(&a, &b);

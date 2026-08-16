@@ -2,7 +2,7 @@ use rosenpass_cipher_traits::{
     algorithms::KeyedHashIncorrectHmacBlake2b,
     primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
 };
-use rosenpass_constant_time::xor;
+use rosenpass::internal::constant_time::xor;
 use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 

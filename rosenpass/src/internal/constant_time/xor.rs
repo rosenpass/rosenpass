@@ -30,7 +30,7 @@ use rosenpass_to::{To, with_destination};
 /// # Examples
 ///
 /// ```
-/// use rosenpass_constant_time::xor;
+/// use rosenpass::internal::constant_time::xor;
 /// use rosenpass_to::To;
 /// assert_eq!(
 ///     xor(b"world").to_this(|| b"hello".to_vec()),

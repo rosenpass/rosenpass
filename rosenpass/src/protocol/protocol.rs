@@ -24,7 +24,7 @@ use rosenpass_cipher_traits::primitives::{
 };
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
-use rosenpass_constant_time as constant_time;
+use rosenpass::internal::constant_time as constant_time;
 use rosenpass_secret_memory::{Public, Secret};
 use rosenpass_to::{To, ops::copy_slice};
 use rosenpass::internal::util::{

@@ -34,7 +34,7 @@ macro_rules! oqs_kem {
             #[doc = "MyKem.decaps(shk_dec.secret_mut(), sk.secret_mut(), &ct);"]
             #[doc = ""]
             #[doc = "// Both parties end up with the same shared key"]
-            #[doc = "assert!(rosenpass_constant_time::compare(shk_enc.secret(), shk_dec.secret()) == 0);"]
+            #[doc = "assert!(rosenpass::internal::constant_time::compare(shk_enc.secret(), shk_dec.secret()) == 0);"]
             #[doc = "```"]
             pub struct [< $name:camel >];
 
