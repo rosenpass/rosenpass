@@ -45,56 +45,57 @@ name = "handshake"
 harness = false
 
 [dependencies]
-rosenpass-util = { workspace = true }
-rosenpass-constant-time = { workspace = true }
-rosenpass-ciphers = { workspace = true }
-rosenpass-cipher-traits = { workspace = true }
-rosenpass-to = { workspace = true }
-rosenpass-secret-memory = { workspace = true }
-anyhow = { workspace = true }
-static_assertions = { workspace = true }
-memoffset = { workspace = true }
-thiserror = { workspace = true }
-paste = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
-clap = { workspace = true }
-clap_complete = { workspace = true }
-clap_mangen = { workspace = true }
-mio = { workspace = true }
-signal-hook = { workspace = true }
-signal-hook-mio = { workspace = true }
-rand = { workspace = true }
-zerocopy = { workspace = true }
-home = { workspace = true }
-derive_builder = { workspace = true }
-rosenpass-wireguard-broker = { workspace = true }
-zeroize = { workspace = true }
-hex-literal = { workspace = true, optional = true }
-hex = { workspace = true, optional = true }
-heck = { workspace = true, optional = true }
-command-fds = { workspace = true, optional = true }
-rustix = { workspace = true, optional = true }
-uds = { workspace = true, optional = true, features = ["mio_1xx"] }
-libcrux-test-utils = { workspace = true, optional = true }
-assert_tv = { workspace = true }
-base64 = { workspace = true }
-serde_json = { workspace = true }
-num_enum = { workspace = true }
+rosenpass-util = { path = "../util" }
+rosenpass-constant-time = { path = "../constant-time" }
+rosenpass-ciphers = { path = "../ciphers" }
+rosenpass-cipher-traits = { path = "../cipher-traits" }
+rosenpass-to = { path = "../to" }
+rosenpass-secret-memory = { path = "../secret-memory" }
+
+anyhow = { version = "1.0", features = ["backtrace", "std"] }
+static_assertions = "1.1.0"
+memoffset = "0.9.1"
+thiserror = "2"
+paste = "1.0.15"
+log = { version = "0.4.27" }
+env_logger = "0.11"
+serde = { version = "1.0.217", features = ["derive"] }
+toml = "1.1.2"
+clap = { version = "4.5.23", features = ["derive"] }
+clap_complete = "4.5.40"
+clap_mangen = "0.3.0"
+mio = { version = "1.0.3", features = ["net", "os-poll"] }
+signal-hook = "0.4.4"
+signal-hook-mio = { version = "0.3", features = ["support-v1_0"] }
+rand = "0.10"
+zerocopy = { version = "0.8", features = ["derive"] }
+home = "0.5.12"
+derive_builder = "0.20.2"
+rosenpass-wireguard-broker = { path = "../wireguard-broker" }
+zeroize = "1.9"
+hex-literal = { version = "1.1.0", optional = true }
+hex = { version = "0.4.3", optional = true }
+heck = { version = "0.5.0", optional = true }
+command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
+rustix = { version = "1.1.4", features = ["net", "fs", "process"], optional = true } # Broker dependencies (might need cleanup or changes)
+uds = { git = "https://github.com/rosenpass/uds", optional = true, features = ["mio_1xx"] }
+libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f", optional = true }
+assert_tv = { version = "0.6" } #Dev dependencies
+base64 = { version = "0.23.0" }
+serde_json = { version = "1.0.140" }
+num_enum = "0.7.6"
 
 [build-dependencies]
-anyhow = { workspace = true }
+anyhow = { version = "1.0", features = ["backtrace", "std"] }
 
 [dev-dependencies]
-criterion = { workspace = true }
-test_bin = { workspace = true }
-stacker = { workspace = true }
-serial_test = { workspace = true }
-tempfile = { workspace = true }
-rustix = { workspace = true }
-serde_json = { workspace = true }
+criterion = "0.8.2"
+test_bin = "0.6"
+stacker = "0.1.21"
+serial_test = "4.0"
+tempfile = "3"
+rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dependencies (might need cleanup or changes)
+serde_json = { version = "1.0.140" }
 
 [features]
 experiment_cookie_dos_mitigation = []
