@@ -1,3 +1,8 @@
+// #![warn(missing_docs)]
+// #![warn(clippy::missing_docs_in_private_items)]
+#![recursion_limit = "256"]
+
+
 //! This is the central rosenpass crate implementing the rosenpass protocol.
 //!
 //! It contains the following modules:

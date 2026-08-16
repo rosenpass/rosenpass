@@ -1,6 +1,5 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
-#![recursion_limit = "256"]
 
 //! Core utility functions and types used across the codebase.
 
@@ -42,3 +41,17 @@ pub mod typenum;
 pub mod zerocopy;
 /// Memory wiping utilities.
 pub mod zeroize;
+
+#[allow(unused_imports)]
+pub(crate) use controlflow::break_if;
+#[allow(unused_imports)]
+pub(crate) use controlflow::continue_if;
+#[allow(unused_imports)]
+pub(crate) use controlflow::repeat;
+pub(crate) use controlflow::return_if;
+#[allow(unused_imports)]
+pub(crate) use controlflow::return_unless;
+pub(crate) use mem::cat;
+pub(crate) use result::attempt;
+#[allow(unused_imports)]
+pub(crate) use typenum::typenum2const;

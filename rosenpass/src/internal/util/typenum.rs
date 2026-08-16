@@ -20,7 +20,6 @@ use typenum::uint::{UInt, UTerm};
 /// const TEN: u32 = typenum2const!(U10 as u32);
 /// assert_eq!(TEN, 10);
 /// ```
-#[macro_export]
 macro_rules! typenum2const {
     ($val:ty) => {
         typenum2const!($val as _)
@@ -29,6 +28,7 @@ macro_rules! typenum2const {
         <$val as $crate::internal::util::typenum::IntoConst<$type>>::VALUE
     };
 }
+pub(crate) use typenum2const;
 
 /// A trait implemented by type-level integers to facilitate their conversion
 /// into constant values.

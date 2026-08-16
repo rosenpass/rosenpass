@@ -28,7 +28,6 @@ use std::ops::{Deref, DerefMut};
 /// let err = std::panic::catch_unwind(|| cat!(7; b"abc", b"def"));
 /// assert!(matches!(err, Err(_)));
 /// ```
-#[macro_export]
 macro_rules! cat {
     ($len:expr; $($toks:expr),+) => {{
         let mut buf = [0u8; $len];
@@ -43,6 +42,7 @@ macro_rules! cat {
         buf
     }}
 }
+pub(crate) use cat;
 
 // TODO: consistent inout ordering
 /// Copy bytes from `src` to `dst`, requiring equal lengths.

@@ -19,12 +19,12 @@ use std::convert::Infallible;
 ///
 /// assert!(error_result.is_err());
 /// ```
-#[macro_export]
 macro_rules! attempt {
     ($block:expr) => {
         (|| -> ::anyhow::Result<_> { $block })()
     };
 }
+pub(crate) use attempt;
 
 /// Trait for the ok operation, which provides a way to convert a value into a Result
 /// # Examples

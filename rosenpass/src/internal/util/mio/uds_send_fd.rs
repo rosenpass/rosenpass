@@ -8,7 +8,7 @@ use std::{
 };
 use uds::UnixStreamExt as FdPassingExt;
 
-use crate::{repeat, return_if};
+use crate::internal::util::{repeat, return_if};
 
 /// A structure that facilitates writing data and file descriptors to a Unix domain socket
 ///
