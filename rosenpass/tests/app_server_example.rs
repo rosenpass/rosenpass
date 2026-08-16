@@ -1,7 +1,7 @@
 use std::thread::{self, sleep};
 use std::{net::SocketAddr, ops::DerefMut, str::FromStr, sync::mpsc, time::Duration};
 
-use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass::internal::util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
 

@@ -13,7 +13,7 @@ use std::mem::size_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::RosenpassError;
-use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
+use rosenpass::internal::cipher_traits::primitives::{Aead as _, Kem};
 use rosenpass_ciphers::{Aead, KEY_LEN, XAead};
 use rosenpass_ciphers::{EphemeralKem, StaticKem};
 
@@ -429,7 +429,7 @@ impl From<MsgType> for u8 {
 #[cfg(test)]
 mod test_constants {
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
-    use rosenpass_cipher_traits::primitives::Aead as _;
+    use rosenpass::internal::cipher_traits::primitives::Aead as _;
     use rosenpass_ciphers::{KEY_LEN, XAead};
 
     #[test]

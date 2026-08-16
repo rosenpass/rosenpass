@@ -1,4 +1,5 @@
 #![doc=include_str!("README.md")]
 
-pub mod util;
+pub mod cipher_traits;
 pub mod constant_time;
+pub mod util;

@@ -5,7 +5,7 @@ macro_rules! oqs_kem {
     ($name:ident, $algo_trait:path) => { ::paste::paste!{
         #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
         mod [< $name:snake >] {
-            use rosenpass_cipher_traits::primitives::{Kem, KemError};
+            use rosenpass::internal::cipher_traits::primitives::{Kem, KemError};
 
             #[doc = "Bindings for ::oqs_sys::kem::" [<"OQS_KEM" _ $name:snake>] "_*"]
             #[doc = ""]
@@ -13,7 +13,7 @@ macro_rules! oqs_kem {
             #[doc = ""]
             #[doc = "```rust"]
             #[doc = "use std::borrow::{Borrow, BorrowMut};"]
-            #[doc = "use rosenpass_cipher_traits::primitives::Kem;"]
+            #[doc = "use rosenpass::internal::cipher_traits::primitives::Kem;"]
             #[doc = "use rosenpass_oqs::" $name:camel " as MyKem;"]
             #[doc = "use rosenpass_secret_memory::{Secret, Public};"]
             #[doc = ""]

@@ -51,7 +51,7 @@ mod kem {
         template(c, "kyber512", "oqs", rosenpass_oqs::Kyber512);
     }
 
-    use rosenpass_cipher_traits::primitives::Kem;
+    use rosenpass::internal::cipher_traits::primitives::Kem;
 
     fn template<
         const SK_LEN: usize,
@@ -144,7 +144,7 @@ mod aead {
         );
     }
 
-    use rosenpass_cipher_traits::primitives::Aead;
+    use rosenpass::internal::cipher_traits::primitives::Aead;
 
     fn template<const NONCE_LEN: usize, T: Aead<KEY_LEN, NONCE_LEN, TAG_LEN>>(
         c: &mut Criterion,
@@ -278,7 +278,7 @@ mod keyed_hash {
         );
     }
 
-    use rosenpass_cipher_traits::primitives::KeyedHash;
+    use rosenpass::internal::cipher_traits::primitives::KeyedHash;
 
     fn template<H: KeyedHash<KEY_LEN, HASH_LEN>>(
         c: &mut Criterion,

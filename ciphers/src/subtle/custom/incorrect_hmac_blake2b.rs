@@ -1,4 +1,4 @@
-use rosenpass_cipher_traits::{
+use rosenpass::internal::cipher_traits::{
     algorithms::KeyedHashIncorrectHmacBlake2b,
     primitives::{InferKeyedHash, KeyedHash, KeyedHashTo},
 };
@@ -26,7 +26,7 @@ pub const HASH_LEN: usize = 32;
 /// # Examples
 ///```rust
 /// # use rosenpass_ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
-/// use rosenpass_cipher_traits::primitives::KeyedHashTo;
+/// use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
 /// use rosenpass_to::To;
 /// let key: [u8; 32] = [0; 32];
 /// let data: [u8; 32] = [255; 32];

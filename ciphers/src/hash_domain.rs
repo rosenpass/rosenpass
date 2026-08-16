@@ -33,7 +33,7 @@ use rosenpass_to::To as _;
 
 pub use crate::{KEY_LEN, KeyedHash};
 
-use rosenpass_cipher_traits::primitives::KeyedHashInstanceTo;
+use rosenpass::internal::cipher_traits::primitives::KeyedHashInstanceTo;
 
 // TODO Use a proper Dec interface
 /// A use-once hash domain for a specified key that can be used directly.

@@ -10,7 +10,7 @@ use rosenpass::internal::util::file::{LoadValueB64, StoreValue, StoreValueB64};
 use zeroize::Zeroize;
 
 use rosenpass::protocol::basic_types::{SPk, SSk};
-use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::{Public, Secret, file::StoreSecret as _};
 

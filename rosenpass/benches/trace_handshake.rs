@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use libcrux_test_utils::tracing::{EventType, Trace as _};
 
-use rosenpass_cipher_traits::primitives::Kem;
+use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass::internal::util::trace_bench::RpEvent;

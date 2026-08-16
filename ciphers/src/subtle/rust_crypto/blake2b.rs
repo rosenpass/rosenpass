@@ -5,10 +5,10 @@ use blake2::digest::crypto_common::generic_array::GenericArray;
 use blake2::digest::crypto_common::typenum::U32;
 use blake2::digest::{FixedOutput, Mac};
 
-use rosenpass_cipher_traits::primitives::KeyedHash;
+use rosenpass::internal::cipher_traits::primitives::KeyedHash;
 use rosenpass_to::{To, ops::copy_slice};
 
-pub use rosenpass_cipher_traits::algorithms::keyed_hash_blake2b::{HASH_LEN, KEY_LEN};
+pub use rosenpass::internal::cipher_traits::algorithms::keyed_hash_blake2b::{HASH_LEN, KEY_LEN};
 
 /// Specify that the used implementation of BLAKE2b is the MAC version of BLAKE2b
 /// with output and key length of 32 bytes (see [Blake2bMac]).
@@ -41,4 +41,4 @@ impl KeyedHash<KEY_LEN, HASH_LEN> for Blake2b {
     }
 }
 
-impl rosenpass_cipher_traits::algorithms::KeyedHashBlake2b for Blake2b {}
+impl rosenpass::internal::cipher_traits::algorithms::KeyedHashBlake2b for Blake2b {}

@@ -19,7 +19,7 @@ use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
-use rosenpass_cipher_traits::primitives::{
+use rosenpass::internal::cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
 use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
@@ -182,7 +182,7 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// use std::ops::DerefMut;
 ///
 /// use rosenpass_ciphers::StaticKem;
-/// use rosenpass_cipher_traits::primitives::Kem;
+/// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
 /// use rosenpass::protocol::{Peer, ProtocolVersion};
@@ -1172,7 +1172,7 @@ impl CryptoServer {
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
-    /// use rosenpass_cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///
@@ -1238,7 +1238,7 @@ impl CryptoServer {
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
-    /// use rosenpass_cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
     ///

@@ -1,11 +1,11 @@
 use anyhow::ensure;
-use rosenpass_cipher_traits::primitives::{InferKeyedHash, KeyedHash};
+use rosenpass::internal::cipher_traits::primitives::{InferKeyedHash, KeyedHash};
 use shake::{
     Shake256,
     digest::{ExtendableOutput, Update, XofReader},
 };
 
-pub use rosenpass_cipher_traits::algorithms::keyed_hash_shake256::{HASH_LEN, KEY_LEN};
+pub use rosenpass::internal::cipher_traits::algorithms::keyed_hash_shake256::{HASH_LEN, KEY_LEN};
 
 /// An implementation of the [`KeyedHash`] trait backed by the RustCrypto implementation of SHAKE256.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,7 +27,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// #Examples
     /// ```rust
     /// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core;
-    /// use rosenpass_cipher_traits::primitives::KeyedHash;
+    /// use rosenpass::internal::cipher_traits::primitives::KeyedHash;
     /// const KEY_LEN: usize = 32;
     /// const HASH_LEN: usize = 32;
     /// let key: [u8; 32] = [0; KEY_LEN];
@@ -83,7 +83,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 ///
 /// ```rust
 /// # use rosenpass_ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256};
-/// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
+/// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
 /// const HASH_LEN: usize = 32;
 /// let key: [u8; KEY_LEN] = [0; KEY_LEN];
@@ -103,7 +103,7 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 ///
 /// ```rust
 /// # use rosenpass_ciphers::subtle::keyed_shake256::{SHAKE256_32};
-/// use rosenpass_cipher_traits::primitives::KeyedHashInstance;
+/// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
 /// const HASH_LEN: usize = 32;
 /// let key: [u8; 32] = [0; KEY_LEN];
