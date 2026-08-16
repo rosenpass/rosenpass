@@ -7,7 +7,7 @@
 
 use std::borrow::BorrowMut;
 
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 
 use crate::WireGuardBroker;
 use crate::api::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
@@ -137,7 +137,7 @@ mod tests {
     use crate::api::server::BrokerServer;
     use crate::brokers::netlink::SetPskError;
     use crate::{SerializedBrokerConfig, WireGuardBroker};
-    use rosenpass_secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
+    use rosenpass::internal::secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
     use zerocopy::IntoBytes;
 
     #[derive(Debug, Clone)]

@@ -25,7 +25,7 @@
 //! ```
 //! use std::ops::DerefMut;
 //!
-//! use rosenpass_secret_memory::policy::*;
+//! use rosenpass::internal::secret_memory::policy::*;
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::ciphers::StaticKem;
 //!

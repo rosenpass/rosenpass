@@ -17,7 +17,7 @@ use rosenpass::{
         osk_domain_separator::OskDomainSeparator,
     },
 };
-use rosenpass_secret_memory::Secret;
+use rosenpass::internal::secret_memory::Secret;
 use rosenpass::internal::util::file::{LoadValue as _, LoadValueB64};
 use rosenpass::internal::util::functional::{ApplyExt, MutatingExt};
 use rosenpass::internal::util::result::OkExt;

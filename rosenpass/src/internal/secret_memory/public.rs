@@ -1,4 +1,4 @@
-use crate::debug::debug_crypto_array;
+use super::debug::debug_crypto_array;
 use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
 use rosenpass::internal::util::b64::{b64_decode, b64_encode};
@@ -19,7 +19,7 @@ use std::path::Path;
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass_secret_memory::{Public};
+/// # use rosenpass::internal::secret_memory::{Public};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// // Fill with some random data that I can use a cryptographic key later on.
@@ -59,7 +59,7 @@ impl<const N: usize> Public<N> {
 
     /// Randomize all bytes in an existing [Public].
     pub fn randomize(&mut self) {
-        rand::Fill::fill_slice(&mut self.value, &mut crate::rand::rng())
+        rand::Fill::fill_slice(&mut self.value, &mut super::rand::rng())
     }
 }
 
@@ -199,7 +199,7 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass_secret_memory::{Public, PublicBox};
+/// # use rosenpass::internal::secret_memory::{Public, PublicBox};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// let mut my_bbox: PublicBox<32> = PublicBox{ inner: Box::new(my_public_data)};
@@ -370,7 +370,7 @@ mod tests {
     #[cfg(test)]
     #[allow(clippy::module_inception)]
     mod tests {
-        use crate::{Public, PublicBox};
+        use super::super::{Public, PublicBox};
         use rosenpass::internal::util::{
             b64::b64_encode,
             file::{

@@ -9,12 +9,12 @@
 //! # Examples
 //!
 //! ```no_run
-//! # use rosenpass_secret_memory::{Public, Secret};
+//! # use rosenpass::internal::secret_memory::{Public, Secret};
 //! # use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! # use std::error::Error;
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! # rosenpass_secret_memory::policy::secret_policy_try_use_memfd_secrets();
+//! # rosenpass::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
 //! # let interface = "wg0";
 //! # let peer_id = Public::<WG_PEER_LEN>::zero();
 //! # let psk = Secret::<WG_KEY_LEN>::zero();
@@ -35,7 +35,7 @@
 //! # }
 //! ```
 
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 use std::fmt::Debug;
 
 /// Length of a WireGuard key in bytes

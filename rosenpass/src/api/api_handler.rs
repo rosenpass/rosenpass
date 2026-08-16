@@ -315,7 +315,7 @@ where
         let erase_ptr = {
             use crate::app_server::BrokerStorePtr;
             //
-            use rosenpass_secret_memory::Public;
+            use rosenpass::internal::secret_memory::Public;
             use zerocopy::IntoBytes;
             (self.app_server().brokers.store.len() - 1)
                 .apply(|x| x as u64)

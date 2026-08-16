@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rosenpass_secret_memory::{Public, Secret};
+//! use rosenpass::internal::secret_memory::{Public, Secret};
 //! use rosenpass_wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
 //! use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
 //!
@@ -37,7 +37,7 @@ use std::thread;
 use derive_builder::Builder;
 use log::{debug, error};
 use postcard::{from_bytes, to_allocvec};
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass::internal::util::b64::b64_decode;
 use rosenpass::internal::util::{b64::B64Display, file::StoreValueB64Writer};
 
@@ -163,7 +163,7 @@ impl WireguardBrokerMio for NativeUnixBroker {
 ///
 /// ```
 /// use rosenpass_wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
-/// use rosenpass_secret_memory::Public;
+/// use rosenpass::internal::secret_memory::Public;
 /// use rosenpass_wireguard_broker::WG_PEER_LEN;
 ///
 /// let config = NativeUnixBrokerConfigBase {

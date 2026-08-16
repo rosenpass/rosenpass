@@ -3,4 +3,5 @@
 pub mod cipher_traits;
 pub mod ciphers;
 pub mod constant_time;
+pub mod secret_memory;
 pub mod util;

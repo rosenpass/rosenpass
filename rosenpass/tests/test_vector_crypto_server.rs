@@ -23,8 +23,8 @@ use rosenpass::protocol::test_vector_sets::serialize_byte_vec;
 use rosenpass::protocol::{CryptoServer, PeerPtr, ProtocolVersion};
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass_secret_memory::policy::*;
-use rosenpass_secret_memory::{PublicBox, Secret};
+use rosenpass::internal::secret_memory::policy::*;
+use rosenpass::internal::secret_memory::{PublicBox, Secret};
 use std::ops::DerefMut;
 
 use rosenpass::protocol::constants::COOKIE_SECRET_LEN;

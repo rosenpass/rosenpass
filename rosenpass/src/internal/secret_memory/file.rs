@@ -11,7 +11,7 @@ use std::path::Path;
 /// ```rust
 /// use std::io::Write;
 /// use std::path::Path;
-/// use rosenpass_secret_memory::file::StoreSecret;
+/// use rosenpass::internal::secret_memory::file::StoreSecret;
 ///
 /// use rosenpass::internal::util::file::{fopen_w, Visibility};
 ///

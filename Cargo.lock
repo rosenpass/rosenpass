@@ -52,15 +52,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c583acf993cf4245c4acb0a2cc2ab1f9cc097de73411bb6d3647ff6af2b1013d"
 
 [[package]]
-name = "allocator-api2-tests"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2277ca94b6a6fec01ae765ad46fd99a117e8ac92e10c191e2b07b4ce36c01e5"
-dependencies = [
- "allocator-api2",
-]
-
-[[package]]
 name = "anes"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1968,6 +1959,7 @@ checksum = "323c417e1d9665a65b263ec744ba09030cfb277e9daa0b018a4ab62e57bc8189"
 name = "rosenpass"
 version = "0.3.0-dev"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "assert_tv",
  "base64 0.23.1",
@@ -1988,11 +1980,12 @@ dependencies = [
  "libcrux-test-utils",
  "log",
  "memoffset",
+ "memsec",
  "mio",
  "num_enum",
  "paste",
+ "procspawn",
  "rand 0.10.2",
- "rosenpass-secret-memory",
  "rosenpass-to",
  "rosenpass-wireguard-broker",
  "rustix",
@@ -2022,7 +2015,6 @@ dependencies = [
  "arbitrary",
  "libfuzzer-sys",
  "rosenpass",
- "rosenpass-secret-memory",
  "rosenpass-to",
  "stacker",
 ]
@@ -2033,7 +2025,6 @@ version = "0.1.0"
 dependencies = [
  "oqs-sys",
  "paste",
- "rosenpass-secret-memory",
 ]
 
 [[package]]
@@ -2053,7 +2044,6 @@ dependencies = [
  "netlink-packet-generic",
  "netlink-packet-wireguard",
  "rosenpass",
- "rosenpass-secret-memory",
  "rosenpass-wireguard-broker",
  "rtnetlink",
  "serde",
@@ -2062,27 +2052,6 @@ dependencies = [
  "tokio",
  "toml",
  "x25519-dalek",
- "zeroize",
-]
-
-[[package]]
-name = "rosenpass-secret-memory"
-version = "0.1.0"
-dependencies = [
- "allocator-api2",
- "allocator-api2-tests",
- "anyhow",
- "assert_tv",
- "base64 0.23.1",
- "base64ct",
- "log",
- "memsec",
- "procspawn",
- "rand 0.10.2",
- "rosenpass-to",
- "serde",
- "serde_json",
- "tempfile",
  "zeroize",
 ]
 
@@ -2106,7 +2075,6 @@ dependencies = [
  "mio",
  "postcard",
  "rand 0.10.2",
- "rosenpass-secret-memory",
  "rosenpass-to",
  "rustix",
  "thiserror 2.0.20",

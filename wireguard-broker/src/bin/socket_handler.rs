@@ -158,7 +158,7 @@ async fn on_accept(queue: mpsc::Sender<BrokerRequest>, mut stream: UnixStream) -
     let mut req_buf = Vec::new();
 
     {
-        use rosenpass_secret_memory as SM;
+        use rosenpass::internal::secret_memory as SM;
         #[cfg(feature = "experiment_memfd_secret")]
         SM::secret_policy_try_use_memfd_secrets();
         #[cfg(not(feature = "experiment_memfd_secret"))]

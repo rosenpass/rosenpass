@@ -46,8 +46,6 @@ harness = false
 
 [dependencies]
 rosenpass-to = { path = "../to" }
-rosenpass-secret-memory = { path = "../secret-memory" }
-
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
 static_assertions = "1.1.0"
 memoffset = "0.9.1"
@@ -88,6 +86,9 @@ typenum = { version = "1.17.0" }
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["std"] }
 blake2 = "0.10.6"
 shake = "0.1.0"
+# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
+memsec = { workspace = true }
+allocator-api2 = { workspace = true }
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
@@ -102,6 +103,10 @@ rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dep
 serde_json = { version = "1.0.140" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 rand = "0.10"
+# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
+allocator-api2 = "0.3"
+base64ct = { version = "1.6.0", default-features = false }
+procspawn = { version = "1.0.1", features = ["test-support"] }
 
 
 [features]

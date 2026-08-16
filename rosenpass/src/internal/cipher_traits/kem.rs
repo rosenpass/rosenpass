@@ -19,7 +19,7 @@
 //!```rust
 //! use rosenpass::internal::cipher_traits::Kem;
 //! use rosenpass_oqs::Kyber512;
-//! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //!
 //! type MyKem = Kyber512;
 //! secret_policy_use_only_malloc_secrets();
@@ -107,7 +107,7 @@
 //!         Ok(())
 //!     }
 //! }
-//! # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //! #
 //! # type MyKem = DummyKem;
 //! # secret_policy_use_only_malloc_secrets();

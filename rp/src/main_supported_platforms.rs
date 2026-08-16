@@ -2,7 +2,7 @@ use std::{fs, process::exit};
 
 use rosenpass::internal::util::tokio::janitor::ensure_janitor;
 
-use rosenpass_secret_memory::policy;
+use rosenpass::internal::secret_memory::policy;
 
 use crate::cli::{Cli, Command};
 use crate::exchange::{ExchangeOptions, exchange};

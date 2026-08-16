@@ -59,7 +59,7 @@ fn api_integration_api_setup_v03() -> anyhow::Result<()> {
 }
 
 fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
 

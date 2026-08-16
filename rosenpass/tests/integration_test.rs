@@ -10,7 +10,7 @@ use tempfile::tempdir;
 
 use clap::Parser;
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
 use serial_test::serial;
 use std::io::Write;
@@ -18,7 +18,7 @@ use std::io::Write;
 const BIN: &str = "rosenpass";
 
 fn setup_tests() {
-    use rosenpass_secret_memory as SM;
+    use rosenpass::internal::secret_memory as SM;
     #[cfg(feature = "experiment_memfd_secret")]
     SM::secret_policy_try_use_memfd_secrets();
     #[cfg(not(feature = "experiment_memfd_secret"))]

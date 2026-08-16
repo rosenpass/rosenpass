@@ -4,7 +4,7 @@
 
 use crate::{SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 use derive_builder::Builder;
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 
 #[derive(Builder, Debug)]
 #[builder(pattern = "mutable")]

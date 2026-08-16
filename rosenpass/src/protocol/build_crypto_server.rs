@@ -20,7 +20,7 @@ use super::{CryptoServer, PeerPtr};
 /// use rosenpass::protocol::Keypair;
 ///
 /// // We have to define the security policy before using Secrets.
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let random_pair = Keypair::random();
@@ -53,7 +53,7 @@ impl Keypair {
     /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let random_sk = SSk::random();
@@ -78,7 +78,7 @@ impl Keypair {
     /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let zero_sk = SSk::zero();
@@ -92,7 +92,7 @@ impl Keypair {
         Self::new(SSk::zero(), SPk::zero())
     }
 
-    /// Creates a new (securely-)random key pair. The mechanism is described in [rosenpass_secret_memory::Secret].
+    /// Creates a new (securely-)random key pair. The mechanism is described in [rosenpass::internal::secret_memory::Secret].
     ///
     /// See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
     pub fn random() -> Self {
@@ -149,7 +149,7 @@ pub struct MissingKeypair;
 ///
 /// ```rust
 /// use rosenpass::internal::util::build::Build;
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
 /// use rosenpass::config::ProtocolVersion;
 ///
@@ -276,7 +276,7 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// use rosenpass::internal::util::build::Build;
@@ -301,7 +301,7 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// use rosenpass::internal::util::build::Build;
@@ -337,7 +337,7 @@ impl BuildCryptoServer {
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// // Deferred initialization: Create builder first, add some peers later
@@ -401,7 +401,7 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// use rosenpass::internal::util::build::Build;
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///
     /// use rosenpass::config::ProtocolVersion;
     /// use rosenpass::hash_domains::protocol;

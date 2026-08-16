@@ -14,8 +14,8 @@ use rosenpass::internal::util::file::{
 };
 use rosenpass::internal::util::functional::mutating;
 
-use crate::alloc::{SecretBox, SecretVec, secret_box};
-use crate::file::StoreSecret;
+use super::alloc::{SecretBox, SecretVec, secret_box};
+use super::file::StoreSecret;
 
 use rosenpass::internal::util::file::{Visibility, fopen_w};
 use std::io::Write;
@@ -167,14 +167,14 @@ impl SecretMemoryPool {
 ///
 /// In order to use a [Secret], we have to decide on the secure allocator to use beforehand
 /// calling either
-/// [secret_policy_use_only_malloc_secrets](crate::secret_policy_use_only_malloc_secrets),
-/// [secret_policy_use_only_memfd_secrets](crate::secret_policy_use_only_memfd_secrets)
-/// or [secret_policy_try_use_memfd_secrets](crate::secret_policy_try_use_memfd_secrets).
+/// [`secret_policy_use_only_malloc_secrets`](super::secret_policy_use_only_malloc_secrets),
+/// [`secret_policy_use_only_memfd_secrets`](super::secret_policy_use_only_memfd_secrets)
+/// or [`secret_policy_try_use_memfd_secrets`](super::secret_policy_try_use_memfd_secrets).
 ///
 /// You can use a [Secret] as follows:
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use rosenpass_secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+/// # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 ///
 /// // We have to define the security policy before using Secrets.
 /// secret_policy_use_only_malloc_secrets();
@@ -215,14 +215,15 @@ impl<const N: usize> Secret<N> {
         mutating(Self::zero(), |r| r.randomize())
     }
 
-    /// Sets all data of an existing [Secret] to random bytes.
-    /// The [Secret] is first zeroized to make sure that the barriers from the zeroize crate take effect.
+    /// sets all data of an existing [`Secret``] to random bytes
+    /// 
+    /// The [`Secret`] is first zeroized to make sure that the barriers from the `zeroize` crate take effect.
     pub fn randomize(&mut self) {
         // Zeroize self first just to make sure the barriers from the zeroize create take
         // effect to prevent the compiler from optimizing this away.
         // TODO: We should at some point replace this with our own barriers.
         self.zeroize();
-        rand::Fill::fill_slice(self.secret_mut(), &mut crate::rand::rng());
+        rand::Fill::fill_slice(self.secret_mut(), &mut super::rand::rng());
     }
 
     /// Borrows the data.
@@ -371,7 +372,7 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::{secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies};
+    use super::super::{secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies};
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};

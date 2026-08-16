@@ -8,10 +8,10 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rosenpass_secret_memory::{Public, Secret};
+//! use rosenpass::internal::secret_memory::{Public, Secret};
 //! use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! use rosenpass_wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
-//! # use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+//! # use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 //! # secret_policy_use_only_malloc_secrets();
 //!
 //! let mut broker = NetlinkWireGuardBroker::new()?;
@@ -191,7 +191,7 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rosenpass_secret_memory::{Public, Secret, secret_policy_use_only_malloc_secrets};
+    use rosenpass::internal::secret_memory::{Public, Secret, secret_policy_use_only_malloc_secrets};
     #[test]
     fn smoke_test() -> Result<(), Box<dyn std::error::Error>> {
         secret_policy_use_only_malloc_secrets();

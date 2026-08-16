@@ -23,7 +23,7 @@ use rosenpass::internal::util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
-use rosenpass_secret_memory::{Public, Secret};
+use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};

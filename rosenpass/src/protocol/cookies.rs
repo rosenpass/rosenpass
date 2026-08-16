@@ -22,7 +22,7 @@
 //! TODO: Move cookie lifetime management functionality into here
 
 use rosenpass::internal::ciphers::KEY_LEN;
-use rosenpass_secret_memory::Secret;
+use rosenpass::internal::secret_memory::Secret;
 
 use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 
@@ -38,7 +38,7 @@ use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 /// use rosenpass::internal::util::time::Timebase;
 /// use rosenpass::protocol::{timing::BCE, basic_types::SymKey, cookies::CookieStore};
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let fixed_secret = SymKey::random();
 /// let timebase = Timebase::default();

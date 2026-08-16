@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::os::fd::OwnedFd;
 
 use mio::net::UnixStream;
-use rosenpass_secret_memory::Secret;
+use rosenpass::internal::secret_memory::Secret;
 use rosenpass::internal::util::mio::ReadWithFileDescriptors;
 use rosenpass::internal::util::{
     io::{IoResultKindHintExt, TryIoResultKindHintExt},

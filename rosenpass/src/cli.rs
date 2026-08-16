@@ -7,7 +7,7 @@ use anyhow::{Context, bail, ensure};
 use clap::{Parser, Subcommand};
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass_secret_memory::file::StoreSecret;
+use rosenpass::internal::secret_memory::file::StoreSecret;
 use rosenpass::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
 use rosenpass_wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,

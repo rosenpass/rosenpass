@@ -27,7 +27,7 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
     let outfile_b = tmpdir.path().join("osk_b");
 
     // Set security policy for storing secrets; choose the one that is faster for testing
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     // Introduce the servers to each other
     let psk_a = SymKey::random();

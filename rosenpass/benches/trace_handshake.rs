@@ -11,7 +11,7 @@ use libcrux_test_utils::tracing::{EventType, Trace as _};
 
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass::internal::util::trace_bench::RpEvent;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};

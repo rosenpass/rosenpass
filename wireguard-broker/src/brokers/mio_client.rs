@@ -11,7 +11,7 @@
 //! # use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
 //! # use rosenpass_wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
 //! # use mio::{Events, Interest, Poll, Token};
-//! # use rosenpass_secret_memory::{Public, Secret};
+//! # use rosenpass::internal::secret_memory::{Public, Secret};
 //! # use rosenpass_wireguard_broker::api::config::NetworkBrokerConfig;
 //! # use rosenpass_wireguard_broker::SerializedBrokerConfig;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -49,7 +49,7 @@
 
 use anyhow::{Context, bail};
 use mio::Interest;
-use rosenpass_secret_memory::Secret;
+use rosenpass::internal::secret_memory::Secret;
 use rosenpass_to::{To, ops::copy_slice_least_src};
 use rosenpass::internal::util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
 use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
@@ -75,7 +75,7 @@ use crate::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
 /// use mio::net::UnixStream;
 /// use rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient;
 /// use rosenpass_wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
-/// use rosenpass_secret_memory::{Public, Secret};
+/// use rosenpass::internal::secret_memory::{Public, Secret};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let socket = UnixStream::connect("/path/to/broker.sock")?;
