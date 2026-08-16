@@ -3,7 +3,7 @@
 
 /// Constants and trait for the Incorrect HMAC over Blake2b, with 256 key and hash length.
 pub mod keyed_hash_incorrect_hmac_blake2b {
-    use crate::primitives::keyed_hash::*;
+    use crate::internal::cipher_traits::primitives::keyed_hash::*;
 
     // These constants describe how they are used here, not what the algorithm defines.
 
@@ -18,7 +18,7 @@ pub mod keyed_hash_incorrect_hmac_blake2b {
 
 /// Constants and trait for Blake2b, with 256 key and hash length.
 pub mod keyed_hash_blake2b {
-    use crate::primitives::keyed_hash::*;
+    use crate::internal::cipher_traits::primitives::keyed_hash::*;
 
     // These constants describe how they are used here, not what the algorithm defines.
 
@@ -33,7 +33,7 @@ pub mod keyed_hash_blake2b {
 
 /// Constants and trait for SHAKE256, with 256 key and hash length.
 pub mod keyed_hash_shake256 {
-    use crate::primitives::keyed_hash::*;
+    use crate::internal::cipher_traits::primitives::keyed_hash::*;
 
     // These constants describe how they are used here, not what the algorithm defines.
 
@@ -48,7 +48,7 @@ pub mod keyed_hash_shake256 {
 
 /// Constants and trait for the ChaCha20Poly1305 AEAD
 pub mod aead_chacha20poly1305 {
-    use crate::primitives::aead::*;
+    use crate::internal::cipher_traits::primitives::aead::*;
 
     // See https://datatracker.ietf.org/doc/html/rfc7539#section-2.8
 
@@ -66,7 +66,7 @@ pub mod aead_chacha20poly1305 {
 /// Constants and trait for the XChaCha20Poly1305 AEAD (i.e. ChaCha20Poly1305 with extended nonce
 /// lengths)
 pub mod aead_xchacha20poly1305 {
-    use crate::primitives::aead::*;
+    use crate::internal::cipher_traits::primitives::aead::*;
 
     // See https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha-03
 
@@ -83,7 +83,7 @@ pub mod aead_xchacha20poly1305 {
 
 /// Constants and trait for the Kyber512 KEM
 pub mod kem_kyber512 {
-    use crate::primitives::kem::*;
+    use crate::internal::cipher_traits::primitives::kem::*;
 
     // page 39 of https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
     // (which is ml-kem instead of kyber, but it's the same)
@@ -106,7 +106,7 @@ pub mod kem_kyber512 {
 
 /// Constants and trait for the Classic McEliece 460896 KEM
 pub mod kem_classic_mceliece460896 {
-    use crate::primitives::kem::*;
+    use crate::internal::cipher_traits::primitives::kem::*;
 
     // page 6 of https://classic.mceliece.org/mceliece-impl-20221023.pdf
 

@@ -6,7 +6,7 @@ use crate::internal::constant_time::xor;
 use rosenpass_to::{To, ops::copy_slice};
 use zeroize::Zeroizing;
 
-use super::rust_crypto::blake2b::Blake2b;
+use crate::internal::ciphers::subtle::rust_crypto::blake2b::Blake2b;
 use anyhow::Error;
 
 /// The key length, 32 bytes or 256 bits.

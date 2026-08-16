@@ -53,8 +53,7 @@
 //! ```
 
 use anyhow::Result;
-use crate::internal::ciphers::hash_domain::HashDomain;
-use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
+use crate::internal::ciphers::{hash_domain::HashDomain,subtle::keyed_hash::KeyedHash};
 
 /// Declare a hash function
 ///
@@ -68,7 +67,7 @@ use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
 macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<::crate::internal::ciphers::hash_domain::HashDomain> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<$crate::internal::ciphers::hash_domain::HashDomain> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
@@ -87,7 +86,7 @@ macro_rules! hash_domain_ns {
 macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; ::crate::internal::ciphers::KEY_LEN]> {
+        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; $crate::internal::ciphers::KEY_LEN]> {
             let t = $base(hash_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
