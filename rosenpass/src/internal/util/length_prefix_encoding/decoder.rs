@@ -16,7 +16,7 @@ use std::{borrow::BorrowMut, cmp::min, io};
 use thiserror::Error;
 use zeroize::Zeroize;
 
-use crate::{
+use crate::internal::util::{
     io::{TryIoErrorKind, TryIoResultKindHintExt},
     result::ensure_or,
 };

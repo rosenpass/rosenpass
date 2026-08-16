@@ -26,12 +26,12 @@ pub use subtle::rust_crypto::xchacha20poly1305_ietf::XChaCha20Poly1305 as XAead;
 
 /// Use Classic-McEcliece-460986 as the Static KEM.
 ///
-/// See [rosenpass::internal::oqs::ClassicMceliece460896] for more details.
-pub use rosenpass::internal::oqs::ClassicMceliece460896 as StaticKem;
+/// See [crate::internal::oqs::ClassicMceliece460896] for more details.
+pub use crate::internal::oqs::ClassicMceliece460896 as StaticKem;
 
 /// Use Kyber-512 as the Static KEM
 ///
-/// See [rosenpass::internal::oqs::Kyber512] for more details.
-pub use rosenpass::internal::oqs::Kyber512 as EphemeralKem;
+/// See [crate::internal::oqs::Kyber512] for more details.
+pub use crate::internal::oqs::Kyber512 as EphemeralKem;
 
 pub mod hash_domain;

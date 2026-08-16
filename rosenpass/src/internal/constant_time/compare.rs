@@ -95,7 +95,7 @@ pub fn compare(a: &[u8], b: &[u8]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::compare::memcmp_le;
+    use super::memcmp_le;
 
     #[test]
     fn memcmp_le_test() {

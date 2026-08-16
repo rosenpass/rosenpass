@@ -44,7 +44,7 @@
 //! # Examples
 //!
 #![doc = "```ignore"]
-#![doc = include_str!("../../tests/janitor.rs")]
+#![doc = include_str!("../tests/janitor.rs")]
 #![doc = "```"]
 
 use std::any::type_name;
@@ -57,7 +57,7 @@ use tokio::task_local;
 
 use tokio::sync::mpsc::unbounded_channel as janitor_channel;
 
-use crate::tokio::local_key::LocalKeyExt;
+use crate::internal::util::tokio::local_key::LocalKeyExt;
 
 /// Type for the message queue from [JanitorClient]/[JanitorSupervisor] to [JanitorAgent]: Receiving side
 type JanitorQueueRx = tokio::sync::mpsc::UnboundedReceiver<JanitorTicket>;

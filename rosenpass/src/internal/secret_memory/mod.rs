@@ -56,3 +56,6 @@ pub mod policy;
 mod serialization;
 
 pub use policy::*;
+
+pub(crate) use policy::test::test_spawn_process_with_policies;
+pub(crate) use policy::test::test_spawn_process_provided_policies;

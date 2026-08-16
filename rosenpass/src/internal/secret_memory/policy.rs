@@ -57,7 +57,6 @@ pub fn secret_policy_use_only_malloc_secrets() {
 }
 
 pub mod test {
-    #[macro_export]
     macro_rules! test_spawn_process_with_policies {
         ($body:block, $($f: expr),*) => {
             $(
@@ -72,11 +71,11 @@ pub mod test {
             )*
             };
         }
+    pub(crate) use test_spawn_process_with_policies;
 
-    #[macro_export]
     macro_rules! test_spawn_process_provided_policies {
         ($body: block) => {
-            $super::test_spawn_process_with_policies!(
+            $crate::internal::secret_memory::policy::test::test_spawn_process_with_policies!(
                 $body,
                 $crate::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets,
                 $crate::internal::secret_memory::secret_policy_use_only_malloc_secrets
@@ -84,11 +83,12 @@ pub mod test {
 
             #[cfg(target_os = "linux")]
             {
-                $crate::test_spawn_process_with_policies!(
+                $crate::internal::secret_memory::policy::test::test_spawn_process_with_policies!(
                     $body,
                     $crate::internal::secret_memory::policy::secret_policy_use_only_memfd_secrets
                 );
             }
         };
     }
+    pub(crate) use test_spawn_process_provided_policies;
 }

@@ -16,7 +16,7 @@ use std::{
 use thiserror::Error;
 use zeroize::Zeroize;
 
-use crate::{io::IoResultKindHintExt, result::ensure_or};
+use crate::internal::util::{io::IoResultKindHintExt, result::ensure_or};
 
 /// Size in bytes of the message header carrying length information.
 /// Currently, HEADER_SIZE is always 8 bytes and encodes a 64-bit little-endian number.

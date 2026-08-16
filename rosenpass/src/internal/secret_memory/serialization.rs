@@ -1,4 +1,4 @@
-use crate::{Public, PublicBox, Secret};
+use super::{Public, PublicBox, Secret};
 use base64::Engine;
 use serde::de::{Error as DeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -100,7 +100,7 @@ impl<'de, const N: usize> Deserialize<'de> for PublicBox<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::secret_policy_use_only_malloc_secrets;
+    use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     use serde::{Serialize, de::DeserializeOwned};
     use serde_json;
 
