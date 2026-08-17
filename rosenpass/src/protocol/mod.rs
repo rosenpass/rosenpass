@@ -25,9 +25,9 @@
 //! ```
 //! use std::ops::DerefMut;
 //!
-//! use crate::internal::secret_memory::policy::*;
-//! use crate::internal::cipher_traits::primitives::Kem;
-//! use crate::internal::ciphers::StaticKem;
+//! use rosenpass::internal::secret_memory::policy::*;
+//! use rosenpass::internal::cipher_traits::primitives::Kem;
+//! use rosenpass::internal::ciphers::StaticKem;
 //!
 //! use crate::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
 //! use crate::protocol::{PeerPtr, CryptoServer};

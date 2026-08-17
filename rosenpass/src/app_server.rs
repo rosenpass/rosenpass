@@ -87,7 +87,7 @@ impl MioTokenDispenser {
     /// Use is quite straightforward:
     ///
     /// ```
-    /// use crate::app_server::MioTokenDispenser;
+    /// use rosenpass::app_server::MioTokenDispenser;
     /// use mio::Token;
     ///
     /// let mut dispenser = MioTokenDispenser {
@@ -203,8 +203,8 @@ impl AppPeer {
     /// # Examples
     ///
     /// ```
-    /// use crate::app_server::{Endpoint, AppPeer};
-    /// use crate::internal::util::functional::run;
+    /// use rosenpass::app_server::{Endpoint, AppPeer};
+    /// use rosenpass::internal::util::functional::run;
     ///
     /// let mut peer = AppPeer {
     ///   outfile: None,

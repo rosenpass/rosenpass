@@ -56,7 +56,7 @@ where
     /// use crate::api::{
     ///     PingRequest, ZerocopyResponseMakerSetupMessageExt, PING_REQUEST,
     /// };
-    /// use crate::internal::util::zerocopy::RefMaker;
+    /// use rosenpass::internal::util::zerocopy::RefMaker;
     /// use std::mem::size_of;
     ///
     /// let mut buf = [0u8; { size_of::<PingRequest>() }];

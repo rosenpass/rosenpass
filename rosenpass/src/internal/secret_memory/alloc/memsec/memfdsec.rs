@@ -33,7 +33,7 @@ pub type MemfdSecVec<T> = allocator_api2::vec::Vec<T, MemfdSecAllocator>;
 ///
 /// # Example
 /// ```rust
-/// # use crate::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_box_try, MemfdSecBox};
+/// # use rosenpass::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_box_try, MemfdSecBox};
 /// let data: u8 = 42;
 /// let memfdsec_box: MemfdSecBox<u8> = memfdsec_box_try(data)?;
 /// # assert_eq!(*memfdsec_box, 42u8);
@@ -48,7 +48,7 @@ pub fn memfdsec_box_try<T>(x: T) -> Result<MemfdSecBox<T>, AllocError> {
 ///
 /// # Example
 /// ```rust
-/// # use crate::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_box, MemfdSecBox};
+/// # use rosenpass::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_box, MemfdSecBox};
 /// let data: u8 = 42;
 /// let memfdsec_box: MemfdSecBox<u8> = memfdsec_box(data);
 /// # assert_eq!(*memfdsec_box, 42u8);
@@ -62,7 +62,7 @@ pub fn memfdsec_box<T>(x: T) -> MemfdSecBox<T> {
 ///
 /// # Example
 /// ```rust
-/// # use crate::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_vec, MemfdSecVec};
+/// # use rosenpass::internal::secret_memory::alloc::memsec::memfdsec::{memfdsec_vec, MemfdSecVec};
 /// let mut memfdsec_vec: MemfdSecVec<u8> = memfdsec_vec();
 /// memfdsec_vec.push(0u8);
 /// memfdsec_vec.push(1u8);

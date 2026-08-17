@@ -11,7 +11,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use crate::internal::constant_time::{memcmp, compare};
+//! use rosenpass::internal::constant_time::{memcmp, compare};
 //!
 //! let a = [1, 2, 3, 4];
 //! let b = [1, 2, 3, 4];

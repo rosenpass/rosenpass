@@ -8,10 +8,10 @@
 //! # Examples
 //!
 //! ```no_run
-//! use crate::internal::secret_memory::{Public, Secret};
-//! use crate::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
-//! use crate::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
-//! # use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+//! use rosenpass::internal::secret_memory::{Public, Secret};
+//! use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
+//! use rosenpass::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
+//! # use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 //! # secret_policy_use_only_malloc_secrets();
 //!
 //! let mut broker = NetlinkWireGuardBroker::new()?;
@@ -65,7 +65,7 @@ pub enum SetPskError {
 /// ```
 /// # use wireguard_uapi::err::NlError;
 /// # use wireguard_uapi::linux::err::SetDeviceError;
-/// use crate::internal::wireguard_broker::brokers::netlink::SetPskError;
+/// use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError;
 /// let set_device_error: SetDeviceError = SetDeviceError::NlError(NlError::Msg("test-error".to_string()));
 /// let set_psk_error: SetPskError = set_device_error.into();
 /// ```
@@ -79,7 +79,7 @@ impl From<wg::err::SetDeviceError> for SetPskError {
 /// ```
 /// # use wireguard_uapi::err::NlError;
 /// # use wireguard_uapi::linux::err::GetDeviceError;
-/// # use crate::internal::wireguard_broker::brokers::netlink::SetPskError;
+/// # use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError;
 /// let get_device_error: GetDeviceError = GetDeviceError::NlError(NlError::Msg("test-error".to_string()));
 /// let set_psk_error: SetPskError = get_device_error.into();
 /// ```
@@ -92,8 +92,8 @@ impl From<wg::err::GetDeviceError> for SetPskError {
 use SetPskError as SetPskNetlinkError;
 /// # Example
 /// ```
-/// use crate::internal::wireguard_broker::api::msgs::SetPskError as SetPskMsgsError;
-/// use crate::internal::wireguard_broker::brokers::netlink::SetPskError as SetPskNetlinkError;
+/// use rosenpass::internal::wireguard_broker::api::msgs::SetPskError as SetPskMsgsError;
+/// use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError as SetPskNetlinkError;
 /// let set_psk_nlink_error: SetPskNetlinkError = SetPskNetlinkError::NoSuchInterface;
 /// let set_psk_msgs_error = SetPskMsgsError::from(set_psk_nlink_error);
 /// ```
@@ -115,8 +115,8 @@ impl From<SetPskNetlinkError> for SetPskMsgsError {
 /// # Examples
 ///
 /// ```
-/// use crate::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
-/// use crate::internal::wireguard_broker::WireGuardBroker;
+/// use rosenpass::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
+/// use rosenpass::internal::wireguard_broker::WireGuardBroker;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut broker = NetlinkWireGuardBroker::new()?;
 /// # Ok(())

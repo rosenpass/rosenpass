@@ -11,9 +11,9 @@ use std::path::Path;
 /// ```rust
 /// use std::io::Write;
 /// use std::path::Path;
-/// use crate::internal::secret_memory::file::StoreSecret;
+/// use rosenpass::internal::secret_memory::file::StoreSecret;
 ///
-/// use crate::internal::util::file::{fopen_w, Visibility};
+/// use rosenpass::internal::util::file::{fopen_w, Visibility};
 ///
 /// struct MyWeirdI32 {
 ///     _priv_i32: [u8; 4],

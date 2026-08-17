@@ -174,7 +174,7 @@ impl SecretMemoryPool {
 /// You can use a [Secret] as follows:
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+/// # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 ///
 /// // We have to define the security policy before using Secrets.
 /// secret_policy_use_only_malloc_secrets();

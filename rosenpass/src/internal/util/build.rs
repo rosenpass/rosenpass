@@ -24,7 +24,7 @@ pub enum ConstructionSiteErectError<E> {
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::build::Build;
+/// use rosenpass::internal::util::build::Build;
 /// use anyhow::{Context, Result};
 ///
 /// #[derive(Eq, PartialEq, Debug)]
@@ -87,7 +87,7 @@ pub trait Build<T>: Sized {
 ///
 /// ```
 /// use std::borrow::Borrow;
-/// use crate::internal::util::build::{ConstructionSite, Build};
+/// use rosenpass::internal::util::build::{ConstructionSite, Build};
 /// use anyhow::{Context, Result};
 ///
 /// #[derive(Eq, PartialEq, Debug)]
@@ -178,7 +178,7 @@ where
     /// See [Self].
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -208,7 +208,7 @@ where
     ///
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -238,7 +238,7 @@ where
     ///
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -268,7 +268,7 @@ where
     ///
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -304,7 +304,7 @@ where
     ///
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House(u32);
@@ -372,7 +372,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House(u32);
@@ -425,7 +425,7 @@ where
     /// See [Self].
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build, ConstructionSiteErectError};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build, ConstructionSiteErectError};
     /// use std::convert::Infallible;
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -482,7 +482,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -515,7 +515,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -549,7 +549,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;
@@ -580,7 +580,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::internal::util::build::{ConstructionSite, Build};
+    /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
     /// struct House;

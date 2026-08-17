@@ -17,7 +17,7 @@
 //! ## Example
 //! ```rust
 //! use zeroize::Zeroize;
-//! use crate::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
+//! use rosenpass::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
 //! secret_policy_try_use_memfd_secrets();
 //! let mut my_secret: Secret<32> = Secret::random();
 //! my_secret.zeroize();

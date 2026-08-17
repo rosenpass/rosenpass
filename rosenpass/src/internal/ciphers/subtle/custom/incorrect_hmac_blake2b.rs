@@ -25,8 +25,8 @@ pub const HASH_LEN: usize = 32;
 ///
 /// # Examples
 ///```rust
-/// # use crate::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
-/// use crate::internal::cipher_traits::primitives::KeyedHashTo;
+/// # use rosenpass::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
+/// use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
 /// use rosenpass_to::To;
 /// let key: [u8; 32] = [0; 32];
 /// let data: [u8; 32] = [255; 32];

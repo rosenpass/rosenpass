@@ -35,7 +35,7 @@ use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::time::Timebase;
+/// use rosenpass::internal::util::time::Timebase;
 /// use crate::protocol::{timing::BCE, basic_types::SymKey, cookies::CookieStore};
 ///
 /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();

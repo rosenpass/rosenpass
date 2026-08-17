@@ -10,10 +10,10 @@
 //! # Tutorial
 //!
 //! ```
-//! use crate::{hash_domain, hash_domain_ns};
-//! use crate::hash_domains::protocol;
+//! use rosenpass::{hash_domain, hash_domain_ns};
+//! use rosenpass::hash_domains::protocol;
 //!
-//! use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
+//! use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
 //!
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");

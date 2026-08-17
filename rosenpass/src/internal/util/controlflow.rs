@@ -6,7 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::repeat;
+/// use rosenpass::internal::util::repeat;
 /// let mut sum = 0;
 /// repeat!(10, {
 ///     sum += 1;
@@ -27,7 +27,7 @@ pub(crate) use repeat;
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::return_unless;
+/// use rosenpass::internal::util::return_unless;
 /// fn test_fn() -> i32 {
 ///     return_unless!(true, 1);
 ///     0
@@ -59,7 +59,7 @@ pub(crate) use return_unless;
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::return_if;
+/// use rosenpass::internal::util::return_if;
 /// fn test_fn() -> i32 {
 ///     return_if!(true, 1);
 ///     0
@@ -91,7 +91,7 @@ pub(crate) use return_if;
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::break_if;
+/// use rosenpass::internal::util::break_if;
 /// let mut sum = 0;
 /// for i in 0..10 {
 ///     break_if!(i == 5);
@@ -127,7 +127,7 @@ pub(crate) use break_if;
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::continue_if;
+/// use rosenpass::internal::util::continue_if;
 /// let mut sum = 0;
 /// for i in 0..10 {
 ///     continue_if!(i == 5);

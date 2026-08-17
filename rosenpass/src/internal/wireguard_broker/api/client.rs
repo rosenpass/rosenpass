@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use crate::internal::wireguard_broker::api::client::{BrokerClient, BrokerClientIo};
+//! use rosenpass::internal::wireguard_broker::api::client::{BrokerClient, BrokerClientIo};
 //! #[derive(Debug)]
 //! struct MyIo;
 //!

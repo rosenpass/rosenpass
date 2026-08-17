@@ -954,7 +954,7 @@ pub mod util {
     ///
     /// ## Example
     /// ```
-    /// use crate::config::util::resolve_path_with_tilde;
+    /// use rosenpass::config::util::resolve_path_with_tilde;
     /// std::env::set_var("HOME","/home/dummy");
     /// let mut path = std::path::PathBuf::from("~/foo.toml");
     /// resolve_path_with_tilde(&mut path);

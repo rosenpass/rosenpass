@@ -25,7 +25,7 @@ impl<const F: usize> Display for B64DisplayHelper<'_, F> {
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::b64::B64Display;
+/// use rosenpass::internal::util::b64::B64Display;
 ///
 /// let a = vec![0,1,2,3,4,5];
 /// assert_eq!(
@@ -80,7 +80,7 @@ pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
 /// Encode a value as base64.
 ///
 /// ```
-/// use crate::internal::util::b64::{b64_encode, b64_decode};
+/// use rosenpass::internal::util::b64::{b64_encode, b64_decode};
 ///
 /// let bytes = b"Hello World";
 ///

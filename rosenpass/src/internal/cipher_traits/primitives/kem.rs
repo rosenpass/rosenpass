@@ -17,9 +17,9 @@
 //! In the example, we are using Kyber512, but any KEM that correctly implements the [Kem]
 //! trait could be used as well.
 //!```rust
-//! use crate::internal::cipher_traits::primitives::Kem;
+//! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::oqs::Kyber512;
-//! # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //!
 //! type MyKem = Kyber512;
 //! secret_policy_use_only_malloc_secrets();
@@ -43,7 +43,7 @@
 //! be implemented using a **HORRIBLY INSECURE** DummyKem that only uses static values for keys
 //! and ciphertexts as an example.  
 //!```rust
-//!# use crate::internal::cipher_traits::primitives::{Kem, KemError as Error};
+//!# use rosenpass::internal::cipher_traits::primitives::{Kem, KemError as Error};
 //!
 //! struct DummyKem {}
 //! impl Kem<1,1,1,1> for DummyKem {
@@ -86,7 +86,7 @@
 //!         Self{}
 //!     }
 //! }
-//! # use crate::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 //! #
 //! # type MyKem = DummyKem;
 //! # secret_policy_use_only_malloc_secrets();
@@ -124,7 +124,7 @@ use thiserror::Error;
 ///
 /// Example for encrypting a message with a specific [`Kem`] instance:
 /// ```
-/// use crate::internal::cipher_traits::primitives::Kem;
+/// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// const SK_LEN: usize = 1632;
 /// const PK_LEN: usize = 800;
@@ -145,7 +145,7 @@ use thiserror::Error;
 /// If only the type (but no instance) is available, then we can still use the trait, as long as
 /// the type also is [`Default`]:
 /// ```
-/// use crate::internal::cipher_traits::primitives::Kem;
+/// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// const SK_LEN: usize = 1632;
 /// const PK_LEN: usize = 800;

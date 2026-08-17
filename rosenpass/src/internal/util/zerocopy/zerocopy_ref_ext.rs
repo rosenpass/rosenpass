@@ -17,7 +17,7 @@ pub trait ZerocopyEmancipateExt<B, T> {
     /// ```
     /// # use std::ops::Deref;
     /// # use zerocopy::{IntoBytes, ByteSlice, FromBytes, KnownLayout, Immutable, Ref};
-    /// # use crate::internal::util::zerocopy::ZerocopyEmancipateExt;
+    /// # use rosenpass::internal::util::zerocopy::ZerocopyEmancipateExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u32);
@@ -45,7 +45,7 @@ pub trait ZerocopyEmancipateMutExt<B, T> {
     ///
     /// ```
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
-    /// # use crate::internal::util::zerocopy::{ZerocopyEmancipateMutExt};
+    /// # use rosenpass::internal::util::zerocopy::{ZerocopyEmancipateMutExt};
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
     /// #[repr(C)]
     /// struct Data(u32);

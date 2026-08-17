@@ -6,8 +6,8 @@
 ///
 /// ```
 /// use std::borrow::Borrow;
-/// use crate::internal::util::functional::{mutating, MutatingExt, sideeffect, SideffectExt, ApplyExt};
-/// use crate::internal::util::mem::DiscardResultExt;
+/// use rosenpass::internal::util::functional::{mutating, MutatingExt, sideeffect, SideffectExt, ApplyExt};
+/// use rosenpass::internal::util::mem::DiscardResultExt;
 ///
 /// // Say you have a function that takes a mutable reference
 /// fn replace<T: Copy + Eq>(slice: &mut [T], targ: T, by: T) {
@@ -232,7 +232,7 @@ impl<T> SideffectExt for T {
 /// # Examples
 ///
 /// ```
-/// use crate::internal::util::functional::run;
+/// use rosenpass::internal::util::functional::run;
 ///
 /// fn add_and_mul(a: Option<u32>, b: Option<u32>, c: anyhow::Result<u32>, d: anyhow::Result<u32>) -> u32 {
 ///     run(|| -> anyhow::Result<u32> {

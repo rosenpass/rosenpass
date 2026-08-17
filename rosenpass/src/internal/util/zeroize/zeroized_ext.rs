@@ -6,7 +6,7 @@ use zeroize::Zeroize;
 ///
 /// ```rust
 /// use zeroize::Zeroize;
-/// use crate::internal::util::zeroize::ZeroizedExt;
+/// use rosenpass::internal::util::zeroize::ZeroizedExt;
 ///
 /// let mut value = String::from("hello");
 /// value.zeroize();

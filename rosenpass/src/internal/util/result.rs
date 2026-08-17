@@ -5,7 +5,7 @@ use std::convert::Infallible;
 /// # Examples
 /// ```rust
 /// # use anyhow::Result;
-/// # use crate::internal::util::attempt;
+/// # use rosenpass::internal::util::attempt;
 /// let result: Result<i32> = attempt!({
 ///     let x = 42;
 ///     Ok(x)
@@ -29,7 +29,7 @@ pub(crate) use attempt;
 /// Trait for the ok operation, which provides a way to convert a value into a Result
 /// # Examples
 /// ```rust
-/// # use crate::internal::util::result::OkExt;
+/// # use rosenpass::internal::util::result::OkExt;
 /// let value: i32 = 42;
 /// let result: Result<i32, &str> = value.ok();
 ///
@@ -59,7 +59,7 @@ impl<T, E> OkExt<E> for T {
 /// Implementations must not panic.
 /// # Examples
 /// ```
-/// # use crate::internal::util::result::GuaranteedValue;
+/// # use rosenpass::internal::util::result::GuaranteedValue;
 /// let x:u32 = 10u8.try_into().guaranteed();
 /// ```
 pub trait GuaranteedValue {
@@ -108,7 +108,7 @@ impl<T> FinallyExt for Option<T> {
 /// use std::convert::Infallible;
 /// use std::ops::Add;
 ///
-/// use crate::internal::util::result::{Guaranteed, GuaranteedValue};
+/// use rosenpass::internal::util::result::{Guaranteed, GuaranteedValue};
 ///
 /// trait FailableAddition: Sized {
 ///   type Error;
@@ -173,7 +173,7 @@ impl<T> GuaranteedValue for Guaranteed<T> {
 /// # Examples
 ///
 /// ```rust
-/// # use crate::internal::util::result::ensure_or;
+/// # use rosenpass::internal::util::result::ensure_or;
 /// let result = ensure_or(5 > 3, "not greater");
 /// assert!(result.is_ok());
 ///
@@ -192,7 +192,7 @@ pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
 /// # Examples
 ///
 /// ```rust
-/// # use crate::internal::util::result::bail_if;
+/// # use rosenpass::internal::util::result::bail_if;
 /// let result = bail_if(false, "not bailed");
 /// assert!(result.is_ok());
 ///

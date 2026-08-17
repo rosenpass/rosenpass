@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 /// # Examples
 ///
 /// ```rust
-/// use crate::internal::util::fmt::debug::NullDebug;
+/// use rosenpass::internal::util::fmt::debug::NullDebug;
 ///
 /// // Does not implement debug
 /// struct NoDebug;

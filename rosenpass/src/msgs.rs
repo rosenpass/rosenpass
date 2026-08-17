@@ -264,7 +264,7 @@ pub struct InitConf {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use crate::msgs::{Envelope, EmptyData};
+/// use rosenpass::msgs::{Envelope, EmptyData};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///

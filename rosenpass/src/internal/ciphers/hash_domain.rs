@@ -1,9 +1,9 @@
 //!
 //!```rust
-//! # use crate::internal::ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
-//! use crate::internal::ciphers::KeyedHash;
-//! use crate::internal::secret_memory::Secret;
-//! # crate::internal::secret_memory::secret_policy_use_only_malloc_secrets();
+//! # use rosenpass::internal::ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
+//! use rosenpass::internal::ciphers::KeyedHash;
+//! use rosenpass::internal::secret_memory::Secret;
+//! # rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets();
 //!
 //! const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
 //! // create use once hash domain for the protocol identifier
@@ -89,7 +89,7 @@ impl HashDomain {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
+    /// use rosenpass::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
     ///
     /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(
@@ -194,9 +194,9 @@ impl SecretHashDomain {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
+    /// use rosenpass::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
     ///
-    /// crate::internal::secret_memory::secret_policy_use_only_malloc_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets();
     ///
     /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(

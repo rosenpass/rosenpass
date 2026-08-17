@@ -8,12 +8,12 @@
 //!
 //! ```no_run
 //! # use mio::net::UnixStream;
-//! # use crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
-//! # use crate::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
+//! # use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+//! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
 //! # use mio::{Events, Interest, Poll, Token};
-//! # use crate::internal::secret_memory::{Public, Secret};
-//! # use crate::internal::wireguard_broker::api::config::NetworkBrokerConfig;
-//! # use crate::internal::wireguard_broker::SerializedBrokerConfig;
+//! # use rosenpass::internal::secret_memory::{Public, Secret};
+//! # use rosenpass::internal::wireguard_broker::api::config::NetworkBrokerConfig;
+//! # use rosenpass::internal::wireguard_broker::SerializedBrokerConfig;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let socket = UnixStream::connect("/path/to/broker.sock")?;
 //! let mut client = MioBrokerClient::new(socket);
@@ -75,9 +75,9 @@ use crate::internal::wireguard_broker::{
 ///
 /// ```no_run
 /// use mio::net::UnixStream;
-/// use crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
-/// use crate::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
-/// use crate::internal::secret_memory::{Public, Secret};
+/// use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+/// use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};
+/// use rosenpass::internal::secret_memory::{Public, Secret};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let socket = UnixStream::connect("/path/to/broker.sock")?;

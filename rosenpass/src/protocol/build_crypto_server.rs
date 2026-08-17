@@ -20,7 +20,7 @@ use super::{CryptoServer, PeerPtr};
 /// use crate::protocol::Keypair;
 ///
 /// // We have to define the security policy before using Secrets.
-/// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let random_pair = Keypair::random();
@@ -53,7 +53,7 @@ impl Keypair {
     /// use crate::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let random_sk = SSk::random();
@@ -78,7 +78,7 @@ impl Keypair {
     /// use crate::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let zero_sk = SSk::zero();
@@ -148,8 +148,8 @@ pub struct MissingKeypair;
 /// # Example
 ///
 /// ```rust
-/// use crate::internal::util::build::Build;
-/// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::util::build::Build;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
 /// use crate::config::ProtocolVersion;
 ///
@@ -276,10 +276,10 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use crate::internal::util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use crate::protocol::{BuildCryptoServer, Keypair};
     ///
     /// // Deferred initialization: Create builder first, add the key pair later
@@ -301,10 +301,10 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use crate::internal::util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use crate::protocol::{BuildCryptoServer, Keypair, KeypairAlreadySet};
     ///
     /// // In this case, we'll create a functional builder from its various components
@@ -331,13 +331,13 @@ impl BuildCryptoServer {
     /// ```rust
     /// use crate::config::ProtocolVersion;
     ///
-    /// use crate::internal::util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use crate::protocol::basic_types::{SymKey, SPk};
     /// use crate::protocol::{BuildCryptoServer, Keypair};
     /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// // Deferred initialization: Create builder first, add some peers later
@@ -400,8 +400,8 @@ impl BuildCryptoServer {
     ///  Extracting the server configuration from a builder:
     ///
     /// ```rust
-    /// use crate::internal::util::build::Build;
-    /// use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::util::build::Build;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///
     /// use crate::config::ProtocolVersion;
     /// use crate::hash_domains::protocol;

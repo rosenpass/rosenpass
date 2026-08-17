@@ -53,7 +53,7 @@ impl MessageTooLargeError {
     /// # Examples
     ///
     /// ```
-    /// # use crate::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
     /// let err = MessageTooLargeError::new(1024, 512);
     /// assert_eq!(format!("{}", err), "Message too large (1024 bytes) for buffer (512 bytes)");
     /// ```
@@ -68,7 +68,7 @@ impl MessageTooLargeError {
     /// # Examples
     ///
     /// ```
-    /// # use crate::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
     /// let result = MessageTooLargeError::ensure(100, 200);
     /// assert!(result.is_ok());
     ///
@@ -136,7 +136,7 @@ impl TryIoErrorKind for ReadFromIoError {
 ///
 /// ```
 /// # use std::io::Cursor;
-/// # use crate::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
+/// # use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
 /// let data: Vec<u8> = {
 ///     let mut buf = Vec::new();
 ///     buf.extend_from_slice(&(5u64.to_le_bytes())); // message length = 5
@@ -165,7 +165,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// # Examples
     ///
     /// ```
-    /// # use crate::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
     /// let decoder = LengthPrefixDecoder::new(vec![0; 1024]);
     /// assert_eq!(*decoder.bytes_read(), 0);
     /// ```
@@ -207,7 +207,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// ## Successful read
     /// ```
     /// # use std::io::Cursor;
-    /// # use crate::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
     ///     let mut buf = Vec::new();
     ///     buf.extend_from_slice(&(3u64.to_le_bytes()));
@@ -226,7 +226,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// Buffer of the `LengthPrefixDecoder` configured to be too small:
     /// ```
     /// # use std::io::Cursor;
-    /// # use crate::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
     ///     let mut buf = Vec::new();
     ///     buf.extend_from_slice(&(7u64.to_le_bytes()));
@@ -242,7 +242,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// ## IOError (EOF)
     /// ```
     /// # use std::io::Cursor;
-    /// # use crate::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
     ///     let mut buf = Vec::new();
     ///     // Message size set to 10 bytes, but the message is only 7 bytes long
@@ -292,7 +292,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     ///
     /// ```
     /// # use std::io::Cursor;
-    /// # use crate::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
     /// let mut data = Cursor::new([4u64.to_le_bytes().as_slice(), b"cats"].concat());
     /// let mut decoder = LengthPrefixDecoder::new(vec![0; 8]);
     /// decoder.read_from_stdio(&mut data).expect("read failed");
@@ -412,7 +412,7 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// # Examples
     /// ```
     /// # use std::io::Cursor;
-    /// # use crate::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
+    /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
     /// let mut data = Cursor::new([4u64.to_le_bytes().as_slice(), b"cats"].concat());
     /// let mut decoder = LengthPrefixDecoder::new(vec![0; 8]);
     /// decoder.read_all_from_stdio(&mut data).expect("read failed");

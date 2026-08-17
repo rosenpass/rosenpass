@@ -19,7 +19,7 @@ use std::path::Path;
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use crate::internal::secret_memory::{Public};
+/// # use rosenpass::internal::secret_memory::{Public};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// // Fill with some random data that I can use a cryptographic key later on.
@@ -199,7 +199,7 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
 /// # Example
 /// ```rust
 /// # use zeroize::Zeroize;
-/// # use crate::internal::secret_memory::{Public, PublicBox};
+/// # use rosenpass::internal::secret_memory::{Public, PublicBox};
 ///
 /// let mut my_public_data: Public<32> = Public::random();
 /// let mut my_bbox: PublicBox<32> = PublicBox{ inner: Box::new(my_public_data)};

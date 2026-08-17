@@ -181,8 +181,8 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// ```
 /// use std::ops::DerefMut;
 ///
-/// use crate::internal::ciphers::StaticKem;
-/// use crate::internal::cipher_traits::primitives::Kem;
+/// use rosenpass::internal::ciphers::StaticKem;
+/// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// use crate::protocol::basic_types::{SSk, SPk, SymKey};
 /// use crate::protocol::{Peer, ProtocolVersion};
@@ -627,7 +627,7 @@ pub trait Mortal {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use crate::internal::ciphers::StaticKem;
+/// use rosenpass::internal::ciphers::StaticKem;
 /// use crate::protocol::basic_types::{SSk, SPk};
 /// use crate::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
@@ -1171,8 +1171,8 @@ impl CryptoServer {
     /// use std::ops::DerefMut;
     /// use crate::protocol::basic_types::{SSk, SPk};
     /// use crate::protocol::{CryptoServer, ProtocolVersion};
-    /// use crate::internal::ciphers::StaticKem;
-    /// use crate::internal::cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::ciphers::StaticKem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
@@ -1237,8 +1237,8 @@ impl CryptoServer {
     /// use crate::protocol::basic_types::{SSk, SPk, SymKey};
     /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
     /// use crate::protocol::{CryptoServer, ProtocolVersion};
-    /// use crate::internal::ciphers::StaticKem;
-    /// use crate::internal::cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::ciphers::StaticKem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
     /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
@@ -1523,7 +1523,7 @@ impl Session {
     ///
     /// ```
     /// use crate::protocol::{Session, HandshakeRole};
-    /// use crate::internal::ciphers::KeyedHash;
+    /// use rosenpass::internal::ciphers::KeyedHash;
     ///
     /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///

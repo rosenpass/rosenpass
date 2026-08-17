@@ -7,9 +7,9 @@
 //! # Examples
 //!
 //! ```no_run
-//! use crate::internal::secret_memory::{Public, Secret};
-//! use crate::internal::wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
-//! use crate::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
+//! use rosenpass::internal::secret_memory::{Public, Secret};
+//! use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
+//! use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
 //!
 //! # fn main() -> Result<(), anyhow::Error> {
 //! // Create a broker instance
@@ -164,9 +164,9 @@ impl WireguardBrokerMio for NativeUnixBroker {
 /// # Examples
 ///
 /// ```
-/// use crate::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
-/// use crate::internal::secret_memory::Public;
-/// use crate::internal::wireguard_broker::WG_PEER_LEN;
+/// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
+/// use rosenpass::internal::secret_memory::Public;
+/// use rosenpass::internal::wireguard_broker::WG_PEER_LEN;
 ///
 /// let config = NativeUnixBrokerConfigBase {
 ///     interface: "wg0".to_string(),
@@ -197,7 +197,7 @@ impl NativeUnixBrokerConfigBaseBuilder {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use crate::internal::wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
+    /// use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
     /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
     /// // set peer id to [48;32] encoded as base64
     /// peer_cfg.peer_id_b64("MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=")?;
@@ -233,7 +233,7 @@ impl NativeUnixBrokerConfigBaseBuilder {
     /// # Examples
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use crate::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
+    /// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
     ///
     /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
     /// // Set typical wireguard parameters
