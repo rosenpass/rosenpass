@@ -44,7 +44,7 @@ use crate::internal::util::fd::{IntoStdioErr, claim_fd_inplace};
 /// let mut recv_buffer = Vec::<u8>::new();
 /// let bytes_read = fd_passing_sock.read(&mut recv_buffer[..]).expect("error reading from socket");
 /// assert_eq!(bytes_read, 0);
-/// assert_eq!(&recv_buffer[..bytes_read], []);
+/// assert_eq!(&recv_buffer[..bytes_read], [] as [u8; 0]);
 ///
 /// // Alternatively, it's possible to use the try_io_err_kind_hint utility provided by this crate
 /// match fd_passing_sock.read(&mut recv_buffer).try_io_err_kind_hint() {

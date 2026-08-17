@@ -31,7 +31,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
     ///
     /// // TODO: HEISENBUG: This is necessary for some reason to make the rest of the example work
     /// let typ = msg.msg_type;
-    /// assert_eq!(typ, crate::api::PING_RESPONSE);
+    /// assert_eq!(typ, rosenpass::api::PING_RESPONSE);
     ///
     /// // Parse as a message type
     /// let buf = msg.as_bytes();
