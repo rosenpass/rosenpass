@@ -10,6 +10,7 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 rust-version = "1.93.1"
 
+# ============================== targets ==============================
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
@@ -41,7 +42,7 @@ path = "src/internal/wireguard_broker/bin/socket_handler.rs"
 doc = false
 required-features = ["experiment_api"]
 
-
+# ============================== tests ==============================
 [[test]]
 name = "api-integration-tests"
 required-features = ["experiment_api", "internal_testing"]
@@ -51,12 +52,41 @@ name = "api-integration-tests-api-setup"
 required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
+name = "app_server_example"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "config_Rosenpass_validate"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "config_Rosenpass_store"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "integration_test"
+required-features = ["expose_internal_modules"]
+
+[[test]]
 name = "gen-ipc-msg-types"
 required-features = [
   "experiment_api",
   "internal_testing",
   "internal_bin_gen_ipc_msg_types",
 ]
+
+[[test]]
+name = "main-fn-generates-manpages"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "poll_example"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "test_vector_crypto_server"
+required-features = ["expose_internal_modules"]
+
 
 [[bench]]
 name = "trace_handshake"
@@ -67,6 +97,7 @@ required-features = ["trace_bench"]
 name = "handshake"
 harness = false
 
+# ============================== dependencies ==============================
 [dependencies]
 rosenpass-to = { path = "../to" }
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
