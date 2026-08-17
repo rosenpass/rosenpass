@@ -8,6 +8,7 @@ use std::cmp::min;
 use std::mem::{forget, swap};
 use std::ops::{Deref, DerefMut};
 
+#[macro_export]
 // TODO: Zeroize result?
 /// Concatenate multiple byte slices into a fixed-size byte array.
 ///
@@ -42,7 +43,7 @@ macro_rules! cat {
         buf
     }}
 }
-pub(crate) use cat;
+pub use cat;
 
 // TODO: consistent inout ordering
 /// Copy bytes from `src` to `dst`, requiring equal lengths.

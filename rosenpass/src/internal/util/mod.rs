@@ -43,15 +43,15 @@ pub mod zerocopy;
 pub mod zeroize;
 
 #[allow(unused_imports)]
-pub(crate) use controlflow::break_if;
+pub use controlflow::break_if;
 #[allow(unused_imports)]
-pub(crate) use controlflow::continue_if;
+pub use controlflow::continue_if;
 #[allow(unused_imports)]
-pub(crate) use controlflow::repeat;
-pub(crate) use controlflow::return_if;
+pub use controlflow::repeat;
+pub use controlflow::return_if;
 #[allow(unused_imports)]
-pub(crate) use controlflow::return_unless;
-pub(crate) use mem::cat;
-pub(crate) use result::attempt;
+pub use controlflow::return_unless;
+pub use mem::cat;
+pub use result::attempt;
 #[allow(unused_imports)]
-pub(crate) use typenum::typenum2const;
+pub use typenum::typenum2const;

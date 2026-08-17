@@ -51,7 +51,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 /// # Examples
 ///
 /// ```
-/// use crate::msgs::{Envelope, InitHello};
+/// use rosenpass::msgs::{Envelope, InitHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::offset_of;
 ///
@@ -106,7 +106,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use crate::msgs::{Envelope, InitHello};
+/// use rosenpass::msgs::{Envelope, InitHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -155,7 +155,7 @@ pub struct InitHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use crate::msgs::{Envelope, RespHello};
+/// use rosenpass::msgs::{Envelope, RespHello};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -206,7 +206,7 @@ pub struct RespHello {
 /// [Envelope] contains some extra examples on how to use structures from the [::zerocopy] crate.
 ///
 /// ```
-/// use crate::msgs::{Envelope, InitConf};
+/// use rosenpass::msgs::{Envelope, InitConf};
 /// use zerocopy::{IntoBytes, FromBytes, Ref, FromZeros};
 /// use memoffset::span_of;
 ///
@@ -375,9 +375,9 @@ pub struct CookieReply {
 /// # Examples
 ///
 /// ```
-/// use crate::msgs::MsgType;
-/// use crate::msgs::MsgType as M;
-/// use crate::RosenpassError;
+/// use rosenpass::msgs::MsgType;
+/// use rosenpass::msgs::MsgType as M;
+/// use rosenpass::RosenpassError;
 ///
 /// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData, M::CookieReply];
 /// let values_u8 = values.map(|v| -> u8 { v.into() });

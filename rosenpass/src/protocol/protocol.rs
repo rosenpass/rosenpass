@@ -184,11 +184,11 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
-/// use crate::protocol::basic_types::{SSk, SPk, SymKey};
-/// use crate::protocol::{Peer, ProtocolVersion};
-/// use crate::protocol::osk_domain_separator::OskDomainSeparator;
+/// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+/// use rosenpass::protocol::{Peer, ProtocolVersion};
+/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
-/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
@@ -273,9 +273,9 @@ impl Peer {
     /// This is dirty but allows us to perform easy incremental construction of [Self].
     ///
     /// ```
-    /// use crate::protocol::basic_types::{SymKey, SPk};
-    /// use crate::protocol::{Peer, ProtocolVersion};
-    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{Peer, ProtocolVersion};
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     /// let p = Peer::zero(ProtocolVersion::V03);
     /// assert_eq!(p.psk.secret(), SymKey::zero().secret());
     /// assert_eq!(p.spkt, SPk::zero());
@@ -334,7 +334,7 @@ impl HandshakeRole {
     /// Check if the value of this enum is [HandshakeRole::Initiator]
     ///
     /// ```
-    /// use crate::protocol::HandshakeRole;
+    /// use rosenpass::protocol::HandshakeRole;
     /// assert!(HandshakeRole::Initiator.is_initiator());
     /// assert!(!HandshakeRole::Responder.is_initiator());
     /// ```
@@ -465,10 +465,10 @@ pub type KnownResponseHash = Public<16>;
 ///
 /// ```
 /// use zerocopy::FromZeros;
-/// use crate::protocol::KnownResponseHasher;
-/// use crate::msgs::{Envelope, InitConf};
+/// use rosenpass::protocol::KnownResponseHasher;
+/// use rosenpass::msgs::{Envelope, InitConf};
 ///
-/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let h = KnownResponseHasher::new();
 ///
@@ -628,10 +628,10 @@ pub trait Mortal {
 /// ```
 /// use std::ops::DerefMut;
 /// use rosenpass::internal::ciphers::StaticKem;
-/// use crate::protocol::basic_types::{SSk, SPk};
-/// use crate::protocol::{testutils::ServerForTesting, ProtocolVersion};
+/// use rosenpass::protocol::basic_types::{SSk, SPk};
+/// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
-/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (peer, (_, spkt), mut srv) = ServerForTesting::new(ProtocolVersion::V03)?.tuple();
 ///
@@ -1169,12 +1169,12 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use crate::protocol::basic_types::{SSk, SPk};
-    /// use crate::protocol::{CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
-    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1234,13 +1234,13 @@ impl CryptoServer {
     ///
     /// ```
     /// use std::ops::DerefMut;
-    /// use crate::protocol::basic_types::{SSk, SPk, SymKey};
-    /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
-    /// use crate::protocol::{CryptoServer, ProtocolVersion};
+    /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
-    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1522,10 +1522,10 @@ impl Session {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Session, HandshakeRole};
+    /// use rosenpass::protocol::{Session, HandshakeRole};
     /// use rosenpass::internal::ciphers::KeyedHash;
     ///
-    /// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let s = Session::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
@@ -1741,10 +1741,10 @@ impl Mortal for KnownInitConfResponsePtr {
 ///
 /// ```
 /// use assert_tv::TestVector;
-/// use crate::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
-/// use crate::protocol::testutils::{ServerForTesting, time_travel_forward};
+/// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
+/// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
-/// crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// const M : Timing = 60.0;
 /// const H : Timing = 60.0 * M;
@@ -2378,7 +2378,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::Wait;
+    /// use rosenpass::protocol::Wait;
     ///
     /// assert_eq!(Wait::immediate().0, 0.0);
     /// ```
@@ -2392,7 +2392,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Wait, timing::UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::hibernate().0, UNENDING);
     /// ```
@@ -2406,7 +2406,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Wait, timing::UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::immediate_unless(false).0, 0.0);
     /// assert_eq!(Wait::immediate_unless(true).0, UNENDING);
@@ -2424,7 +2424,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Wait, timing::UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_hibernate(None).0, UNENDING);
     /// assert_eq!(Wait::or_hibernate(Some(20.0)).0, 20.0);
@@ -2441,7 +2441,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Wait, timing::UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     /// assert_eq!(Wait::or_immediate(None).0, 0.0);
     /// assert_eq!(Wait::or_immediate(Some(20.0)).0, 20.0);
@@ -2458,7 +2458,7 @@ impl Wait {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{Wait, timing::UNENDING};
+    /// use rosenpass::protocol::{Wait, timing::UNENDING};
     ///
     ///
     /// assert_eq!(Wait(20.0).and(30.0).0, 30.0);
@@ -2530,7 +2530,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{PollResult, timing::UNENDING};
+    /// use rosenpass::protocol::{PollResult, timing::UNENDING};
     ///
     /// assert!(matches!(PollResult::hibernate(), PollResult::Sleep(UNENDING)));
     /// ```
@@ -2544,7 +2544,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr, timing::UNENDING};
+    /// use rosenpass::protocol::{PollResult, PeerPtr, timing::UNENDING};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2576,7 +2576,7 @@ impl PollResult {
     /// Panics if both poll results are [PollResult::saturated]
     ///
     /// ```should_panic
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2587,7 +2587,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2619,7 +2619,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2684,7 +2684,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2720,7 +2720,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2762,7 +2762,7 @@ impl PollResult {
     /// The best place to see this in action is the source code of [PeerPtr::poll]
     ///
     /// ```
-    /// use crate::protocol::{PollResult};
+    /// use rosenpass::protocol::{PollResult};
     ///
     /// use PollResult as P;
     /// assert!(matches!(P::Sleep(50.0).ok(), Ok(P::Sleep(50.0))));
@@ -2777,7 +2777,7 @@ impl PollResult {
     /// # Examples
     ///
     /// ```
-    /// use crate::protocol::{PollResult, PeerPtr};
+    /// use rosenpass::protocol::{PollResult, PeerPtr};
     ///
     /// let p = PeerPtr(0);
     ///
@@ -2799,7 +2799,7 @@ impl PollResult {
 /// # Examples
 ///
 /// ```
-/// use crate::protocol::{begin_poll, PollResult, timing::UNENDING};
+/// use rosenpass::protocol::{begin_poll, PollResult, timing::UNENDING};
 ///
 /// assert!(matches!(begin_poll(), PollResult::Sleep(UNENDING)));
 /// ```
@@ -2818,7 +2818,7 @@ pub fn begin_poll() -> PollResult {
 /// The best place to see this in action is the source code of [PeerPtr::poll]
 ///
 /// ```
-/// use crate::protocol::{begin_poll, void_poll, PollResult, PeerPtr};
+/// use rosenpass::protocol::{begin_poll, void_poll, PollResult, PeerPtr};
 ///
 /// let mut x = 0;
 ///

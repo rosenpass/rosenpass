@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 
+#[macro_export]
 /// Try block basically…returns a result and allows the use of the question mark operator inside
 ///
 /// # Examples
@@ -24,7 +25,7 @@ macro_rules! attempt {
         (|| -> ::anyhow::Result<_> { $block })()
     };
 }
-pub(crate) use attempt;
+pub use attempt;
 
 /// Trait for the ok operation, which provides a way to convert a value into a Result
 /// # Examples

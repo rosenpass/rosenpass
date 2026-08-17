@@ -29,14 +29,14 @@
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::ciphers::StaticKem;
 //!
-//! use crate::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
-//! use crate::protocol::{PeerPtr, CryptoServer};
-//! use crate::protocol::osk_domain_separator::OskDomainSeparator;
+//! use rosenpass::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
+//! use rosenpass::protocol::{PeerPtr, CryptoServer};
+//! use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Set security policy for storing secrets
 //!
-//! use crate::protocol::ProtocolVersion;
+//! use rosenpass::protocol::ProtocolVersion;
 //! secret_policy_try_use_memfd_secrets();
 //!
 //! // initialize secret and public key for peer a ...

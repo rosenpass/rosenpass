@@ -25,7 +25,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
     /// ```
     /// use zerocopy::IntoBytes;
     ///
-    /// use crate::api::{PingResponse, ResponseMsgType, ResponseRef};
+    /// use rosenpass::api::{PingResponse, ResponseMsgType, ResponseRef};
     /// // Produce the original PingResponse
     /// let msg = PingResponse::new([0u8; 256]);
     ///

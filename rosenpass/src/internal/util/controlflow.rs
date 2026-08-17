@@ -1,6 +1,7 @@
 #![allow(unused)]
 //! A collection of control flow utility macros
 
+#[macro_export]
 /// A simple for loop to repeat a $body a number of times
 ///
 /// # Examples
@@ -20,8 +21,9 @@ macro_rules! repeat {
         }
     };
 }
-pub(crate) use repeat;
+pub use repeat;
 
+#[macro_export]
 /// Return unless the condition $cond is true, with return value $val, if given.
 ///
 /// # Examples
@@ -52,8 +54,9 @@ macro_rules! return_unless {
         }
     };
 }
-pub(crate) use return_unless;
+pub use return_unless;
 
+#[macro_export]
 /// Return if the condition $cond is true, with return value $val, if given.
 ///
 /// # Examples
@@ -84,8 +87,9 @@ macro_rules! return_if {
         }
     };
 }
-pub(crate) use return_if;
+pub use return_if;
 
+#[macro_export]
 /// Break unless the condition is true, from the loop with label $val, if given.
 ///
 /// # Examples
@@ -120,8 +124,9 @@ macro_rules! break_if {
         }
     };
 }
-pub(crate) use break_if;
+pub use break_if;
 
+#[macro_export]
 /// Continue if the condition is true, in the loop with label $val, if given.
 ///
 /// # Examples
@@ -154,4 +159,4 @@ macro_rules! continue_if {
         }
     };
 }
-pub(crate) use continue_if;
+pub use continue_if;

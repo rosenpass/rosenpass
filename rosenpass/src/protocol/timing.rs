@@ -35,7 +35,7 @@ pub const UNENDING: Timing = 3600.0 * 8.0;
 /// # Examples
 ///
 /// ```
-/// use crate::protocol::{timing::has_happened, constants::EVENT_GRACE};
+/// use rosenpass::protocol::{timing::has_happened, constants::EVENT_GRACE};
 /// assert!(has_happened(EVENT_GRACE * -1.0, 0.0));
 /// assert!(has_happened(0.0, 0.0));
 /// assert!(has_happened(EVENT_GRACE * 0.999, 0.0));

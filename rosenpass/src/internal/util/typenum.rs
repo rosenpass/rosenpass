@@ -3,6 +3,7 @@ use typenum::int::{NInt, PInt, Z0};
 use typenum::marker_traits as markers;
 use typenum::uint::{UInt, UTerm};
 
+#[macro_export]
 /// Convenience macro to convert [`typenum`] type numbers to constant integers.
 ///
 /// This macro takes a [`typenum`] type-level integer (like `U5`, `P3`, or `N7`)
@@ -28,7 +29,7 @@ macro_rules! typenum2const {
         <$val as $crate::internal::util::typenum::IntoConst<$type>>::VALUE
     };
 }
-pub(crate) use typenum2const;
+pub use typenum2const;
 
 /// A trait implemented by type-level integers to facilitate their conversion
 /// into constant values.

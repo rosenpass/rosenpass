@@ -17,7 +17,7 @@ use super::{CryptoServer, PeerPtr};
 /// Decomposing a key pair into its individual components, then recreating it:
 ///
 /// ```rust
-/// use crate::protocol::Keypair;
+/// use rosenpass::protocol::Keypair;
 ///
 /// // We have to define the security policy before using Secrets.
 /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
@@ -49,8 +49,8 @@ impl Keypair {
     /// # Example
     ///
     /// ```rust
-    /// use crate::protocol::basic_types::{SSk, SPk};
-    /// use crate::protocol::Keypair;
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
@@ -74,8 +74,8 @@ impl Keypair {
     /// # Example
     ///
     /// ```rust
-    /// use crate::protocol::basic_types::{SSk, SPk};
-    /// use crate::protocol::Keypair;
+    /// use rosenpass::protocol::basic_types::{SSk, SPk};
+    /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
@@ -151,11 +151,11 @@ pub struct MissingKeypair;
 /// use rosenpass::internal::util::build::Build;
 /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
-/// use crate::config::ProtocolVersion;
+/// use rosenpass::config::ProtocolVersion;
 ///
-/// use crate::protocol::basic_types::{SPk, SymKey};
-/// use crate::protocol::{BuildCryptoServer, Keypair, PeerParams};
-/// use crate::protocol::osk_domain_separator::OskDomainSeparator;
+/// use rosenpass::protocol::basic_types::{SPk, SymKey};
+/// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
+/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
 /// // We have to define the security policy before using Secrets.
 /// secret_policy_use_only_malloc_secrets();
@@ -280,7 +280,7 @@ impl BuildCryptoServer {
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// use rosenpass::internal::util::build::Build;
-    /// use crate::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
     ///
     /// // Deferred initialization: Create builder first, add the key pair later
     /// let mut builder = BuildCryptoServer::empty();
@@ -305,7 +305,7 @@ impl BuildCryptoServer {
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// use rosenpass::internal::util::build::Build;
-    /// use crate::protocol::{BuildCryptoServer, Keypair, KeypairAlreadySet};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair, KeypairAlreadySet};
     ///
     /// // In this case, we'll create a functional builder from its various components
     /// // These could be salvaged from another builder, or obtained from disk/network (etc.)
@@ -329,12 +329,12 @@ impl BuildCryptoServer {
     /// Adding peers to an existing builder:
     ///
     /// ```rust
-    /// use crate::config::ProtocolVersion;
+    /// use rosenpass::config::ProtocolVersion;
     ///
     /// use rosenpass::internal::util::build::Build;
-    /// use crate::protocol::basic_types::{SymKey, SPk};
-    /// use crate::protocol::{BuildCryptoServer, Keypair};
-    /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
@@ -403,12 +403,12 @@ impl BuildCryptoServer {
     /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///
-    /// use crate::config::ProtocolVersion;
-    /// use crate::hash_domains::protocol;
+    /// use rosenpass::config::ProtocolVersion;
+    /// use rosenpass::hash_domains::protocol;
     ///
-    /// use crate::protocol::basic_types::{SymKey, SPk};
-    /// use crate::protocol::{BuildCryptoServer, Keypair};
-    /// use crate::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::basic_types::{SymKey, SPk};
+    /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
+    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
     /// secret_policy_use_only_malloc_secrets();

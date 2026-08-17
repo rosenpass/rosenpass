@@ -53,7 +53,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use crate::api::{
+    /// use rosenpass::api::{
     ///     PingRequest, ZerocopyResponseMakerSetupMessageExt, PING_REQUEST,
     /// };
     /// use rosenpass::internal::util::zerocopy::RefMaker;
