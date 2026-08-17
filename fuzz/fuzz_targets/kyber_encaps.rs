@@ -4,8 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::EphemeralKem;
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::EphemeralKem;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {

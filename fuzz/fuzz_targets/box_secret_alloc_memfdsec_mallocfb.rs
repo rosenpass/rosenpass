@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use rosenpass_secret_memory::alloc::secret_box;
-use rosenpass_secret_memory::policy::*;
+use rosenpass::internal::secret_memory::alloc::secret_box;
+use rosenpass::internal::secret_memory::policy::*;
 use std::sync::Once;
 
 static ONCE: Once = Once::new();

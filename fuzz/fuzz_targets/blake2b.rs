@@ -4,8 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass_cipher_traits::primitives::KeyedHashTo;
-use rosenpass_ciphers::subtle::blake2b;
+use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
+use rosenpass::internal::ciphers::subtle::blake2b;
 use rosenpass_to::To;
 
 #[derive(arbitrary::Arbitrary, Debug)]
