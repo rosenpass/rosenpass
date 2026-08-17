@@ -1485,9 +1485,9 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-wireguard"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8901a50aa367f28d70e8c2a6b379f51efef1e5acebbe05f940ae00363d7d83fd"
+checksum = "81b0e03593f61a7684836d73fdfef3dddae3f2dbc81896159a14bfafdb013567"
 dependencies = [
  "bitflags 2.13.1",
  "libc",
@@ -1981,8 +1981,12 @@ dependencies = [
  "clap_mangen",
  "command-fds",
  "criterion",
+ "ctrlc",
  "derive_builder 0.20.2",
  "env_logger",
+ "futures",
+ "futures-util",
+ "genetlink",
  "heck",
  "hex",
  "hex-literal",
@@ -1993,6 +1997,9 @@ dependencies = [
  "memoffset",
  "memsec",
  "mio",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-wireguard",
  "num_enum",
  "oqs-sys",
  "paste",
@@ -2000,6 +2007,7 @@ dependencies = [
  "procspawn",
  "rand 0.10.2",
  "rosenpass-to",
+ "rtnetlink",
  "rustix",
  "serde",
  "serde_json",
@@ -2017,6 +2025,7 @@ dependencies = [
  "typenum",
  "uds",
  "wireguard-uapi",
+ "x25519-dalek",
  "zerocopy",
  "zeroize",
 ]
@@ -2030,33 +2039,6 @@ dependencies = [
  "rosenpass",
  "rosenpass-to",
  "stacker",
-]
-
-[[package]]
-name = "rosenpass-rp"
-version = "0.2.1"
-dependencies = [
- "anyhow",
- "base64ct",
- "ctrlc",
- "env_logger",
- "futures",
- "futures-util",
- "genetlink",
- "libc",
- "log",
- "netlink-packet-core",
- "netlink-packet-generic",
- "netlink-packet-wireguard",
- "rosenpass",
- "rtnetlink",
- "serde",
- "stacker",
- "tempfile",
- "tokio",
- "toml",
- "x25519-dalek",
- "zeroize",
 ]
 
 [[package]]
