@@ -1,6 +1,5 @@
-
 //! # Rosenpass secure memory library
-//! 
+//!
 //! This library provides functionality for working with secret data and protecting it in
 //! memory from illegitimate access.
 //!
@@ -35,9 +34,8 @@
 //!    and [Public] in files such that the file's [Visibility](crate::internal::util::file::Visibility)
 //!    corresponds to the confidentiality of the data.
 //! 4. The [rand] module provides a simple way of generating randomness.
-//! 
+//!
 //! This is an internal library; no guarantee is made about its API at this point in time.
-
 
 pub mod debug;
 pub mod file;
@@ -57,5 +55,5 @@ mod serialization;
 
 pub use policy::*;
 
-pub(crate) use policy::test::test_spawn_process_with_policies;
 pub(crate) use policy::test::test_spawn_process_provided_policies;
+pub(crate) use policy::test::test_spawn_process_with_policies;

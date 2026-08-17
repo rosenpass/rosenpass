@@ -428,9 +428,9 @@ impl From<MsgType> for u8 {
 
 #[cfg(test)]
 mod test_constants {
-    use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
     use crate::internal::cipher_traits::primitives::Aead as _;
     use crate::internal::ciphers::{KEY_LEN, XAead};
+    use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
 
     #[test]
     fn sodium_keysize() {

@@ -1,5 +1,5 @@
-use hex_literal::hex;
 use crate::internal::util::zerocopy::RefMaker;
+use hex_literal::hex;
 use zerocopy::{ByteSlice, Ref};
 
 use crate::RosenpassError::{self, InvalidApiMessageType};

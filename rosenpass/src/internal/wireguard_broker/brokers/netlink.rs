@@ -31,7 +31,7 @@ use std::fmt::Debug;
 
 use wireguard_uapi::linux as wg;
 
-use crate::internal::wireguard_broker::api::{config::NetworkBrokerConfig,msgs};
+use crate::internal::wireguard_broker::api::{config::NetworkBrokerConfig, msgs};
 use crate::internal::wireguard_broker::{SerializedBrokerConfig, WireGuardBroker};
 
 /// Error that can occur when connecting to the WireGuard netlink interface.

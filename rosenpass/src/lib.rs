@@ -2,7 +2,6 @@
 // #![warn(clippy::missing_docs_in_private_items)]
 #![recursion_limit = "256"]
 
-
 //! This is the central rosenpass crate implementing the rosenpass protocol.
 //!
 //! It contains the following modules:
@@ -31,7 +30,7 @@ pub mod protocol;
 #[cfg(feature = "experiment_api")]
 pub mod api;
 
-#[cfg(not(feature="expose_internal_modules"))]
+#[cfg(not(feature = "expose_internal_modules"))]
 pub(crate) mod internal;
 #[cfg(feature = "expose_internal_modules")]
 pub mod internal;

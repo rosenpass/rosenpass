@@ -15,7 +15,6 @@ use rosenpass::api::{
     supply_keypair_response_status,
 };
 use rosenpass::config::ProtocolVersion;
-use rosenpass::protocol::basic_types::SymKey;
 use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -25,6 +24,7 @@ use rosenpass::internal::util::{
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
+use rosenpass::protocol::basic_types::SymKey;
 use std::os::fd::AsFd;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;

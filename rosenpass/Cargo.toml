@@ -87,32 +87,53 @@ hex-literal = { version = "1.1.0", optional = true }
 hex = { version = "0.4.3", optional = true }
 heck = { version = "0.5.0", optional = true }
 command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
-rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dependencies (might need cleanup or changes)
-uds = { git = "https://github.com/rosenpass/uds", optional = true, features = ["mio_1xx"] }
+rustix = { version = "1.1.4", features = [
+  "net",
+  "fs",
+  "process",
+] } # Broker dependencies (might need cleanup or changes)
+uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
+  "mio_1xx",
+] }
 libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f", optional = true }
 assert_tv = { version = "0.6" } #Dev dependencies
 base64 = { version = "0.23.0" }
 serde_json = { version = "1.0.140" }
 num_enum = "0.7.6"
 # dependencies of `rosenpass_util`, now `rosenpass::internal::util`:
-tokio = { version = "1.46", optional = true, features = ["macros", "rt-multi-thread", "sync", "time", "full", "mio"] }
+tokio = { version = "1.46", optional = true, features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+  "full",
+  "mio",
+] }
 base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
-chacha20poly1305 = { version = "0.10.1", default-features = false, features = ["std"] }
+chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
+  "std",
+] }
 blake2 = "0.10.6"
 shake = "0.1.0"
 # dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
-memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = ["alloc_ext"] }
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = [
+  "alloc_ext",
+] }
 allocator-api2 = "0.3"
 allocator-api2-tests = "0.3"
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
-postcard = { version = "1.1.1", default-features = false, features = ["alloc"] } # Socket handler only
+postcard = { version = "1.1.1", default-features = false, features = [
+  "alloc",
+] } # Socket handler only
 libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
-oqs-sys = { version = "0.11.0", default-features = false, features = ['classic_mceliece', 'kyber'] }
-
+oqs-sys = { version = "0.11.0", default-features = false, features = [
+  'classic_mceliece',
+  'kyber',
+] }
 
 
 [build-dependencies]
@@ -124,7 +145,11 @@ test_bin = "0.6"
 stacker = "0.1.21"
 serial_test = "4.0"
 tempfile = "3"
-rustix = { version = "1.1.4", features = ["net", "fs", "process"] } # Broker dependencies (might need cleanup or changes)
+rustix = { version = "1.1.4", features = [
+  "net",
+  "fs",
+  "process",
+] } # Broker dependencies (might need cleanup or changes)
 serde_json = { version = "1.0.140" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 rand = "0.10"
@@ -141,7 +166,7 @@ experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:libc", # from `rosenpass-wireguard-broker
+  "dep:libc",                           # from `rosenpass-wireguard-broker
   "experiment_file_descriptor_passing",
 ]
 internal_testing = []

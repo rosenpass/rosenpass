@@ -1,5 +1,5 @@
-use anyhow::ensure;
 use crate::internal::cipher_traits::primitives::{InferKeyedHash, KeyedHash};
+use anyhow::ensure;
 use shake::{
     Shake256,
     digest::{ExtendableOutput, Update, XofReader},

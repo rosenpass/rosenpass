@@ -3,8 +3,8 @@
 //! configurations.
 
 use super::super::{SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
-use derive_builder::Builder;
 use crate::internal::secret_memory::{Public, Secret};
+use derive_builder::Builder;
 
 #[derive(Builder, Debug)]
 #[builder(pattern = "mutable")]

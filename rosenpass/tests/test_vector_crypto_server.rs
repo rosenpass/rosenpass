@@ -16,19 +16,19 @@
 //! ```
 
 use assert_tv::{TestValue, TestVector, TestVectorActive, TestVectorSet, test_vec_case};
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::StaticKem;
+use rosenpass::internal::secret_memory::policy::*;
+use rosenpass::internal::secret_memory::{PublicBox, Secret};
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::test_vector_sets::deserialize_byte_vec;
 use rosenpass::protocol::test_vector_sets::serialize_byte_vec;
 use rosenpass::protocol::{CryptoServer, PeerPtr, ProtocolVersion};
-use rosenpass::internal::cipher_traits::primitives::Kem;
-use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::policy::*;
-use rosenpass::internal::secret_memory::{PublicBox, Secret};
 use std::ops::DerefMut;
 
-use rosenpass::protocol::constants::COOKIE_SECRET_LEN;
 use rosenpass::internal::ciphers::KEY_LEN;
+use rosenpass::protocol::constants::COOKIE_SECRET_LEN;
 
 #[derive(TestVectorSet)]
 pub struct TestCaseValues {

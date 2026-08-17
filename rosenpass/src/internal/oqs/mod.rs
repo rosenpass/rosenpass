@@ -1,11 +1,10 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 //! # Rosenpass internal liboqs bindings
-//! 
+//!
 //! provides bindings to `liboqs` C library
-//! 
+//!
 //! This is an internal library; not guarantee is made about its API at this point in time.
-
 
 /// Call into a libOQS function
 macro_rules! oqs_call {
@@ -27,7 +26,10 @@ macro_rules! oqs_call {
 
 #[macro_use]
 mod kem_macro;
-oqs_kem!(kyber_512, crate::internal::cipher_traits::algorithms::KemKyber512);
+oqs_kem!(
+    kyber_512,
+    crate::internal::cipher_traits::algorithms::KemKyber512
+);
 oqs_kem!(
     classic_mceliece_460896,
     crate::internal::cipher_traits::algorithms::KemClassicMceliece460896

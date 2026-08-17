@@ -24,15 +24,15 @@ use crate::internal::cipher_traits::primitives::{
 };
 use crate::internal::ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
 use crate::internal::ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
-use crate::internal::constant_time as constant_time;
+use crate::internal::constant_time;
 use crate::internal::secret_memory::{Public, Secret};
-use rosenpass_to::{To, ops::copy_slice};
 use crate::internal::util::{
     cat,
     functional::ApplyExt,
     mem::{DiscardResultExt, cpy_min},
     time::Timebase,
 };
+use rosenpass_to::{To, ops::copy_slice};
 
 use crate::protocol::test_vector_sets::{
     CycledBiscuitSecretKeyTestValues, EncapsAndMixTestValues, HandleInitHelloTestValues,
@@ -3544,7 +3544,8 @@ impl CryptoServer {
         let test_values: HandleInitiationTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_initiation");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_initiation");
 
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
@@ -3671,7 +3672,8 @@ impl CryptoServer {
         let test_values: HandleInitHelloTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_init_hello");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_init_hello");
 
         let mut core = HandshakeState::zero(keyed_hash);
 
@@ -3802,7 +3804,8 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
 
         // RHI2
         let peer = self
@@ -4089,7 +4092,8 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
 
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))

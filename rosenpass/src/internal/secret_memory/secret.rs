@@ -216,7 +216,7 @@ impl<const N: usize> Secret<N> {
     }
 
     /// sets all data of an existing [`Secret``] to random bytes
-    /// 
+    ///
     /// The [`Secret`] is first zeroized to make sure that the barriers from the `zeroize` crate take effect.
     pub fn randomize(&mut self) {
         // Zeroize self first just to make sure the barriers from the zeroize create take
@@ -372,7 +372,9 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use super::super::{secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies};
+    use super::super::{
+        secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies,
+    };
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};

@@ -3,7 +3,7 @@
 //! Rosenpass internal library providing basic constant-time operations of.
 //!
 //! This is an internal library; not guarantee is made about its API at this point in time.
-//! 
+//!
 //! ## TODO
 //! Figure out methodology to ensure that code is actually constant time, see
 //! <https://github.com/rosenpass/rosenpass/issues/232>

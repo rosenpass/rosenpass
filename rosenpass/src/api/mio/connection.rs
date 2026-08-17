@@ -2,7 +2,6 @@ use std::borrow::{Borrow, BorrowMut};
 use std::collections::VecDeque;
 use std::os::fd::OwnedFd;
 
-use mio::net::UnixStream;
 use crate::internal::secret_memory::Secret;
 use crate::internal::util::mio::ReadWithFileDescriptors;
 use crate::internal::util::{
@@ -13,6 +12,7 @@ use crate::internal::util::{
     },
     mio::interest::RW as MIO_RW,
 };
+use mio::net::UnixStream;
 use zeroize::Zeroize;
 
 use crate::api::MAX_REQUEST_FDS;

@@ -9,14 +9,6 @@ use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
 use rosenpass::config::ProtocolVersion;
-use rosenpass::{
-    app_server::{AppServer, BrokerPeer},
-    config::Verbosity,
-    protocol::{
-        basic_types::{SPk, SSk, SymKey},
-        osk_domain_separator::OskDomainSeparator,
-    },
-};
 use rosenpass::internal::secret_memory::Secret;
 use rosenpass::internal::util::file::{LoadValue as _, LoadValueB64};
 use rosenpass::internal::util::functional::{ApplyExt, MutatingExt};
@@ -24,6 +16,14 @@ use rosenpass::internal::util::result::OkExt;
 use rosenpass::internal::util::tokio::janitor::{spawn_cleanup_job, try_spawn_daemon};
 use rosenpass::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
+};
+use rosenpass::{
+    app_server::{AppServer, BrokerPeer},
+    config::Verbosity,
+    protocol::{
+        basic_types::{SPk, SSk, SymKey},
+        osk_domain_separator::OskDomainSeparator,
+    },
 };
 use tokio::task::spawn_blocking;
 

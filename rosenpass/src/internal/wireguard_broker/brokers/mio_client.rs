@@ -47,20 +47,22 @@
 //! # }
 //! ```
 
-use anyhow::{Context, bail};
-use mio::Interest;
 use crate::internal::secret_memory::Secret;
-use rosenpass_to::{To, ops::copy_slice_least_src};
 use crate::internal::util::io::{IoResultKindHintExt, TryIoResultKindHintExt};
 use crate::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
 use crate::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
+use anyhow::{Context, bail};
+use mio::Interest;
+use rosenpass_to::{To, ops::copy_slice_least_src};
 use std::borrow::{Borrow, BorrowMut};
 use std::os::fd::AsFd;
 
 use crate::internal::wireguard_broker::api::client::{
     BrokerClient, BrokerClientIo, BrokerClientPollResponseError, BrokerClientSetPskError,
 };
-use crate::internal::wireguard_broker::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio};
+use crate::internal::wireguard_broker::{
+    SerializedBrokerConfig, WireGuardBroker, WireguardBrokerMio,
+};
 
 /// WireGuard broker client using mio for non-blocking I/O operations.
 ///

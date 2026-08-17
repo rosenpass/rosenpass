@@ -5,9 +5,9 @@
 //! - Native Unix command-line interface
 //! - Linux netlink interface
 //! - Custom Unix socket protocol
-//! 
+//!
 //! It also contains a small application purpose-built to supply WireGuard in the linux kernel with pre-shared keys.
-//! 
+//!
 //! This is an internal library; not guarantee is made about its API at this point in time.
 //!
 //! ## Examples
@@ -38,7 +38,7 @@
 //! # Ok(())
 //! # }
 //! ```
-//! 
+//!
 
 use crate::internal::secret_memory::{Public, Secret};
 use std::fmt::Debug;

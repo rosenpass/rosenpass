@@ -1,8 +1,8 @@
 //! This module provides types that enabling choosing the keyed hash building block to be used at
 //! runtime (using enums) instead of at compile time (using generics).
 
-use anyhow::Result;
 use crate::internal::cipher_traits::primitives::KeyedHashInstance;
+use anyhow::Result;
 use std::fmt::Display;
 
 use super::{

@@ -3,8 +3,6 @@
 
 use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
-use anyhow::Context;
-use rosenpass_to::{To, ops::copy_slice};
 use crate::internal::util::{
     fd::FdIo,
     functional::{ApplyExt, run},
@@ -14,6 +12,8 @@ use crate::internal::util::{
     result::OkExt,
 };
 use crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
+use anyhow::Context;
+use rosenpass_to::{To, ops::copy_slice};
 
 use crate::{
     api::{add_listen_socket_response_status, add_psk_broker_response_status},

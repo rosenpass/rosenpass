@@ -34,14 +34,16 @@ use std::fmt::Debug;
 use std::process::{Command, Stdio};
 use std::thread;
 
-use derive_builder::Builder;
-use log::{debug, error};
-use postcard::{from_bytes, to_allocvec};
 use crate::internal::secret_memory::{Public, Secret};
 use crate::internal::util::b64::b64_decode;
 use crate::internal::util::{b64::B64Display, file::StoreValueB64Writer};
+use derive_builder::Builder;
+use log::{debug, error};
+use postcard::{from_bytes, to_allocvec};
 
-use crate::internal::wireguard_broker::{SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio};
+use crate::internal::wireguard_broker::{
+    SerializedBrokerConfig, WireGuardBroker, WireguardBrokerCfg, WireguardBrokerMio,
+};
 use crate::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN};
 
 /// Maximum size of a base64-encoded WireGuard key in bytes

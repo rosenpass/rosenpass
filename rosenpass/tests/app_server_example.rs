@@ -3,7 +3,9 @@ use std::{net::SocketAddr, ops::DerefMut, str::FromStr, sync::mpsc, time::Durati
 
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::util::{file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt};
+use rosenpass::internal::util::{
+    file::LoadValueB64, functional::run, mem::DiscardResultExt, result::OkExt,
+};
 
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
@@ -82,7 +84,8 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
         run(|| -> anyhow::Result<()> {
             let osk_a = SymKey::load_b64::<MAX_B64_KEY_SIZE, _>(&outfile_a)?;
             let osk_b = SymKey::load_b64::<MAX_B64_KEY_SIZE, _>(&outfile_b)?;
-            successful_exchange = rosenpass::internal::constant_time::memcmp(osk_a.secret(), osk_b.secret());
+            successful_exchange =
+                rosenpass::internal::constant_time::memcmp(osk_a.secret(), osk_b.secret());
             Ok(())
         })
         .discard_result();

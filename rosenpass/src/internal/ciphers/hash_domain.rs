@@ -27,8 +27,8 @@
 //!```
 //!
 
-use anyhow::Result;
 use crate::internal::secret_memory::Secret;
+use anyhow::Result;
 use rosenpass_to::To as _;
 
 pub use super::{KEY_LEN, KeyedHash};

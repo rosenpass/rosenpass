@@ -52,8 +52,8 @@
 //! Ok::<(), anyhow::Error>(())
 //! ```
 
+use crate::internal::ciphers::{hash_domain::HashDomain, subtle::keyed_hash::KeyedHash};
 use anyhow::Result;
-use crate::internal::ciphers::{hash_domain::HashDomain,subtle::keyed_hash::KeyedHash};
 
 /// Declare a hash function
 ///
