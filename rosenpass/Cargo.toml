@@ -89,13 +89,19 @@ required-features = ["expose_internal_modules"]
 
 
 [[bench]]
-name = "trace_handshake"
-harness = false
-required-features = ["trace_bench"]
-
-[[bench]]
 name = "handshake"
 harness = false
+required-features = ["expose_internal_modules"]
+
+[[bench]] # from `rosenpass-ciphers`
+name = "primitives"
+harness = false
+required-features = ["bench", "expose_internal_modules"]
+
+[[bench]]
+name = "trace_handshake"
+harness = false
+required-features = ["trace_bench", "expose_internal_modules"]
 
 # ============================== dependencies ==============================
 [dependencies]
@@ -243,9 +249,3 @@ bench = []
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }
-
-# contents from `rosenpass-ciphers`:
-[[bench]]
-name = "primitives"
-harness = false
-required-features = ["bench"]
