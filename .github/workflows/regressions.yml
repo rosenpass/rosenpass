@@ -17,7 +17,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - run: cargo build --bin rosenpass --release
+      - run: cargo build --bin rosenpass --features expose_internal_modules --release
       - run: python misc/generate_configs.py
       - run: chmod +x .ci/run-regression.sh
       - run: .ci/run-regression.sh 100 20
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
-      - run: cargo build --bin rosenpass --release
+      - run: cargo build --bin rosenpass --features expose_internal_modules --release
       - run: chmod +x .ci/boot_race/run.sh
       - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/a.toml
       - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/b.toml
