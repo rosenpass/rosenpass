@@ -12,7 +12,7 @@ fn main() {
     linux::main().unwrap();
 
     #[cfg(not(target_os = "linux"))]
-    panic!("This binary is only supported on Linux");
+    compile_error!("This binary is only supported on Linux");
 }
 
 #[cfg(target_os = "linux")]
