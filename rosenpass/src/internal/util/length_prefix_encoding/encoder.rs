@@ -677,7 +677,7 @@ mod tests {
         let mut encoder = LengthPrefixEncoder::from_short_message(msg.clone(), msg_len).unwrap();
         // Only the short message should have been stored (and the unused part discarded)
         assert_eq!(encoder.message_mut(), b"cats and dogs");
-        assert_eq!(encoder.message_written_mut(), []);
+        assert_eq!(encoder.message_written_mut(), [] as [u8; 0]);
         assert_eq!(encoder.message_left_mut(), b"cats and dogs");
         assert_eq!(encoder.buf_mut(), &msg);
 
@@ -691,7 +691,7 @@ mod tests {
 
         assert_eq!(encoder.message_mut(), b"cats and dogs");
         assert_eq!(encoder.message_written_mut(), b"cats and dogs");
-        assert_eq!(encoder.message_left_mut(), []);
+        assert_eq!(encoder.message_left_mut(), [] as [u8; 0]);
         assert_eq!(encoder.buf_mut(), &msg);
     }
 
@@ -728,6 +728,6 @@ mod tests {
         let mut encoder = LengthPrefixEncoder::from_message(msg.clone());
         assert_eq!(encoder.message(), msg);
         encoder.zeroize();
-        assert_eq!(encoder.message(), []);
+        assert_eq!(encoder.message(), [] as [u8; 0]);
     }
 }

@@ -343,7 +343,10 @@ mod test {
         };
 
         (@impl ($typenum:ty) as ($type:ty) = $const:expr $(; $($rest:tt)*)?) => {
-            const_assert_eq!(typenum2const!($typenum as $type), $const);
+            const_assert_eq!(typenum2const!($typenum as $type), {
+                const EXPECTED_VALUE: $type = $const;
+                EXPECTED_VALUE
+            });
             $( test_const_conversion!($($rest)*); )?
         };
     }
@@ -381,10 +384,10 @@ mod test {
         (N1000000000000) >= i64 = -1000000000000;
     }
 
-    const_assert_eq!(127, (!(1u8.rotate_right(1)) - 0) as _);
-    const_assert_eq!(126, (!(1u8.rotate_right(1)) - 1) as _);
-    const_assert_eq!(255, (!(0u8.rotate_right(1)) - 0) as _);
-    const_assert_eq!(254, (!(0u8.rotate_right(1)) - 1) as _);
+    const_assert_eq!(127, (!(1u8.rotate_right(1)) - 0));
+    const_assert_eq!(126, (!(1u8.rotate_right(1)) - 1));
+    const_assert_eq!(255, (!(0u8.rotate_right(1)) - 0));
+    const_assert_eq!(254, (!(0u8.rotate_right(1)) - 1));
 
     test_const_conversion! {
         (op!(pow(U2, U7) - U1))   >= u7   = (!(1u8.rotate_right(1)) - 0) as _;
