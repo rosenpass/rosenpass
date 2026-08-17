@@ -137,7 +137,7 @@ mod tests {
     use super::BrokerServer;
     use super::msgs;
     use super::msgs::{Envelope, SetPskRequest};
-    use crate::internal::secret_memory::{Secret, secret_policy_use_only_malloc_secrets};
+    use crate::internal::secret_memory::{Secret, secret_policy_try_use_memfd_secrets};
     use zerocopy::IntoBytes;
 
     #[derive(Debug, Clone)]
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_broker_server() {
-        secret_policy_use_only_malloc_secrets();
+        secret_policy_try_use_memfd_secrets();
         let mock_broker = MockWireGuardBroker {
             psk: Secret::zero(),
         };

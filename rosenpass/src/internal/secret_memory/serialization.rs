@@ -100,7 +100,6 @@ impl<'de, const N: usize> Deserialize<'de> for PublicBox<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     use serde::{Serialize, de::DeserializeOwned};
     use serde_json;
 
@@ -114,7 +113,7 @@ mod tests {
     }
 
     pub fn test_init_secret_memory_policy() {
-        secret_policy_use_only_malloc_secrets();
+        crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     }
 
     #[test]

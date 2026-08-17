@@ -190,10 +190,10 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::internal::secret_memory::{Public, Secret, secret_policy_use_only_malloc_secrets};
+    use crate::internal::secret_memory::{Public, Secret, secret_policy_try_use_memfd_secrets};
     #[test]
     fn smoke_test() -> Result<(), Box<dyn std::error::Error>> {
-        secret_policy_use_only_malloc_secrets();
+        secret_policy_try_use_memfd_secrets();
         let result = NetlinkWireGuardBroker::new();
         assert!(result.is_ok());
         let mut broker = result.unwrap();

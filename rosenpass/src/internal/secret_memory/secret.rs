@@ -372,9 +372,7 @@ impl<const N: usize> StoreSecret for Secret<N> {
 
 #[cfg(test)]
 mod test {
-    use super::super::{
-        secret_policy_use_only_malloc_secrets, test_spawn_process_provided_policies,
-    };
+    use super::super::{secret_policy_try_use_memfd_secrets, test_spawn_process_provided_policies};
 
     use super::*;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -534,7 +532,7 @@ mod test {
         let dummy = DummyZeroizing {
             inner_dummy: [42; 32],
         };
-        secret_policy_use_only_malloc_secrets();
+        secret_policy_try_use_memfd_secrets();
         let mut zsb: ZeroizingSecretBox<DummyZeroizing> = ZeroizingSecretBox::new(dummy);
         zsb.zeroize();
         assert_eq!(zsb.inner_dummy, [0; 32]);
@@ -543,7 +541,7 @@ mod test {
     /// Test the debug print of [Secret].
     #[test]
     fn test_debug_secret() {
-        secret_policy_use_only_malloc_secrets();
+        secret_policy_try_use_memfd_secrets();
         let my_secret: Secret<32> = Secret::zero();
         assert_eq!(format!("{:?}", my_secret), "<SECRET>");
     }
