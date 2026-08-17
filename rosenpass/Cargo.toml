@@ -95,7 +95,7 @@ base64 = { version = "0.23.0" }
 serde_json = { version = "1.0.140" }
 num_enum = "0.7.6"
 # dependencies of `rosenpass_util`, now `rosenpass::internal::util`:
-tokio = { version = "1.46", optional = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "1.46", optional = true, features = ["macros", "rt-multi-thread", "sync", "time", "full", "mio"] }
 base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`

@@ -12,8 +12,8 @@ use tokio::task;
 use anyhow::{Result, bail, ensure};
 use clap::{ArgGroup, Parser};
 
-use crate::internal::util::fd::claim_fd;
-use crate::internal::wireguard_broker::api::msgs;
+use rosenpass::internal::util::fd::claim_fd;
+use rosenpass::internal::wireguard_broker::api::msgs;
 
 /// Command-line arguments for configuring the socket handler
 #[derive(Parser, Debug)]
@@ -158,7 +158,7 @@ async fn on_accept(queue: mpsc::Sender<BrokerRequest>, mut stream: UnixStream) -
     let mut req_buf = Vec::new();
 
     {
-        use crate::internal::secret_memory as SM;
+        use rosenpass::internal::secret_memory as SM;
         #[cfg(feature = "experiment_memfd_secret")]
         SM::secret_policy_try_use_memfd_secrets();
         #[cfg(not(feature = "experiment_memfd_secret"))]

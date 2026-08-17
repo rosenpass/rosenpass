@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use heck::ToShoutySnakeCase;
 
-use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
-use crate::internal::ciphers::{KEY_LEN, hash_domain::HashDomain};
+use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
+use rosenpass::internal::ciphers::{KEY_LEN, hash_domain::HashDomain};
 
 /// Recursively calculate a concrete hash value for an API message type
 fn calculate_hash_value(hd: HashDomain, values: &[&str]) -> Result<[u8; KEY_LEN]> {
