@@ -96,7 +96,7 @@ required-features = ["expose_internal_modules"]
 [[bench]] # from `rosenpass-ciphers`
 name = "primitives"
 harness = false
-required-features = ["bench", "expose_internal_modules"]
+required-features = ["bench"]
 
 [[bench]]
 name = "trace_handshake"
@@ -244,7 +244,7 @@ rp = [
 experiment_file_descriptor_passing = ["dep:uds"]
 tokio = ["dep:tokio"]
 # features of `rosenpass-ciphers`:
-bench = []
+bench = ["expose_internal_modules"]
 
 
 [lints.rust]
