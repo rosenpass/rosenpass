@@ -1,8 +1,8 @@
+use rosenpass::config;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use rosenpass::config;
 
 #[test]
 fn parse_simple() {
@@ -15,7 +15,10 @@ fn parse_simple() {
 
     assert_eq!(
         config.keypair,
-        Some(config::RosenpassKeypair::new("/my/public-key", "/my/secret-key"))
+        Some(config::RosenpassKeypair::new(
+            "/my/public-key",
+            "/my/secret-key"
+        ))
     );
     assert_eq!(config.verbosity, config::Verbosity::Verbose);
     assert_eq!(

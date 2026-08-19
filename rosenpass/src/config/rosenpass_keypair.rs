@@ -1,7 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-
 
 /// Public key and secret key locations.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]

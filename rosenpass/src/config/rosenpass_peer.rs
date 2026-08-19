@@ -1,6 +1,6 @@
+use crate::config;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::config;
 
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

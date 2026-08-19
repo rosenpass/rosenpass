@@ -2,7 +2,7 @@ use crate::app_server::AppServer;
 use crate::config;
 use crate::protocol::basic_types::{SPk, SSk};
 use anyhow::{bail, ensure};
-use rosenpass_util::file::{fopen_w, LoadValue, Visibility};
+use rosenpass_util::file::{LoadValue, Visibility, fopen_w};
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::path::{Path, PathBuf};

@@ -30,6 +30,3 @@ pub use peer_osk_domain_seperator::*;
 
 mod util;
 pub use util::*;
-
-mod statics;
-pub use statics::*;

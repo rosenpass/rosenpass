@@ -1,6 +1,6 @@
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
-use serde::{Deserialize, Serialize};
 use anyhow::bail;
+use serde::{Deserialize, Serialize};
 
 /// Configuration for [crate::protocol::osk_domain_separator::OskDomainSeparator]
 ///

@@ -1,10 +1,10 @@
-use std::path::PathBuf;
 use rosenpass::config;
+use std::path::PathBuf;
 
 fn split_str(s: &str) -> Vec<String> {
     s.split(' ').map(|s| s.to_string()).collect()
 }
-    
+
 #[test]
 fn test_cli_parse_multiple_peers() {
     let args = split_str(
@@ -18,7 +18,10 @@ fn test_cli_parse_multiple_peers() {
 
     assert_eq!(
         config.keypair,
-        Some(config::RosenpassKeypair::new("/my/public-key", "/my/secret-key"))
+        Some(config::RosenpassKeypair::new(
+            "/my/public-key",
+            "/my/secret-key"
+        ))
     );
     assert_eq!(config.verbosity, config::Verbosity::Verbose);
     assert!(&config.listen.is_empty());

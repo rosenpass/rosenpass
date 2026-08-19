@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use rosenpass::config;
+use std::path::PathBuf;
 
 #[test]
 fn example_config_rosenpass_store() -> anyhow::Result<()> {

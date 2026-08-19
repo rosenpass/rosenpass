@@ -3,7 +3,7 @@
 //! [CliArgs::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{Context, bail, ensure};
 use clap::{Parser, Subcommand};
 use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
@@ -15,10 +15,10 @@ use rosenpass_wireguard_broker::brokers::native_unix::{
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
+use super::config;
 use crate::app_server::AppServerTest;
 use crate::app_server::{AppServer, BrokerPeer};
 use crate::protocol::basic_types::{SPk, SSk, SymKey};
-use super::config;
 
 #[cfg(feature = "experiment_api")]
 use {
@@ -26,8 +26,8 @@ use {
     log::{error, info},
     mio::net::UnixStream,
     rosenpass_util::fd::claim_fd,
-    rosenpass_wireguard_broker::{brokers::mio_client::MioBrokerClient, WireguardBrokerMio},
-    rustix::net::{socketpair, AddressFamily, SocketFlags, SocketType},
+    rosenpass_wireguard_broker::{WireguardBrokerMio, brokers::mio_client::MioBrokerClient},
+    rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
     std::os::unix::net,
     std::process::Command,
     std::thread,
