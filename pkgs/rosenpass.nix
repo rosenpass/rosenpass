@@ -27,7 +27,10 @@ let
       "zstd" # used for offloaded test vector values
     ];
     # Files to explicitly include
-    files = [ "to/README.md" ];
+    files = [
+      "to/README.md"
+      "rosenpass/src/internal/README.md"
+    ];
 
     src = ../.;
     filter = (
