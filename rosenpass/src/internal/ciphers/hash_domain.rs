@@ -74,7 +74,16 @@ impl HashDomain {
 
     // TODO: Protocol! Use domain separation to ensure that
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
-    /// it evaluates [hash::hash] with this HashDomain's key as the key and `v`
+    /// it evaluates
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`KeyedHashInstance::keyed_hash`"
+    )]
+    /// with this HashDomain's key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
     ///
     pub fn mix(self, v: &[u8]) -> Result<Self> {
@@ -125,7 +134,16 @@ impl HashDomain {
 
 impl HashDomainNamespace {
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
-    /// it evaluates [hash::hash] with the key of this HashDomainNamespace key as the key and `v`
+    /// it evaluates
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`KeyedHashInstance::keyed_hash`"
+    )]
+    /// with the key of this HashDomainNamespace key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
     pub fn mix(&self, v: &[u8]) -> Result<HashDomain> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
@@ -145,7 +163,15 @@ impl HashDomainNamespace {
 
 impl SecretHashDomain {
     /// Create a new [SecretHashDomain] with the given key `k` and data `d` by calling
-    /// [hash::hash] with `k` as the `key` and `d` s the `data`, and using the result
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`KeyedHashInstance::keyed_hash`"
+    )]
+    /// with `k` as the `key` and `d` s the `data`, and using the result
     /// as the content for the new [SecretHashDomain].
     /// Both `k` and `d` have to be exactly [KEY_LEN] bytes in length.
     /// TODO: docu
@@ -180,7 +206,16 @@ impl SecretHashDomain {
     }
 
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`. Specifically,
-    /// it evaluates [hash::hash] with this [SecretHashDomain]'s key as the key and `v`
+    /// it evaluates
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`KeyedHashInstance::keyed_hash`"
+    )]
+    /// with this [SecretHashDomain]'s key as the key and `v`
     /// as the `data` and uses the result as the key for the new [SecretHashDomain].
     ///
     /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
@@ -245,7 +280,16 @@ impl SecretHashDomain {
 
 impl SecretHashDomainNamespace {
     /// Creates a new [SecretHashDomain] by mixing in a new key `v`. Specifically,
-    /// it evaluates [hash::hash] with the key of this HashDomainNamespace key as the key and `v`
+    /// it evaluates
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`KeyedHashInstance::keyed_hash`"
+    )]
+    /// with the key of this HashDomainNamespace key as the key and `v`
     /// as the `data` and uses the result as the key for the new [HashDomain].
     ///
     /// It requires that `v` consists of exactly [KEY_LEN] many bytes.
