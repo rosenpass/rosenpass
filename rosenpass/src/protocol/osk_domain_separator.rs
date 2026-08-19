@@ -67,7 +67,15 @@ impl OskDomainSeparator {
     }
 
     /// The domain separator is not just an encoded string, it instead uses
-    /// [crate::internal::ciphers::hash_domain::HashDomain], starting from [hash_domains::cke_user].
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[crate::internal::ciphers::hash_domain::HashDomain],"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`crate::internal::ciphers::hash_domain::HashDomain`,"
+    )]
+    /// starting from [hash_domains::cke_user].
     ///
     /// This means, that the domain separator is really a sequence of multiple different domain
     /// separators, each of which is allowed to be quite long. This is very useful as it allows

@@ -84,7 +84,7 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
     dst[..len].copy_from_slice(&src[..len]);
 }
 
-/// Wrapper type to inhibit calling [std::mem::Drop] when the underlying
+/// Wrapper type to inhibit calling [std::mem::drop] when the underlying
 /// variable is freed
 ///
 /// # Examples

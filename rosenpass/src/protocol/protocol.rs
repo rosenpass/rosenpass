@@ -151,7 +151,10 @@ pub enum ProtocolVersion {
 }
 
 impl ProtocolVersion {
-    /// Returns the [KeyedHash] used by a protocol version.
+    /// returns the
+    #[cfg_attr(feature = "expose_internal_modules", doc = "[KeyedHash]")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "`KeyedHash`")]
+    /// used by a protocol version.
     pub fn keyed_hash(&self) -> KeyedHash {
         match self {
             ProtocolVersion::V02 => KeyedHash::incorrect_hmac_blake2b(),
@@ -1477,7 +1480,9 @@ impl CryptoServer {
 impl Peer {
     /// Create a new peer from the peers keys.
     ///
-    /// If no peer PSK is set, `psk` should be initialized to [SymKey::zero].
+    /// If no peer PSK is set, `psk` should be initialized to
+    #[cfg_attr(feature = "expose_internal_modules", doc = "[SymKey::zero].")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "`SymKey::zero`.")]
     ///
     /// # Examples
     ///

@@ -81,7 +81,7 @@ impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 /// Encrypts using XChaCha20Poly1305 as implemented in [RustCrypto](https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305).
 /// `key` and `nonce` MUST be chosen (pseudo-)randomly. The `key` slice MUST have a length of
 /// [KEY_LEN]. The `nonce` slice MUST have a length of [NONCE_LEN].
-/// In contrast to [`chacha20poly1305_ietf::encrypt`](super::super::chacha20poly1305_ietf::encrypt),
+/// In contrast to [`chacha20poly1305_ietf::encrypt`](super::chacha20poly1305_ietf::ChaCha20Poly1305::encrypt),
 /// `nonce` is also written into `ciphertext` and therefore ciphertext MUST have a length
 /// of at least [NONCE_LEN] + `plaintext.len()` + [TAG_LEN].
 ///
@@ -124,7 +124,7 @@ pub fn encrypt(
 /// The `key` slice MUST have a length of [KEY_LEN]. The `nonce` slice MUST have a length of
 /// [NONCE_LEN]. The plaintext buffer must have a capacity of `ciphertext.len()` - [TAG_LEN] - [NONCE_LEN].
 ///
-/// In contrast to [`chacha20poly1305_ietf::decrypt`](`super::super::chacha20poly1305_ietf::decrypt`),
+/// In contrast to [`chacha20poly1305_ietf::decrypt`](`super::chacha20poly1305_ietf::ChaCha20Poly1305::decrypt`),
 /// `ciperhtext` MUST include the as it is not given otherwise.
 ///
 /// # Examples

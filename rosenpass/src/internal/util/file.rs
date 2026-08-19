@@ -64,7 +64,7 @@ pub fn fopen_r<P: AsRef<Path>>(path: P) -> std::io::Result<File> {
         .open(path)
 }
 
-/// Extension trait for [std::io::Read] adding [read_slice_to_end]
+/// Extension trait for [std::io::Read] adding [ReadSliceToEnd::read_slice_to_end]
 pub trait ReadSliceToEnd {
     /// Error type returned by functions in this trait
     type Error;
@@ -72,7 +72,7 @@ pub trait ReadSliceToEnd {
     /// Read slice asserting that the length of the data to read is at most
     /// as long as the buffer to read into
     ///
-    /// Note that this *may* append data read to [buf] even if the function fails,
+    /// Note that this *may* append data read to `buf` even if the function fails,
     /// so the caller should make no assumptions about the contents of the buffer
     /// after calling read_slice_to_end if the result is an error.
     ///
@@ -126,7 +126,7 @@ impl<R: Read> ReadSliceToEnd for R {
     }
 }
 
-/// Extension trait for [std::io::Read] adding [read_exact_to_end]
+/// Extension trait for [`std::io::Read`] adding [ReadExactToEnd::read_exact_to_end]
 pub trait ReadExactToEnd {
     /// Error type returned by functions in this trait
     type Error;
@@ -134,7 +134,7 @@ pub trait ReadExactToEnd {
     /// Read slice asserting that the length of the data to be read
     /// and the buffer are exactly the same length.
     ///
-    /// Note that this *may* append data read to [buf] even if the function fails,
+    /// Note that this *may* append data read to `buf` even if the function fails,
     /// so the caller should make no assumptions about the contents of the buffer
     /// after calling read_exact_to_end if the result is an error.
     ///

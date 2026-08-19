@@ -13,13 +13,22 @@
 //! - [`crate::hash_domains`] lists the different hash function domains used in the Rosenpass
 //!   protocol
 //! - [`crate::msgs`] provides declarations of the Rosenpass protocol network messages and facilities
-//!   to parse those messages through the [`zerocopy`](::zerocopy) crate
+//!   to parse those messages through the [`zerocopy`] crate
 //! - [`crate::protocol`] this is where the bulk of our code lives; this module contains the actual
 //!   cryptographic protocol logic
-//! - [`crate::api`] implements the Rosenpass unix socket API, if feature `experiment_api` is enabled
-//! - [`crate::internal`] contains various internal modules which are only exposed if feature
-//!   `expose_internal_module` is enabled (see module description for explanation)
-
+#![cfg_attr(
+    feature = "experiment_api",
+    doc = r#"
+ - [`crate::api`] implements the Rosenpass unix socket API, if feature `experiment_api` is enabled
+"#
+)]
+#![cfg_attr(
+    feature = "expose_internal_modules",
+    doc = r#"
+ - [`crate::internal`] contains various internal modules which are only exposed if feature
+   `expose_internal_module` is enabled (see module description for explanation)
+"#
+)]
 pub mod app_server;
 pub mod cli;
 pub mod config;

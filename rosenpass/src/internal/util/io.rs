@@ -477,7 +477,7 @@ where
     }
 }
 
-/// [std:io::Read] extension trait for call with [nonblocking_handle_io_errors] applied
+/// Extension trait for `std:io::Read` for call with [nonblocking_handle_io_errors] applied
 pub trait ReadNonblockingWithBoringErrorsHandledExt {
     /// Convenience wrapper using [nonblocking_handle_io_errors] with [std::io::Read]
     fn read_nonblocking_with_boring_errors_handled(

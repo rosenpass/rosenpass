@@ -1,8 +1,15 @@
 //!
-//! This module provides an extension trait,
-//! [`ZeroizedExt`](crate::zeroize::ZeroizedExt), for all types implementing the
+//! This module provides the extension trait
+#![cfg_attr(feature = "expose_internal_modules", doc = "[`ZeroizedExt`],")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "`ZeroizedExt`,")]
+//! for all types implementing the
 //! `zeroize::Zeroize` trait.
-//! It introduces the [`zeroized`](crate::zeroize::ZeroizedExt::zeroized)
+//! It introduces the
+#![cfg_attr(
+    feature = "expose_internal_modules",
+    doc = "[`zeroized`](ZeroizedExt::zeroized)"
+)]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "`zeroized`")]
 //! method, which zeroizes a value in place and returns it, making it convenient
 //! for chaining operations and ensuring sensitive data is securely erased.
 //!

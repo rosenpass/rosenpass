@@ -37,7 +37,6 @@ static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 /// }
 /// # Ok::<(), anyhow::Error>(())
 /// ```
-/// ```
 pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
     ALLOC_TYPE.set(alloc_type).unwrap();
 }

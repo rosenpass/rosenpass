@@ -61,7 +61,7 @@ pub mod interest {
 /// ```
 pub trait UnixListenerExt: Sized {
     /// Creates a new Unix listener by claiming ownership of a raw file descriptor
-    /// (see [fd::claim_fd](crate::fd::claim_fd))
+    /// (see [fd::claim_fd](crate::internal::util::fd::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 }
 
@@ -81,11 +81,11 @@ pub trait UnixStreamExt: Sized {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor and creates a new Unix stream
-    /// (see [fd::claim_fd](crate::fd::claim_fd))
+    /// (see [fd::claim_fd](crate::internal::util::fd::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor in place and creates a new Unix stream
-    ///  (see [fd::claim_fd_inplace](crate::fd::claim_fd_inplace))
+    ///  (see [fd::claim_fd_inplace](crate::internal::util::fd::claim_fd_inplace))
     fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self>;
 }
 

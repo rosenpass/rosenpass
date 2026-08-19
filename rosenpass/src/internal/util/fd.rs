@@ -286,7 +286,7 @@ where
 pub trait GetSocketType {
     /// Error type returned by operations in this trait
     type Error;
-    /// Look up the socket; see [rustix::net::sockopt::get_socket_type]
+    /// Look up the socket; see `rustix::net::sockopt::getsockopt(fd, SOL_SOCKET, SO_TYPE)`
     fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error>;
     /// Checks if the socket is a datagram socket
     fn is_datagram_socket(&self) -> Result<bool, Self::Error> {

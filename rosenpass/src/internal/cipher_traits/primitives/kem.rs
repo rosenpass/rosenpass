@@ -9,8 +9,8 @@
 //!
 //! The [Kem] Trait describes the basic API offered by a Key Encapsulation
 //! Mechanism. Two implementations for it are provided:
-//! [Kyber512](rosenpass::internal::oqs::kyber_512::Kyber512) and
-//! [ClassicMceliece460896](rosenpass::internal::oqs::classic_mceliece_460896::ClassicMceliece460896).
+//! `Kyber512` (crate::internal::oqs::kyber_512::Kyber512) and
+//! `ClassicMceliece460896` (crate::internal::oqs::classic_mceliece_460896::ClassicMceliece460896).
 //!
 //! An example where Alice generates a keypair and gives her public key to Bob, for Bob to
 //! encapsulate a symmetric key and Alice to decapsulate it would look as follows.

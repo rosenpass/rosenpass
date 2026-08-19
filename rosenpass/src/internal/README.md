@@ -2,7 +2,13 @@
 
 This module contains various modules which used to have their own crates. These modules implement a lot of functionality which is used internally with Rosenpass.
 
-- [`rosenpass::internal::util`]
+- [`crate::internal::cipher_traits`]
+- [`crate::internal::ciphers`]
+- [`crate::internal::constant_time`]
+- [`crate::internal::oqs`]
+- [`crate::internal::secret_memory`]
+- [`crate::internal::util`]
+- [`crate::internal::wireguard_broker`]
 
 They are all `pub(crate)` by default because their interfaces may change between non-breaking releases of `rosenpass`. If you want to use these modules when using `rosenpass` as a library:
 

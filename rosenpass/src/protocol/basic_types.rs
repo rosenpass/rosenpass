@@ -8,7 +8,18 @@ use crate::msgs::{BISCUIT_ID_LEN, MAX_MESSAGE_LEN, SESSION_ID_LEN};
 
 /// Static public key
 ///
-/// Using [PublicBox] instead of [Public] because Classic McEliece keys are very large.
+#[cfg_attr(
+    feature = "expose_internal_modules",
+    doc = r#"
+Using [`PublicBox`] instead of [`Public`] because Classic McEliece keys are very large.
+"#
+)]
+#[cfg_attr(
+    not(feature = "expose_internal_modules"),
+    doc = r#"
+Using `PublicBox` instead of `Public` because Classic McEliece keys are very large.
+"#
+)]
 pub type SPk = PublicBox<{ StaticKem::PK_LEN }>;
 /// Static secret key
 pub type SSk = Secret<{ StaticKem::SK_LEN }>;

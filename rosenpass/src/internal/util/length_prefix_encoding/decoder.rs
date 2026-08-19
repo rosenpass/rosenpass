@@ -1,7 +1,7 @@
 //! This module provides utilities for decoding length-prefixed messages from I/O streams.
 //!
 //! Messages are prefixed with an unsigned 64-bit little-endian length header, followed by the
-//! message payload. The [`decoder::LengthPrefixDecoder`] is a central component here, maintaining
+//! message payload. The [`LengthPrefixDecoder`] is a central component here, maintaining
 //! internal buffers and state for partial reads and boundary checks.
 //!
 //! The module defines errors to handle size mismatches, I/O issues, and boundary violations

@@ -69,8 +69,12 @@ impl Keypair {
 
     /// Creates a new "empty" key pair. All bytes are initialized to zero.
     ///
-    /// See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
-    ///
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = r#"
+    See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
+    "#
+    )]
     /// # Example
     ///
     /// ```rust
@@ -92,9 +96,16 @@ impl Keypair {
         Self::new(SSk::zero(), SPk::zero())
     }
 
-    /// Creates a new (securely-)random key pair. The mechanism is described in [crate::internal::secret_memory::Secret].
+    /// Creates a new (securely-)random key pair.
     ///
-    /// See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = r#"
+    The mechanism is described in [crate::internal::secret_memory::Secret].
+
+    See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
+    "#
+    )]
     pub fn random() -> Self {
         Self::new(SSk::random(), SPk::random())
     }
@@ -143,8 +154,12 @@ pub struct MissingKeypair;
 /// The setup will be much simplified if one is provided, at the cost of some flexibility.
 /// It's however possible to defer this step in case your application requires it.
 ///
-/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site] and [ConstructionSite][crate::internal::util::build::ConstructionSite].
-///
+/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site]
+#[cfg_attr(
+    feature = "expose_internal_modules",
+    doc = r#"and [ConstructionSite][crate::internal::util::build::ConstructionSite]"#
+)]
+/// .
 /// # Example
 ///
 /// ```rust
