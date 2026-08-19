@@ -14,7 +14,7 @@ rust-version = "1.93.1"
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
-required-features = ["expose_internal_modules"]
+required-features = ["rosenpass_binary"]
 
 [[bin]]
 name = "rp"
@@ -91,7 +91,7 @@ required-features = ["expose_internal_modules"]
 [[bench]]
 name = "handshake"
 harness = false
-required-features = ["expose_internal_modules"]
+required-features = ["bench"]
 
 [[bench]] # from `rosenpass-ciphers`
 name = "primitives"
@@ -226,6 +226,7 @@ internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
 trace_bench = ["dep:libcrux-test-utils", "expose_internal_modules"]
 expose_internal_modules = []
+rosenpass_binary = ["expose_internal_modules"]
 rp = [
   "tokio",
   "expose_internal_modules",
