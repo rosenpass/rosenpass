@@ -74,9 +74,14 @@ impl HashDomain {
 
     // TODO: Protocol! Use domain separation to ensure that
     /// Creates a new [HashDomain] by mixing in a new key `v`. Specifically,
-    /// it evaluates [hash::hash] with this HashDomain's key as the key and `v`
-    /// as the `data` and uses the result as the key for the new [HashDomain].
+    /// depending on the selected keyed hash implementation, it evaluates
+    /// [`KeyedHash::keyed_hash`] as implemented by [`IncorrectHmacBlake2bCore`] or [`SHAKE256Core`],
+    /// with this HashDomain's key as the key and `v` as the `data` and uses
+    /// the result as the key for the new [HashDomain].
     ///
+    /// [`KeyedHash::keyed_hash`]: rosenpass_cipher_traits::primitives::KeyedHash::keyed_hash
+    /// [`IncorrectHmacBlake2bCore`]: crate::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore
+    /// [`SHAKE256Core`]: crate::subtle::rust_crypto::keyed_shake256::SHAKE256Core
     pub fn mix(self, v: &[u8]) -> Result<Self> {
         let mut new_key: [u8; KEY_LEN] = [0u8; KEY_LEN];
         self.1.keyed_hash_to(&self.0, v).to(&mut new_key)?;
