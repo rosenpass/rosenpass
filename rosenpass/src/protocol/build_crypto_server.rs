@@ -72,8 +72,8 @@ impl Keypair {
     #[cfg_attr(
         feature = "expose_internal_modules",
         doc = r#"
-    See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
-    "#
+See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
+"#
     )]
     /// # Example
     ///
@@ -101,10 +101,18 @@ impl Keypair {
     #[cfg_attr(
         feature = "expose_internal_modules",
         doc = r#"
-    The mechanism is described in [crate::internal::secret_memory::Secret].
+The mechanism is described in [crate::internal::secret_memory::Secret].
 
-    See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
-    "#
+See [SSk::random()][SSk::random] and [SPk::random()][SPk::random], respectively.
+"#
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = r#"
+The mechanism is described in `rosenpass::internal::secret_memory::Secret`.
+
+See `SSk::random()` and `SPk::random()`, respectively.
+"#
     )]
     pub fn random() -> Self {
         Self::new(SSk::random(), SPk::random())
