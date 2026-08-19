@@ -101,7 +101,7 @@ required-features = ["bench", "expose_internal_modules"]
 [[bench]]
 name = "trace_handshake"
 harness = false
-required-features = ["trace_bench", "expose_internal_modules"]
+required-features = ["trace_bench"]
 
 # ============================== dependencies ==============================
 [dependencies]
@@ -224,7 +224,7 @@ experiment_api = [
 ]
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
-trace_bench = ["dep:libcrux-test-utils"]
+trace_bench = ["dep:libcrux-test-utils", "expose_internal_modules"]
 expose_internal_modules = []
 rp = [
   "tokio",
