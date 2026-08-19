@@ -67,7 +67,6 @@ rustPlatform.buildRustPackage {
   inherit src;
 
   buildFeatures = [
-    "rosenpass_binary"
     "rp"
   ];
   cargoBuildOptions = [
