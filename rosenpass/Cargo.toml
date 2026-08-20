@@ -44,11 +44,11 @@ required-features = ["experiment_api"]
 
 # ============================== tests ==============================
 [[test]]
-name = "api-integration-tests"
+name = "api-integration-tests-api-setup"
 required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
-name = "api-integration-tests-api-setup"
+name = "api-integration-tests"
 required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
@@ -56,16 +56,24 @@ name = "app_server_example"
 required-features = ["expose_internal_modules"]
 
 [[test]]
-name = "config_Rosenpass_validate"
-required-features = ["expose_internal_modules"]
+name = "config_Rosenpass_add_if_any"
+required-features = []
+
+[[test]]
+name = "config_Rosenpass_new"
+required-features = []
+
+[[test]]
+name = "config_Rosenpass_parse_args_simple"
+required-feature = []
 
 [[test]]
 name = "config_Rosenpass_store"
 required-features = ["expose_internal_modules"]
 
 [[test]]
-name = "integration_test"
-required-features = ["rosenpass_binary"]
+name = "config_Rosenpass_validate"
+required-features = ["expose_internal_modules"]
 
 [[test]]
 name = "gen-ipc-msg-types"
@@ -76,7 +84,7 @@ required-features = [
 ]
 
 [[test]]
-name = "main-fn-prints-errors"
+name = "integration_test"
 required-features = ["rosenpass_binary"]
 
 [[test]]
@@ -84,12 +92,16 @@ name = "main-fn-generates-manpages"
 required-features = ["rosenpass_binary"]
 
 [[test]]
-name = "rp_smoketest"
-required-features = ["rp"]
+name = "main-fn-prints-errors"
+required-features = ["rosenpass_binary"]
 
 [[test]]
 name = "poll_example"
 required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "rp_smoketest"
+required-features = ["rp"]
 
 [[test]]
 name = "test_vector_crypto_server"
