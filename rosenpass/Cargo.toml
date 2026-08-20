@@ -11,26 +11,35 @@ readme = "readme.md"
 rust-version = "1.93.1"
 
 # ============================== targets ==============================
+[lib]
+name = "rosenpass"
+crate-type = ["lib"]
+bench = false
+
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
 required-features = ["rosenpass_binary"]
+bench = false
 
 [[bin]]
 name = "rp"
 path = "src/rp/main.rs"
 required-features = ["rp"]
+bench = false
 
 [[bin]]
 name = "rosenpass-gen-ipc-msg-types"
 path = "src/bin/gen-ipc-msg-types.rs"
 required-features = ["experiment_api", "internal_bin_gen_ipc_msg_types"]
+bench = false
 
 [[bin]]
 # from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 name = "rosenpass-wireguard-broker-privileged"
 path = "src/internal/wireguard_broker/bin/priviledged.rs"
 test = false
+bench = false
 doc = false
 required-features = ["experiment_api"]
 
@@ -38,6 +47,7 @@ required-features = ["experiment_api"]
 # from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 name = "rosenpass-wireguard-broker-socket-handler"
 test = false
+bench = false
 path = "src/internal/wireguard_broker/bin/socket_handler.rs"
 doc = false
 required-features = ["experiment_api"]
@@ -65,7 +75,7 @@ required-features = []
 
 [[test]]
 name = "config_Rosenpass_parse_args_simple"
-required-feature = []
+required-features = []
 
 [[test]]
 name = "config_Rosenpass_store"
