@@ -36,8 +36,8 @@ use crate::internal::util::fd::{IntoStdioErr, claim_fd_inplace};
 ///
 /// // Wrap the socket to start tracking received file descriptors
 /// let mut fd_passing_sock = ReadWithFileDescriptors::<MAX_REQUEST_FDS, UnixStream, _, _>::new(
-///	&io_stream,
-///	&mut read_fd_buffer,
+///     &io_stream,
+///     &mut read_fd_buffer,
 /// );
 ///
 /// // Simulated reads; the actual operations will depend on the protocol (implementation details)
