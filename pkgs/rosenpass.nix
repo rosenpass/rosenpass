@@ -68,7 +68,7 @@ rustPlatform.buildRustPackage {
 
   buildFeatures = [
     "rosenpass_binary"
-    # TODO: also build "rp" binary here? Decide this after https://github.com/rosenpass/rosenpass/issues/752
+    "rp"
   ];
   cargoBuildOptions = [
     "--package"
