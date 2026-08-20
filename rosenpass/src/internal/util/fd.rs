@@ -391,8 +391,10 @@ pub trait GetUnixSocketType {
     /// assert!(matches!(f.as_fd().demand_unix_stream_socket(), Ok(())));
     /// // Error if the FD is a file
     /// let temp_file = NamedTempFile::new().unwrap();
-    /// assert_eq!(temp_file.as_fd().demand_unix_stream_socket().err().unwrap().to_string(),
-    ///  "Socket operation on non-socket (os error 88)"
+    /// let error_message = temp_file.as_fd().demand_unix_stream_socket().err().unwrap().to_string();
+    /// assert!(
+    ///     error_message=="Not a socket (os error 88)" ||
+    ///     error_message=="Socket operation on non-socket (os error 88)"
     /// );
     /// // Error if the FD is a Unix stream with a wrong mode (e.g. Datagram)
     /// let f = {
