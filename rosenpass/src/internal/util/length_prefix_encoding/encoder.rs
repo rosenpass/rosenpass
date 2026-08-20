@@ -168,7 +168,6 @@ pub struct WriteToIoReturn {
 ///	    .expect_err("OOB access should fail");
 /// assert!(matches!(err, MessageLenSanityError::MessageTooLarge(_)));
 /// ```
-
 pub struct LengthPrefixEncoder<Buf: Borrow<[u8]>> {
     buf: Buf,
     header: [u8; HEADER_SIZE],

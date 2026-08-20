@@ -249,7 +249,6 @@ impl SecretHashDomain {
     ///         .into_secret()
     ///         .secret(),
     /// );
-
     /// Ok::<(), anyhow::Error>(())
     /// ```
     pub fn mix_many<I, T>(mut self, it: I) -> Result<Self>
