@@ -57,6 +57,7 @@ pub fn secret_policy_use_only_malloc_secrets() {
 }
 
 pub mod test {
+    #[allow(unused_macros)]
     macro_rules! test_spawn_process_with_policies {
         ($body:block, $($f: expr),*) => {
             $(
@@ -73,6 +74,7 @@ pub mod test {
         }
     pub(crate) use test_spawn_process_with_policies;
 
+    #[allow(unused_macros)]
     macro_rules! test_spawn_process_provided_policies {
         ($body: block) => {
             $crate::internal::secret_memory::policy::test::test_spawn_process_with_policies!(

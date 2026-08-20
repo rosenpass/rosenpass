@@ -55,5 +55,7 @@ mod serialization;
 
 pub use policy::*;
 
+#[allow(unused_imports)]
 pub(crate) use policy::test::test_spawn_process_provided_policies;
+#[allow(unused_imports)]
 pub(crate) use policy::test::test_spawn_process_with_policies;
