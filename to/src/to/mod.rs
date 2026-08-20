@@ -10,11 +10,11 @@
 //!   some sized variant of
 //!   `Dst` (e.g. `[u8; 64]`).
 //! - `Ret: Sized`; (anything) – must be `CondenseBeside<_>` if condensing is to be applied. The
-//!    ordinary return value of a function with an output
+//!   ordinary return value of a function with an output
 //! - `Val: Sized + BorrowMut<Dst>`; (e.g. [u8; 16]) – Some owned storage that can be borrowed as
 //!   `Dst`
-//! - `Condensed: Sized = CondenseBeside<Val>::Condensed`; (e.g. [u8; 16], Result<[u8; 16]>)
-//! – The combiation of Val and Ret after condensing was applied
+//! - `Condensed: Sized = CondenseBeside<Val>::Condensed`; (e.g. `[u8; 16]`, `Result<[u8; 16]>`)
+//!   – The combiation of Val and Ret after condensing was applied
 //!   (`Beside<Val, Ret>::condense()`/`Ret::condense(v)` for all `v : Val`).
 
 pub mod beside;
