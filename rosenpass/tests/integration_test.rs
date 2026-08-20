@@ -77,13 +77,18 @@ fn setup_logging() {
 
 fn generate_key_pairs(secret_key_paths: &[PathBuf], public_key_paths: &[PathBuf]) {
     for (secret_key_path, pub_key_path) in secret_key_paths.iter().zip(public_key_paths.iter()) {
+        println!("generating key pair and writing it to {secret_key_path:?} and {pub_key_path:?}.");
         let output = test_bin::get_test_bin(BIN)
             .args(["gen-keys", "--secret-key"])
             .arg(secret_key_path)
             .arg("--public-key")
             .arg(pub_key_path)
             .output()
-            .expect("Failed to start {BIN}");
+            .expect(format!("failed to start {BIN}").as_str());
+        println!("command has finished, status: {}", output.status);
+        std::io::stdout().write_all(&output.stdout).unwrap();
+        std::io::stderr().write_all(&output.stderr).unwrap();
+        assert!(output.status.success(), "running {BIN} has failed");
 
         assert_eq!(String::from_utf8_lossy(&output.stdout), "");
         assert!(secret_key_path.is_file());
