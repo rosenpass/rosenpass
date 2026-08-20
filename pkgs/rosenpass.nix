@@ -66,6 +66,10 @@ rustPlatform.buildRustPackage {
   version = cargoToml.package.version;
   inherit src;
 
+  buildFeatures = [
+    "rosenpass_binary"
+    # TODO: also build "rp" binary here? Decide this after https://github.com/rosenpass/rosenpass/issues/752
+  ];
   cargoBuildOptions = [
     "--package"
     package

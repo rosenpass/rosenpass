@@ -65,7 +65,7 @@ required-features = ["expose_internal_modules"]
 
 [[test]]
 name = "integration_test"
-required-features = ["expose_internal_modules"]
+required-features = ["rosenpass_binary"]
 
 [[test]]
 name = "gen-ipc-msg-types"
@@ -76,8 +76,12 @@ required-features = [
 ]
 
 [[test]]
+name = "main-fn-prints-errors"
+required-features = ["rosenpass_binary"]
+
+[[test]]
 name = "main-fn-generates-manpages"
-required-features = ["expose_internal_modules"]
+required-features = ["rosenpass_binary"]
 
 [[test]]
 name = "poll_example"
