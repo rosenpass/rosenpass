@@ -11,11 +11,11 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-arbitrary = { workspace = true }
-libfuzzer-sys = { workspace = true }
-stacker = { workspace = true }
-rosenpass-to = { workspace = true }
-rosenpass = { workspace = true, features = ["expose_internal_modules"] }
+rosenpass = { path = "../rosenpass", features = ["expose_internal_modules"] }
+rosenpass-to = { path = "../to" }
+arbitrary = { version = "1.4.1", features = ["derive"] }
+libfuzzer-sys = "0.4"
+stacker = "0.1.21"
 
 [[bin]]
 name = "fuzz_handle_msg"
