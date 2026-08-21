@@ -117,7 +117,7 @@ use thiserror::Error;
 /// The methods of this trait take a `&self` argument as a receiver. This has two reasons:
 /// 1. It makes type inference a lot smoother
 /// 2. It allows to use the functionality through a trait object or having an enum that has
-///    variants for multiple options (like e.g. the `KeyedHash` enum in `rosenpass-ciphers`).
+///    variants for multiple options (like e.g. the `KeyedHash` enum in [`crate::internal::ciphers`]).
 ///
 /// Since the caller needs an instance of the type to use the functionality, implementors are
 /// adviced to implement the [`Default`] trait where possible.
