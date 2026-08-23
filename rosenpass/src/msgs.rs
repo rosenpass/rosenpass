@@ -12,7 +12,7 @@ use num_enum::TryFromPrimitive;
 use std::mem::size_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use super::RosenpassError;
+use crate::RosenpassError;
 use crate::internal::cipher_traits::primitives::{Aead as _, Kem};
 use crate::internal::ciphers::{Aead, KEY_LEN, XAead};
 use crate::internal::ciphers::{EphemeralKem, StaticKem};

@@ -19,7 +19,7 @@ bench = false
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
-required-features = ["rosenpass_binary"]
+required-features = []
 bench = false
 
 [[bin]]
@@ -95,15 +95,15 @@ required-features = [
 
 [[test]]
 name = "integration_test"
-required-features = ["rosenpass_binary"]
+required-features = ["expose_internal_modules"]
 
 [[test]]
 name = "main-fn-generates-manpages"
-required-features = ["rosenpass_binary"]
+required-features = ["expose_internal_modules"]
 
 [[test]]
 name = "main-fn-prints-errors"
-required-features = ["rosenpass_binary"]
+required-features = []
 
 [[test]]
 name = "poll_example"
@@ -256,7 +256,6 @@ internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
 trace_bench = ["dep:libcrux-test-utils", "expose_internal_modules"]
 expose_internal_modules = []
-rosenpass_binary = ["expose_internal_modules"]
 rp = [
   "tokio",
   "expose_internal_modules",

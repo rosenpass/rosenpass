@@ -1,10 +1,22 @@
 //! For the main function
+#![recursion_limit = "256"]
 
+#[cfg(feature = "experiment_api")]
+mod api;
+mod app_server;
+mod cli;
+mod config;
+mod error;
+mod hash_domains;
+mod internal;
+mod msgs;
+mod protocol;
+
+use crate::{cli::CliArgs, error::RosenpassError};
 use clap::CommandFactory;
 use clap::Parser;
 use clap_mangen::roff::{Roff, roman};
 use log::error;
-use rosenpass::cli::CliArgs;
 use std::process::exit;
 
 /// Printing custom man sections when generating the man page
@@ -52,7 +64,7 @@ pub fn main() {
     }
 
     {
-        use rosenpass::internal::secret_memory as SM;
+        use crate::internal::secret_memory as SM;
         #[cfg(feature = "experiment_memfd_secret")]
         SM::secret_policy_try_use_memfd_secrets();
         #[cfg(not(feature = "experiment_memfd_secret"))]
