@@ -25,9 +25,9 @@
 //! ```
 //! use std::ops::DerefMut;
 //!
-//! use rosenpass_secret_memory::policy::*;
-//! use rosenpass_cipher_traits::primitives::Kem;
-//! use rosenpass_ciphers::StaticKem;
+//! use rosenpass::internal::secret_memory::policy::*;
+//! use rosenpass::internal::cipher_traits::primitives::Kem;
+//! use rosenpass::internal::ciphers::StaticKem;
 //!
 //! use rosenpass::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
 //! use rosenpass::protocol::{PeerPtr, CryptoServer};

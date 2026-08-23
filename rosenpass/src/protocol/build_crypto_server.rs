@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use rosenpass_util::mem::{DiscardResultExt, SwapWithDefaultExt};
-use rosenpass_util::{build::Build, result::ensure_or};
+use crate::internal::util::mem::{DiscardResultExt, SwapWithDefaultExt};
+use crate::internal::util::{build::Build, result::ensure_or};
 
 use crate::config::ProtocolVersion;
 
@@ -20,7 +20,7 @@ use super::{CryptoServer, PeerPtr};
 /// use rosenpass::protocol::Keypair;
 ///
 /// // We have to define the security policy before using Secrets.
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 /// secret_policy_use_only_malloc_secrets();
 ///
 /// let random_pair = Keypair::random();
@@ -53,7 +53,7 @@ impl Keypair {
     /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let random_sk = SSk::random();
@@ -69,8 +69,12 @@ impl Keypair {
 
     /// Creates a new "empty" key pair. All bytes are initialized to zero.
     ///
-    /// See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
-    ///
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = r#"
+See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
+"#
+    )]
     /// # Example
     ///
     /// ```rust
@@ -78,7 +82,7 @@ impl Keypair {
     /// use rosenpass::protocol::Keypair;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// let zero_sk = SSk::zero();
@@ -92,9 +96,24 @@ impl Keypair {
         Self::new(SSk::zero(), SPk::zero())
     }
 
-    /// Creates a new (securely-)random key pair. The mechanism is described in [rosenpass_secret_memory::Secret].
+    /// Creates a new (securely-)random key pair.
     ///
-    /// See [SSk:random()][SSk::random] and [SPk:random()][SPk::random], respectively.
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = r#"
+The mechanism is described in [crate::internal::secret_memory::Secret].
+
+See [SSk::random()][SSk::random] and [SPk::random()][SPk::random], respectively.
+"#
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = r#"
+The mechanism is described in `rosenpass::internal::secret_memory::Secret`.
+
+See `SSk::random()` and `SPk::random()`, respectively.
+"#
+    )]
     pub fn random() -> Self {
         Self::new(SSk::random(), SPk::random())
     }
@@ -143,13 +162,17 @@ pub struct MissingKeypair;
 /// The setup will be much simplified if one is provided, at the cost of some flexibility.
 /// It's however possible to defer this step in case your application requires it.
 ///
-/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site] and [ConstructionSite][rosenpass_util::build::ConstructionSite].
-///
+/// For additional details or examples, see [AppServer::crypto_site][crate::app_server::AppServer::crypto_site]
+#[cfg_attr(
+    feature = "expose_internal_modules",
+    doc = r#"and [ConstructionSite][crate::internal::util::build::ConstructionSite]"#
+)]
+/// .
 /// # Example
 ///
 /// ```rust
-/// use rosenpass_util::build::Build;
-/// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+/// use rosenpass::internal::util::build::Build;
+/// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
 /// use rosenpass::config::ProtocolVersion;
 ///
@@ -276,10 +299,10 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
     ///
     /// // Deferred initialization: Create builder first, add the key pair later
@@ -301,10 +324,10 @@ impl BuildCryptoServer {
     ///
     /// ```rust
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair, KeypairAlreadySet};
     ///
     /// // In this case, we'll create a functional builder from its various components
@@ -331,13 +354,13 @@ impl BuildCryptoServer {
     /// ```rust
     /// use rosenpass::config::ProtocolVersion;
     ///
-    /// use rosenpass_util::build::Build;
+    /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
     ///
     /// // Deferred initialization: Create builder first, add some peers later
@@ -400,8 +423,8 @@ impl BuildCryptoServer {
     ///  Extracting the server configuration from a builder:
     ///
     /// ```rust
-    /// use rosenpass_util::build::Build;
-    /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
+    /// use rosenpass::internal::util::build::Build;
+    /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///
     /// use rosenpass::config::ProtocolVersion;
     /// use rosenpass::hash_domains::protocol;

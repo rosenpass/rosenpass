@@ -1,0 +1,37 @@
+use crate::internal::cipher_traits::primitives::Aead as AeadTrait;
+use static_assertions::const_assert;
+
+pub mod subtle;
+
+/// All keyed primitives in this module use 32 byte keys
+pub const KEY_LEN: usize = 32;
+const_assert!(KEY_LEN == Aead::KEY_LEN);
+const_assert!(KEY_LEN == XAead::KEY_LEN);
+const_assert!(KEY_LEN == hash_domain::KEY_LEN);
+
+/// Keyed hashing
+///
+/// This should only be used for implementation details; anything with relevance
+/// to the cryptographic protocol should use the facilities in [hash_domain], (though
+/// hash domain uses this module internally)
+pub use subtle::keyed_hash::KeyedHash;
+
+/// Authenticated encryption with associated data (AEAD)
+/// Chacha20poly1305 is used.
+pub use subtle::rust_crypto::chacha20poly1305_ietf::ChaCha20Poly1305 as Aead;
+
+/// Authenticated encryption with associated data with a extended-length nonce (XAEAD)
+/// XChacha20poly1305 is used.
+pub use subtle::rust_crypto::xchacha20poly1305_ietf::XChaCha20Poly1305 as XAead;
+
+/// Use Classic-McEcliece-460986 as the Static KEM.
+///
+/// See [crate::internal::oqs::ClassicMceliece460896] for more details.
+pub use crate::internal::oqs::ClassicMceliece460896 as StaticKem;
+
+/// Use Kyber-512 as the Static KEM
+///
+/// See [crate::internal::oqs::Kyber512] for more details.
+pub use crate::internal::oqs::Kyber512 as EphemeralKem;
+
+pub mod hash_domain;

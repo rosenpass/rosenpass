@@ -9,10 +9,10 @@ use anyhow::Result;
 
 use libcrux_test_utils::tracing::{EventType, Trace as _};
 
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
-use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
-use rosenpass_util::trace_bench::RpEvent;
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::StaticKem;
+use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
+use rosenpass::internal::util::trace_bench::RpEvent;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -94,7 +94,7 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 }
 
 fn main() {
-    let trace = rosenpass_util::trace_bench::trace();
+    let trace = rosenpass::internal::util::trace_bench::trace();
 
     // Attempt to use memfd_secrets for storing sensitive key material
     secret_policy_try_use_memfd_secrets();

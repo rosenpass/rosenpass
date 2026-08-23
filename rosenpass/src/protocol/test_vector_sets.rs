@@ -8,6 +8,9 @@
 //! For an example of a test that uses these test vector values, see:
 //! `rosenpass/tests/test_vector_crypto_server.rs`.
 
+use crate::internal::cipher_traits::primitives::{Aead, Kem};
+use crate::internal::ciphers::{EphemeralKem, KEY_LEN, XAead};
+use crate::internal::secret_memory::{Public, Secret};
 use crate::msgs::SESSION_ID_LEN;
 use crate::protocol::basic_types::SessionId;
 use crate::protocol::constants::COOKIE_VALUE_LEN;
@@ -15,9 +18,6 @@ use anyhow::anyhow;
 use assert_tv::TestValue;
 use assert_tv::TestVectorSet;
 use base64::Engine;
-use rosenpass_cipher_traits::primitives::{Aead, Kem};
-use rosenpass_ciphers::{EphemeralKem, KEY_LEN, XAead};
-use rosenpass_secret_memory::{Public, Secret};
 use serde_json::Value;
 
 #[derive(TestVectorSet)]
@@ -64,7 +64,7 @@ pub struct HandleInitiationTestValues {
     #[test_vec(name = "ih.pidi_ct")]
     #[test_vec(serialize_with = "serialize_byte_arr")]
     #[test_vec(deserialize_with = "deserialize_byte_arr")]
-    pub init_hello_pidi_ct: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN + 32]>,
+    pub init_hello_pidi_ct: TestValue<[u8; crate::internal::ciphers::Aead::TAG_LEN + 32]>,
 
     #[test_vec(name = "hs.core.ck 3")]
     pub init_handshake_mix_3: TestValue<Secret<KEY_LEN>>,
@@ -75,7 +75,7 @@ pub struct HandleInitiationTestValues {
     #[test_vec(name = "ih.auth")]
     #[test_vec(serialize_with = "serialize_byte_arr")]
     #[test_vec(deserialize_with = "deserialize_byte_arr")]
-    pub init_hello_auth: TestValue<[u8; rosenpass_ciphers::Aead::TAG_LEN]>,
+    pub init_hello_auth: TestValue<[u8; crate::internal::ciphers::Aead::TAG_LEN]>,
 
     #[test_vec(name = "hs.core.ck 5")]
     pub init_handshake_mix_5: TestValue<Secret<KEY_LEN>>,

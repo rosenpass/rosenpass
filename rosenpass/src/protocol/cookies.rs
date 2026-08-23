@@ -21,8 +21,8 @@
 //! TODO: CookieStore should not be used for cookie secrets sent from responder to initiator.
 //! TODO: Move cookie lifetime management functionality into here
 
-use rosenpass_ciphers::KEY_LEN;
-use rosenpass_secret_memory::Secret;
+use crate::internal::ciphers::KEY_LEN;
+use crate::internal::secret_memory::Secret;
 
 use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 
@@ -35,10 +35,10 @@ use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 /// # Examples
 ///
 /// ```
-/// use rosenpass_util::time::Timebase;
+/// use rosenpass::internal::util::time::Timebase;
 /// use rosenpass::protocol::{timing::BCE, basic_types::SymKey, cookies::CookieStore};
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let fixed_secret = SymKey::random();
 /// let timebase = Timebase::default();

@@ -7,12 +7,12 @@ use std::{
 
 use anyhow::{Context, bail};
 use rosenpass::api;
-use rosenpass_to::{To, ops::copy_slice_least_src};
-use rosenpass_util::{
+use rosenpass::internal::util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
 };
-use rosenpass_util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
+use rosenpass::internal::util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
+use rosenpass_to::{To, ops::copy_slice_least_src};
 use serial_test::serial;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
@@ -52,7 +52,7 @@ fn api_integration_test_v03() -> anyhow::Result<()> {
 }
 
 fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
 

@@ -27,7 +27,10 @@ let
       "zstd" # used for offloaded test vector values
     ];
     # Files to explicitly include
-    files = [ "to/README.md" ];
+    files = [
+      "to/README.md"
+      "rosenpass/src/internal/README.md"
+    ];
 
     src = ../.;
     filter = (
@@ -63,6 +66,10 @@ rustPlatform.buildRustPackage {
   version = cargoToml.package.version;
   inherit src;
 
+  buildFeatures = [
+    "rosenpass_binary"
+    "rp"
+  ];
   cargoBuildOptions = [
     "--package"
     package

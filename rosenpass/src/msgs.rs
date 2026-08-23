@@ -13,9 +13,9 @@ use std::mem::size_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::RosenpassError;
-use rosenpass_cipher_traits::primitives::{Aead as _, Kem};
-use rosenpass_ciphers::{Aead, KEY_LEN, XAead};
-use rosenpass_ciphers::{EphemeralKem, StaticKem};
+use crate::internal::cipher_traits::primitives::{Aead as _, Kem};
+use crate::internal::ciphers::{Aead, KEY_LEN, XAead};
+use crate::internal::ciphers::{EphemeralKem, StaticKem};
 
 /// Length of a session ID such as [InitHello::sidi]
 pub const SESSION_ID_LEN: usize = 4;
@@ -428,9 +428,9 @@ impl From<MsgType> for u8 {
 
 #[cfg(test)]
 mod test_constants {
+    use crate::internal::cipher_traits::primitives::Aead as _;
+    use crate::internal::ciphers::{KEY_LEN, XAead};
     use crate::msgs::{BISCUIT_CT_LEN, BISCUIT_PT_LEN};
-    use rosenpass_cipher_traits::primitives::Aead as _;
-    use rosenpass_ciphers::{KEY_LEN, XAead};
 
     #[test]
     fn sodium_keysize() {

@@ -2,8 +2,8 @@
 
 use std::ops::DerefMut;
 
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
+use crate::internal::cipher_traits::primitives::Kem;
+use crate::internal::ciphers::StaticKem;
 
 use super::{
     CryptoServer, PeerPtr, ProtocolVersion,

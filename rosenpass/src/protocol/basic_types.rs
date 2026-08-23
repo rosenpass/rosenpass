@@ -1,14 +1,25 @@
 //! Key types and other fundamental types used in the Rosenpass protocol
 
-use rosenpass_cipher_traits::primitives::{Aead, Kem};
-use rosenpass_ciphers::{EphemeralKem, KEY_LEN, StaticKem, XAead};
-use rosenpass_secret_memory::{Public, PublicBox, Secret};
+use crate::internal::cipher_traits::primitives::{Aead, Kem};
+use crate::internal::ciphers::{EphemeralKem, KEY_LEN, StaticKem, XAead};
+use crate::internal::secret_memory::{Public, PublicBox, Secret};
 
 use crate::msgs::{BISCUIT_ID_LEN, MAX_MESSAGE_LEN, SESSION_ID_LEN};
 
 /// Static public key
 ///
-/// Using [PublicBox] instead of [Public] because Classic McEliece keys are very large.
+#[cfg_attr(
+    feature = "expose_internal_modules",
+    doc = r#"
+Using [`PublicBox`] instead of [`Public`] because Classic McEliece keys are very large.
+"#
+)]
+#[cfg_attr(
+    not(feature = "expose_internal_modules"),
+    doc = r#"
+Using `PublicBox` instead of `Public` because Classic McEliece keys are very large.
+"#
+)]
 pub type SPk = PublicBox<{ StaticKem::PK_LEN }>;
 /// Static secret key
 pub type SSk = Secret<{ StaticKem::SK_LEN }>;

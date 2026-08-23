@@ -4,7 +4,7 @@ use rosenpass::config::{Rosenpass, Verbosity};
 
 #[test]
 fn example_config_rosenpass_store() -> anyhow::Result<()> {
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let tmpdir = tempfile::tempdir()?;
 

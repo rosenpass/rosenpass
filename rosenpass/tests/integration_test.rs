@@ -9,16 +9,16 @@ use std::{
 use tempfile::tempdir;
 
 use clap::Parser;
+use rosenpass::internal::secret_memory::{Public, Secret};
+use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
 use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
-use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
 use serial_test::serial;
 use std::io::Write;
 
 const BIN: &str = "rosenpass";
 
 fn setup_tests() {
-    use rosenpass_secret_memory as SM;
+    use rosenpass::internal::secret_memory as SM;
     #[cfg(feature = "experiment_memfd_secret")]
     SM::secret_policy_try_use_memfd_secrets();
     #[cfg(not(feature = "experiment_memfd_secret"))]
@@ -77,13 +77,18 @@ fn setup_logging() {
 
 fn generate_key_pairs(secret_key_paths: &[PathBuf], public_key_paths: &[PathBuf]) {
     for (secret_key_path, pub_key_path) in secret_key_paths.iter().zip(public_key_paths.iter()) {
+        println!("generating key pair and writing it to {secret_key_path:?} and {pub_key_path:?}.");
         let output = test_bin::get_test_bin(BIN)
             .args(["gen-keys", "--secret-key"])
             .arg(secret_key_path)
             .arg("--public-key")
             .arg(pub_key_path)
             .output()
-            .expect("Failed to start {BIN}");
+            .expect(format!("failed to start {BIN}").as_str());
+        println!("command has finished, status: {}", output.status);
+        std::io::stdout().write_all(&output.stdout).unwrap();
+        std::io::stderr().write_all(&output.stderr).unwrap();
+        assert!(output.status.success(), "running {BIN} has failed");
 
         assert_eq!(String::from_utf8_lossy(&output.stdout), "");
         assert!(secret_key_path.is_file());
@@ -369,12 +374,12 @@ impl WireguardBrokerMio for MockBroker {
     }
 }
 
-impl rosenpass_wireguard_broker::WireGuardBroker for MockBroker {
+impl rosenpass::internal::wireguard_broker::WireGuardBroker for MockBroker {
     type Error = anyhow::Error;
 
     fn set_psk(
         &mut self,
-        config: rosenpass_wireguard_broker::SerializedBrokerConfig<'_>,
+        config: rosenpass::internal::wireguard_broker::SerializedBrokerConfig<'_>,
     ) -> Result<(), Self::Error> {
         loop {
             let mut lock = self.inner.try_lock();

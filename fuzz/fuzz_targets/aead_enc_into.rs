@@ -4,8 +4,8 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
-use rosenpass_cipher_traits::primitives::Aead as _;
-use rosenpass_ciphers::Aead;
+use rosenpass::internal::cipher_traits::primitives::Aead as _;
+use rosenpass::internal::ciphers::Aead;
 
 #[derive(arbitrary::Arbitrary, Debug)]
 pub struct Input {

@@ -15,16 +15,16 @@ use derive_builder::Builder;
 use log::{error, info, warn};
 use zerocopy::IntoBytes;
 
-use rosenpass_util::attempt;
-use rosenpass_util::fmt::debug::NullDebug;
-use rosenpass_util::functional::{ApplyExt, run};
-use rosenpass_util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
-use rosenpass_util::{
+use crate::internal::util::attempt;
+use crate::internal::util::fmt::debug::NullDebug;
+use crate::internal::util::functional::{ApplyExt, run};
+use crate::internal::util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
+use crate::internal::util::{
     b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
 };
 
-use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
+use crate::internal::secret_memory::{Public, Secret};
+use crate::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
 use crate::config::{ProtocolVersion, Verbosity};
 
@@ -204,7 +204,7 @@ impl AppPeer {
     ///
     /// ```
     /// use rosenpass::app_server::{Endpoint, AppPeer};
-    /// use rosenpass_util::functional::run;
+    /// use rosenpass::internal::util::functional::run;
     ///
     /// let mut peer = AppPeer {
     ///   outfile: None,

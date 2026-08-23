@@ -7,7 +7,7 @@ use super::{ByteSliceRefExt, MessageAttributes, PingResponse, ResponseMsgType};
 
 /// Helper for producing API message response references, [ResponseRef].
 ///
-/// This is to [ResponseRef] as [rosenpass_util::zerocopy::RefMaker] is to
+/// This is to [ResponseRef] as [crate::internal::util::zerocopy::RefMaker] is to
 /// [zerocopy::Ref].
 struct ResponseRefMaker<B> {
     /// Buffer we are referencing

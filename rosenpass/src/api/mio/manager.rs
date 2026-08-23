@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, io};
 
 use mio::net::{UnixListener, UnixStream};
 
-use rosenpass_util::{
+use crate::internal::util::{
     functional::ApplyExt, io::nonblocking_handle_io_errors, mio::interest::RW as MIO_RW,
 };
 

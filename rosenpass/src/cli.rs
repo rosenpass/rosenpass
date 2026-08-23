@@ -3,15 +3,15 @@
 //! [CliArgs::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
-use anyhow::{Context, bail, ensure};
-use clap::{Parser, Subcommand};
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
-use rosenpass_secret_memory::file::StoreSecret;
-use rosenpass_util::file::{LoadValue, LoadValueB64, StoreValue};
-use rosenpass_wireguard_broker::brokers::native_unix::{
+use crate::internal::cipher_traits::primitives::Kem;
+use crate::internal::ciphers::StaticKem;
+use crate::internal::secret_memory::file::StoreSecret;
+use crate::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
+use crate::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
+use anyhow::{Context, bail, ensure};
+use clap::{Parser, Subcommand};
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
@@ -23,12 +23,12 @@ use super::config;
 
 #[cfg(feature = "experiment_api")]
 use {
+    crate::internal::util::fd::claim_fd,
+    crate::internal::wireguard_broker::WireguardBrokerMio,
+    crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
     command_fds::{CommandFdExt, FdMapping},
     log::{error, info},
     mio::net::UnixStream,
-    rosenpass_util::fd::claim_fd,
-    rosenpass_wireguard_broker::WireguardBrokerMio,
-    rosenpass_wireguard_broker::brokers::mio_client::MioBrokerClient,
     rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
     std::os::unix::net,
     std::process::Command,

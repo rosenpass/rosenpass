@@ -3,8 +3,8 @@
 use std::sync::Once;
 
 use libfuzzer_sys::fuzz_target;
-use rosenpass_secret_memory::alloc::secret_vec;
-use rosenpass_secret_memory::policy::*;
+use rosenpass::internal::secret_memory::alloc::secret_vec;
+use rosenpass::internal::secret_memory::policy::*;
 
 static ONCE: Once = Once::new();
 

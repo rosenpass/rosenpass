@@ -99,21 +99,22 @@ Benchmarks are automatically run on CI. The measurements are visualized in the
 ### Primitive Benchmarks
 
 There are benchmarks for the functions of the traits `Kem`, `Aead` and
-`KeyedHash`. They are run for all implementations in the `primitives`
-benchmark of `rosenpass-ciphers`. Run the benchmarks and view their results using
+`KeyedHash` defined in `rosenpass::internal::ciphers`. They are run for
+all implementations in the `primitives` benchmark.
+Run the benchmarks and view their results using
 
 ```
-cargo bench -p rosenpass-ciphers --bench primitives -F bench
+cargo bench --bench primitives -F bench
 ```
 
 ### Protocol Benchmarks
 
-The trace that is being written to lives in a new module
-`trace_bench` in the util crate. A basic benchmark that
-performs some minor statistical analysis of the trace can be run using
+The trace that is being written to lives in the `trace_bench` benchmark.
+A basic benchmark that performs some minor statistical analysis of the
+trace can be run using
 
 ```
-cargo bench -p rosenpass --bench trace_handshake -F trace_bench
+cargo bench --bench trace_handshake -F trace_bench
 ```
 
 This runs the benchmarks and prints the results in machine-readable JSON.

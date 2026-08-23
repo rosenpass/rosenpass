@@ -3,11 +3,11 @@ extern crate rosenpass;
 
 use libfuzzer_sys::fuzz_target;
 
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::StaticKem;
+use rosenpass::internal::secret_memory::policy::*;
+use rosenpass::internal::secret_memory::{PublicBox, Secret};
 use rosenpass::protocol::CryptoServer;
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
-use rosenpass_secret_memory::policy::*;
-use rosenpass_secret_memory::{PublicBox, Secret};
 use std::sync::Once;
 
 static ONCE: Once = Once::new();

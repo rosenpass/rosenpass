@@ -10,22 +10,80 @@ repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
 rust-version = "1.93.1"
 
+# ============================== targets ==============================
+[lib]
+name = "rosenpass"
+crate-type = ["lib"]
+bench = false
+
 [[bin]]
 name = "rosenpass"
 path = "src/main.rs"
+required-features = ["rosenpass_binary"]
+bench = false
+
+[[bin]]
+name = "rp"
+path = "src/rp/main.rs"
+required-features = ["rp"]
+bench = false
 
 [[bin]]
 name = "rosenpass-gen-ipc-msg-types"
 path = "src/bin/gen-ipc-msg-types.rs"
 required-features = ["experiment_api", "internal_bin_gen_ipc_msg_types"]
+bench = false
+
+[[bin]]
+# from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+name = "rosenpass-wireguard-broker-privileged"
+path = "src/internal/wireguard_broker/bin/priviledged.rs"
+test = false
+bench = false
+doc = false
+required-features = ["experiment_api"]
+
+[[bin]]
+# from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+name = "rosenpass-wireguard-broker-socket-handler"
+test = false
+bench = false
+path = "src/internal/wireguard_broker/bin/socket_handler.rs"
+doc = false
+required-features = ["experiment_api"]
+
+# ============================== tests ==============================
+[[test]]
+name = "api-integration-tests-api-setup"
+required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
 name = "api-integration-tests"
 required-features = ["experiment_api", "internal_testing"]
 
 [[test]]
-name = "api-integration-tests-api-setup"
-required-features = ["experiment_api", "internal_testing"]
+name = "app_server_example"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "config_Rosenpass_add_if_any"
+required-features = []
+
+[[test]]
+name = "config_Rosenpass_new"
+required-features = []
+
+[[test]]
+name = "config_Rosenpass_parse_args_simple"
+required-features = []
+
+[[test]]
+name = "config_Rosenpass_store"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "config_Rosenpass_validate"
+required-features = ["expose_internal_modules"]
 
 [[test]]
 name = "gen-ipc-msg-types"
@@ -35,81 +93,190 @@ required-features = [
   "internal_bin_gen_ipc_msg_types",
 ]
 
+[[test]]
+name = "integration_test"
+required-features = ["rosenpass_binary"]
+
+[[test]]
+name = "main-fn-generates-manpages"
+required-features = ["rosenpass_binary"]
+
+[[test]]
+name = "main-fn-prints-errors"
+required-features = ["rosenpass_binary"]
+
+[[test]]
+name = "poll_example"
+required-features = ["expose_internal_modules"]
+
+[[test]]
+name = "rp_smoketest"
+required-features = ["rp"]
+
+[[test]]
+name = "test_vector_crypto_server"
+required-features = ["expose_internal_modules"]
+
+
+[[bench]]
+name = "handshake"
+harness = false
+required-features = ["bench"]
+
+[[bench]] # from `rosenpass-ciphers`
+name = "primitives"
+harness = false
+required-features = ["bench"]
+
 [[bench]]
 name = "trace_handshake"
 harness = false
 required-features = ["trace_bench"]
 
-[[bench]]
-name = "handshake"
-harness = false
-
+# ============================== dependencies ==============================
 [dependencies]
-rosenpass-util = { workspace = true }
-rosenpass-constant-time = { workspace = true }
-rosenpass-ciphers = { workspace = true }
-rosenpass-cipher-traits = { workspace = true }
-rosenpass-to = { workspace = true }
-rosenpass-secret-memory = { workspace = true }
-anyhow = { workspace = true }
-static_assertions = { workspace = true }
-memoffset = { workspace = true }
-thiserror = { workspace = true }
-paste = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-serde = { workspace = true }
-toml = { workspace = true }
-clap = { workspace = true }
-clap_complete = { workspace = true }
-clap_mangen = { workspace = true }
-mio = { workspace = true }
-signal-hook = { workspace = true }
-signal-hook-mio = { workspace = true }
-rand = { workspace = true }
-zerocopy = { workspace = true }
-home = { workspace = true }
-derive_builder = { workspace = true }
-rosenpass-wireguard-broker = { workspace = true }
-zeroize = { workspace = true }
-hex-literal = { workspace = true, optional = true }
-hex = { workspace = true, optional = true }
-heck = { workspace = true, optional = true }
-command-fds = { workspace = true, optional = true }
-rustix = { workspace = true, optional = true }
-uds = { workspace = true, optional = true, features = ["mio_1xx"] }
-libcrux-test-utils = { workspace = true, optional = true }
-assert_tv = { workspace = true }
-base64 = { workspace = true }
-serde_json = { workspace = true }
-num_enum = { workspace = true }
+rosenpass-to = { path = "../to" }
+anyhow = { version = "1.0", features = ["backtrace", "std"] }
+static_assertions = "1.1.0"
+memoffset = "0.9.1"
+thiserror = "2"
+paste = "1.0.15"
+log = { version = "0.4.27" }
+env_logger = "0.11"
+serde = { version = "1.0.217", features = ["derive"] }
+toml = "1.1.2"
+clap = { version = "4.5.23", features = ["derive"] }
+clap_complete = "4.5.40"
+clap_mangen = "0.3.0"
+mio = { version = "1.0.3", features = ["net", "os-poll"] }
+signal-hook = "0.4.4"
+signal-hook-mio = { version = "0.3", features = ["support-v1_0"] }
+rand = "0.10"
+zerocopy = { version = "0.8", features = ["derive"] }
+home = "0.5.12"
+derive_builder = "0.20.2"
+zeroize = "1.9"
+hex-literal = { version = "1.1.0", optional = true }
+hex = { version = "0.4.3", optional = true }
+heck = { version = "0.5.0", optional = true }
+command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
+rustix = { version = "1.1.4", features = [
+  "net",
+  "fs",
+  "process",
+] } # Broker dependencies (might need cleanup or changes)
+uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
+  "mio_1xx",
+] }
+libcrux-test-utils = { git = "https://github.com/cryspen/libcrux.git", rev = "0ab6d2dd9c1f", optional = true }
+assert_tv = { version = "0.6" } #Dev dependencies
+base64 = { version = "0.23.0" }
+serde_json = { version = "1.0.140" }
+num_enum = "0.7.6"
+# dependencies of `rosenpass_util`, now `rosenpass::internal::util`:
+tokio = { version = "1.46", optional = true, features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+  "full",
+  "mio",
+] }
+base64ct = { version = "1.6.0", default-features = false }
+typenum = { version = "1.17.0" }
+# dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
+chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
+  "std",
+] }
+blake2 = "0.10.6"
+shake = "0.1.0"
+# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
+memsec = { git = "https://github.com/rosenpass/memsec.git", rev = "aceb9baee8aec6844125bd6612f92e9a281373df", features = [
+  "alloc_ext",
+] }
+allocator-api2 = "0.3"
+# dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
+wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
+postcard = { version = "1.1.1", default-features = false, features = [
+  "alloc",
+] } # Socket handler only
+libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+# dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
+oqs-sys = { version = "0.11.0", default-features = false, features = [
+  'classic_mceliece',
+  'kyber',
+] }
+# dependencies of `rp`
+x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
+futures = { version = "0.3", optional = true }
+futures-util = { version = "0.3", optional = true }
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies] # from `rp`
+ctrlc = { version = "3.2", optional = true }
+genetlink = { version = "0.2", optional = true }
+rtnetlink = { version = "0.21", optional = true }
+netlink-packet-core = { version = "0.8.1", optional = true }
+netlink-packet-generic = { version = "0.4", optional = true }
+netlink-packet-wireguard = { version = "0.4", optional = true }
+
 
 [build-dependencies]
-anyhow = { workspace = true }
+anyhow = { version = "1.0", features = ["backtrace", "std"] }
 
 [dev-dependencies]
-criterion = { workspace = true }
-test_bin = { workspace = true }
-stacker = { workspace = true }
-serial_test = { workspace = true }
-tempfile = { workspace = true }
-rustix = { workspace = true }
-serde_json = { workspace = true }
+criterion = "0.8.2"
+test_bin = "0.6"
+stacker = "0.1.21"
+serial_test = "4.0"
+tempfile = "3"
+rustix = { version = "1.1.4", features = [
+  "net",
+  "fs",
+  "process",
+] } # Broker dependencies (might need cleanup or changes)
+serde_json = { version = "1.0.140" }
+# dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
+rand = "0.10"
+# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
+allocator-api2-tests = "0.3"
+base64ct = { version = "1.6.0", default-features = false }
+procspawn = { version = "1.0.1", features = ["test-support"] }
 
 [features]
 experiment_cookie_dos_mitigation = []
-experiment_memfd_secret = ["rosenpass-wireguard-broker/experiment_memfd_secret"]
+experiment_memfd_secret = []
 experiment_api = [
-  "hex-literal",
-  "uds",
-  "command-fds",
-  "rustix",
-  "rosenpass-util/experiment_file_descriptor_passing",
-  "rosenpass-wireguard-broker/experiment_api",
+  "dep:hex-literal",
+  "dep:uds",
+  "dep:command-fds",
+  "dep:libc",                           # from `rosenpass-wireguard-broker
+  "experiment_file_descriptor_passing",
 ]
 internal_testing = []
-internal_bin_gen_ipc_msg_types = ["hex", "heck"]
-trace_bench = ["rosenpass-util/trace_bench", "dep:libcrux-test-utils"]
+internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
+trace_bench = ["dep:libcrux-test-utils", "expose_internal_modules"]
+expose_internal_modules = []
+rosenpass_binary = ["expose_internal_modules"]
+rp = [
+  "tokio",
+  "expose_internal_modules",
+  "dep:x25519-dalek",
+  "dep:futures",
+  "dep:futures-util",
+  "dep:ctrlc",
+  "dep:genetlink",
+  "dep:rtnetlink",
+  "dep:netlink-packet-core",
+  "dep:netlink-packet-generic",
+  "dep:netlink-packet-wireguard",
+  "dep:libc",
+]
+# features of `rosenpass_util`:
+experiment_file_descriptor_passing = ["dep:uds"]
+tokio = ["dep:tokio"]
+# features of `rosenpass-ciphers`:
+bench = ["expose_internal_modules"]
+
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(coverage)'] }

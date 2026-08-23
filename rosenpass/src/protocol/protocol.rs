@@ -19,20 +19,20 @@ use assert_tv::{TestVector, TestVectorNOP};
 use memoffset::span_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
-use rosenpass_cipher_traits::primitives::{
+use crate::internal::cipher_traits::primitives::{
     Aead as _, AeadWithNonceInCiphertext, Kem, KeyedHashInstance,
 };
-use rosenpass_ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
-use rosenpass_ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
-use rosenpass_constant_time as constant_time;
-use rosenpass_secret_memory::{Public, Secret};
-use rosenpass_to::{To, ops::copy_slice};
-use rosenpass_util::{
+use crate::internal::ciphers::hash_domain::{SecretHashDomain, SecretHashDomainNamespace};
+use crate::internal::ciphers::{Aead, EphemeralKem, KeyedHash, StaticKem, XAead};
+use crate::internal::constant_time;
+use crate::internal::secret_memory::{Public, Secret};
+use crate::internal::util::{
     cat,
     functional::ApplyExt,
     mem::{DiscardResultExt, cpy_min},
     time::Timebase,
 };
+use rosenpass_to::{To, ops::copy_slice};
 
 use crate::protocol::test_vector_sets::{
     CycledBiscuitSecretKeyTestValues, EncapsAndMixTestValues, HandleInitHelloTestValues,
@@ -57,7 +57,7 @@ use super::timing::{BCE, Timing, UNENDING, has_happened};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
 #[cfg(feature = "trace_bench")]
-use rosenpass_util::trace_bench::Trace as _;
+use crate::internal::util::trace_bench::Trace as _;
 
 // DATA STRUCTURES & BASIC TRAITS & ACCESSORS ////
 /// This is the implementation of our cryptographic protocol.
@@ -151,7 +151,10 @@ pub enum ProtocolVersion {
 }
 
 impl ProtocolVersion {
-    /// Returns the [KeyedHash] used by a protocol version.
+    /// returns the
+    #[cfg_attr(feature = "expose_internal_modules", doc = "[KeyedHash]")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "`KeyedHash`")]
+    /// used by a protocol version.
     pub fn keyed_hash(&self) -> KeyedHash {
         match self {
             ProtocolVersion::V02 => KeyedHash::incorrect_hmac_blake2b(),
@@ -181,14 +184,14 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// ```
 /// use std::ops::DerefMut;
 ///
-/// use rosenpass_ciphers::StaticKem;
-/// use rosenpass_cipher_traits::primitives::Kem;
+/// use rosenpass::internal::ciphers::StaticKem;
+/// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
 /// use rosenpass::protocol::{Peer, ProtocolVersion};
 /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
@@ -275,7 +278,7 @@ impl Peer {
     /// ```
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{Peer, ProtocolVersion};
-    /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     /// let p = Peer::zero(ProtocolVersion::V03);
     /// assert_eq!(p.psk.secret(), SymKey::zero().secret());
     /// assert_eq!(p.spkt, SPk::zero());
@@ -468,7 +471,7 @@ pub type KnownResponseHash = Public<16>;
 /// use rosenpass::protocol::KnownResponseHasher;
 /// use rosenpass::msgs::{Envelope, InitConf};
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let h = KnownResponseHasher::new();
 ///
@@ -627,11 +630,11 @@ pub trait Mortal {
 ///
 /// ```
 /// use std::ops::DerefMut;
-/// use rosenpass_ciphers::StaticKem;
+/// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::protocol::basic_types::{SSk, SPk};
 /// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (peer, (_, spkt), mut srv) = ServerForTesting::new(ProtocolVersion::V03)?.tuple();
 ///
@@ -1171,10 +1174,10 @@ impl CryptoServer {
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::StaticKem;
-    /// use rosenpass_cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::ciphers::StaticKem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
-    /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1237,10 +1240,10 @@ impl CryptoServer {
     /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
-    /// use rosenpass_ciphers::StaticKem;
-    /// use rosenpass_cipher_traits::primitives::Kem;
+    /// use rosenpass::internal::ciphers::StaticKem;
+    /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
-    /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1477,7 +1480,9 @@ impl CryptoServer {
 impl Peer {
     /// Create a new peer from the peers keys.
     ///
-    /// If no peer PSK is set, `psk` should be initialized to [SymKey::zero].
+    /// If no peer PSK is set, `psk` should be initialized to
+    #[cfg_attr(feature = "expose_internal_modules", doc = "[SymKey::zero].")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "`SymKey::zero`.")]
     ///
     /// # Examples
     ///
@@ -1523,9 +1528,9 @@ impl Session {
     ///
     /// ```
     /// use rosenpass::protocol::{Session, HandshakeRole};
-    /// use rosenpass_ciphers::KeyedHash;
+    /// use rosenpass::internal::ciphers::KeyedHash;
     ///
-    /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let s = Session::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
@@ -1744,7 +1749,7 @@ impl Mortal for KnownInitConfResponsePtr {
 /// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
 ///
-/// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
+/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// const M : Timing = 60.0;
 /// const H : Timing = 60.0 * M;
@@ -2104,7 +2109,7 @@ impl CryptoServer {
         {
             rand::Fill::fill_slice(
                 &mut msg_out.padding,
-                &mut rosenpass_secret_memory::rand::rng(),
+                &mut crate::internal::secret_memory::rand::rng(),
             );
         }
 
@@ -3512,7 +3517,7 @@ impl CryptoServer {
 macro_rules! protocol_section {
     ($label:expr, $body:block) => {{
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span($label);
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span($label);
 
         #[allow(unused_braces)]
         $body
@@ -3544,7 +3549,8 @@ impl CryptoServer {
         let test_values: HandleInitiationTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_initiation");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_initiation");
 
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
@@ -3671,7 +3677,8 @@ impl CryptoServer {
         let test_values: HandleInitHelloTestValues = TV::initialize_values();
 
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_hello");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_init_hello");
 
         let mut core = HandshakeState::zero(keyed_hash);
 
@@ -3802,7 +3809,8 @@ impl CryptoServer {
     /// [InitConf] message on the initiator side.
     pub fn handle_resp_hello(&mut self, rh: &RespHello, ic: &mut InitConf) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_hello");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_resp_hello");
 
         // RHI2
         let peer = self
@@ -3926,7 +3934,7 @@ impl CryptoServer {
         keyed_hash: KeyedHash,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_init_conf");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_init_conf");
 
         // (peer, bn) ← LoadBiscuit(InitConf.biscuit)
         // ICR1
@@ -4033,7 +4041,7 @@ impl CryptoServer {
         seal_broken: String,
     ) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_resp_conf");
+        let _span_guard = crate::internal::util::trace_bench::trace().emit_span("handle_resp_conf");
 
         let rc: &EmptyData = &msg_in.payload;
         let sid = SessionId::from_slice(&rc.sid);
@@ -4089,7 +4097,8 @@ impl CryptoServer {
     /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
     pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
         #[cfg(feature = "trace_bench")]
-        let _span_guard = rosenpass_util::trace_bench::trace().emit_span("handle_cookie_reply");
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
 
         let peer_ptr: Option<PeerPtr> = self
             .lookup_session(Public::new(cr.inner.sid))

@@ -1,5 +1,5 @@
+use crate::internal::util::zerocopy::RefMaker;
 use hex_literal::hex;
-use rosenpass_util::zerocopy::RefMaker;
 use zerocopy::{ByteSlice, Ref};
 
 use crate::RosenpassError::{self, InvalidApiMessageType};
@@ -161,7 +161,7 @@ impl RawMsgTypeExt for RawMsgType {
     }
 }
 
-/// Extension trait for [rosenpass_util::zerocopy::RefMaker].
+/// Extension trait for [`crate::internal::util::zerocopy::RefMaker`].
 pub trait RefMakerRawMsgTypeExt {
     /// Parse a request message type from bytes
     fn parse_request_msg_type(self) -> anyhow::Result<RequestMsgType>;

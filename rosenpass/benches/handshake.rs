@@ -4,9 +4,9 @@ use anyhow::Result;
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
-use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::StaticKem;
+use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;

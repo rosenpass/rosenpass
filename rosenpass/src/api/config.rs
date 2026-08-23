@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
+use crate::internal::util::mio::{UnixListenerExt, UnixStreamExt};
 use mio::net::UnixListener;
-use rosenpass_util::mio::{UnixListenerExt, UnixStreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::app_server::AppServer;

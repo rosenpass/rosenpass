@@ -5,9 +5,9 @@ use std::{
     ops::DerefMut,
 };
 
-use rosenpass_cipher_traits::primitives::Kem;
-use rosenpass_ciphers::StaticKem;
-use rosenpass_util::result::OkExt;
+use rosenpass::internal::cipher_traits::primitives::Kem;
+use rosenpass::internal::ciphers::StaticKem;
+use rosenpass::internal::util::result::OkExt;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -53,7 +53,7 @@ fn test_successful_exchange_with_poll(
     osk_domain_separator: OskDomainSeparator,
 ) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let mut sim = RosenpassSimulator::new(protocol_version, osk_domain_separator)?;
     sim.poll_loop(150)?; // Poll 75 times
@@ -130,7 +130,7 @@ fn test_successful_exchange_under_packet_loss(
     protocol_version: ProtocolVersion,
 ) -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     // Create the simulator
     let mut sim = RosenpassSimulator::new(protocol_version, OskDomainSeparator::default())?;
@@ -217,7 +217,7 @@ fn test_successful_exchange_under_packet_loss(
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn test_osk_label_mismatch() -> anyhow::Result<()> {
     // Set security policy for storing secrets; choose the one that is faster for testing
-    rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
+    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let ds_wg = OskDomainSeparator::for_wireguard_psk();
     let ds_custom1 = OskDomainSeparator::custom_utf8("example.com", ["Example Label"]);
@@ -711,7 +711,7 @@ impl ServerPtr {
 
         // Issue the successful exchange event if the OSKs are equal;
         // be careful to use constant time comparison for things like this!
-        if rosenpass_constant_time::memcmp(osk_a.secret(), osk_b.secret()) {
+        if rosenpass::internal::constant_time::memcmp(osk_a.secret(), osk_b.secret()) {
             self.enqueue_upcoming_poll_event(sim, TE::CompletedExchange(osk_a));
         } else {
             self.enqueue_upcoming_poll_event(sim, TE::FailedExchangeWithKeyMismatch(osk_a, osk_b));

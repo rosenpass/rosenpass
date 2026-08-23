@@ -16,8 +16,8 @@
 //! [super::CryptoServer::poll]. Look for the test function `test_osk_label_mismatch()`
 //! in particular.
 
-use rosenpass_ciphers::subtle::keyed_hash::KeyedHash;
-use rosenpass_util::result::OkExt;
+use crate::internal::ciphers::subtle::keyed_hash::KeyedHash;
+use crate::internal::util::result::OkExt;
 
 use crate::hash_domains;
 
@@ -67,7 +67,15 @@ impl OskDomainSeparator {
     }
 
     /// The domain separator is not just an encoded string, it instead uses
-    /// [rosenpass_ciphers::hash_domain::HashDomain], starting from [hash_domains::cke_user].
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[crate::internal::ciphers::hash_domain::HashDomain],"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`crate::internal::ciphers::hash_domain::HashDomain`,"
+    )]
+    /// starting from [hash_domains::cke_user].
     ///
     /// This means, that the domain separator is really a sequence of multiple different domain
     /// separators, each of which is allowed to be quite long. This is very useful as it allows
