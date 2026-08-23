@@ -121,7 +121,7 @@ cp -r workdir-server/server.rosenpass-public workdir-client/server.rosenpass-pub
 ```
 
 Start the server container.
-Note that the `NET_ADMIN` capability is neccessary, the rp command will create and manage wireguard interfaces.
+Note that the `NET_ADMIN` capability is necessary, the rp command will create and manage wireguard interfaces.
 Also make sure the `wireguard` kernel module is loaded by the host. (`lsmod | grep wireguard`)
 
 ```bash

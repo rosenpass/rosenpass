@@ -18,7 +18,7 @@ All integration tests install rosenpass on virtual machines, run the key exchang
 
 ## Testing specific versions
 
-You can specify specific versions of rosenpass to test compatability. The proper way to do so is by overriding the respective inputs to the nix flake. As an example, say you want to test the compatability of your local version of rosenpass with the branch `new-feature` on github. You can achieve this by running the following command:
+You can specify specific versions of rosenpass to test compatibility. The proper way to do so is by overriding the respective inputs to the nix flake. As an example, say you want to test the compatibility of your local version of rosenpass with the branch `new-feature` on github. You can achieve this by running the following command:
 
 ```
 nix flake check  --override-input rosenpass-old ../../ --override-input rosenpass-new github:rosenpass/rosenpass/new-feature
