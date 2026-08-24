@@ -1,9 +1,11 @@
 # Rosenpass README
 
+[![GitHub Release](https://img.shields.io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
+[![crates.io](https://img.shields.io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
+[![License](https://img.shields.io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
 ![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
 ![QC](https://github.com/rosenpass/rosenpass/actions/workflows/qc.yaml/badge.svg)
-![crates.io](https://img.shields.io/crates/v/rosenpass.svg)
-![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/cargo/rosenpass)
+[![docs.rs](https://docs.rs/rosenpass/badge.svg)](https://docs.rs/rosenpass)
 
 This repository contains
 
