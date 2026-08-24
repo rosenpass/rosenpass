@@ -1079,7 +1079,7 @@ checksum = "5630187517b443491246f00107e75065873a436f366532d554a45b44c979ccb8"
 dependencies = [
  "futures",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
  "netlink-packet-generic",
  "netlink-proto",
  "thiserror 1.0.69",
@@ -1463,12 +1463,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "netlink-packet-core"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d6e2daf9a8c2e21302714706860a0e6be02e03d17294ecc66b354ea7d4059dd"
+
+[[package]]
 name = "netlink-packet-generic"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f891b2e0054cac5a684a06628f59568f841c93da4e551239da6e518f539e775"
 dependencies = [
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
 ]
 
 [[package]]
@@ -1480,7 +1486,7 @@ dependencies = [
  "bitflags 2.13.1",
  "libc",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
 ]
 
 [[package]]
@@ -1492,7 +1498,7 @@ dependencies = [
  "bitflags 2.13.1",
  "libc",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
  "netlink-packet-generic",
 ]
 
@@ -1506,7 +1512,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
  "netlink-sys",
  "thiserror 2.0.20",
 ]
@@ -1997,7 +2003,7 @@ dependencies = [
  "memoffset",
  "memsec",
  "mio",
- "netlink-packet-core",
+ "netlink-packet-core 0.9.0",
  "netlink-packet-generic",
  "netlink-packet-wireguard",
  "num_enum",
@@ -2057,7 +2063,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.8.2",
  "netlink-packet-route",
  "netlink-proto",
  "netlink-sys",
