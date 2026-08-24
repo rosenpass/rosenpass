@@ -19,13 +19,13 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS cacher
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --features rp --recipe-path recipe.json
 
 # Stage 4: Build the application
 FROM cacher AS builder
 WORKDIR /app
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --features rp
 
 # Stage 5: Install runtime-dependencies in the base image
 FROM ${BASE_IMAGE} AS base_image_with_dependencies
