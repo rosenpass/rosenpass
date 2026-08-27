@@ -2059,6 +2059,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "toml",
+ "toml_edit",
  "typenum",
  "uds",
  "wireguard-uapi",
@@ -2571,8 +2572,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap",
+ "serde_core",
+ "serde_spanned",
  "toml_datetime",
  "toml_parser",
+ "toml_writer",
  "winnow",
 ]
 
