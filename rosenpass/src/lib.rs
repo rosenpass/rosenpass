@@ -30,6 +30,7 @@
 "#
 )]
 pub mod app_server;
+pub mod config;
 pub mod hash_domains;
 pub mod msgs;
 pub mod oldcli;
