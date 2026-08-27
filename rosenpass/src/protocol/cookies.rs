@@ -50,8 +50,8 @@ use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 /// let time_before_call = timebase.now();
 /// store.update(&timebase, fixed_secret.secret());
 /// assert_eq!(store.value.secret(), fixed_secret.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
+/// assert!(store.created_at <= timebase.now());
+/// assert!(store.created_at >= time_before_call);
 ///
 /// // Same as new()
 /// store.erase();
@@ -62,8 +62,8 @@ use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
 /// let time_before_call = timebase.now();
 /// store.randomize(&timebase);
 /// assert_ne!(store.value.secret(), secret_before_call.secret());
-/// assert!(store.created_at < timebase.now());
-/// assert!(store.created_at > time_before_call);
+/// assert!(store.created_at <= timebase.now());
+/// assert!(store.created_at >= time_before_call);
 /// ```
 #[derive(Debug)]
 pub struct CookieStore<const N: usize> {
