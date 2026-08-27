@@ -4,15 +4,15 @@
 #[cfg(feature = "experiment_api")]
 mod api;
 mod app_server;
-mod cli;
 mod config;
 mod error;
 mod hash_domains;
 mod internal;
 mod msgs;
+mod oldcli;
 mod protocol;
 
-use crate::{cli::CliArgs, error::RosenpassError};
+use crate::{oldcli::CliArgs, error::RosenpassError};
 use clap::CommandFactory;
 use clap::Parser;
 use clap_mangen::roff::{Roff, roman};
@@ -29,7 +29,7 @@ fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File)
 
 /// Catches errors, prints them through the logger, then exits
 ///
-/// The bulk of the command line logic is handled inside [crate::cli::CliArgs::run].
+/// The bulk of the command line logic is handled inside [crate::oldcli::CliArgs::run].
 pub fn main() {
     // parse CLI arguments
     let args = CliArgs::parse();

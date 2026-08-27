@@ -1,6 +1,6 @@
 use std::fs;
 
-use rosenpass::{cli::generate_and_save_keypair, config::Rosenpass};
+use rosenpass::{config::Rosenpass, oldcli::generate_and_save_keypair};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`

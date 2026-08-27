@@ -115,11 +115,11 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
     };
 
     // Generate the keys
-    rosenpass::cli::testing::generate_and_save_keypair(
+    rosenpass::oldcli::testing::generate_and_save_keypair(
         peer_a_keypair.secret_key.clone(),
         peer_a_keypair.public_key.clone(),
     )?;
-    rosenpass::cli::testing::generate_and_save_keypair(
+    rosenpass::oldcli::testing::generate_and_save_keypair(
         peer_b_keypair.secret_key.clone(),
         peer_b_keypair.public_key.clone(),
     )?;
