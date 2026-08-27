@@ -4,15 +4,15 @@
 #[cfg(feature = "experiment_api")]
 mod api;
 mod app_server;
-mod config;
 mod error;
 mod hash_domains;
 mod internal;
 mod msgs;
 mod oldcli;
+mod oldconfig;
 mod protocol;
 
-use crate::{oldcli::CliArgs, error::RosenpassError};
+use crate::{error::RosenpassError, oldcli::CliArgs};
 use clap::CommandFactory;
 use clap::Parser;
 use clap_mangen::roff::{Roff, roman};

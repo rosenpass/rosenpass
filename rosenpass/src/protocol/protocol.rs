@@ -181,11 +181,11 @@ pub fn derive_ephemeral_kem_from_keyed_hash(keyed_hash: KeyedHash) -> EphemeralK
     }
 }
 
-impl From<crate::config::ProtocolVersion> for ProtocolVersion {
-    fn from(v: crate::config::ProtocolVersion) -> Self {
+impl From<crate::oldconfig::ProtocolVersion> for ProtocolVersion {
+    fn from(v: crate::oldconfig::ProtocolVersion) -> Self {
         match v {
-            crate::config::ProtocolVersion::V02 => ProtocolVersion::V02,
-            crate::config::ProtocolVersion::V03 => ProtocolVersion::V03,
+            crate::oldconfig::ProtocolVersion::V02 => ProtocolVersion::V02,
+            crate::oldconfig::ProtocolVersion::V03 => ProtocolVersion::V03,
         }
     }
 }

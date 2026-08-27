@@ -14,7 +14,6 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
-use rosenpass::config::ProtocolVersion;
 use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -24,6 +23,7 @@ use rosenpass::internal::util::{
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
+use rosenpass::oldconfig::ProtocolVersion;
 use rosenpass::protocol::basic_types::SymKey;
 use std::os::fd::AsFd;
 use tempfile::TempDir;
@@ -74,7 +74,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
-    let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = oldconfig::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
 
     let peer_b_osk = tempfile!("b.osk");
     let peer_b_wg_device = "mock_device";
@@ -85,23 +85,23 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     "
     );
 
-    use rosenpass::config;
-    let peer_a = config::Rosenpass {
+    use rosenpass::oldconfig;
+    let peer_a = oldconfig::Rosenpass {
         config_file_path: tempfile!("a.config"),
         keypair: None,
         listen: vec![], // TODO: This could collide by accident
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
+        verbosity: oldconfig::Verbosity::Verbose,
+        api: api::oldconfig::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![config::RosenpassPeer {
+        peers: vec![oldconfig::RosenpassPeer {
             public_key: tempfile!("b.pk"),
             key_out: None,
             endpoint: None,
             pre_shared_key: None,
-            wg: Some(config::WireGuard {
+            wg: Some(oldconfig::WireGuard {
                 device: peer_b_wg_device.to_string(),
                 peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
                 extra_params: vec![],
@@ -111,18 +111,18 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         }],
     };
 
-    let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::Rosenpass {
+    let peer_b_keypair = oldconfig::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = oldconfig::Rosenpass {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
+        verbosity: oldconfig::Verbosity::Verbose,
+        api: api::oldconfig::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![config::RosenpassPeer {
+        peers: vec![oldconfig::RosenpassPeer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),
