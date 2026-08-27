@@ -156,6 +156,7 @@
                 cargo-audit
                 cargo-deny
                 cargo-msrv
+                cargo-nextest
                 cargo-release
                 cargo-vet
                 rustfmt
