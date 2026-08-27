@@ -12,7 +12,7 @@ use crate::internal::secret_memory::{Public, Secret};
 use super::msgs::{self, Envelope, SetPskRequest, SetPskResponse};
 use crate::internal::wireguard_broker::WireGuardBroker;
 
-use super::config::{NetworkBrokerConfigBuilder, NetworkBrokerConfigErr};
+use super::oldconfig::{NetworkBrokerConfigBuilder, NetworkBrokerConfigErr};
 
 /// Error variants for the [BrokerServer].
 #[derive(thiserror::Error, Debug, Clone, Eq, PartialEq)]
