@@ -4,7 +4,7 @@ use clap::Args;
 
 use crate::oldconfig::Rosenpass as RosenpassConfig;
 
-use super::oldconfig::ApiConfig;
+use super::config::ApiConfig;
 
 /// Additional command line arguments for the API
 #[cfg(feature = "experiment_api")]
