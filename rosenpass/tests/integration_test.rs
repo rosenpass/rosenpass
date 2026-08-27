@@ -11,7 +11,7 @@ use tempfile::tempdir;
 use clap::Parser;
 use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
-use rosenpass::{app_server::AppServerTestBuilder, config::EXAMPLE_CONFIG, oldcli::CliArgs};
+use rosenpass::{app_server::AppServerTestBuilder, oldcli::CliArgs, oldconfig::EXAMPLE_CONFIG};
 use serial_test::serial;
 use std::io::Write;
 

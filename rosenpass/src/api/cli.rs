@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use crate::config::Rosenpass as RosenpassConfig;
+use crate::oldconfig::Rosenpass as RosenpassConfig;
 
-use super::config::ApiConfig;
+use super::oldconfig::ApiConfig;
 
 /// Additional command line arguments for the API
 #[cfg(feature = "experiment_api")]

@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::internal::util::mem::{DiscardResultExt, SwapWithDefaultExt};
 use crate::internal::util::{build::Build, result::ensure_or};
 
-use crate::config::ProtocolVersion;
+use crate::oldconfig::ProtocolVersion;
 
 use super::basic_types::{SPk, SSk, SymKey};
 use super::osk_domain_separator::OskDomainSeparator;
@@ -174,7 +174,7 @@ pub struct MissingKeypair;
 /// use rosenpass::internal::util::build::Build;
 /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
-/// use rosenpass::config::ProtocolVersion;
+/// use rosenpass::oldconfig::ProtocolVersion;
 ///
 /// use rosenpass::protocol::basic_types::{SPk, SymKey};
 /// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
@@ -352,7 +352,7 @@ impl BuildCryptoServer {
     /// Adding peers to an existing builder:
     ///
     /// ```rust
-    /// use rosenpass::config::ProtocolVersion;
+    /// use rosenpass::oldconfig::ProtocolVersion;
     ///
     /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
@@ -426,7 +426,7 @@ impl BuildCryptoServer {
     /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///
-    /// use rosenpass::config::ProtocolVersion;
+    /// use rosenpass::oldconfig::ProtocolVersion;
     /// use rosenpass::hash_domains::protocol;
     ///
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
