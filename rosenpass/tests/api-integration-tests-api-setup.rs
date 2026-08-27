@@ -91,7 +91,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         keypair: None,
         listen: vec![], // TODO: This could collide by accident
         verbosity: oldconfig::Verbosity::Verbose,
-        api: api::oldconfig::ApiConfig {
+        api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
@@ -117,7 +117,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         keypair: Some(peer_b_keypair.clone()),
         listen: vec![],
         verbosity: oldconfig::Verbosity::Verbose,
-        api: api::oldconfig::ApiConfig {
+        api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],

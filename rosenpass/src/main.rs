@@ -4,6 +4,7 @@
 #[cfg(feature = "experiment_api")]
 mod api;
 mod app_server;
+mod config;
 mod error;
 mod hash_domains;
 mod internal;

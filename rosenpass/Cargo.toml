@@ -212,6 +212,7 @@ oqs-sys = { version = "0.11.0", default-features = false, features = [
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", optional = true }
+toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies] # from `rp`
 ctrlc = { version = "3.2", optional = true }
