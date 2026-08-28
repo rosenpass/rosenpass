@@ -112,6 +112,25 @@
               ];
             };
 
+            fullEnv = pkgs.mkShell {
+              inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
+              inputsFrom = [ pkgs.rosenpass ];
+              nativeBuildInputs = with pkgs; [
+                cargo-audit
+                cargo-deny
+                cargo-msrv
+                cargo-nextest
+                cargo-release
+                cargo-vet
+                rustfmt
+                prettier
+                nushell # for the .ci/gen-workflow-files.nu script
+                proverif-patched
+                pkgs.cargo-llvm-cov
+                pkgs.grcov
+                pkgs.rust-bin.stable.latest.complete
+              ];
+            };
             treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
           in
           {
@@ -136,75 +155,48 @@
             #
             ### Devshells ###
             #
-            devShells.default = pkgs.mkShell {
-              inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
-              inputsFrom = [ pkgs.rosenpass ];
-              nativeBuildInputs = with pkgs; [
-                cargo-release
-                clippy
-                rustfmt
-                prettier
-                nushell # for the .ci/gen-workflow-files.nu script
-                proverif-patched
-              ];
-            };
             # TODO: Write this as a patched version of the default environment
-            devShells.fullEnv = pkgs.mkShell {
-              inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
-              inputsFrom = [ pkgs.rosenpass ];
-              nativeBuildInputs = with pkgs; [
-                cargo-audit
-                cargo-deny
-                cargo-msrv
-                cargo-nextest
-                cargo-release
-                cargo-vet
-                rustfmt
-                prettier
-                nushell # for the .ci/gen-workflow-files.nu script
-                proverif-patched
-                pkgs.cargo-llvm-cov
-                pkgs.grcov
-                pkgs.rust-bin.stable.latest.complete
-              ];
-            };
-            devShells.coverage = pkgs.mkShell {
-              inputsFrom = [ pkgs.rosenpass ];
-              nativeBuildInputs = [
-                pkgs.cargo-llvm-cov
-                pkgs.grcov
-                pkgs.rustc.llvmPackages.llvm
-              ];
-              env = {
-                inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
+            devShells = {
+              inherit fullEnv;
+              default = fullEnv; # appropriate for most development work
+              coverage = pkgs.mkShell {
+                inputsFrom = [ pkgs.rosenpass ];
+                nativeBuildInputs = [
+                  pkgs.cargo-llvm-cov
+                  pkgs.grcov
+                  pkgs.rustc.llvmPackages.llvm
+                ];
+                env = {
+                  inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
+                };
               };
-            };
-            devShells.benchmarks = pkgs.mkShell {
-              inputsFrom = [ pkgs.rosenpass ];
-              nativeBuildInputs = with pkgs; [
-                cargo-release
-                clippy
-                rustfmt
-              ];
-            };
-            # a devshell to hunt unsafe `unsafe` in the code
-            devShells.miri = pkgs.mkShell {
-              # inputsFrom = [ self.packages.${system}.rosenpass ];
-              nativeBuildInputs = with pkgs; [
-                ((rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)).override {
-                  extensions = [
-                    "rust-analysis"
-                    "rust-src"
-                    "miri-preview"
-                  ];
-                })
-                pkgs.cmake
-                pkgs.rustPlatform.bindgenHook
-              ];
-              # Run this to find unsafe `unsafe`:
-              # MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --no-fail-fast --lib --bins --tests
-              #
-              # - Some test failure is expected.
+              benchmarks = pkgs.mkShell {
+                inputsFrom = [ pkgs.rosenpass ];
+                nativeBuildInputs = with pkgs; [
+                  cargo-release
+                  clippy
+                  rustfmt
+                ];
+              };
+              # a devshell to hunt unsafe `unsafe` in the code
+              miri = pkgs.mkShell {
+                # inputsFrom = [ self.packages.${system}.rosenpass ];
+                nativeBuildInputs = with pkgs; [
+                  ((rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)).override {
+                    extensions = [
+                      "rust-analysis"
+                      "rust-src"
+                      "miri-preview"
+                    ];
+                  })
+                  pkgs.cmake
+                  pkgs.rustPlatform.bindgenHook
+                ];
+                # Run this to find unsafe `unsafe`:
+                # MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --no-fail-fast --lib --bins --tests
+                #
+                # - Some test failure is expected.
+              };
             };
 
             checks =
