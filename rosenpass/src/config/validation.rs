@@ -211,7 +211,6 @@ impl super::RosenpassConfig {
                     errors.push(Error::DevicesWireguardBinaryMisbehaves(device.name.clone(), wg_path.clone()));
                 }
             }
-            
         }
         // ============================== [[peer]] ==============================
         for peer in self.peers.iter() {
