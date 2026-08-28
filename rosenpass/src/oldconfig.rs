@@ -16,7 +16,7 @@ use anyhow::{Context, bail, ensure};
 use base64ct::{Base64, Encoding};
 use serde::{Deserialize, Serialize};
 
-use crate::internal::util::file::{LoadValue, Visibility, fopen_w};
+use crate::internal::util::file::{fopen_w, LoadValue, Visibility};
 
 use crate::protocol::basic_types::{PublicSymKey, SPk, SSk};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
@@ -1083,7 +1083,7 @@ pub mod util {
     ///
     /// ## Example
     /// ```
-    /// use rosenpass::oldconfig::util::resolve_path_with_tilde;
+    /// use rosenpass::config::util::resolve_path_with_tilde;
     /// std::env::set_var("HOME","/home/dummy");
     /// let mut path = std::path::PathBuf::from("~/foo.toml");
     /// resolve_path_with_tilde(&mut path);
