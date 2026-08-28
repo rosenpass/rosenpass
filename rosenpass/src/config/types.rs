@@ -3,7 +3,10 @@ use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, path::PathBuf};
 
-use crate::{oldconfig::RosenpassPeerOskDomainSeparator, protocol::ProtocolVersion};
+use crate::{
+    oldconfig::{Keypair, RosenpassPeerOskDomainSeparator},
+    protocol::ProtocolVersion,
+};
 
 /// Configuration for Rosenpass
 ///
@@ -20,8 +23,6 @@ pub struct RosenpassConfig {
     pub our_listen_addresses: Vec<SocketAddr>,
 
     pub our_keys: Vec<OurKeyConfig>,
-
-    pub protocol_version: ProtocolVersion,
 
     /// TODO: also support [crate::oldconfig::Verbosity]
     /// TODO: implement default
@@ -43,29 +44,12 @@ pub struct OurKeyConfig {
     pub secret_key_file: PathBuf,
     pub public_key_file: PathBuf,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum AsymmetricCipherType {
-    #[serde(rename = "mceliece460896")]
-    McEliece460896,
-    #[serde(rename = "mceliece460896nistround3")]
-    McEliece460896NistRound3,
-}
-impl Display for AsymmetricCipherType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            serde_json::to_string(&self)
-                .expect("can not serialize AsymmetricCipherType – should be unreachable")
-        )
-    }
-}
 // ============================== [[device]] ==============================
 #[derive(Debug)]
 pub struct DeviceConfig {
     pub name: String,
-    pub managed_by: DeviceManagedByChoice,
+    pub managed_by: FlatDeviceManagedByChoice,
+    pub wireguard_keypair_if_managed_by_rosenpass: Option<Keypair>,
     pub path_to_wg_binary: Option<PathBuf>,
 }
 #[derive(Debug)]
@@ -80,7 +64,7 @@ pub enum DeviceManagedByChoice {
 /// flat version of [DeviceManagedByChoice]
 ///
 /// used as an intermediate result during parsing
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FlatDeviceManagedByChoice {
     Rosenpass,
     Wireguard,
@@ -92,6 +76,7 @@ pub struct PeerConfig {
     pub name: String,
     pub algorithm: CryptoAlgorithmsChoice,
     pub public_key_file: PathBuf,
+    pub protocol_version: ProtocolVersion,
     pub endpoint: SocketAddr,
     pub preshared_key_file: Option<PathBuf>,
 
@@ -108,17 +93,39 @@ pub struct CryptoAlgorithmsChoice {
     pub symmetric_cipher: SymmetricCipherChoice,
     pub hash: HashAlgorithmChoice,
 }
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+pub enum AsymmetricCipherType {
+    #[serde(rename = "mceliece460896")]
+    McEliece460896,
+    #[serde(rename = "mceliece460896nistround3")]
+    McEliece460896NistRound3,
+}
+impl Display for AsymmetricCipherType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            serde_plain::to_string(&self)
+                .expect("can not serialize AsymmetricCipherType – should be unreachable")
+        )
+    }
+}
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum KemAlgorithmChoice {
+    #[serde(rename = "kyber512")]
     Kyber512,
 }
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum SymmetricCipherChoice {
+    #[serde(rename = "chachapoly1305")]
     ChaChaPoly1305,
 }
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum HashAlgorithmChoice {
+    #[serde(rename = "blake2s")]
     Blake2s,
+    #[serde(rename = "blake2b")]
+    Blake2b,
 }
 
 #[derive(Debug)]
@@ -129,7 +136,8 @@ pub struct OutputToFileConfig {
 #[derive(Debug)]
 pub struct WireguardConfig {
     pub enabled: bool,
-    pub device: String,
+    /// references a [DeviceConfig]
+    pub device_name: String,
     pub wg_binary_path: Option<PathBuf>,
     pub if_managed_by_rosenpass: AdditionalWireguardConfigIfInterfaceManagedByRosenpass,
 }

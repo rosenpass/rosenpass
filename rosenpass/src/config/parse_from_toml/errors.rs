@@ -14,9 +14,9 @@ pub enum ParseIssueLevel {
 pub trait ParseIssueKind: sealed::Sealed + Debug {
     const LEVEL: ParseIssueLevel;
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Warning;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error;
 impl sealed::Sealed for Warning {}
 impl sealed::Sealed for Error {}
@@ -26,7 +26,7 @@ impl ParseIssueKind for Warning {
 impl ParseIssueKind for Error {
     const LEVEL: ParseIssueLevel = ParseIssueLevel::Error;
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParseIssueInner<K: ParseIssueKind> {
     pub line: usize,
     pub column: usize,
