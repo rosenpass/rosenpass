@@ -179,8 +179,7 @@ where
             };
 
             // Retrieve a reference to the keypair
-            let Some(BuildCryptoServer { keypair, .. }) = maybe_builder
-            else {
+            let Some(BuildCryptoServer { keypair, .. }) = maybe_builder else {
                 return Err(anyhow::Error::msg("CryptoServer already built")).ealready_supplied();
             };
 
