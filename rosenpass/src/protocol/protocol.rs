@@ -1206,12 +1206,12 @@ impl CryptoServer {
     }
 
     /// Iterate over the available biscuit keys by their pointers [BiscuitKeyPtr]
-    pub fn biscuit_key_ptrs(&self) -> impl Iterator<Item = BiscuitKeyPtr> {
+    pub fn biscuit_key_ptrs(&self) -> impl Iterator<Item = BiscuitKeyPtr> + use<> {
         (0..self.biscuit_keys.len()).map(BiscuitKeyPtr)
     }
 
     /// Iterate over the available cookie secrets by their pointers [ServerCookieSecretPtr]
-    pub fn cookie_secret_ptrs(&self) -> impl Iterator<Item = ServerCookieSecretPtr> {
+    pub fn cookie_secret_ptrs(&self) -> impl Iterator<Item = ServerCookieSecretPtr> + use<> {
         (0..self.cookie_secrets.len()).map(ServerCookieSecretPtr)
     }
 
@@ -1227,7 +1227,7 @@ impl CryptoServer {
     /// Iterate over all peers, starting with the `n`th peer, wrapping at the
     /// end of the peers vec so that also all peers from index 0 to `n - 1` are
     /// yielded
-    pub fn peer_ptrs_off(&self, n: usize) -> impl Iterator<Item = PeerPtr> {
+    pub fn peer_ptrs_off(&self, n: usize) -> impl Iterator<Item = PeerPtr> + use<> {
         let l = self.peers.len();
         (0..l).map(move |i| PeerPtr((i + n) % l))
     }
