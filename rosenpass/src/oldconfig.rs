@@ -284,10 +284,10 @@ impl Rosenpass {
         }
         for peer in config.peers.iter_mut() {
             resolve_path_with_tilde(&mut peer.public_key);
-            if let Some(ref mut psk) = &mut peer.pre_shared_key {
+            if let Some(psk) = &mut peer.pre_shared_key {
                 resolve_path_with_tilde(psk);
             }
-            if let Some(ref mut ko) = &mut peer.key_out {
+            if let Some(ko) = &mut peer.key_out {
                 resolve_path_with_tilde(ko);
             }
         }
