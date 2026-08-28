@@ -1,9 +1,25 @@
-use log::LevelFilter;
-use toml_edit::Table;
+use std::str::FromStr;
 
-use super::super::{CryptoAlgorithmsChoice, FlatDeviceManagedByChoice};
+use crate::config::{HashAlgorithmChoice, KemAlgorithmChoice, SymmetricCipherChoice};
+use crate::protocol::ProtocolVersion;
+
+use super::super::{AsymmetricCipherType, CryptoAlgorithmsChoice, FlatDeviceManagedByChoice};
 use super::errors::ParseError;
+use log::LevelFilter;
+use serde::Deserialize;
+use serde::de::value::Error as SerdeError;
+use serde::de::value::StrDeserializer;
 
+/// an be used on the output of `get_as_*()` if `let mut errors: Parse<Error> = Vec::new();` has been defined
+macro_rules! process_result {
+    ($errors: expr, $result: expr) => {
+        $result.map(|v| Some(v)).unwrap_or_else(|err| {
+            $errors.push(err);
+            None
+        })
+    };
+}
+pub(crate) use process_result;
 /// converts a span from `toml_edit` into a line number and column number
 pub(crate) fn resolve_span(raw: &str, span: &std::ops::Range<usize>) -> Option<(usize, usize)> {
     let foo = raw.get(0..span.start)?.split("\n").collect::<Vec<_>>();
@@ -13,9 +29,9 @@ pub(crate) fn resolve_span(raw: &str, span: &std::ops::Range<usize>) -> Option<(
 ///
 /// - `file` is a reference to the file holding the `table` and is only required to format the error message in case of a missing key
 /// - `table_span` is the location of the `table` within the TOML `file` and is only required to format the error message in case of a missing key
-fn get_item<'a>(
+fn get_item<'a, T: toml_edit::TableLike>(
     raw: &str,
-    table: &'a Table,
+    table: &'a T,
     table_span: Option<&std::ops::Range<usize>>,
     key: &str,
 ) -> Result<&'a toml_edit::Item, ParseError> {
@@ -35,9 +51,9 @@ fn get_item<'a>(
 macro_rules! get_as_type_generator {
     ($fn_name: ident,$opt_fn_name: ident, $type_: ty, $getter: ident, $mapper: expr) => {
         #[allow(dead_code)]
-        pub fn $fn_name<'a>(
-            raw: &str,
-            table: &'a Table,
+        pub fn $fn_name<'a, T: toml_edit::TableLike>(
+            raw: &'a str,
+            table: &'a T,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
         ) -> Result<$type_, ParseError> {
@@ -59,9 +75,9 @@ macro_rules! get_as_type_generator {
                 .map(|v| $mapper(raw, item, v))?
         }
         #[allow(dead_code)]
-        pub fn $opt_fn_name<'a>(
-            raw: &str,
-            table: &'a Table,
+        pub fn $opt_fn_name<'a, T: toml_edit::TableLike>(
+            raw: &'a str,
+            table: &'a T,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
         ) -> Result<Option<$type_>, ParseError> {
@@ -161,6 +177,28 @@ get_as_type_generator!(
     }
 );
 get_as_type_generator!(
+    get_as_asymmetric_cipher_type,
+    get_as_opt_asymmetric_cipher_type,
+    AsymmetricCipherType,
+    as_str,
+    |raw: &str, item: &toml_edit::Item, s: &str| {
+        // let deserializer = serde::de::value::StrDeserializer::new(s);
+        // AsymmetricCipherType::deserialize(deserializer)
+        <AsymmetricCipherType as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(s))
+            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
+    }
+);
+get_as_type_generator!(
+    get_as_path_buf,
+    get_as_opt_path_buf,
+    std::path::PathBuf,
+    as_str,
+    |raw: &str, item: &toml_edit::Item, s: &str| {
+        std::path::PathBuf::from_str(s)
+            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
+    }
+);
+get_as_type_generator!(
     get_as_flat_device_managed_by_choice,
     get_as_opt_flat_device_managed_by_choice,
     FlatDeviceManagedByChoice,
@@ -187,6 +225,97 @@ get_as_type_generator!(
     CryptoAlgorithmsChoice,
     as_str,
     |raw: &str, item: &toml_edit::Item, s: &str| -> Result<CryptoAlgorithmsChoice, ParseError> {
-        unimplemented!()
+        let error_message =
+            "invalid cryptographic algorithm choice, see <TODO> for valid options".to_string();
+        let error = ParseError::new(raw, item.span(), error_message.clone());
+        let s = s.to_lowercase();
+        let parts = s.split("-").collect::<Vec<_>>();
+        if parts.len() != 4 {
+            return Err(ParseError::new(raw, item.span(), error_message));
+        }
+        let asymmetric_cipher = <AsymmetricCipherType as Deserialize>::deserialize(
+            StrDeserializer::<SerdeError>::new(parts[0]),
+        )
+        .map_err(|err| error.clone())?;
+        let kem = <KemAlgorithmChoice as Deserialize>::deserialize(
+            StrDeserializer::<SerdeError>::new(parts[1]),
+        )
+        .map_err(|err| error.clone())?;
+        let symmetric_cipher = <SymmetricCipherChoice as Deserialize>::deserialize(
+            StrDeserializer::<SerdeError>::new(parts[2]),
+        )
+        .map_err(|err| error.clone())?;
+        let hash = <HashAlgorithmChoice as Deserialize>::deserialize(
+            StrDeserializer::<SerdeError>::new(parts[3]),
+        )
+        .map_err(|err| error.clone())?;
+        Ok(CryptoAlgorithmsChoice {
+            asymmetric_cipher,
+            kem,
+            symmetric_cipher,
+            hash,
+        })
+    }
+);
+
+get_as_type_generator!(
+    get_as_array,
+    get_as_opt_array,
+    &'a toml_edit::Array,
+    as_array,
+    |_, _, list: &'a toml_edit::Array| Ok(list)
+);
+get_as_type_generator!(
+    get_as_inline_table,
+    get_as_opt_inline_table,
+    &'a toml_edit::InlineTable,
+    as_inline_table,
+    |_, _, tab: &'a toml_edit::InlineTable| Ok(tab)
+);
+get_as_type_generator!(
+    get_as_vec_string,
+    get_as_opt_vec_string,
+    Vec<String>,
+    as_array,
+    |raw: &'a str, item: &'a toml_edit::Item, array: &'a toml_edit::Array| {
+        array
+            .iter()
+            .map(|item| -> Result<String, ParseError> {
+                item.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                    ParseError::new(raw, item.span(), "expected array of strings".to_string())
+                })
+            })
+            .collect::<Result<_, _>>()
+    }
+);
+get_as_type_generator!(
+    get_as_protocol_version,
+    get_as_opt_protocol_version,
+    ProtocolVersion,
+    as_str,
+    |raw: &str, item: &toml_edit::Item, s: &str| {
+        // TODO: properly deserialize this
+        if s.to_lowercase() == "v02" {
+            Ok(ProtocolVersion::V02)
+        } else if s.to_lowercase() == "v03" {
+            Ok(ProtocolVersion::V03)
+        } else {
+            // TODO: proper list of supported values
+            Err(ParseError::new(
+                raw,
+                item.span(),
+                format!("invalid protocol version, supported values: v02, v03"),
+            ))
+        }
+    }
+);
+get_as_type_generator!(
+    get_as_socket_addr,
+    get_as_opt_socket_addr,
+    std::net::SocketAddr,
+    as_str,
+    |raw: &str, item: &toml_edit::Item, s: &str| {
+        std::net::SocketAddr::from_str(s)
+            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
     }
 );
