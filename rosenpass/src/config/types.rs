@@ -22,7 +22,12 @@ pub struct RosenpassConfig {
     /// - `[::]:4476` – Listen on any IPv4 or IPv6 interface, port 4476
     pub our_listen_addresses: Vec<SocketAddr>,
 
+    #[cfg(feature = "experiment_crypto_agility")]
     pub our_keys: Vec<OurKeyConfig>,
+    #[cfg(not(feature = "experiment_crypto_agility"))]
+    pub our_keys: Keypair,
+    #[cfg(not(feature = "experiment_crypto_agility"))]
+    pub algorithm: CryptoAlgorithmsChoice,
 
     /// TODO: also support [crate::oldconfig::Verbosity]
     /// TODO: implement default
@@ -39,7 +44,7 @@ pub struct RosenpassConfig {
 // ============================== [rosenpass] ==============================
 #[derive(Debug)]
 pub struct OurKeyConfig {
-    pub cipher: AsymmetricCipherType,
+    pub cipher: StaticKemChoice,
     /// TODO: use [crate::oldconfig::Keypair] instead?
     pub secret_key_file: PathBuf,
     pub public_key_file: PathBuf,
@@ -74,6 +79,7 @@ pub enum FlatDeviceManagedByChoice {
 #[derive(Debug)]
 pub struct PeerConfig {
     pub name: String,
+    #[cfg(feature = "experiment_crypto_agility")]
     pub algorithm: CryptoAlgorithmsChoice,
     pub public_key_file: PathBuf,
     pub protocol_version: ProtocolVersion,
@@ -88,19 +94,19 @@ pub struct PeerConfig {
 }
 #[derive(Debug)]
 pub struct CryptoAlgorithmsChoice {
-    pub asymmetric_cipher: AsymmetricCipherType,
-    pub kem: KemAlgorithmChoice,
+    pub static_kem_choice: StaticKemChoice,
+    pub ephemeral_kem_choice: EphemeralKemChoice,
     pub symmetric_cipher: SymmetricCipherChoice,
     pub hash: HashAlgorithmChoice,
 }
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum AsymmetricCipherType {
+pub enum StaticKemChoice {
     #[serde(rename = "mceliece460896")]
     McEliece460896,
     #[serde(rename = "mceliece460896nistround3")]
     McEliece460896NistRound3,
 }
-impl Display for AsymmetricCipherType {
+impl Display for StaticKemChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -111,7 +117,7 @@ impl Display for AsymmetricCipherType {
     }
 }
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum KemAlgorithmChoice {
+pub enum EphemeralKemChoice {
     #[serde(rename = "kyber512")]
     Kyber512,
 }
