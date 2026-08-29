@@ -1,14 +1,12 @@
-use std::str::FromStr;
-
-use crate::config::{HashAlgorithmChoice, KemAlgorithmChoice, SymmetricCipherChoice};
-use crate::protocol::ProtocolVersion;
-
-use super::super::{AsymmetricCipherType, CryptoAlgorithmsChoice, FlatDeviceManagedByChoice};
+use super::super::{CryptoAlgorithmsChoice, FlatDeviceManagedByChoice, StaticKemChoice};
 use super::errors::ParseError;
+use crate::config::{EphemeralKemChoice, HashAlgorithmChoice, SymmetricCipherChoice};
+use crate::protocol::ProtocolVersion;
 use log::LevelFilter;
 use serde::Deserialize;
 use serde::de::value::Error as SerdeError;
 use serde::de::value::StrDeserializer;
+use std::str::FromStr;
 
 /// an be used on the output of `get_as_*()` if `let mut errors: Parse<Error> = Vec::new();` has been defined
 macro_rules! process_result {
@@ -48,6 +46,27 @@ fn get_item<'a, T: toml_edit::TableLike>(
         }
     })
 }
+macro_rules! getter_to_typename {
+    (as_str) => {
+        "string"
+    };
+    (as_integer) => {
+        "integer"
+    };
+    (as_bool) => {
+        "boolean"
+    };
+    (as_array) => {
+        "array"
+    };
+    (as_inline_table) => {
+        "inline table"
+    };
+    ($getter:ident) => {
+        compile_error!(concat!("unexpected getter: ", stringify!($getter)))
+    };
+}
+
 macro_rules! get_as_type_generator {
     ($fn_name: ident,$opt_fn_name: ident, $type_: ty, $getter: ident, $mapper: expr) => {
         #[allow(dead_code)]
@@ -68,7 +87,10 @@ macro_rules! get_as_type_generator {
                     ParseError {
                         line: location.map(|l| l.0).unwrap_or(1),
                         column: location.map(|l| l.1).unwrap_or(1),
-                        message: format!("item \"{key}\" has wrong data type"),
+                        message: format!(
+                            "item \"{key}\" has wrong data type, expected {}",
+                            getter_to_typename!($getter)
+                        ),
                         _kind: Default::default(),
                     }
                 })
@@ -94,7 +116,10 @@ macro_rules! get_as_type_generator {
                                 ParseError {
                                     line: location.map(|l| l.0).unwrap_or(1),
                                     column: location.map(|l| l.1).unwrap_or(1),
-                                    message: format!("item \"{key}\" has wrong data type"),
+                                    message: format!(
+                                        "item \"{key}\" has wrong data type, expected {}",
+                                        getter_to_typename!($getter)
+                                    ),
                                     _kind: Default::default(),
                                 }
                             })
@@ -179,12 +204,12 @@ get_as_type_generator!(
 get_as_type_generator!(
     get_as_asymmetric_cipher_type,
     get_as_opt_asymmetric_cipher_type,
-    AsymmetricCipherType,
+    StaticKemChoice,
     as_str,
     |raw: &str, item: &toml_edit::Item, s: &str| {
         // let deserializer = serde::de::value::StrDeserializer::new(s);
         // AsymmetricCipherType::deserialize(deserializer)
-        <AsymmetricCipherType as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(s))
+        <StaticKemChoice as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(s))
             .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
     }
 );
@@ -227,17 +252,18 @@ get_as_type_generator!(
     |raw: &str, item: &toml_edit::Item, s: &str| -> Result<CryptoAlgorithmsChoice, ParseError> {
         let error_message =
             "invalid cryptographic algorithm choice, see <TODO> for valid options".to_string();
-        let error = ParseError::new(raw, item.span(), error_message.clone());
+        let error = ParseError::new(raw, item.span(), error_message);
         let s = s.to_lowercase();
         let parts = s.split("-").collect::<Vec<_>>();
         if parts.len() != 4 {
-            return Err(ParseError::new(raw, item.span(), error_message));
+            return Err(error);
         }
-        let asymmetric_cipher = <AsymmetricCipherType as Deserialize>::deserialize(
-            StrDeserializer::<SerdeError>::new(parts[0]),
-        )
-        .map_err(|err| error.clone())?;
-        let kem = <KemAlgorithmChoice as Deserialize>::deserialize(
+        let static_kem_choice =
+            <StaticKemChoice as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(
+                parts[0],
+            ))
+            .map_err(|err| error.clone())?;
+        let ephemeral_kem_choice = <EphemeralKemChoice as Deserialize>::deserialize(
             StrDeserializer::<SerdeError>::new(parts[1]),
         )
         .map_err(|err| error.clone())?;
@@ -250,8 +276,8 @@ get_as_type_generator!(
         )
         .map_err(|err| error.clone())?;
         Ok(CryptoAlgorithmsChoice {
-            asymmetric_cipher,
-            kem,
+            static_kem_choice,
+            ephemeral_kem_choice,
             symmetric_cipher,
             hash,
         })
