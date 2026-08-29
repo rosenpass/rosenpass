@@ -1,0 +1,24 @@
+# This config file is generated with rosenpass 0.2.3:
+# ```
+# rosenpass gen-config rosenpass-stable.toml
+# ```
+# It has then been modified to use the appropriate key files
+
+public_key = "../keys/alice-0.2-public/pqpk"
+secret_key = "../keys/alice-0.2-public/pqsk"
+listen = []
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "../keys/bob-0.2-public/pqpk"
+endpoint = "my-peer.test:9999"
+key_out = "rp-key-out"
+exchange_command = [
+    "wg",
+    "set",
+    "wg0",
+    "peer",
+    "<PEER_ID>",
+    "preshared-key",
+    "/dev/stdin",
+]
