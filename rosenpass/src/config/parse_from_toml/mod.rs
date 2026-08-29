@@ -1,19 +1,19 @@
-use std::str::FromStr;
-
 use log::LevelFilter;
+use std::str::FromStr;
 use toml_edit::Table;
-
+#[cfg(feature = "experiment_crypto_agility")]
+use util::get_as_asymmetric_cipher_type;
 use util::{
-    get_as_array, get_as_asymmetric_cipher_type, get_as_crypto_algorithm_choice,
-    get_as_flat_device_managed_by_choice, get_as_opt_log_level, get_as_opt_path_buf,
-    get_as_opt_vec_string, get_as_path_buf, get_as_protocol_version, get_as_socket_addr,
-    get_as_string, process_result,
+    get_as_array, get_as_crypto_algorithm_choice, get_as_flat_device_managed_by_choice,
+    get_as_opt_log_level, get_as_opt_path_buf, get_as_opt_vec_string, get_as_path_buf,
+    get_as_protocol_version, get_as_socket_addr, get_as_string, process_result,
 };
 
+#[cfg(not(feature = "experiment_crypto_agility"))]
+use crate::config::parse_from_toml::util::get_as_inline_table;
 use crate::{
     config::parse_from_toml::util::{get_as_opt_inline_table, get_as_opt_string},
     oldconfig::{Keypair, RosenpassPeerOskDomainSeparator},
-    protocol::osk_domain_separator::OskDomainSeparator,
 };
 
 use super::types::*;
@@ -55,8 +55,12 @@ impl RosenpassConfig {
         // ============================== [rosenpass] ==============================
         let mut our_listen_adresses = Vec::new();
         let mut log_level: Option<LevelFilter> = None;
-        let mut our_keys: Vec<OurKeyConfig> = Vec::new();
         let mut logging_output_file = None;
+        #[cfg(feature = "experiment_crypto_agility")]
+        let mut our_keys: Vec<OurKeyConfig> = Vec::new();
+        #[cfg(not(feature = "experiment_crypto_agility"))]
+        let mut our_keys: Option<Keypair> = None;
+        let mut our_algorithm: Option<CryptoAlgorithmsChoice> = None;
         {
             let mut process_rosenpass_table = |table: &Table| {
                 // our_listen_addresses
@@ -109,6 +113,30 @@ impl RosenpassConfig {
                 );
 
                 // our_keys
+                #[cfg(not(feature = "experiment_crypto_agility"))]
+                if let Some(inline_table) = process_result!(
+                    errors,
+                    get_as_inline_table(raw, table, table.span(), "keys")
+                ) {
+                    let mut inline_errors = Vec::new();
+                    let secret = process_result!(
+                        inline_errors,
+                        get_as_path_buf(raw, inline_table, inline_table.span(), "secret-key-file")
+                    );
+                    let public = process_result!(
+                        inline_errors,
+                        get_as_path_buf(raw, inline_table, inline_table.span(), "public-key-file")
+                    );
+                    if !inline_errors.is_empty() {
+                        errors.append(&mut inline_errors);
+                    } else {
+                        our_keys = Some(Keypair {
+                            secret_key: secret.expect("unreachable"),
+                            public_key: public.expect("unreachable"),
+                        });
+                    }
+                }
+                #[cfg(feature = "experiment_crypto_agility")]
                 if let Some(keys_list) =
                     process_result!(errors, get_as_array(raw, table, table.span(), "keys"))
                 {
@@ -165,6 +193,19 @@ impl RosenpassConfig {
                         };
                         errors.append(&mut key_item_errors);
                     }
+                }
+
+                // our_algorithm
+                #[cfg(not(feature = "experiment_crypto_agility"))]
+                {
+                    eprintln!(
+                        "algorithm type: {}",
+                        table.get("algorithm").unwrap().type_name()
+                    );
+                    our_algorithm = process_result!(
+                        errors,
+                        get_as_crypto_algorithm_choice(raw, table, table.span(), "algorithm")
+                    );
                 }
             };
             if let Some(rosenpass_table) = document.get("rosenpass").map(|v| v.as_table()).flatten()
@@ -273,6 +314,7 @@ impl RosenpassConfig {
                     let mut errors = Vec::new();
                     let name =
                         process_result!(errors, get_as_string(raw, table, table.span(), "name"));
+                    #[cfg(feature = "experiment_crypto_agility")]
                     let algorithm = process_result!(
                         errors,
                         get_as_crypto_algorithm_choice(raw, table, table.span(), "algorithm")
@@ -332,6 +374,7 @@ impl RosenpassConfig {
                     if errors.is_empty() {
                         peers.push(PeerConfig {
                             name: name.expect("unreachable"),
+                            #[cfg(feature = "experiment_crypto_agility")]
                             algorithm: algorithm.expect("unreachable"),
                             public_key_file: public_key_file.expect("unreachable"),
                             protocol_version: protocol_version.expect("unreachable"),
@@ -357,7 +400,12 @@ impl RosenpassConfig {
             Ok((
                 RosenpassConfig {
                     our_listen_addresses: our_listen_adresses,
+                    #[cfg(not(feature = "experiment_crypto_agility"))]
+                    our_keys: our_keys.expect("unreachable"),
+                    #[cfg(feature = "experiment_crypto_agility")]
                     our_keys: our_keys,
+                    #[cfg(not(feature = "experiment_crypto_agility"))]
+                    algorithm: our_algorithm.expect("unreachable"),
                     log_level: log_level.unwrap_or(LevelFilter::Info),
                     logging_output_file: logging_output_file.expect("unreachable"),
                     #[cfg(feature = "experiment_api")]
