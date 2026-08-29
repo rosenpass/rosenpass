@@ -1,7 +1,7 @@
 //! TODO: document validation
 //!
 
-use super::{AsymmetricCipherType, FlatDeviceManagedByChoice};
+use super::{FlatDeviceManagedByChoice, StaticKemChoice};
 use crate::internal::util::file::LoadValue;
 use crate::protocol::basic_types::{SPk, SSk};
 use std::{path::PathBuf, str::FromStr};
@@ -18,14 +18,14 @@ pub enum Error {
     #[error(
         "secret key file has invalid content, expected secret key for cipher {1} in file \"{0}\""
     )]
-    OurSecretKeyFileHasInvalidContent(PathBuf, AsymmetricCipherType),
+    OurSecretKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
 
     #[error("can not read public key file: file does not exist: \"{0}\"")]
     OurPublicKeyFileDoesNotExist(PathBuf),
     #[error("TODO")]
     OurPublicKeyFileCanNotBeRead(PathBuf, std::io::Error),
     #[error("TODO")]
-    OurPublicKeyFileHasInvalidContent(PathBuf, AsymmetricCipherType),
+    OurPublicKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
 
     // ============================== [[device]] ==============================
     #[error("device \"{0}\" is managed by rosenpass but has no wireguard secret key specified")]
@@ -53,7 +53,7 @@ pub enum Error {
     #[error("TODO")]
     PeerPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error("TODO")]
-    PeerPublicKeyFileHasInvalidContent(String, PathBuf, AsymmetricCipherType),
+    PeerPublicKeyFileHasInvalidContent(String, PathBuf, StaticKemChoice),
     #[error("TODO")]
     PeerPskFileDoesNotExist(String, PathBuf),
     #[error("TODO")]
@@ -211,6 +211,47 @@ impl super::RosenpassConfig {
         let mut errors: Vec<Error> = Vec::new();
         let mut warnings: Vec<Warning> = Vec::new();
         // ============================== [rosenpass] ==============================
+        // check our key files
+        #[cfg(not(feature = "experiment_crypto_agility"))]
+        {
+            if recipe.check_whether_files_exist && !self.our_keys.secret_key.is_file() {
+                errors.push(Error::OurSecretKeyFileDoesNotExist(self.our_keys.secret_key.clone()));
+            }
+            if recipe.check_file_permissions && let Err(err) = self.our_keys.secret_key.attempt_read() {
+                errors.push(Error::OurSecretKeyFileCanNotBeRead(self.our_keys.secret_key.clone(), err));
+            }
+            if recipe.check_key_file_contents {
+                match self.algorithm.static_kem_choice {
+                    StaticKemChoice::McEliece460896 => {
+                        errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
+                    }
+                    StaticKemChoice::McEliece460896NistRound3 => {
+                        if let Err(err) = SSk::load(&self.our_keys.secret_key) {
+                            errors.push(Error::OurSecretKeyFileHasInvalidContent(self.our_keys.secret_key.clone(), self.algorithm.static_kem_choice));
+                        }
+                    }
+                }
+            }
+            if recipe.check_whether_files_exist && !self.our_keys.public_key.is_file() {
+                errors.push(Error::OurPublicKeyFileDoesNotExist(self.our_keys.public_key.clone()));
+            }
+            if recipe.check_file_permissions && let Err(err) = self.our_keys.public_key.attempt_read() {
+                errors.push(Error::OurPublicKeyFileCanNotBeRead(self.our_keys.public_key.clone(), err));
+            }
+            if recipe.check_key_file_contents {
+                match self.algorithm.static_kem_choice {
+                    StaticKemChoice::McEliece460896 => {
+                        errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
+                    }
+                    StaticKemChoice::McEliece460896NistRound3 => {
+                        if let Err(err) = SPk::load(&self.our_keys.public_key) {
+                            errors.push(Error::OurPublicKeyFileHasInvalidContent(self.our_keys.public_key.clone(), self.algorithm.static_kem_choice));
+                        }
+                    }
+                }
+            }
+        }
+        #[cfg(feature = "experiment_crypto_agility")]
         for keyconfig in self.our_keys.iter() {
             if recipe.check_whether_files_exist && !keyconfig.secret_key_file.is_file() {
                 errors.push(Error::OurSecretKeyFileDoesNotExist(keyconfig.secret_key_file.clone()));
@@ -220,10 +261,10 @@ impl super::RosenpassConfig {
             }
             if recipe.check_key_file_contents {
                 match keyconfig.cipher {
-                    AsymmetricCipherType::McEliece460896 => {
+                    StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
                     }
-                    AsymmetricCipherType::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896NistRound3 => {
                         if let Err(err) = SSk::load(&keyconfig.secret_key_file) {
                             errors.push(Error::OurSecretKeyFileHasInvalidContent(keyconfig.secret_key_file.clone(), keyconfig.cipher));
                         }
@@ -238,10 +279,10 @@ impl super::RosenpassConfig {
             }
             if recipe.check_key_file_contents {
                 match keyconfig.cipher {
-                    AsymmetricCipherType::McEliece460896 => {
+                    StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
                     }
-                    AsymmetricCipherType::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896NistRound3 => {
                         if let Err(err) = SPk::load(&keyconfig.public_key_file) {
                             errors.push(Error::OurPublicKeyFileHasInvalidContent(keyconfig.public_key_file.clone(), keyconfig.cipher));
                         }
@@ -255,6 +296,7 @@ impl super::RosenpassConfig {
                 // TODO: check for NeitherOurKeypairNorApiConnections
             }
         }
+        // TODO: check algorithm choices
         // ============================== [[device]] ==============================
         for device in self.devices.iter() {
             // wg binary
