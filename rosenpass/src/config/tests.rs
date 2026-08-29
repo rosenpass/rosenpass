@@ -27,9 +27,21 @@ fn read_example_config() -> Result<(), anyhow::Error> {
     println!("{:#?}", data.0);
 
     println!("validating...");
-    data.0.validate(ValidationRecipe::all());
-    println!("printing...");
-    println!("{:#?}", data.0);
+    let issues = data.0.validate(ValidationRecipe::all());
+    println!("issues:");
+    match issues {
+        Ok(warnings) => {
+            for warning in warnings.iter() {
+                println!("{}", warning)
+            }
+        }
+        Err(issues) => {
+            for issue in issues.iter() {
+                println!("{}", issue)
+            }
+        }
+    }
+    todo!("check output of RosenpassConfig::validate()");
 
     Ok(())
 }

@@ -20,11 +20,13 @@ pub enum Error {
     )]
     OurSecretKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
 
-    #[error("can not read public key file: file does not exist: \"{0}\"")]
+    #[error("can not read public key file \"{0}\": file does not exist")]
     OurPublicKeyFileDoesNotExist(PathBuf),
-    #[error("TODO")]
+    #[error("can not read public key file \"{0}\": {1}")]
     OurPublicKeyFileCanNotBeRead(PathBuf, std::io::Error),
-    #[error("TODO")]
+    #[error(
+        "public key file has invalid content, expected public key for cipher {1} in file \"{0}\""
+    )]
     OurPublicKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
 
     // ============================== [[device]] ==============================
@@ -48,15 +50,15 @@ pub enum Error {
     DevicesWireguardBinaryMisbehaves(String, PathBuf),
 
     // ============================== [[peer]] ==============================
-    #[error("TODO")]
+    #[error("can not read public key file of peer \"{0}\" from \"{1}\": file does not exist")]
     PeerPublicKeyFileDoesNotExist(String, PathBuf),
-    #[error("TODO")]
+    #[error("can not read public key file of peer \"{0}\" from \"{1}\": {2}")]
     PeerPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error("TODO")]
     PeerPublicKeyFileHasInvalidContent(String, PathBuf, StaticKemChoice),
-    #[error("TODO")]
+    #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": file does not exist")]
     PeerPskFileDoesNotExist(String, PathBuf),
-    #[error("TODO")]
+    #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": {2}")]
     PeerPskFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error("TODO")]
     PeerPskFileHasInvalidContent(String, PathBuf),
@@ -121,9 +123,11 @@ pub enum Warning {
     )]
     DisabledPeerUsesUndefinedDevice(String, String),
 }
-
+#[derive(Debug, Error)]
 pub enum Issue {
+    #[error("error: {0}")]
     Error(Error),
+    #[error("warning: {0}")]
     Warning(Warning),
 }
 
@@ -161,6 +165,9 @@ impl Default for ValidationRecipe {
 }
 
 mod util {
+    use anyhow::anyhow;
+    use rustix::path::Arg;
+
     /// TODO: rename trait
     pub trait AttemptRead {
         fn attempt_read(&self) -> Result<(), std::io::Error>;
@@ -199,7 +206,24 @@ mod util {
         //         .unwrap_or(false)
         // }
         fn behaves_like_wg_binary(&self) -> bool {
-            unimplemented!()
+            let implementation = || -> Result<(), anyhow::Error> {
+                let command_name = self.to_string_lossy();
+                if !std::process::Command::new(self)
+                    .arg("--version")
+                    .output()?
+                    .stdout
+                    .to_string_lossy()
+                    .to_lowercase()
+                    .contains("wireguard")
+                {
+                    return Err(anyhow!(
+                        "output generated with `{command_name} --version` does not contain the string `wireguard`"
+                    ));
+                }
+                Ok(())
+                // TODO: check if `wg set` is available
+            };
+            implementation().is_ok() // TODO: return error?
         }
     }
 }
@@ -217,10 +241,10 @@ impl super::RosenpassConfig {
             if recipe.check_whether_files_exist && !self.our_keys.secret_key.is_file() {
                 errors.push(Error::OurSecretKeyFileDoesNotExist(self.our_keys.secret_key.clone()));
             }
-            if recipe.check_file_permissions && let Err(err) = self.our_keys.secret_key.attempt_read() {
+            else if recipe.check_file_permissions && let Err(err) = self.our_keys.secret_key.attempt_read() {
                 errors.push(Error::OurSecretKeyFileCanNotBeRead(self.our_keys.secret_key.clone(), err));
             }
-            if recipe.check_key_file_contents {
+            else if recipe.check_key_file_contents {
                 match self.algorithm.static_kem_choice {
                     StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
@@ -235,10 +259,10 @@ impl super::RosenpassConfig {
             if recipe.check_whether_files_exist && !self.our_keys.public_key.is_file() {
                 errors.push(Error::OurPublicKeyFileDoesNotExist(self.our_keys.public_key.clone()));
             }
-            if recipe.check_file_permissions && let Err(err) = self.our_keys.public_key.attempt_read() {
+            else if recipe.check_file_permissions && let Err(err) = self.our_keys.public_key.attempt_read() {
                 errors.push(Error::OurPublicKeyFileCanNotBeRead(self.our_keys.public_key.clone(), err));
             }
-            if recipe.check_key_file_contents {
+            else if recipe.check_key_file_contents {
                 match self.algorithm.static_kem_choice {
                     StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
@@ -256,10 +280,10 @@ impl super::RosenpassConfig {
             if recipe.check_whether_files_exist && !keyconfig.secret_key_file.is_file() {
                 errors.push(Error::OurSecretKeyFileDoesNotExist(keyconfig.secret_key_file.clone()));
             }
-            if recipe.check_file_permissions && let Err(err) = keyconfig.secret_key_file.attempt_read() {
+            else if recipe.check_file_permissions && let Err(err) = keyconfig.secret_key_file.attempt_read() {
                 errors.push(Error::OurSecretKeyFileCanNotBeRead(keyconfig.secret_key_file.clone(), err));
             }
-            if recipe.check_key_file_contents {
+            else if recipe.check_key_file_contents {
                 match keyconfig.cipher {
                     StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
@@ -274,10 +298,10 @@ impl super::RosenpassConfig {
             if recipe.check_whether_files_exist && !keyconfig.public_key_file.is_file() {
                 errors.push(Error::OurPublicKeyFileDoesNotExist(keyconfig.public_key_file.clone()));
             }
-            if recipe.check_file_permissions && let Err(err) = keyconfig.public_key_file.attempt_read() {
+            else if recipe.check_file_permissions && let Err(err) = keyconfig.public_key_file.attempt_read() {
                 errors.push(Error::OurPublicKeyFileCanNotBeRead(keyconfig.public_key_file.clone(), err));
             }
-            if recipe.check_key_file_contents {
+            else if recipe.check_key_file_contents {
                 match keyconfig.cipher {
                     StaticKemChoice::McEliece460896 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
@@ -305,7 +329,7 @@ impl super::RosenpassConfig {
                     errors.push(Error::DevicesWireguardBinaryDoesNotExist(device.name.clone(), wg_path.clone()));
                 }
                 // TODO: check whether executable
-                if recipe.check_whether_external_binaries_behave && !wg_path.behaves_like_wg_binary() {
+                else if recipe.check_whether_external_binaries_behave && !wg_path.behaves_like_wg_binary() {
                     errors.push(Error::DevicesWireguardBinaryMisbehaves(device.name.clone(), wg_path.clone()));
                 }
             }
@@ -325,7 +349,7 @@ impl super::RosenpassConfig {
             if recipe.check_whether_files_exist && !peer.public_key_file.is_file() {
                 errors.push(Error::PeerPublicKeyFileDoesNotExist(peer.name.clone(), peer.public_key_file.clone()));
             }
-            if recipe.check_file_permissions && let Err(err) = peer.public_key_file.attempt_read() {
+            else if recipe.check_file_permissions && let Err(err) = peer.public_key_file.attempt_read() {
                 errors.push(Error::PeerPublicKeyFileCanNotBeRead(peer.name.clone(), peer.public_key_file.clone(), err))
             }
             // TODO: endpoint
@@ -334,7 +358,7 @@ impl super::RosenpassConfig {
                 if recipe.check_whether_files_exist && !psk.is_file() {
                     errors.push(Error::PeerPskFileDoesNotExist(peer.name.clone(), psk.clone()))
                 }
-                if recipe.check_file_permissions && let Err(err) = psk.attempt_read() {
+                else if recipe.check_file_permissions && let Err(err) = psk.attempt_read() {
                     errors.push(Error::PeerPskFileCanNotBeRead(peer.name.clone(), psk.clone(), err));
                 }
             }
@@ -345,6 +369,7 @@ impl super::RosenpassConfig {
             // output to file
             if let Some(output_to_file) = peer.output_to_file.as_ref() {
                 if output_to_file.enabled {
+                    // note: do not check if file exists because that is not necessary
                     if recipe.check_file_permissions && let Err(err) = output_to_file.output_file_path.attempt_write() {
                         errors.push(Error::PeerOutputToFileNotWritable(peer.name.clone(), output_to_file.output_file_path.clone(), err));
                     }
@@ -367,10 +392,10 @@ impl super::RosenpassConfig {
                             errors.push(Error::PeersWireguardBinaryDoesNotExist(peer.name.clone(), wg_binary.clone()))
                     }
                     // TODO:
-                    // if recipe.check_file_permissions && !wg_binary.is_executable() {
+                    // else if recipe.check_file_permissions && !wg_binary.is_executable() {
                     //     errors.push(Error::PeersWireguardBinaryIsNotExecutable(peer.name, wg_binary.clone()));
                     // }
-                    if recipe.check_whether_external_binaries_behave && !wg_binary.behaves_like_wg_binary() {
+                    else if recipe.check_whether_external_binaries_behave && !wg_binary.behaves_like_wg_binary() {
                         errors.push(Error::PeersWireguardBinaryMisbehaves(peer.name.clone(), wg_binary.clone()));
                     }
                 }
@@ -378,9 +403,21 @@ impl super::RosenpassConfig {
             }
         }
         // ============================== other ==============================
-        if recipe.check_whether_external_binaries_behave && !PathBuf::from_str("wg").unwrap().behaves_like_wg_binary() {
-            errors.push(Error::DefaultWireguardBinaryMisbehaves);
+        // TODO: check wether this binary is ever used
+        // if recipe.check_whether_external_binaries_behave && !PathBuf::from_str("wg").unwrap().behaves_like_wg_binary() {
+        //     errors.push(Error::DefaultWireguardBinaryMisbehaves);
+        // }
+        // TODO: implement warnings
+
+        // return
+        if errors.is_empty() {
+            Ok(warnings)
         }
-        unimplemented!("warnings")
+        else {
+            let mut issues: Vec::<Issue> = Vec::new();
+            issues.extend(warnings.into_iter().map(|w|Issue::Warning(w)));
+            issues.extend(errors.into_iter().map(|e|Issue::Error(e)));
+            Err(issues)
+        }
     }
 }
