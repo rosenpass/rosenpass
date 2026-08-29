@@ -1,0 +1,66 @@
+[rosenpass]
+# common options for this node
+listen = ["0.0.0.0:9999"]
+logging-level = "info"
+logging-output-file = "/var/log/rosenpass.log" # TODO: is this desired?
+# # crypto-agile keys definition:
+# keys = [
+#     { cipher = "mceliece460896", secret-key-file = "path/to/our.pqsk", public-key-file = "path/to/our.pqpk" },
+#     # { cipher = "mceliece348864", secret-key-file = "path/to/our-other.pqsk", public-key-file = "path/to/our-other.pqpk" },
+#     { cipher = "mceliece460896nistround3", secret-key-file = "path/to/our-other2.pqsk", public-key-file = "path/to/our-other2.pqpk" },
+# ]
+
+# non-agile keys definition:
+keys = { secret-key-file = "path/to/our.pqsk", public-key-file = "path/to/our.pqpk" }
+algorithm = "mceliece460896-Kyber512-ChaChaPoly1305-BLAKE2s"
+
+
+[[device]]
+name = "wg0"                   # alternatively: "rosenpass0" (especially if managed by rosenpass, see next line)
+managed-by = "wireguard"       # alternatively: "rosenpass"
+wg-binary-path = "/usr/bin/wg" # optional for patching in custom wg executables
+if-managed-by-rosenpass = {
+    # These options are accepted inline as long as `managed-by = "rosenpass"`.
+    # But putting them into the `if-managed-by-rosenpass` object is more flexible.
+    # If `managed-by = "wireguard"`, then using these settings inline would throw a warning or an error.
+    wireguard-secret-key-file = "path/to/our-wireguard.sk",
+    wireguard-public-key-file = "path/to/our-wireguard.pk",
+}
+
+
+[[peer]]
+name = "bob" # for easier reference when using the `rp config edit peer bob ...` command and for better logging output
+# # agile:
+# algorithm = "mceliece460896-Kyber512-ChaChaPoly1305-BLAKE2s"
+# non-agile: no algorithm specification here
+
+public-key-file = "path/to/their.pqpk"
+protocol-version = "v03" # supported values: "v02", "v03"
+endpoint = "1.2.3.4:9999"
+preshared-key-file = "path/to/preshared-key.psk"
+osk-domain-separator = {
+    organization = "my.org",
+    labels = ["My App"],
+}
+
+# The following options are potential uses for the exchanged keys:
+output-to-file = { # writes key to text file
+    enabled = true, # defaults to true
+    path = "path/to/optional-output-file.txt",
+}
+wireguard = { # uses key to secure wireguard
+    enabled = true,                 # defaults to true
+    device = "wg0",                 # references a device from the [[device]] section above
+    wg-binary-path = "/usr/bin/wg", # optional for patching in custom wg executables, defaults to `wg`
+
+    # the following settings are only used if the device is managed by rosenpass
+    if-managed-by-rosenpass = {
+        wiregurard-public-key-file = "path/to/their-wireguard.pk", # TODO: this option is only used by rp (device managed by rosenpass)
+        persistent-keepalive = 25,
+        allowed-ips = ["1.2.3.0/24"],
+        wg-extra-arguments = ["TODO"],
+    },
+}
+
+# [[peer]]
+# ...

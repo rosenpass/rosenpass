@@ -131,6 +131,7 @@ pub enum Issue {
     Warning(Warning),
 }
 
+#[derive(Debug)]
 pub struct ValidationRecipe {
     pub check_inconsistencies: bool,
     pub check_whether_files_exist: bool,
