@@ -346,7 +346,7 @@ impl Rosenpass {
     /// Generate an example configuration
     pub fn example_config() -> Self {
         let peer = RosenpassPeer {
-            public_key: "rp-peer-public-key".into(),
+            public_key: "rp-peer-public-key-file".into(),
             endpoint: Some("my-peer.test:9999".into()),
             exchange_command: [
                 "wg",
@@ -360,14 +360,14 @@ impl Rosenpass {
             .into_iter()
             .map(|x| x.to_string())
             .collect(),
-            key_out: Some("rp-key-out".into()),
+            key_out: Some("rp-key-out.txt".into()),
             pre_shared_key: None,
             wg: None,
         };
 
         Self {
-            public_key: "rp-public-key".into(),
-            secret_key: "rp-secret-key".into(),
+            public_key: "rp-public-key-file".into(),
+            secret_key: "rp-secret-key-file".into(),
             peers: vec![peer],
             ..Self::new("", "")
         }
