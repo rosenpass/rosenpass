@@ -11,7 +11,7 @@ pub const MAX_RESPONSE_LEN: usize = 2500; // TODO fix this
 pub const MAX_REQUEST_FDS: usize = 2;
 
 /// Message envelope for API messages
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, KnownLayout, Immutable, PartialEq, Eq)]
 pub struct Envelope<M: IntoBytes + FromBytes> {
     /// Which message this is
@@ -26,7 +26,7 @@ pub type RequestEnvelope<M> = Envelope<M>;
 pub type ResponseEnvelope<M> = Envelope<M>;
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct PingRequestPayload {
     /// Randomly generated connection id
@@ -67,7 +67,7 @@ impl Message for PingRequest {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct PingResponsePayload {
     /// Randomly generated connection id
@@ -108,7 +108,7 @@ impl Message for PingResponse {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct SupplyKeypairRequestPayload {}
 
@@ -168,7 +168,7 @@ pub mod supply_keypair_response_status {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct SupplyKeypairResponsePayload {
     #[allow(missing_docs)]
@@ -209,7 +209,7 @@ impl Message for SupplyKeypairResponse {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddListenSocketRequestPayload {}
 
@@ -263,7 +263,7 @@ pub mod add_listen_socket_response_status {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddListenSocketResponsePayload {
     pub status: u128,
@@ -303,7 +303,7 @@ impl Message for AddListenSocketResponse {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddPskBrokerRequestPayload {}
 
@@ -358,7 +358,7 @@ pub mod add_psk_broker_response_status {
 }
 
 #[allow(missing_docs)]
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
 pub struct AddPskBrokerResponsePayload {
     pub status: u128,
