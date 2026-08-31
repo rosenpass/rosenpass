@@ -222,6 +222,12 @@
                     };
                   in
                   pkgs.rosenpass.override { inherit rustPlatform; };
+                # Test specific feature combinations: experiment_api
+                rosenpass-feat-experiment-api = pkgs.rosenpass.overrideAttrs (old: {
+                  name = "rosenpass-feat-experiment-api";
+                  cargoBuildFeatures = [ "experiment_api" ];
+                  cargoCheckFeatures = [ "experiment_api" ];
+                });
               }
               // pkgs.lib.optionalAttrs (system == "x86_64-linux") (
                 import ./tests/legacy-distro-packaging.nix {

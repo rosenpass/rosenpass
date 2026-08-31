@@ -41,7 +41,7 @@ path = "src/internal/wireguard_broker/bin/priviledged.rs"
 test = false
 bench = false
 doc = false
-required-features = ["experiment_api"]
+required-features = ["experiment_api", "expose_internal_modules"]
 
 [[bin]]
 # from crate `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
@@ -50,7 +50,7 @@ test = false
 bench = false
 path = "src/internal/wireguard_broker/bin/socket_handler.rs"
 doc = false
-required-features = ["experiment_api"]
+required-features = ["experiment_api", "expose_internal_modules"]
 
 # ============================== tests ==============================
 [[test]]
@@ -251,7 +251,8 @@ experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:libc",                           # from `rosenpass-wireguard-broker
+  "dep:libc",                           # From `rosenpass-wireguard-broker`
+  "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
   "experiment_file_descriptor_passing",
 ]
 internal_testing = []
