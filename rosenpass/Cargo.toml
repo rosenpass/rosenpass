@@ -14,8 +14,8 @@ name = "handshake"
 harness = false
 
 [dependencies]
-anyhow = { version = "1.0.71", features = ["backtrace"] }
-base64 = "0.22"
+anyhow = { version = "1.0", features = ["backtrace"] }
+base64 = "0.23"
 static_assertions = "1.1.0"
 memoffset = "0.9.0"
 libsodium-sys-stable = { version = "1.19.28", features = ["use-pkg-config"] }
@@ -34,7 +34,7 @@ clap = { version = "4.3.0", features = ["derive"] }
 mio = { version = "1.2", features = ["net", "os-poll"] }
 
 [build-dependencies]
-anyhow = "1.0.71"
+anyhow = "1.0"
 
 [dev-dependencies]
 criterion = "0.8"

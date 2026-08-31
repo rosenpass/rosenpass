@@ -16,7 +16,10 @@
       "*.yaml"
       "*.yml"
     ];
-    excludes = [ "supply-chain/*" ];
+    excludes = [
+      "supply-chain/*"
+      "CHANGELOG.md"
+    ];
   };
   programs.taplo = {
     enable = true;

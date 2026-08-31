@@ -1,31 +1,39 @@
 # Rosenpass README
 
+[![GitHub Release](https://img.shields.io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
+[![crates.io](https://img.shields.io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
+[![License](https://img.shields.io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
 ![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
 ![QC](https://github.com/rosenpass/rosenpass/actions/workflows/qc.yaml/badge.svg)
-![crates.io](https://img.shields.io/crates/v/rosenpass.svg)
-![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/cargo/rosenpass)
+[![docs.rs](https://docs.rs/rosenpass/badge.svg)](https://docs.rs/rosenpass)
 
 This repository contains
 
 1. A description of the [Rosenpass protocol](https://github.com/rosenpass/rosenpass/raw/papers-pdf/whitepaper.pdf)
-2. The reference implementation of the protocol – the [rosenpass tool](./src)
+2. The reference implementation of the protocol – the [rosenpass tool](./rosenpass)
 3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rp)
 4. [Security analysis](./analysis) of the protocol using proverif
 
 ## Getting started
 
-First, [install rosenpass](#Getting-Rosenpass). Then, check out the help functions of `rp` & `rosenpass`:
+First, [install rosenpass](#getting-rosenpass). Then, check out the help functions of `rp` & `rosenpass`:
 
 ```sh
 rp help
 rosenpass help
 ```
 
-Follow [quick start instructions](https://rosenpass.eu/#start) to get a VPN up and running.
+Follow [quick start instructions](https://rosenpass.eu/docs/rosenpass-tool/guides/) to get a VPN up and running.
+
+## Contributing
+
+Contributions are generally welcome. Join our [Matrix Chat](https://matrix.to/#/#rosenpass:matrix.org) if you are looking for guidance on how to contribute or for people to collaborate with.
+
+We also have a – as of now, very minimal – [contributors guide](CONTRIBUTING.md).
 
 ## Software architecture
 
-The [rosenpass tool](./src/) is written in Rust and uses liboqs[^liboqs] and libsodium[^libsodium]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
+The [rosenpass tool](./rosenpass) is written in Rust and uses liboqs[^liboqs] and libsodium[^libsodium]. The tool establishes a symmetric key and provides it to WireGuard. Since it supplies WireGuard with key through the PSK feature using Rosenpass+WireGuard is cryptographically no less secure than using WireGuard on its own ("hybrid security"). Rosenpass refreshes the symmetric key every two minutes.
 
 As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
 
@@ -85,4 +93,7 @@ Don't want to use GitHub or only have an IPv6 connection? Rosenpass has set up t
 
 # Supported by
 
-Funded through <a href="https://nlnet.nl/">NLNet</a> with financial support for the European Commission's <a href="https://nlnet.nl/assure">NGI Assure</a> program.
+Rosenpass has been funded through:
+
+- [NLNet](https://nlnet.nl/) with financial support for the European Commission's [NGI Assure](https://nlnet.nl/assure) program
+- [Sovereign Tech Fund](https://www.sovereign.tech/programs/fund) with financial support from German [Federal Ministry for Digital Transformation and Government Modernisation](https://bmds.bund.de/en/)

@@ -43,15 +43,21 @@ dbg() {
   echo >&2 "$@"
 }
 
-
+# check whether the `${scriptdir}` is a git repository
+# stdout output:
+# - if it is a git repository: root path of the repo
+# - if it is not a git repo: empty output
+# exit code is always 0
 detect_git_dir() {
+  # return empty string if `git` is not installed
+  command -v git >/dev/null 2>&1 || return 0
   # https://stackoverflow.com/questions/3618078/pipe-only-stderr-through-a-filter
   (
     git -C "${scriptdir}" rev-parse --show-toplevel 3>&1 1>&2 2>&3 3>&- \
       | sed '
           /not a git repository/d;
           s/^/WARNING: /'
-  ) 3>&1 1>&2 2>&3 3>&-
+  ) 3>&1 1>&2 2>&3 3>&- || true
 }
 
 # Cleanup subsystem (sigterm)
