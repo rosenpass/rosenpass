@@ -14,7 +14,7 @@ pub const REQUEST_MSG_BUFFER_SIZE: usize = ENVELOPE_OVERHEAD + 32 + 32 + 1 + 255
 pub const RESPONSE_MSG_BUFFER_SIZE: usize = ENVELOPE_OVERHEAD + 1;
 
 /// Envelope for messages being passed around.
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct Envelope<M: IntoBytes + FromBytes + KnownLayout + Immutable> {
     /// [MsgType] of this message
@@ -28,7 +28,7 @@ pub struct Envelope<M: IntoBytes + FromBytes + KnownLayout + Immutable> {
 /// Message format for requests to set a pre-shared key.
 /// # Example
 ///
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct SetPskRequest {
     /// The pre-shared key.
@@ -84,7 +84,7 @@ impl SetPskRequest {
 }
 
 /// Message format for response to the set pre-shared key operation.
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct SetPskResponse {
     pub return_code: u8,
