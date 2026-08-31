@@ -35,6 +35,8 @@ jobs:
           rosenpass authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: run nix format
         run: nix fmt -- --fail-on-change
+      - name: Run Rust Markdown code block Formatting Script
+        run: nix-shell -p rustfmt --command './format_rust_code.sh --mode check'
 
   cargo-bench:
     runs-on: ubicloud-standard-2
