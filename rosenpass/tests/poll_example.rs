@@ -149,7 +149,7 @@ fn test_successful_exchange_under_packet_loss(
         } = ev
         {
             // Drop every tenth package
-            if pkg_counter % 10 == 0 {
+            if pkg_counter.is_multiple_of(10) {
                 source.drop_outgoing_packet(&mut sim);
             }
 
