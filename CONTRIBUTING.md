@@ -1,41 +1,20 @@
 # Contributing to Rosenpass
 
-## Common operations
+## Tooling
 
-### Apply code formatting
+When contributing to this project, you probably want to use this tooling:
 
-Format rust code:
+1. [install Nix package manager](https://nixos.org/download/)
+2. get all shell with all tooling prived by running `nix develop`
 
-```bash
-cargo fmt
-```
+## Before opening PRs
 
-Format rust code in markdown files:
+Before opening PRs, please
 
-```bash
-./format_rust_code.sh --mode fix
-```
+1. format the code with `nix fmt`
+2. format Rust code in MarkDown files with `./format_rust_code.sh --mode fix`
+3. run tests with `RUST_MIN_STACK=8388608 cargo test --workspace --all-features`
 
-### Spawn a development environment with nix
+When making a larger contribution, please run the code coverage tool. Keep in mind that many of Rosenpass' tests are doctests, so to get an accurate read on our code coverage, you have to include doctests which is done by running: `./coverage_report.sh`
 
-```bash
-nix develop .#fullEnv
-```
-
-You need to [install this nix package manager](https://wiki.archlinux.org/title/Nix) first.
-
-### Run our test
-
-Make sure to increase the stack size available; some of our cryptography operations require a lot of stack memory.
-
-```bash
-RUST_MIN_STACK=8388608 cargo test --workspace --all-features
-```
-
-### Generate coverage reports
-
-Keep in mind that many of Rosenpass' tests are doctests, so to get an accurate read on our code coverage, you have to include doctests:
-
-```bash
-./coverage_report.sh
-```
+If you are a first-time contributer, feel free to contact us before starting any work. Upfront coordination can be really useful for everyone involved.
