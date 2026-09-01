@@ -228,6 +228,12 @@
                   cargoBuildFeatures = [ "experiment_api" ];
                   cargoCheckFeatures = [ "experiment_api" ];
                 });
+                # Test specific feature combinations: expose_internal_modules
+                rosenpass-feat-expose-internal-modules = pkgs.rosenpass.overrideAttrs (old: {
+                  name = "rosenpass-feat-expose-internal-modules";
+                  cargoBuildFeatures = [ "expose_internal_modules" ];
+                  cargoCheckFeatures = [ "expose_internal_modules" ];
+                });
               }
               // pkgs.lib.optionalAttrs (system == "x86_64-linux") (
                 import ./tests/legacy-distro-packaging.nix {

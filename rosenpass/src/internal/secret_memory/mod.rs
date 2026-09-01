@@ -15,7 +15,8 @@
 //! zeroized before it is released. Because allocations of the protected memory are expensive to do,
 //! [Secret] is build to reuse once allocated memory. A simple use of [Secret] looks as follows:
 //! ## Example
-//! ```rust
+#![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use zeroize::Zeroize;
 //! use rosenpass::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
 //! secret_policy_try_use_memfd_secrets();

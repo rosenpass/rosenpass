@@ -24,7 +24,8 @@ pub mod interest {
 ///
 /// # Example
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use mio::net::{UnixListener, UnixStream};
 /// use rosenpass::internal::util::mio::{UnixListenerExt, UnixStreamExt};
 ///

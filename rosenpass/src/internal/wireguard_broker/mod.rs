@@ -12,7 +12,8 @@
 //!
 //! ## Examples
 //!
-//! ```no_run
+#![cfg_attr(feature = "expose_internal_modules", doc = "```no_run")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! # use rosenpass::internal::secret_memory::{Public, Secret};
 //! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! # use std::error::Error;

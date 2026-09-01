@@ -17,7 +17,8 @@ use std::path::Path;
 /// public.
 ///
 /// # Example
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use zeroize::Zeroize;
 /// # use rosenpass::internal::secret_memory::{Public};
 ///
@@ -197,7 +198,8 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
 /// A [Box] around a [Public] so that the latter one can be allocated on the heap.
 ///
 /// # Example
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use zeroize::Zeroize;
 /// # use rosenpass::internal::secret_memory::{Public, PublicBox};
 ///

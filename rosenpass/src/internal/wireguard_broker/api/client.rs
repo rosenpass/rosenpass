@@ -6,7 +6,8 @@
 //!
 //! # Examples
 //!
-//! ```
+#![cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use rosenpass::internal::wireguard_broker::api::client::{BrokerClient, BrokerClientIo};
 //! #[derive(Debug)]
 //! struct MyIo;

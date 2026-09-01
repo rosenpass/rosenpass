@@ -14,7 +14,8 @@ use typenum::uint::{UInt, UTerm};
 ///
 /// # Examples
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use typenum::consts::U10;
 /// # use rosenpass::internal::util::typenum2const;
 ///
@@ -41,7 +42,8 @@ pub use typenum2const;
 ///
 /// # Examples
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::typenum2const;
 /// use typenum::consts::U42;
 /// use rosenpass::internal::util::typenum::IntoConst;

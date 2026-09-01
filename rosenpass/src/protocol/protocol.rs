@@ -181,7 +181,8 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::ops::DerefMut;
 ///
 /// use rosenpass::internal::ciphers::StaticKem;
@@ -275,7 +276,8 @@ impl Peer {
     ///
     /// This is dirty but allows us to perform easy incremental construction of [Self].
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{Peer, ProtocolVersion};
     /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
@@ -466,7 +468,8 @@ pub type KnownResponseHash = Public<16>;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use zerocopy::FromZeros;
 /// use rosenpass::protocol::KnownResponseHasher;
 /// use rosenpass::msgs::{Envelope, InitConf};
@@ -628,7 +631,8 @@ pub trait Mortal {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::ops::DerefMut;
 /// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::protocol::basic_types::{SSk, SPk};
@@ -1170,7 +1174,8 @@ impl CryptoServer {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
@@ -1235,7 +1240,8 @@ impl CryptoServer {
     /// Add a peer with an optional pre shared key (`psk`), its public key (`pk`) and the peer's
     /// protocol version (`protocol_version`).
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
     /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -1526,7 +1532,8 @@ impl Session {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::{Session, HandshakeRole};
     /// use rosenpass::internal::ciphers::KeyedHash;
     ///
@@ -1744,7 +1751,8 @@ impl Mortal for KnownInitConfResponsePtr {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use assert_tv::TestVector;
 /// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};

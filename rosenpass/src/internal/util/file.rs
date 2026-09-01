@@ -20,7 +20,8 @@ pub enum Visibility {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::io::{Write, Read};
 /// use tempfile::tempdir;
 /// use rosenpass::internal::util::file::{fopen_r, fopen_w, Visibility};
@@ -78,7 +79,8 @@ pub trait ReadSliceToEnd {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::file::ReadSliceToEnd;
     ///
     /// const DATA : &[u8] = b"Hello World";
@@ -140,7 +142,8 @@ pub trait ReadExactToEnd {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::file::ReadExactToEnd;
     ///
     /// const DATA : &[u8] = b"Hello World";
@@ -193,7 +196,8 @@ pub trait LoadValue {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use std::path::Path;
     /// use std::io::Write;
     /// use tempfile::tempdir;
@@ -249,7 +253,8 @@ pub trait LoadValueB64 {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use std::path::Path;
     /// use tempfile::tempdir;
     /// use rosenpass::internal::util::b64::{b64_decode, b64_encode};

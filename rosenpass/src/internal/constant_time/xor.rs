@@ -29,7 +29,8 @@ use rosenpass_to::{To, with_destination};
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::constant_time::xor;
 /// use rosenpass_to::To;
 /// assert_eq!(

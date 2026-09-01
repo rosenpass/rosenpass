@@ -14,7 +14,8 @@ use crate::internal::util::{repeat, return_if};
 ///
 /// # Example
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::io::{Read, Write};
 /// use std::net::UdpSocket;
 /// use std::os::fd::{AsFd, AsRawFd};

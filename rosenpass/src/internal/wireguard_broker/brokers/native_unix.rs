@@ -6,7 +6,8 @@
 //!
 //! # Examples
 //!
-//! ```no_run
+#![cfg_attr(feature = "expose_internal_modules", doc = "```no_run")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use rosenpass::internal::secret_memory::{Public, Secret};
 //! use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBroker, NativeUnixBrokerConfigBase};
 //! use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerCfg, WG_KEY_LEN, WG_PEER_LEN};
@@ -163,7 +164,8 @@ impl WireguardBrokerMio for NativeUnixBroker {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBase;
 /// use rosenpass::internal::secret_memory::Public;
 /// use rosenpass::internal::wireguard_broker::WG_PEER_LEN;
@@ -195,7 +197,8 @@ impl NativeUnixBrokerConfigBaseBuilder {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use rosenpass::internal::wireguard_broker::brokers::native_unix::{NativeUnixBrokerConfigBaseBuilder};
     /// let mut peer_cfg = NativeUnixBrokerConfigBaseBuilder::default();
@@ -231,7 +234,8 @@ impl NativeUnixBrokerConfigBaseBuilder {
     /// Note: This function cannot fail as `Vec<String>` is always serializable.
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use rosenpass::internal::wireguard_broker::brokers::native_unix::NativeUnixBrokerConfigBaseBuilder;
     ///

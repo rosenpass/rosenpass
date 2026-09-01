@@ -16,7 +16,8 @@ use super::{CryptoServer, PeerPtr};
 ///
 /// Decomposing a key pair into its individual components, then recreating it:
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::protocol::Keypair;
 ///
 /// // We have to define the security policy before using Secrets.
@@ -48,7 +49,8 @@ impl Keypair {
     ///
     /// # Example
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::Keypair;
     ///
@@ -77,7 +79,8 @@ See [SSk:zero()][SSk::zero] and [SPk:zero()][SPk::zero], respectively.
     )]
     /// # Example
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::basic_types::{SSk, SPk};
     /// use rosenpass::protocol::Keypair;
     ///
@@ -170,7 +173,8 @@ pub struct MissingKeypair;
 /// .
 /// # Example
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::build::Build;
 /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
 ///
@@ -297,7 +301,8 @@ impl BuildCryptoServer {
     ///
     /// ## Adding key pairs to an existing builder
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
@@ -322,7 +327,8 @@ impl BuildCryptoServer {
     ///
     /// ## Basic error handling: Re-assigning key pairs
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     /// secret_policy_use_only_malloc_secrets();
@@ -351,7 +357,8 @@ impl BuildCryptoServer {
     ///
     /// Adding peers to an existing builder:
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::config::ProtocolVersion;
     ///
     /// use rosenpass::internal::util::build::Build;
@@ -422,7 +429,8 @@ impl BuildCryptoServer {
     ///
     ///  Extracting the server configuration from a builder:
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::Build;
     /// use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
     ///

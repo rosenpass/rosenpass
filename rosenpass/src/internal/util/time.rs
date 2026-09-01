@@ -8,7 +8,8 @@ use std::time::Instant;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::time::Timebase;
 ///
 /// let timebase = Timebase::default();

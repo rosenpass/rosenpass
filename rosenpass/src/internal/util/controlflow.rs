@@ -6,7 +6,8 @@
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::repeat;
 /// let mut sum = 0;
 /// repeat!(10, {
@@ -28,7 +29,8 @@ pub use repeat;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::return_unless;
 /// fn test_fn() -> i32 {
 ///     return_unless!(true, 1);
@@ -61,7 +63,8 @@ pub use return_unless;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::return_if;
 /// fn test_fn() -> i32 {
 ///     return_if!(true, 1);
@@ -94,7 +97,8 @@ pub use return_if;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::break_if;
 /// let mut sum = 0;
 /// for i in 0..10 {
@@ -131,7 +135,8 @@ pub use break_if;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::continue_if;
 /// let mut sum = 0;
 /// for i in 0..10 {

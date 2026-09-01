@@ -23,7 +23,8 @@ use core::hint::black_box;
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::constant_time::increment as inc;
 /// use rosenpass_to::To;
 ///

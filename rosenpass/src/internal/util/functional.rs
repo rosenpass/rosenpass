@@ -4,7 +4,8 @@
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::borrow::Borrow;
 /// use rosenpass::internal::util::functional::{mutating, MutatingExt, sideeffect, SideffectExt, ApplyExt};
 /// use rosenpass::internal::util::mem::DiscardResultExt;
@@ -231,7 +232,8 @@ impl<T> SideffectExt for T {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::functional::run;
 ///
 /// fn add_and_mul(a: Option<u32>, b: Option<u32>, c: anyhow::Result<u32>, d: anyhow::Result<u32>) -> u32 {

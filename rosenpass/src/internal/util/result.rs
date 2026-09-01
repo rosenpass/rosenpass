@@ -4,7 +4,8 @@ use std::convert::Infallible;
 /// Try block basically…returns a result and allows the use of the question mark operator inside
 ///
 /// # Examples
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use anyhow::Result;
 /// # use rosenpass::internal::util::attempt;
 /// let result: Result<i32> = attempt!({
@@ -29,7 +30,8 @@ pub use attempt;
 
 /// Trait for the ok operation, which provides a way to convert a value into a Result
 /// # Examples
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use rosenpass::internal::util::result::OkExt;
 /// let value: i32 = 42;
 /// let result: Result<i32, &str> = value.ok();
@@ -59,7 +61,8 @@ impl<T, E> OkExt<E> for T {
 ///
 /// Implementations must not panic.
 /// # Examples
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use rosenpass::internal::util::result::GuaranteedValue;
 /// let x:u32 = 10u8.try_into().guaranteed();
 /// ```
@@ -103,7 +106,8 @@ impl<T> FinallyExt for Option<T> {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::num::Wrapping;
 /// use std::result::Result;
 /// use std::convert::Infallible;
@@ -173,7 +177,8 @@ impl<T> GuaranteedValue for Guaranteed<T> {
 ///
 /// # Examples
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use rosenpass::internal::util::result::ensure_or;
 /// let result = ensure_or(5 > 3, "not greater");
 /// assert!(result.is_ok());
@@ -192,7 +197,8 @@ pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
 ///
 /// # Examples
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use rosenpass::internal::util::result::bail_if;
 /// let result = bail_if(false, "not bailed");
 /// assert!(result.is_ok());

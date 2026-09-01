@@ -19,7 +19,8 @@ use super::{mem::Forgetting, result::OkExt};
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::io::Write;
 /// use std::os::fd::{IntoRawFd, AsRawFd};
 /// use tempfile::tempdir;
@@ -58,7 +59,8 @@ pub fn claim_fd(fd: RawFd) -> rustix::io::Result<OwnedFd> {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::io::Write;
 /// use std::os::fd::IntoRawFd;
 /// use tempfile::tempdir;
@@ -91,7 +93,8 @@ pub fn claim_fd_inplace(fd: RawFd) -> rustix::io::Result<OwnedFd> {
 /// the file descriptor numbers permitted by the operating system.
 ///
 /// # Example
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use std::fs::File;
 /// # use std::io::Read;
 /// # use std::os::unix::io::{AsRawFd, FromRawFd};
@@ -157,7 +160,8 @@ pub fn clone_fd_to_cloexec<Fd: AsFd>(fd: Fd, new: &mut OwnedFd) -> rustix::io::R
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::{fs::File, io::Write, os::fd::IntoRawFd};
 /// use rustix::fd::FromRawFd;
 /// use rosenpass::internal::util::fd::open_nullfd;
@@ -174,7 +178,8 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::io::ErrorKind as EK;
 /// use rustix::io::Errno;
 /// use rosenpass::internal::util::fd::IntoStdioErr;
@@ -237,7 +242,8 @@ pub trait StatExt {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::fd::StatExt;
     /// assert!(rustix::fs::stat("/")?.is_socket() == false);
     /// Ok::<(), rustix::io::Errno>(())
@@ -262,7 +268,8 @@ pub trait TryStatExt {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::fd::TryStatExt;
     /// let fd = rustix::fs::open("/", rustix::fs::OFlags::empty(), rustix::fs::Mode::empty())?;
     /// assert!(matches!(fd.is_socket(), Ok(false)));
@@ -353,7 +360,8 @@ pub trait GetUnixSocketType {
     /// - `Err(Self::Error)` if there is an error while performing the check.
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::fs::File;
     /// # use std::os::fd::{AsFd, BorrowedFd};
     /// # use std::os::unix::net::UnixListener;
@@ -373,7 +381,8 @@ pub trait GetUnixSocketType {
     fn is_unix_stream_socket(&self) -> Result<bool, Self::Error>;
     /// Returns Ok(()) only if the underlying socket is a unix stream socket
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::fs::File;
     /// # use std::os::fd::{AsFd, BorrowedFd};
     /// # use std::os::unix::net::{UnixDatagram, UnixListener};
@@ -444,7 +453,8 @@ pub trait GetSocketProtocol {
     /// - `Err(rustix::io::Errno)`: If an error occurs while retrieving the protocol.
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::net::UdpSocket;
     /// # use std::os::fd::{AsFd, AsRawFd};
     /// # use rosenpass::internal::util::fd::GetSocketProtocol;
@@ -456,7 +466,8 @@ pub trait GetSocketProtocol {
     /// Check if the socket is a udp socket
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::net::UdpSocket;
     /// # use std::net::TcpListener;
     /// # use std::os::fd::{AsFd, AsRawFd};
@@ -482,7 +493,8 @@ pub trait GetSocketProtocol {
     /// - `Err(anyhow::Error)` if the socket is not a UDP socket or if an error occurs retrieving the socket protocol.
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::net::UdpSocket;
     /// # use std::net::TcpListener;
     /// # use std::os::fd::{AsFd, AsRawFd};

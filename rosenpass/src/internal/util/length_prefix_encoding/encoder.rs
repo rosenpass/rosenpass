@@ -128,7 +128,8 @@ pub struct WriteToIoReturn {
 ///
 /// Simplified usage example:
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
 /// use rosenpass::internal::util::length_prefix_encoding::encoder::HEADER_SIZE;
 ///
@@ -157,7 +158,8 @@ pub struct WriteToIoReturn {
 ///
 /// Creating an encoder with invalid parameters triggers one of the various sanity checks:
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, MessageLenSanityError};
 ///
 /// let message_size = 32;
@@ -214,7 +216,8 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     ///	# Example
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
     ///
     /// let msg = String::from("hello world");
@@ -231,7 +234,8 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     ///	# Example
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::length_prefix_encoding::encoder::LengthPrefixEncoder;
     ///
     /// let msg = String::from("hello world");
@@ -261,7 +265,8 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     /// # Example
     ///
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, HEADER_SIZE};
     /// let msg = String::from("message in a bottle");
@@ -297,7 +302,8 @@ impl<Buf: Borrow<[u8]>> LengthPrefixEncoder<Buf> {
     ///
     /// # Example
     ///
-    ///	```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::encoder::{LengthPrefixEncoder, WriteToIoReturn, HEADER_SIZE};
     ///	let msg = String::from("Hello world");

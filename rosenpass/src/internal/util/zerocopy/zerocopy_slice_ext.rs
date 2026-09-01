@@ -14,7 +14,8 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::{RefMaker, ZerocopySliceExt};
     ///
@@ -38,7 +39,8 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
     ///
@@ -69,7 +71,8 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
@@ -101,7 +104,8 @@ pub trait ZerocopySliceExt: Sized + ByteSlice {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopySliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
@@ -141,7 +145,8 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
@@ -172,7 +177,8 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
@@ -204,7 +210,8 @@ pub trait ZerocopyMutSliceExt: ZerocopySliceExt + Sized + ByteSliceMut {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::ZerocopyMutSliceExt;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
