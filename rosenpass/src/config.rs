@@ -15,7 +15,7 @@ use anyhow::{bail, ensure};
 
 use serde::{Deserialize, Serialize};
 
-use crate::internal::util::file::{LoadValue, Visibility, fopen_w};
+use crate::internal::util::file::{fopen_w, LoadValue, Visibility};
 
 use crate::protocol::basic_types::{SPk, SSk};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
@@ -865,11 +865,15 @@ mod test {
     #[test]
     fn test_protocol_version() {
         let mut rosenpass = Rosenpass::empty();
-        let mut peer_v_02 = RosenpassPeer::default();
-        peer_v_02.protocol_version = ProtocolVersion::V02;
+        let peer_v_02 = RosenpassPeer {
+            protocol_version: ProtocolVersion::V02,
+            ..RosenpassPeer::default()
+        };
         rosenpass.peers.push(peer_v_02);
-        let mut peer_v_03 = RosenpassPeer::default();
-        peer_v_03.protocol_version = ProtocolVersion::V03;
+        let peer_v_03 = RosenpassPeer {
+            protocol_version: ProtocolVersion::V03,
+            ..RosenpassPeer::default()
+        };
         rosenpass.peers.push(peer_v_03);
         #[cfg(feature = "experiment_api")]
         {
@@ -980,13 +984,14 @@ pub mod util {
     #[cfg(test)]
     mod test {
         use super::*;
+        use std::path::Path;
         #[test]
         fn test_resolve_path_with_tilde() {
             let test = |path_str: &str, resolved: &str| {
                 let mut path = PathBuf::from(path_str);
                 resolve_path_with_tilde(&mut path);
                 assert!(
-                    path == PathBuf::from(resolved),
+                    path == Path::new(resolved),
                     "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
                     path_str,
                     path,

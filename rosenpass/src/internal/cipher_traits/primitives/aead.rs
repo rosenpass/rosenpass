@@ -141,7 +141,7 @@ pub trait AeadWithNonceInCiphertext<
         let (nonce, rest) = ciphertext.split_at(NONCE_LEN);
         // We know this should be the right length (we just split it), and everything else would be
         // very unexpected.
-        let nonce = nonce.try_into().map_err(|_| Error::InternalError)?;
+        let nonce = nonce.try_into().map_err(|_| Error::Internal)?;
 
         self.decrypt(plaintext, key, nonce, ad, rest)
     }
@@ -162,12 +162,12 @@ pub enum Error {
     /// An internal error occurred. This should never be happen and indicates an error in the
     /// AEAD implementation.
     #[error("internal error")]
-    InternalError,
+    Internal,
 
     /// Could not decrypt a message because the message is not a valid ciphertext for the given
     /// key.
-    #[error("decryption error")]
-    DecryptError,
+    #[error("decryption failed")]
+    DecryptionFailed,
 
     /// The provided buffers have the wrong lengths.
     #[error("buffers have invalid length")]

@@ -37,6 +37,7 @@ where
     ///
     /// # Arguments
     /// * `out` - Mutable reference to the destination
+    ///
     /// See the tutorial in [readme.md] for examples and more explanations.
     fn to(self, out: &mut Dst) -> Ret {
         (self.fun)(out)

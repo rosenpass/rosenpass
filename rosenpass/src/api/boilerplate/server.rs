@@ -173,7 +173,7 @@ pub trait Server {
     ///
     /// - `req` – A buffer containing the request
     /// - `res_fds` – A list of file descriptors received during the API call (i.e. this is used
-    ///    with unix socket file descriptor passing)
+    ///   with unix socket file descriptor passing)
     /// - `res` – The buffer to store the response in.
     fn handle_message<ReqBuf, ResBuf>(
         &mut self,
