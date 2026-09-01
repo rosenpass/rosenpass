@@ -223,6 +223,13 @@ netlink-packet-core = { version = "0.9", optional = true }
 netlink-packet-generic = { version = "0.5", optional = true }
 netlink-packet-wireguard = { version = "0.5", optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+] }
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }

@@ -102,7 +102,7 @@ pub struct CryptoAlgorithmsChoice {
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum StaticKemChoice {
     #[serde(rename = "mceliece460896round4")]
-    McEliece460896round4,
+    McEliece460896Round4,
     #[serde(rename = "mceliece460896round2")]
     McEliece460896Round2,
 }
