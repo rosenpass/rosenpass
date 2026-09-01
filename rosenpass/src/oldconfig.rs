@@ -976,9 +976,34 @@ pub mod util {
             }
         }
     }
+    /// takes a path that can be relative to a working directory or might start with a `~` and resolves it
+    ///
+    /// Note: `working_diretory` may not start with a tilde.
+    ///
+    /// ```
+    /// use rosenpass::oldconfig::util::resolve_relative_path_with_tilde;
+    /// let path = std::path::PathBuf::from("foo.toml");
+    /// let working_directory = std::path::PathBuf::from("some_dir");
+    /// let resolved_path = resolve_relative_path_with_tilde(&path, &working_directory);
+    /// assert!(resolved_path == working_directory.join(path));
+    /// ```
+    pub fn resolve_relative_path_with_tilde(
+        path: &PathBuf,
+        working_directory: &PathBuf,
+    ) -> PathBuf {
+        let mut path = path.clone();
+        resolve_path_with_tilde(&mut path);
+        if !path.is_relative() {
+            path
+        } else {
+            working_directory.join(path)
+        }
+    }
 
     #[cfg(test)]
     mod test {
+        use std::str::FromStr;
+
         use super::*;
         #[test]
         fn test_resolve_path_with_tilde() {
@@ -1008,6 +1033,32 @@ pub mod util {
             test("/~/foo.toml", PathBuf::from("/~/foo.toml"));
             test(r"~\foo", PathBuf::from(r"~\foo"));
             test(r"C:\~\foo.toml", PathBuf::from(r"C:\~\foo.toml"));
+        }
+        #[test]
+        fn test_resolve_relative_path_with_tilde() {
+            let home_dir = home::home_dir().expect("can not determine home directory");
+            let working_dir = PathBuf::from("/foo/bar");
+            assert_ne!(
+                home_dir, working_dir,
+                "home dir and working dir are unexpectedly the same"
+            );
+            let test = |path_str: &str, resolved: PathBuf| {
+                let result =
+                    resolve_relative_path_with_tilde(&PathBuf::from(path_str), &working_dir);
+                assert_eq!(
+                    result, resolved,
+                    "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
+                    path_str, result, resolved
+                )
+            };
+
+            // should resolve
+            test("~/foo.toml", home_dir.join("foo.toml"));
+            test("foo.toml", working_dir.join("foo.toml"));
+            test("a/b.toml", working_dir.join("a").join("b.toml"));
+
+            // should _not_ resolve
+            // TODO
         }
     }
 }
