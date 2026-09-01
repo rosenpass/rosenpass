@@ -3,8 +3,8 @@
 listen = ["0.0.0.0:9999"]
 logging-level = "info"
 logging-output-file = "/var/log/rosenpass.log"
-keys = { secret-key-file = "../keys/alice-0.2-secret/pqsk", public-key-file = "../keys/alice-0.2-public/pqpk" }
-algorithm = "mceliece460896round2-Kyber512-ChaChaPoly1305-BLAKE2s"
+keys = { secret-key-file = "../keys/alice-main-secret/pqsk", public-key-file = "../keys/alice-main-public/pqpk" }
+algorithm = "mceliece460896round4-Kyber512-ChaChaPoly1305-BLAKE2s"
 
 
 [[device]]
@@ -15,14 +15,14 @@ if-managed-by-rosenpass = {
     # These options are accepted inline as long as `managed-by = "rosenpass"`.
     # But putting them into the `if-managed-by-rosenpass` object is more flexible.
     # If `managed-by = "wireguard"`, then using these settings inline would throw a warning or an error.
-    wireguard-secret-key-file = "../keys/alice-0.2-secret/wgsk",
-    wireguard-public-key-file = "../keys/alice-0.2-public/wgpk",
+    wireguard-secret-key-file = "../keys/alice-main-secret/wgsk",
+    wireguard-public-key-file = "../keys/alice-main-public/wgpk",
 }
 
 
 [[peer]]
 name = "bob" # for easier reference when using the `rp config edit peer bob ...` command and for better logging output
-public-key-file = "../keys/bob-0.2-public/pqpk"
+public-key-file = "../keys/bob-main-public/pqpk"
 protocol-version = "v03" # supported values: "v02", "v03"
 endpoint = "1.2.3.4:9999"
 preshared-key-file = "../keys/alice-bob.psk"
