@@ -145,7 +145,7 @@ fn main() {
         .map(|(label, agg_stat)| JsonAggregateStat {
             protocol_version: "V03",
             label,
-            agg_stat: &agg_stat,
+            agg_stat,
         });
 
     // Write results as JSON
