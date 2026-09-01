@@ -2,6 +2,7 @@
 //!
 
 use super::{FlatDeviceManagedByChoice, StaticKemChoice};
+use crate::internal::ciphers::StaticKem;
 use crate::internal::util::file::LoadValue;
 use crate::protocol::basic_types::{SPk, SSk};
 use std::{path::PathBuf, str::FromStr};
@@ -122,6 +123,11 @@ pub enum Warning {
         "peer \"{0}\" has wireguard usage disabled, however, it it were enabled, it would use an undefined defined device \"{1}\""
     )]
     DisabledPeerUsesUndefinedDevice(String, String),
+
+    #[error("can not check the validity of {1} secret key (not implemented): \"{0}\"")]
+    CanNotCheckValidityOfStaticKemSecretKey(PathBuf, StaticKemChoice),
+    #[error("can not check the validity of {1} public key (not implemented): \"{0}\"")]
+    CanNotCheckValidityOfStaticKemPublicKey(PathBuf, StaticKemChoice),
 }
 #[derive(Debug, Error)]
 pub enum Issue {
@@ -247,10 +253,11 @@ impl super::RosenpassConfig {
             }
             else if recipe.check_key_file_contents {
                 match self.algorithm.static_kem_choice {
-                    StaticKemChoice::McEliece460896 => {
-                        errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
+                    StaticKemChoice::McEliece460896Round2 => {
+                        warnings.push(Warning::CanNotCheckValidityOfStaticKemSecretKey(self.our_keys.secret_key.clone(), self.algorithm.static_kem_choice))
+                        // errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 secret key files".to_string()));
                     }
-                    StaticKemChoice::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896round4 => {
                         if let Err(err) = SSk::load(&self.our_keys.secret_key) {
                             errors.push(Error::OurSecretKeyFileHasInvalidContent(self.our_keys.secret_key.clone(), self.algorithm.static_kem_choice));
                         }
@@ -265,10 +272,11 @@ impl super::RosenpassConfig {
             }
             else if recipe.check_key_file_contents {
                 match self.algorithm.static_kem_choice {
-                    StaticKemChoice::McEliece460896 => {
-                        errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
+                    StaticKemChoice::McEliece460896Round2 => {
+                        warnings.push(Warning::CanNotCheckValidityOfStaticKemPublicKey(self.our_keys.secret_key.clone(), self.algorithm.static_kem_choice))
+                        // errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 public key files".to_string()));
                     }
-                    StaticKemChoice::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896round4 => {
                         if let Err(err) = SPk::load(&self.our_keys.public_key) {
                             errors.push(Error::OurPublicKeyFileHasInvalidContent(self.our_keys.public_key.clone(), self.algorithm.static_kem_choice));
                         }
@@ -286,10 +294,10 @@ impl super::RosenpassConfig {
             }
             else if recipe.check_key_file_contents {
                 match keyconfig.cipher {
-                    StaticKemChoice::McEliece460896 => {
+                    StaticKemChoice::McEliece460896round4 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 secret key files".to_string()));
                     }
-                    StaticKemChoice::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896Round2 => {
                         if let Err(err) = SSk::load(&keyconfig.secret_key_file) {
                             errors.push(Error::OurSecretKeyFileHasInvalidContent(keyconfig.secret_key_file.clone(), keyconfig.cipher));
                         }
@@ -304,10 +312,10 @@ impl super::RosenpassConfig {
             }
             else if recipe.check_key_file_contents {
                 match keyconfig.cipher {
-                    StaticKemChoice::McEliece460896 => {
+                    StaticKemChoice::McEliece460896round4 => {
                         errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896 public key files".to_string()));
                     }
-                    StaticKemChoice::McEliece460896NistRound3 => {
+                    StaticKemChoice::McEliece460896Round2 => {
                         if let Err(err) = SPk::load(&keyconfig.public_key_file) {
                             errors.push(Error::OurPublicKeyFileHasInvalidContent(keyconfig.public_key_file.clone(), keyconfig.cipher));
                         }

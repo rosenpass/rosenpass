@@ -101,10 +101,10 @@ pub struct CryptoAlgorithmsChoice {
 }
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum StaticKemChoice {
-    #[serde(rename = "mceliece460896")]
-    McEliece460896,
-    #[serde(rename = "mceliece460896nistround3")]
-    McEliece460896NistRound3,
+    #[serde(rename = "mceliece460896round4")]
+    McEliece460896round4,
+    #[serde(rename = "mceliece460896round2")]
+    McEliece460896Round2,
 }
 impl Display for StaticKemChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

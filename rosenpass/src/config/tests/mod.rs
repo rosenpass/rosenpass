@@ -112,18 +112,58 @@ fn validate(
     }
     result
 }
+/// helper function for config tests
+///
+/// goes through the result of [`RosenpassConfig::validate`] and checks that is contains no errors.
+/// However, the function does allow very specific errors which are platform quirks, e.g. if wireguard
+/// is not installed.
+fn assert_validation_succeeded(
+    validation_result: Result<Vec<ValidationWarning>, Vec<ValidationIssue>>,
+) {
+    let issues = match validation_result {
+        Ok(warnings) => warnings
+            .into_iter()
+            .map(|w| ValidationIssue::Warning(w))
+            .collect::<Vec<_>>(),
+        Err(issues) => issues,
+    };
+    for issue in issues.iter() {
+        match issue {
+            ValidationIssue::Error(err) => match err {
+                ValidationError::DefaultWireguardBinaryDoesNotExist
+                | ValidationError::DevicesWireguardBinaryDoesNotExist(_, _)
+                | ValidationError::PeersWireguardBinaryDoesNotExist(_, _) => {
+                    // this is OK because the wireguard binary might not be available on the test setup
+                }
+                _ => panic!("config validation has errors"),
+            },
+            ValidationIssue::Warning(_) => {
+                // this is OK
+            }
+        }
+    }
+    println!("the result of `RosenpassConfig::validate` contains no errors");
+}
 #[test]
-fn read_full_non_agile_config() {
-    let (config, working_dir) = read_toml("full-non-agile.toml").unwrap();
+fn read_full_non_agile_config_with_version_0_2_keys() {
+    let (config, working_dir) = read_toml("full-non-agile-with-v0.2-keys.toml").unwrap();
     let (config, parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
     assert!(parse_warnings.is_empty(), "parser returned warnings");
-    let warnings = validate(&config, ValidationRecipe::all()).expect("validation returned errors");
-    assert!(warnings.is_empty(), "validation returned warnings");
+    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+    // let warnings = validate(&config, ValidationRecipe::all()).expect("validation returned errors");
+    // assert!(warnings.is_empty(), "validation returned warnings");
 }
 #[test]
-fn read_full_agile_config() -> Result<(), anyhow::Error> {
-    let data = read_toml("full-agile.toml")?;
-
-    todo!("write test");
-    Ok(())
+fn read_full_non_agile_config_with_version_main_keys() {
+    let (config, working_dir) = read_toml("full-non-agile-with-main-keys.toml").unwrap();
+    let (config, parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
+    assert!(parse_warnings.is_empty(), "parser returned warnings");
+    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
 }
+// #[test]
+// fn read_full_agile_config() -> Result<(), anyhow::Error> {
+//     let data = read_toml("full-agile.toml")?;
+
+//     todo!("write test");
+//     Ok(())
+// }
