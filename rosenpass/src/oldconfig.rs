@@ -1000,6 +1000,15 @@ pub mod util {
         }
     }
 
+    pub trait ResolvePathWithTilde {
+        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf;
+    }
+    impl ResolvePathWithTilde for PathBuf {
+        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf {
+            resolve_relative_path_with_tilde(&self, &working_directory)
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use std::str::FromStr;

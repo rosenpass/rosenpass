@@ -9,7 +9,7 @@ use crate::config::{
     validation::Warning as ValidationWarning,
 };
 use anyhow::anyhow;
-use std::{env::current_dir, str::FromStr};
+use std::{env::current_dir, path::PathBuf, str::FromStr};
 
 /// helper function for config tests
 ///
@@ -29,15 +29,17 @@ fn init() -> Result<(), anyhow::Error> {
 /// - reads from `src/config/tests/data/configs/${path}` where `path` is the function's parameter
 /// - tries to interpret input as UTF-8 characters
 /// - parses TOML into [`toml_edit::Document`]
-fn read_toml(path: &str) -> Result<toml_edit::Document<String>, anyhow::Error> {
+fn read_toml(path: &str) -> Result<(toml_edit::Document<String>, PathBuf), anyhow::Error> {
     init()?;
     let path = std::path::Path::new("src/config/tests/data/configs").join(path);
     println!("reading file: {path:?}");
-    let data = std::fs::read(path).map_err(|err| anyhow!(err))?;
+    let data = std::fs::read(path.clone()).map_err(|err| anyhow!(err))?;
     let data = String::from_utf8(data).map_err(|err| anyhow!(err))?;
     println!("parsing TOML...");
     let data = toml_edit::Document::from_str(data.as_str()).map_err(|err| anyhow!(err))?;
-    Ok(data)
+    let working_dir = path.parent().unwrap().to_owned();
+    println!("working directory of that config file is: {working_dir:?}");
+    Ok((data, working_dir))
 }
 /// helper function for config tests
 ///
@@ -48,9 +50,10 @@ fn read_toml(path: &str) -> Result<toml_edit::Document<String>, anyhow::Error> {
 /// - returns the result from [`RosenpassConfig::parse_from_toml`] verbatim
 fn parse(
     document: toml_edit::Document<String>,
+    working_directory: &PathBuf,
 ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
     println!("parsing `RosenpassConfig` from `toml_edit::Document`...");
-    let data = RosenpassConfig::parse_from_toml(document);
+    let data = RosenpassConfig::parse_from_toml(document, working_directory);
     match &data {
         Ok(ok) => {
             println!("successfully parsed this config:");
@@ -111,8 +114,8 @@ fn validate(
 }
 #[test]
 fn read_full_non_agile_config() {
-    let config = read_toml("full-non-agile.toml").unwrap();
-    let (config, parse_warnings) = parse(config).expect("parser returned errors");
+    let (config, working_dir) = read_toml("full-non-agile.toml").unwrap();
+    let (config, parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
     assert!(parse_warnings.is_empty(), "parser returned warnings");
     let warnings = validate(&config, ValidationRecipe::all()).expect("validation returned errors");
     assert!(warnings.is_empty(), "validation returned warnings");

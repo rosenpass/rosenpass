@@ -1,3 +1,4 @@
+use crate::oldconfig::util::ResolvePathWithTilde;
 use log::LevelFilter;
 use std::str::FromStr;
 use toml_edit::Table;
@@ -26,6 +27,7 @@ impl RosenpassConfig {
     /// if failing, returns a list of errors and warnings
     pub fn parse_from_toml(
         document: toml_edit::Document<String>,
+        working_directory: &std::path::PathBuf,
     ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
         let mut warnings: Vec<ParseWarning> = Vec::new();
         let mut errors: Vec<ParseError> = Vec::new();
@@ -110,7 +112,9 @@ impl RosenpassConfig {
                 logging_output_file = process_result!(
                     errors,
                     get_as_opt_path_buf(raw, table, table.span(), "logging-output-file")
-                );
+                )
+                .flatten()
+                .map(|p| p.resolve_relative_with_tilde(working_directory));
 
                 // our_keys
                 #[cfg(not(feature = "experiment_crypto_agility"))]
@@ -122,11 +126,13 @@ impl RosenpassConfig {
                     let secret = process_result!(
                         inline_errors,
                         get_as_path_buf(raw, inline_table, inline_table.span(), "secret-key-file")
-                    );
+                    )
+                    .map(|p| p.resolve_relative_with_tilde(working_directory));
                     let public = process_result!(
                         inline_errors,
                         get_as_path_buf(raw, inline_table, inline_table.span(), "public-key-file")
-                    );
+                    )
+                    .map(|p| p.resolve_relative_with_tilde(working_directory));
                     if !inline_errors.is_empty() {
                         errors.append(&mut inline_errors);
                     } else {
@@ -173,11 +179,13 @@ impl RosenpassConfig {
                             let secret_key_file = process_result!(
                                 errors,
                                 get_as_path_buf(raw, key_item, key_item.span(), "secret-key-file")
-                            );
+                            )
+                            .map(|p| p.resolve_relative_with_tilde(working_directory));
                             let public_key_file = process_result!(
                                 errors,
                                 get_as_path_buf(raw, key_item, key_item.span(), "public-key-file")
-                            );
+                            )
+                            .map(|p| p.resolve_relative_with_tilde(working_directory));
                             if !errors.is_empty() {
                                 errors
                             } else {
@@ -265,7 +273,8 @@ impl RosenpassConfig {
                                         inline_table.span(),
                                         "wireguard-secret-key-file",
                                     )
-                                );
+                                )
+                                .map(|p| p.resolve_relative_with_tilde(working_directory));
                                 let public_key = process_result!(
                                     inline_errors,
                                     get_as_path_buf(
@@ -274,7 +283,8 @@ impl RosenpassConfig {
                                         inline_table.span(),
                                         "wireguard-public-key-file"
                                     )
-                                );
+                                )
+                                .map(|p| p.resolve_relative_with_tilde(working_directory));
                                 if !inline_errors.is_empty() {
                                     errors.append(&mut inline_errors);
                                     None
@@ -291,14 +301,16 @@ impl RosenpassConfig {
                     let path_to_wg_binary = process_result!(
                         errors,
                         get_as_opt_path_buf(raw, table, table.span(), "wg-binary-path")
-                    );
+                    )
+                    .flatten()
+                    .map(|p| p.resolve_relative_with_tilde(working_directory));
                     if errors.is_empty() {
                         devices.push(DeviceConfig {
                             name: name.expect("unreachable"),
                             managed_by: managed_by.expect("unreachable"),
                             wireguard_keypair_if_managed_by_rosenpass:
                                 wireguard_keypair_if_managed_by_rosenpass,
-                            path_to_wg_binary: path_to_wg_binary.expect("unreachable"),
+                            path_to_wg_binary: path_to_wg_binary,
                         });
                     }
                     errors
@@ -322,7 +334,8 @@ impl RosenpassConfig {
                     let public_key_file = process_result!(
                         errors,
                         get_as_path_buf(raw, table, table.span(), "public-key-file")
-                    );
+                    )
+                    .map(|p| p.resolve_relative_with_tilde(working_directory));
                     let protocol_version = process_result!(
                         errors,
                         get_as_protocol_version(raw, table, table.span(), "protocol-version")
@@ -334,7 +347,9 @@ impl RosenpassConfig {
                     let preshared_key_file = process_result!(
                         errors,
                         get_as_opt_path_buf(raw, table, table.span(), "preshared-key-file")
-                    );
+                    )
+                    .flatten()
+                    .map(|p| p.resolve_relative_with_tilde(working_directory));
                     let osk_domain_separator = process_result!(
                         errors,
                         get_as_opt_inline_table(raw, table, table.span(), "osk-domain-separator")
@@ -379,7 +394,7 @@ impl RosenpassConfig {
                             public_key_file: public_key_file.expect("unreachable"),
                             protocol_version: protocol_version.expect("unreachable"),
                             endpoint: endpoint.expect("unreachable"),
-                            preshared_key_file: preshared_key_file.expect("unreachable"),
+                            preshared_key_file: preshared_key_file,
                             osk_domain_separator: osk_domain_separator,
                             output_to_file: None, //todo!(),
                             wireguard: None,      //todo!(),
@@ -407,7 +422,7 @@ impl RosenpassConfig {
                     #[cfg(not(feature = "experiment_crypto_agility"))]
                     algorithm: our_algorithm.expect("unreachable"),
                     log_level: log_level.unwrap_or(LevelFilter::Info),
-                    logging_output_file: logging_output_file.expect("unreachable"),
+                    logging_output_file: logging_output_file,
                     #[cfg(feature = "experiment_api")]
                     api: todo!(),
                     devices: devices,
