@@ -984,13 +984,14 @@ pub mod util {
     #[cfg(test)]
     mod test {
         use super::*;
+        use std::path::Path;
         #[test]
         fn test_resolve_path_with_tilde() {
             let test = |path_str: &str, resolved: &str| {
                 let mut path = PathBuf::from(path_str);
                 resolve_path_with_tilde(&mut path);
                 assert!(
-                    path == PathBuf::from(resolved),
+                    path == Path::new(resolved),
                     "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
                     path_str,
                     path,
