@@ -87,7 +87,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             endpoint: None,
             pre_shared_key: None,
             wg: None,
-            protocol_version: protocol_version,
+            protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
@@ -109,7 +109,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             endpoint: Some(peer_a_endpoint.to_owned()),
             pre_shared_key: None,
             wg: None,
-            protocol_version: protocol_version,
+            protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
