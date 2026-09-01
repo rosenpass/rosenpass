@@ -142,7 +142,9 @@ fn assert_validation_succeeded(
             }
         }
     }
-    println!("the result of `RosenpassConfig::validate` contains no errors");
+    println!(
+        "the result of `RosenpassConfig::validate` contains no meaningful errors (missing wg binary errors might be omitted)"
+    );
 }
 #[test]
 fn read_full_non_agile_config_with_version_0_2_keys() {
