@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rosenpass::config::{Rosenpass, Verbosity};
+use rosenpass::oldconfig::{Rosenpass, Verbosity};
 
 #[test]
 fn example_config_rosenpass_store() -> anyhow::Result<()> {

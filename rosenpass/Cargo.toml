@@ -2,7 +2,7 @@
 name = "rosenpass"
 version = "0.3.0-dev"
 authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
@@ -148,6 +148,7 @@ paste = "1.0.15"
 log = { version = "0.4.27" }
 env_logger = "0.11"
 serde = { version = "1.0.217", features = ["derive"] }
+serde_plain = { version = "1.0" }
 toml = "1.1.2"
 clap = { version = "4.5.23", features = ["derive"] }
 clap_complete = "4.5.40"
@@ -212,6 +213,7 @@ oqs-sys = { version = "0.11.0", default-features = false, features = [
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", optional = true }
+toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies] # from `rp`
 ctrlc = { version = "3.2", optional = true }
@@ -221,6 +223,13 @@ netlink-packet-core = { version = "0.9", optional = true }
 netlink-packet-generic = { version = "0.5", optional = true }
 netlink-packet-wireguard = { version = "0.5", optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+] }
 
 [build-dependencies]
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
@@ -254,6 +263,7 @@ experiment_api = [
   "dep:libc",                           # from `rosenpass-wireguard-broker
   "experiment_file_descriptor_passing",
 ]
+experiment_crypto_agility = []
 internal_testing = []
 internal_bin_gen_ipc_msg_types = ["dep:hex", "dep:heck"]
 trace_bench = ["dep:libcrux-test-utils", "expose_internal_modules"]

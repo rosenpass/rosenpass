@@ -59,7 +59,7 @@ impl Tree {
         path.push(self.name());
 
         match self {
-            Self::Branch(_, ref children) => {
+            Self::Branch(_, children) => {
                 for c in children.iter() {
                     c.gen_code_inner(&path, shake_or_blake.clone())?
                 }
