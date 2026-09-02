@@ -1886,18 +1886,56 @@ impl CryptoServer {
                 let msg_in: Ref<&[u8], Envelope<RespHello>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
-                let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
-                let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
-                ensure!(
-                    msg_in.check_seal(self, peer.get(self).protocol_version.keyed_hash())?,
-                    seal_broken
-                );
+                // The initiator retransmits InitHello until it receives a RespHello and the
+                // responder answers every InitHello with a new RespHello, so multiple RespHello
+                // messages may arrive for a single handshake; e.g. an earlier RespHello that
+                // was delayed in the network can arrive after a newer one was already processed.
+                // If the handshake already advanced to awaiting the responder confirmation
+                // ([HandshakeStateMachine::RespConf]), then this RespHello is such a
+                // retransmission and must be ignored: The handshake's cryptographic core was
+                // already erased when the first RespHello was processed, so the message cannot
+                // be processed again, and no response is needed since InitConf retransmission
+                // is driven by the handshake's own retransmission timer.
+                // Retransmission handling is deliberately done at the [Self::handle_msg] level
+                // and not in the cryptographic handlers, matching the handling of InitConf
+                // retransmissions via [KnownInitConfResponse].
+                let hs = self.lookup_handshake(SessionId::from_slice(&msg_in.payload.sidi));
+                let is_retransmission = hs
+                    .and_then(|hs| hs.get(self).as_ref().map(|hs| hs.next))
+                    .is_some_and(|next| next != HandshakeStateMachine::RespHello);
+                if is_retransmission {
+                    log::debug!(
+                        "Rx RespHello for session {:?} which is already awaiting responder \
+                         confirmation, ignoring retransmission",
+                        SessionId::from_slice(&msg_in.payload.sidi)
+                    );
+                    // The following lines result in the same return value as the following
+                    // verbatim return statement:
+                    // ```
+                    // return Ok(HandleMsgResult {
+                    //     exchanged_with: None,
+                    //     resp: None,
+                    // });
+                    // ```
+                    exchanged = false;
+                    len = 0;
+                    hs
+                        .expect("handshake is None – this is unreachable due to above logic computing `is_retransmission`")
+                        .peer()
+                } else {
+                    let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
+                    let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
+                    ensure!(
+                        msg_in.check_seal(self, peer.get(self).protocol_version.keyed_hash())?,
+                        seal_broken
+                    );
 
-                len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
-                peer.hs()
-                    .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
-                exchanged = true;
-                peer
+                    len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
+                    peer.hs()
+                        .store_msg_for_retransmission(self, &msg_out.as_bytes()[..len])?;
+                    exchanged = true;
+                    peer
+                }
             }
             MsgType::InitConf => {
                 let msg_in: Ref<&[u8], Envelope<InitConf>> =
@@ -3436,9 +3474,16 @@ impl CryptoServer {
             };
         }
 
-        // TODO: Is this really necessary? The only possible state is "awaits resp hello";
-        // no initiation created should be modeled as an Null option and a Session means
-        // we will not be able to find the handshake
+        // This check is not necessary if this function is called from
+        // [`CryptoServer::handle_msg_with_test_vector`] due to the surrounding
+        // logic in that caller function.
+        //
+        // However, if this function is called from a different context, e.g.
+        // - `crate::protocol::test::init_conf_retransmission`
+        // - `benches/trace_handshake.rs`
+        // then this check is relevant.
+        // For explanation why this error can occur, refer to
+        // `crate::protocol::test::test_regular_resp_hello_retransmit`
         let exp = hs!().next;
         let got = HandshakeStateMachine::RespHello;
 
