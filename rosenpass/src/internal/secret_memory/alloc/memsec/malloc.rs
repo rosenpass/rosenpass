@@ -32,7 +32,7 @@ pub type MallocVec<T> = allocator_api2::vec::Vec<T, MallocAllocator>;
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::memsec::malloc::{malloc_box_try, MallocBox};
 /// let data: u8 = 42;
 /// let malloc_box: MallocBox<u8> = malloc_box_try(data)?;
@@ -48,7 +48,7 @@ pub fn malloc_box_try<T>(x: T) -> Result<MallocBox<T>, AllocError> {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::memsec::malloc::{malloc_box, MallocBox};
 /// let data: u8 = 42;
 /// let malloc_box: MallocBox<u8> = malloc_box(data);
@@ -63,7 +63,7 @@ pub fn malloc_box<T>(x: T) -> MallocBox<T> {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::memsec::malloc::{malloc_vec, MallocVec};
 /// let mut malloc_vec: MallocVec<u8> = malloc_vec();
 /// malloc_vec.push(0u8);

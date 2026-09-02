@@ -27,7 +27,7 @@ static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use std::alloc::Layout;
 /// # use allocator_api2::alloc::Allocator;
 /// # use rosenpass::internal::secret_memory::alloc::{set_secret_alloc_type, SecretAlloc, SecretAllocType};
@@ -47,7 +47,7 @@ pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use std::alloc::Layout;
 /// # use allocator_api2::alloc::Allocator;
 /// # use rosenpass::internal::secret_memory::alloc::{get_or_init_secret_alloc_type, set_secret_alloc_type,
@@ -125,7 +125,7 @@ pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_box_try, SecretBox};
 /// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
 /// use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
@@ -144,7 +144,7 @@ pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_box, SecretBox};
 /// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
 /// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
@@ -162,7 +162,7 @@ pub fn secret_box<T>(x: T) -> SecretBox<T> {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_vec, SecretVec};
 /// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
 /// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;

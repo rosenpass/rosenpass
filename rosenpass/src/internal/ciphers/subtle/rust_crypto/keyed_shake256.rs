@@ -26,7 +26,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     ///
     /// #Examples
     #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
     /// # use rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core;
     /// use rosenpass::internal::cipher_traits::primitives::KeyedHash;
     /// const KEY_LEN: usize = 32;
@@ -83,7 +83,7 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 /// The instantiation is based on the [InferKeyedHash] trait.
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256};
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
@@ -104,7 +104,7 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 /// length fixed to 32 bytes.
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::keyed_shake256::{SHAKE256_32};
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;

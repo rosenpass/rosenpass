@@ -13,7 +13,7 @@ macro_rules! oqs_kem {
             #[doc = "# Examples"]
             #[doc = ""]
             #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-            #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+            #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
             #[doc = "use std::borrow::{Borrow, BorrowMut};"]
             #[doc = "use rosenpass::internal::cipher_traits::primitives::Kem;"]
             #[doc = "use rosenpass::internal::oqs::" $name:camel " as MyKem;"]

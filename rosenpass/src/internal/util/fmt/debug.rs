@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::fmt::debug::NullDebug;
 ///
 /// // Does not implement debug

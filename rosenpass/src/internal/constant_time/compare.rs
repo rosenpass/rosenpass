@@ -70,7 +70,7 @@ pub fn memcmp_le_test() {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::constant_time::compare;
 /// let a = [0, 1, 0, 0];
 /// let b = [0, 0, 0, 1];

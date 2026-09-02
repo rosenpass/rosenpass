@@ -11,7 +11,7 @@
 //! # Examples
 //!
 #![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //! use rosenpass::internal::constant_time::{memcmp, compare};
 //!
 //! let a = [1, 2, 3, 4];

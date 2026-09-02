@@ -17,7 +17,7 @@
 //! In the example, we are using Kyber512, but any KEM that correctly implements the [Kem]
 //! trait could be used as well.
 #![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::oqs::Kyber512;
 //! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
@@ -44,7 +44,7 @@
 //! be implemented using a **HORRIBLY INSECURE** DummyKem that only uses static values for keys
 //! and ciphertexts as an example.  
 #![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //!# use rosenpass::internal::cipher_traits::primitives::{Kem, KemError as Error};
 //!
 //! struct DummyKem {}

@@ -19,7 +19,7 @@ use std::ops::{Deref, DerefMut};
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::cat;
 /// let arr = cat!(6; b"abc", b"def");
 /// assert_eq!(&arr, b"abcdef");
@@ -56,7 +56,7 @@ pub use cat;
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::mem::cpy;
 /// let src = [1, 2, 3];
 /// let mut dst = [0; 3];
@@ -73,7 +73,7 @@ pub fn cpy<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, dst: 
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::mem::cpy_min;
 /// let src = [1, 2, 3, 4];
 /// let mut dst = [0; 2];
@@ -93,7 +93,7 @@ pub fn cpy_min<T: BorrowMut<[u8]> + ?Sized, F: Borrow<[u8]> + ?Sized>(src: &F, d
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::mem::Forgetting;
 /// let f = Forgetting::new(String::from("hello"));
 /// assert_eq!(&*f, "hello");
@@ -164,7 +164,7 @@ impl<T> Drop for Forgetting<T> {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::mem::DiscardResultExt;
 /// let result: () = (|| { return 42 })().discard_result(); // Just discard
 /// ```
@@ -182,7 +182,7 @@ impl<T> DiscardResultExt for T {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::mem::ForgetExt;
 /// let s = String::from("no drop");
 /// s.forget(); // destructor not run
@@ -203,7 +203,7 @@ impl<T> ForgetExt for T {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::util::mem::SwapWithExt;
 /// let mut x = 10;
 /// let mut y = x.swap_with(20);
@@ -236,7 +236,7 @@ impl<T> SwapWithExt for T {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::mem::SwapWithDefaultExt;
 /// let mut s = String::from("abc");
 /// let old = s.swap_with_default();
@@ -259,7 +259,7 @@ impl<T: Default> SwapWithDefaultExt for T {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use std::rc::Rc;
 /// use rosenpass::internal::util::mem::MoveExt;
 /// let val = 42;

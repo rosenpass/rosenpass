@@ -173,7 +173,7 @@ impl SecretMemoryPool {
 ///
 /// You can use a [Secret] as follows:
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use zeroize::Zeroize;
 /// # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
 ///

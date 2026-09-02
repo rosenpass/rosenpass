@@ -9,7 +9,7 @@ use std::path::Path;
 /// be implemented as follows for example:
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use std::io::Write;
 /// use std::path::Path;
 /// use rosenpass::internal::secret_memory::file::StoreSecret;

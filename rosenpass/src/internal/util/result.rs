@@ -5,7 +5,7 @@ use std::convert::Infallible;
 ///
 /// # Examples
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use anyhow::Result;
 /// # use rosenpass::internal::util::attempt;
 /// let result: Result<i32> = attempt!({
@@ -31,7 +31,7 @@ pub use attempt;
 /// Trait for the ok operation, which provides a way to convert a value into a Result
 /// # Examples
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::result::OkExt;
 /// let value: i32 = 42;
 /// let result: Result<i32, &str> = value.ok();
@@ -178,7 +178,7 @@ impl<T> GuaranteedValue for Guaranteed<T> {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::result::ensure_or;
 /// let result = ensure_or(5 > 3, "not greater");
 /// assert!(result.is_ok());
@@ -198,7 +198,7 @@ pub fn ensure_or<E>(b: bool, err: E) -> Result<(), E> {
 /// # Examples
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::util::result::bail_if;
 /// let result = bail_if(false, "not bailed");
 /// assert!(result.is_ok());

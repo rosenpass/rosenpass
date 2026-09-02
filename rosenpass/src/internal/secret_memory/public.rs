@@ -18,7 +18,7 @@ use std::path::Path;
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use zeroize::Zeroize;
 /// # use rosenpass::internal::secret_memory::{Public};
 ///
@@ -199,7 +199,7 @@ impl<const N: usize> StoreValueB64Writer for Public<N> {
 ///
 /// # Example
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use zeroize::Zeroize;
 /// # use rosenpass::internal::secret_memory::{Public, PublicBox};
 ///
