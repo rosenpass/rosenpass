@@ -12,54 +12,26 @@ concurrency:
 
 jobs:
   integration-tests-x86_64-linux:
-    name: Integration tests x86_64-linux
-    runs-on: ubicloud-standard-2
-    steps:
-      - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      - uses: cachix/cachix-action@v17
-        with:
-          name: rosenpass
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Extract the reference of before and after for the integration tests.
-        run: |
-          EVENT_NAME="${{ github.event_name }}"
-          REF_BEFORE=""
-          REF_AFTER="path:../../"
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            echo "This CI run was triggered in the context of a pull request."
-            REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.pull_request.base.ref }}"
-            git checkout -B pr-${{ github.event.pull_request.number }}
-            REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            echo "This CI run was triggered in the context of a push."
-            REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.before }}"
-            REF_AFTER="github:rosenpass/rosenpass/${{ github.event.after }}"
-          else
-            echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
-            exit 1
-          fi
-          echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
-          echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
-      - name: Check
-        run: |
-          cd ./tests/integration
-          nix flake check --print-build-logs --system x86_64-linux --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
-  integration-tests-against-targets-x86_64-linux:
-    name: Integration tests x86_64-linux against ${{ matrix.target }}
+    name: Integration tests x86_64-linux against ${{ matrix.target.name }}
     runs-on: ubicloud-standard-2
     strategy:
       # necessary to continue running the other matrix target(s) when one matrix target fails
       # docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstrategyfail-fast
       fail-fast: false
       matrix:
-        # Targets (branches or tags of rosenpass/rosenpass) to test the current code against.
+        # the targets to run the integration tests against
+        #
         # To test against an additional target, simply add it to this list.
+        # - an entry without a `ref` tests against the previous state of this
+        #   repository: the base branch for pull requests, the commit before a
+        #   push for pushes.
+        # - an entry with a `ref` tests against that branch or tag
         target:
-          - main
-          - v0.2.3
+          - name: previous state
+          - name: main branch
+            ref: main
+          - name: tag v0.2.3
+            ref: v0.2.3
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -72,19 +44,24 @@ jobs:
       - name: Extract the reference of before and after for the integration tests.
         run: |
           EVENT_NAME="${{ github.event_name }}"
-          REF_BEFORE="github:rosenpass/rosenpass/${{ matrix.target }}"
+          # An empty target ref means: test against the previous state of this
+          # repository (see the comment on the matrix above).
+          TARGET_REF="${{ matrix.target.ref }}"
           REF_AFTER="path:../../"
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "This CI run was triggered in the context of a pull request."
+            TARGET_REF="${TARGET_REF:-${{ github.event.pull_request.base.ref }}}"
             git checkout -B pr-${{ github.event.pull_request.number }}
             REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
           elif [[ "$EVENT_NAME" == "push" ]]; then
             echo "This CI run was triggered in the context of a push."
+            TARGET_REF="${TARGET_REF:-${{ github.event.before }}}"
             REF_AFTER="github:rosenpass/rosenpass/${{ github.event.after }}"
           else
             echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
             exit 1
           fi
+          REF_BEFORE="github:rosenpass/rosenpass/$TARGET_REF"
           echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
           echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
       - name: Check
