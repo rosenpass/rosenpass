@@ -28,18 +28,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-
-      # Install nix
-
       - name: Install Nix
         uses: cachix/install-nix-action@v31 # A popular action for installing Nix
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
-      # Set up environment
-
       - name: 🛠️ Prepare Benchmark Path
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -49,20 +43,18 @@ jobs:
           case "$EVENT_NAME" in
           "push")
             echo "BENCH_PATH=branch/$BRANCH_NAME" >> $GITHUB_ENV
+            echo "INFO: will use branch \"$BRANCH_NAME\" as BENCH_PATH"
             ;;
           "pull_request")
             echo "BENCH_PATH=pull/$PR_NUMBER" >> $GITHUB_ENV
+            echo "INFO: will use PR \"$PR_NUMBER\" as BENCH_PATH"
             ;;
           *)
             echo "don't know benchmark path for event of type $EVENT_NAME, aborting"
             exit 1
           esac
-
-      # Benchmarks ...
-
-      - name: 🏃🏻‍♀️ Benchmarks
+      - name: 🏃🏻‍♀️ Run Benchmarks
         run: nix develop ".#devShells.${{ matrix.system }}.benchmarks" --command cargo bench --bench trace_handshake -F trace_bench --verbose >bench-protocol.json
-
       - name: Upload benchmarks
         uses: cryspen/benchmark-upload-and-plot-action@v3
         with:
@@ -71,8 +63,7 @@ jobs:
           schema: "operating system,architecture,protocol version,run time,name"
           input-data-path: bench-protocol.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # NOTE: pushes to current repository
-          gh-repository: github.com/${{ github.repository }}
+          gh-repository: github.com/${{ github.repository }} # pushes to current repository
           auto-push: true
           fail-on-alert: true
           base-path: benchmarks/
@@ -84,7 +75,11 @@ jobs:
     steps:
       - name: Successful
         if: ${{ !(contains(needs.*.result, 'failure')) }}
-        run: exit 0
+        run: |
+          echo "INFO: the previous job (proto-benchmark) has succeeded"
+          exit 0
       - name: Failing
         if: ${{ (contains(needs.*.result, 'failure')) }}
-        run: exit 1
+        run: |
+          echo "ERROR: the previous job (proto-benchmark) has failed"
+          exit 1
