@@ -30,7 +30,7 @@ jobs:
           REF_AFTER="path:../../"
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "This CI run was triggered in the context of a pull request."
-            REF_BEFORE="github:rosenpass/rosenpass/main"
+            REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.pull_request.base.ref }}"
             git checkout -B pr-${{ github.event.pull_request.number }}
             REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
           elif [[ "$EVENT_NAME" == "push" ]]; then
@@ -67,7 +67,7 @@ jobs:
   #        REF_AFTER="path:../../"
   #        if [[ "$EVENT_NAME" == "pull_request" ]]; then
   #          echo "This CI run was triggered in the context of a pull request."
-  #          REF_BEFORE="github:rosenpass/rosenpass/main"
+  #          REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.pull_request.base.ref }}"
   #          #git checkout -B pr-${{ github.event.pull_request.number }}
   #          REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
   #        elif [[ "$EVENT_NAME" == "push" ]]; then
@@ -106,7 +106,7 @@ jobs:
   #        REF_AFTER="path:../../"
   #        if [[ "$EVENT_NAME" == "pull_request" ]]; then
   #          echo "This CI run was triggered in the context of a pull request."
-  #          REF_BEFORE="github:rosenpass/rosenpass/main"
+  #          REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.pull_request.base.ref }}"
   #          git checkout -B pr-${{ github.event.pull_request.number }}
   #          REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
   #        elif [[ "$EVENT_NAME" == "push" ]]; then
@@ -143,7 +143,7 @@ jobs:
   #        REF_AFTER="path:../../"
   #        if [[ "$EVENT_NAME" == "pull_request" ]]; then
   #          echo "This CI run was triggered in the context of a pull request."
-  #          REF_BEFORE="github:rosenpass/rosenpass/main"
+  #          REF_BEFORE="github:rosenpass/rosenpass/${{ github.event.pull_request.base.ref }}"
   #          git checkout -B pr-${{ github.event.pull_request.number }}
   #          REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
   #        elif [[ "$EVENT_NAME" == "push" ]]; then
