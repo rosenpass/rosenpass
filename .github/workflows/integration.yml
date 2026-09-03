@@ -62,6 +62,9 @@ jobs:
             exit 1
           fi
           REF_BEFORE="github:rosenpass/rosenpass/$TARGET_REF"
+          echo "INFO: running integration test:"
+          echo "    - against  rosenpass-old=\"$REF_BEFORE\""
+          echo "    - with new rosenpass-new=\"$REF_AFTER\""
           echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
           echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
       - name: Check
