@@ -9,8 +9,6 @@ pub mod b64;
 pub mod build;
 /// Control flow abstractions and utilities.
 pub mod controlflow;
-/// File descriptor utilities.
-pub mod fd;
 /// File system operations and handling.
 pub mod file;
 pub mod fmt;
@@ -28,6 +26,7 @@ pub mod mio;
 pub mod option;
 /// Extended Result type functionality.
 pub mod result;
+pub mod rustix;
 /// Time and duration utilities.
 pub mod time;
 #[cfg(feature = "tokio")]

@@ -4,12 +4,12 @@
 use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
 use crate::internal::util::{
-    fd::FdIo,
     functional::{ApplyExt, run},
     io::ReadExt,
     mem::DiscardResultExt,
     mio::UnixStreamExt,
     result::OkExt,
+    rustix::FdIo,
 };
 use crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
 use anyhow::Context;
@@ -243,7 +243,7 @@ where
                 .context("Invalid request – socket missing.")?;
             // TODO: We need to have this outside linux
             #[cfg(target_os = "linux")]
-            crate::internal::util::fd::GetSocketProtocol::demand_udp_socket(&sock)?;
+            crate::internal::util::rustix::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
             mio::net::UdpSocket::from_std(sock).ok()

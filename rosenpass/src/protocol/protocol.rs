@@ -3249,7 +3249,7 @@ impl HandshakeState {
     ///   out the const generics.
     /// - By adding a value parameter of type `PhantomData<TV>`, you can choose
     ///   `TV` at the call site while allowing the compiler to infer `KEM_*`
-    ///    const generics from `ct` and `pk`.
+    ///   const generics from `ct` and `pk`.
     /// - Call like: `encaps_and_mix_with_test_vector(&StaticKem, &mut ct, pk,
     ///   PhantomData::<TestVectorActive>)?;`
     pub fn encaps_and_mix_with_test_vector<

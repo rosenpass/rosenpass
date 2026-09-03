@@ -12,7 +12,7 @@ use tokio::task;
 use anyhow::{Result, bail, ensure};
 use clap::{ArgGroup, Parser};
 
-use rosenpass::internal::util::fd::claim_fd;
+use rosenpass::internal::util::rustix::claim_fd;
 use rosenpass::internal::wireguard_broker::api::msgs;
 
 /// Command-line arguments for configuring the socket handler
