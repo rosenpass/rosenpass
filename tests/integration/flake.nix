@@ -23,10 +23,10 @@
         { system, lib, ... }:
         let
           # Since other parts of the CI are already doing the unit tests, we deactivate them here.
-          rosenpassOld = inputs.rosenpass-old.packages.${system}.default.overrideAttrs (old: {
+          rosenpassOld = inputs.rosenpass-old.packages.${system}.rosenpass-static.overrideAttrs (old: {
             doCheck = false;
           });
-          rosenpassNew = inputs.rosenpass-new.packages.${system}.default.overrideAttrs (new: {
+          rosenpassNew = inputs.rosenpass-new.packages.${system}.rosenpass-static.overrideAttrs (new: {
             doCheck = false;
           });
           defaultChecks = import ./integration-checks.nix {
