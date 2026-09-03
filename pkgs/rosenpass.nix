@@ -82,6 +82,9 @@ rustPlatform.buildRustPackage {
 
   doCheck = true;
 
+  # liboqs requires quite a lot of stack memory, so `cargo test` gets bigger stack
+  env.RUST_MIN_STACK = "8388608";
+
   cargoLock = {
     lockFile = src + "/Cargo.lock";
     outputHashes = {
