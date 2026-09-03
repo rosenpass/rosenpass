@@ -204,7 +204,7 @@ postcard = { version = "1.1.1", default-features = false, features = [
 ] } # Socket handler only
 libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
-oqs-sys = { version = "0.11.0", default-features = false, features = [
+oqs-sys = { version = "0.8", default-features = false, features = [
   'classic_mceliece',
   'kyber',
 ] }
