@@ -23,7 +23,8 @@ pub enum ConstructionSiteErectError<E> {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::build::Build;
 /// use anyhow::{Context, Result};
 ///
@@ -85,7 +86,8 @@ pub trait Build<T>: Sized {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use std::borrow::Borrow;
 /// use rosenpass::internal::util::build::{ConstructionSite, Build};
 /// use anyhow::{Context, Result};
@@ -177,7 +179,8 @@ where
     ///
     /// See [Self].
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -207,7 +210,8 @@ where
     /// # Examples
     ///
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -237,7 +241,8 @@ where
     /// # Examples
     ///
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -267,7 +272,8 @@ where
     /// # Examples
     ///
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -303,7 +309,8 @@ where
     /// # Examples
     ///
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -371,7 +378,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -424,7 +432,8 @@ where
     ///
     /// See [Self].
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build, ConstructionSiteErectError};
     /// use std::convert::Infallible;
     ///
@@ -481,7 +490,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -514,7 +524,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -548,7 +559,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -579,7 +591,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::build::{ConstructionSite, Build};
     ///
     /// #[derive(Debug, Eq, PartialEq, Clone, Copy)]

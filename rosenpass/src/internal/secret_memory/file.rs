@@ -8,7 +8,8 @@ use std::path::Path;
 /// Objects that implement this Trait provide a standard method to be stored securely. The trait can
 /// be implemented as follows for example:
 /// # Example
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use std::io::Write;
 /// use std::path::Path;
 /// use rosenpass::internal::secret_memory::file::StoreSecret;

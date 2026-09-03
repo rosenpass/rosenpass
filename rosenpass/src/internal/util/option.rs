@@ -2,7 +2,8 @@
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::option::SomeExt;
 ///
 /// let x = 42;

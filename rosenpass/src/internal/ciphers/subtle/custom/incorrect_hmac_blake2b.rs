@@ -24,7 +24,8 @@ pub const HASH_LEN: usize = 32;
 /// <https://github.com/rosenpass/rosenpass/pull/145>
 ///
 /// # Examples
-///```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::custom::incorrect_hmac_blake2b::IncorrectHmacBlake2bCore;
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashTo;
 /// use rosenpass_to::To;

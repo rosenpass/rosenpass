@@ -14,7 +14,8 @@ pub trait ZerocopyEmancipateExt<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::ops::Deref;
     /// # use zerocopy::{IntoBytes, ByteSlice, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass::internal::util::zerocopy::ZerocopyEmancipateExt;
@@ -43,7 +44,8 @@ pub trait ZerocopyEmancipateMutExt<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass::internal::util::zerocopy::{ZerocopyEmancipateMutExt};
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]

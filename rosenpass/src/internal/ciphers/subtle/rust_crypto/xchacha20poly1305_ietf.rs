@@ -86,7 +86,8 @@ impl AeadXChaCha20Poly1305 for XChaCha20Poly1305 {}
 /// of at least [NONCE_LEN] + `plaintext.len()` + [TAG_LEN].
 ///
 /// # Examples
-///```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{encrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// const PLAINTEXT_LEN: usize = 43;
 /// let plaintext = "post-quantum cryptography is very important".as_bytes();
@@ -128,7 +129,8 @@ pub fn encrypt(
 /// `ciperhtext` MUST include the as it is not given otherwise.
 ///
 /// # Examples
-///```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::rust_crypto::xchacha20poly1305_ietf::{decrypt, TAG_LEN, KEY_LEN, NONCE_LEN};
 /// let ciphertext: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 /// # 0, 0, 0, 0, 8, 241, 229, 253, 200, 81, 248, 30, 183, 149, 134, 168, 149, 87, 109, 49, 159, 108,

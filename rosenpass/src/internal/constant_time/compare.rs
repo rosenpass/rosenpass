@@ -11,7 +11,8 @@ use core::ptr;
 /// See [std::ptr::read_volatile] on safety.
 ///
 /// # Examples
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// let a = [1, 2, 3, 4];
 /// let b = [1, 2, 3, 4];
 /// let c = [1, 2, 2, 5];
@@ -68,7 +69,8 @@ pub fn memcmp_le_test() {
 ///
 /// # Examples
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::constant_time::compare;
 /// let a = [0, 1, 0, 0];
 /// let b = [0, 0, 0, 1];
@@ -81,7 +83,8 @@ pub fn memcmp_le_test() {
 ///
 /// This function will panic if the input arrays are of different lengths.
 ///
-/// ```should_panic
+#[cfg_attr(feature = "expose_internal_modules", doc = "```should_panic")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::constant_time::compare;
 /// let a = [0, 1, 0];
 /// let b = [0, 0, 0, 1];

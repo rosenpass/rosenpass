@@ -25,7 +25,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> KeyedHash<KEY_LEN, HASH_LEN>
     /// prefer a truncated SHAKE256 over SHAKE128.
     ///
     /// #Examples
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
     /// # use rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::SHAKE256Core;
     /// use rosenpass::internal::cipher_traits::primitives::KeyedHash;
     /// const KEY_LEN: usize = 32;
@@ -81,7 +82,8 @@ impl<const KEY_LEN: usize, const HASH_LEN: usize> Default for SHAKE256Core<KEY_L
 ///
 /// The instantiation is based on the [InferKeyedHash] trait.
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256};
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
@@ -101,7 +103,8 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 /// The SHAKE256_32 type is a specific instance of the [SHAKE256] type with the key length and hash
 /// length fixed to 32 bytes.
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::ciphers::subtle::keyed_shake256::{SHAKE256_32};
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;

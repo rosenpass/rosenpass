@@ -16,7 +16,8 @@
 //! encapsulate a symmetric key and Alice to decapsulate it would look as follows.
 //! In the example, we are using Kyber512, but any KEM that correctly implements the [Kem]
 //! trait could be used as well.
-//!```rust
+#![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::oqs::Kyber512;
 //! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
@@ -42,7 +43,8 @@
 //! keys, and ciphertext as `u8` slices. Below, we provide an example for how the trait can
 //! be implemented using a **HORRIBLY INSECURE** DummyKem that only uses static values for keys
 //! and ciphertexts as an example.  
-//!```rust
+#![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //!# use rosenpass::internal::cipher_traits::primitives::{Kem, KemError as Error};
 //!
 //! struct DummyKem {}
@@ -123,7 +125,8 @@ use thiserror::Error;
 /// adviced to implement the [`Default`] trait where possible.
 ///
 /// Example for encrypting a message with a specific [`Kem`] instance:
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// const SK_LEN: usize = 1632;
@@ -144,7 +147,8 @@ use thiserror::Error;
 ///
 /// If only the type (but no instance) is available, then we can still use the trait, as long as
 /// the type also is [`Default`]:
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// const SK_LEN: usize = 1632;

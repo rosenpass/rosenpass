@@ -2,7 +2,8 @@
 //!
 //! # IO Error handling helpers tutorial
 //!
-//! ```
+#![cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use std::io::ErrorKind as EK;
 //!
 //! // It can be a bit hard to use IO errors in match statements
@@ -503,7 +504,8 @@ pub trait ReadExt {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::internal::util::io::ReadExt;
     ///
     /// let mut buf = [0u8; 4];

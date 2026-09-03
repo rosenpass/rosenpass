@@ -6,7 +6,8 @@
 //!
 //! # Examples
 //!
-//! ```no_run
+#![cfg_attr(feature = "expose_internal_modules", doc = "```no_run")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! # use mio::net::UnixStream;
 //! # use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
 //! # use rosenpass::internal::wireguard_broker::{WireGuardBroker, WireguardBrokerMio};
@@ -73,7 +74,8 @@ use crate::internal::wireguard_broker::{
 ///
 /// # Examples
 ///
-/// ```no_run
+#[cfg_attr(feature = "expose_internal_modules", doc = "```no_run")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use mio::net::UnixStream;
 /// use rosenpass::internal::wireguard_broker::brokers::mio_client::MioBrokerClient;
 /// use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig};

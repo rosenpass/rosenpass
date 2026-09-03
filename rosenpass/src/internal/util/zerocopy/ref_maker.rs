@@ -18,7 +18,8 @@ use crate::internal::util::zeroize::ZeroizedExt;
 ///
 /// # Example
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use zerocopy::{IntoBytes, FromBytes, Ref, KnownLayout, Immutable};
 /// # use rosenpass::internal::util::zerocopy::RefMaker;
 ///
@@ -50,7 +51,8 @@ impl<B, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let buffer = [0u8; 10];
     /// let rm: RefMaker<_, u32> = RefMaker::new(buffer);
@@ -92,7 +94,8 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, KnownLayout, Immutable, Ref};
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     ///
@@ -133,7 +136,8 @@ impl<B: ByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let rm = RefMaker::<_, u32>::new(bytes);
@@ -167,7 +171,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Returns an error if the buffer is undersized.
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (head, tail) = RefMaker::<_, u32>::new(bytes).split_at_point(3).unwrap();
@@ -193,7 +198,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8];
     /// let (prefix_rm, tail) = RefMaker::<_, u32>::new(bytes).from_prefix_with_tail().unwrap();
@@ -216,7 +222,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (prefix_rm, tail) = RefMaker::<_, u32>::new(bytes).split_prefix().unwrap();
@@ -236,7 +243,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Returns an error if the buffer is undersized.
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let prefix_rm = RefMaker::<_, u32>::new(bytes).from_prefix().unwrap();
@@ -254,7 +262,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Returns an error if the buffer is undersized.
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (suffix_rm, head) = RefMaker::<_, u32>::new(bytes).from_suffix_with_head().unwrap();
@@ -277,7 +286,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Returns an error if the buffer is undersized.
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let (head, tail) = RefMaker::<_, u32>::new(bytes).split_suffix().unwrap();
@@ -298,7 +308,8 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// Returns an error if the buffer is undersized.
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// let bytes: &[u8] = &[1,2,3,4,5,6,7,8,9,10];
     /// let suffix_rm = RefMaker::<_, u32>::new(bytes).from_suffix().unwrap();
@@ -318,7 +329,8 @@ impl<B: ByteSliceMut, T> RefMaker<B, T> {
     ///
     /// # Example
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use zerocopy::{IntoBytes, FromBytes, FromZeros, Ref, KnownLayout, Immutable};
     /// # use rosenpass::internal::util::zerocopy::RefMaker;
     /// #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]

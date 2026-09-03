@@ -202,7 +202,8 @@ impl AppPeer {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::app_server::{Endpoint, AppPeer};
     /// use rosenpass::internal::util::functional::run;
     ///

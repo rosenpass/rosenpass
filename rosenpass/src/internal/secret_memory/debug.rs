@@ -6,7 +6,8 @@ use std::fmt;
 /// Writes the contents of an `&[u8]` as hexadecimal symbols to a [std::fmt::Formatter].
 /// # Example
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use std::fmt::{Debug, Formatter};
 /// use rosenpass::internal::secret_memory::debug::debug_crypto_array;
 ///

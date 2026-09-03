@@ -22,7 +22,8 @@
 //!
 //! See [CryptoServer::poll] on how to use crypto server in polling mode for production usage.
 //!
-//! ```
+#![cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use std::ops::DerefMut;
 //!
 //! use rosenpass::internal::secret_memory::policy::*;

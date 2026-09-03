@@ -52,7 +52,8 @@ impl MessageTooLargeError {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
     /// let err = MessageTooLargeError::new(1024, 512);
     /// assert_eq!(format!("{}", err), "Message too large (1024 bytes) for buffer (512 bytes)");
@@ -67,7 +68,8 @@ impl MessageTooLargeError {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::MessageTooLargeError;
     /// let result = MessageTooLargeError::ensure(100, 200);
     /// assert!(result.is_ok());
@@ -134,7 +136,8 @@ impl TryIoErrorKind for ReadFromIoError {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use std::io::Cursor;
 /// # use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
 /// let data: Vec<u8> = {
@@ -164,7 +167,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::LengthPrefixDecoder;
     /// let decoder = LengthPrefixDecoder::new(vec![0; 1024]);
     /// assert_eq!(*decoder.bytes_read(), 0);
@@ -205,7 +209,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// # Examples
     ///
     /// ## Successful read
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
@@ -224,7 +229,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// ## MessageTooLargeError
     ///
     /// Buffer of the `LengthPrefixDecoder` configured to be too small:
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
@@ -240,7 +246,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// ```
     ///
     /// ## IOError (EOF)
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoError, MessageTooLargeError};
     /// let mut data: Cursor<Vec<u8>> = {
@@ -290,7 +297,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
     /// let mut data = Cursor::new([4u64.to_le_bytes().as_slice(), b"cats"].concat());
@@ -410,7 +418,8 @@ impl<Buf: BorrowMut<[u8]>> LengthPrefixDecoder<Buf> {
     /// Consumes the decoder and returns the underlying buffer.
     ///
     /// # Examples
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use std::io::Cursor;
     /// # use rosenpass::internal::util::length_prefix_encoding::decoder::{LengthPrefixDecoder, ReadFromIoReturn};
     /// let mut data = Cursor::new([4u64.to_le_bytes().as_slice(), b"cats"].concat());

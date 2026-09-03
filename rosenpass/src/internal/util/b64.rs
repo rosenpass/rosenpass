@@ -24,7 +24,8 @@ impl<const F: usize> Display for B64DisplayHelper<'_, F> {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::b64::B64Display;
 ///
 /// let a = vec![0,1,2,3,4,5];
@@ -79,7 +80,8 @@ pub fn b64_decode(input: &[u8], output: &mut [u8]) -> anyhow::Result<()> {
 
 /// Encode a value as base64.
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::util::b64::{b64_encode, b64_decode};
 ///
 /// let bytes = b"Hello World";

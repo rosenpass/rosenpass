@@ -127,7 +127,8 @@ impl TryFrom<u8> for SetPskResponseReturnCode {
     /// Parse a [u8] as a [MsgType].
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// # use rosenpass::internal::wireguard_broker::api::msgs::{InvalidSetPskResponseError, SetPskResponseReturnCode};
     /// let return_code: u8 = 0x00; // Usually specifically set or comes out of a message.
     /// let res = SetPskResponseReturnCode::try_from(return_code);
@@ -186,7 +187,8 @@ impl From<SetPskResult> for SetPskResponseReturnCode {
 ///
 /// # Example
 /// It is usually used like this:
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use rosenpass::internal::wireguard_broker::api::msgs::{InvalidMessageTypeError, MsgType};
 /// let typ: u8 = 0x01; // Usually specifically set or comes out of a message.
 /// let typ = MsgType::try_from(typ)?;
@@ -210,7 +212,8 @@ impl TryFrom<u8> for MsgType {
     /// Parse a [u8] as a [MsgType].
     ///
     /// # Example
-    /// ```rust
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
     /// use rosenpass::internal::wireguard_broker::api::msgs::MsgType;
     /// let msg_type = MsgType::try_from(0x01);
     /// assert!(msg_type.is_ok());

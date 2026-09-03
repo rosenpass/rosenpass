@@ -7,7 +7,8 @@
 //!
 //! # Examples
 //!
-//! ```no_run
+#![cfg_attr(feature = "expose_internal_modules", doc = "```no_run")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use rosenpass::internal::secret_memory::{Public, Secret};
 //! use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! use rosenpass::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
@@ -62,7 +63,8 @@ pub enum SetPskError {
 }
 
 /// # Example
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use wireguard_uapi::err::NlError;
 /// # use wireguard_uapi::linux::err::SetDeviceError;
 /// use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError;
@@ -76,7 +78,8 @@ impl From<wg::err::SetDeviceError> for SetPskError {
 }
 
 /// # Example
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// # use wireguard_uapi::err::NlError;
 /// # use wireguard_uapi::linux::err::GetDeviceError;
 /// # use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError;
@@ -91,7 +94,8 @@ impl From<wg::err::GetDeviceError> for SetPskError {
 
 use SetPskError as SetPskNetlinkError;
 /// # Example
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::wireguard_broker::api::msgs::SetPskError as SetPskMsgsError;
 /// use rosenpass::internal::wireguard_broker::brokers::netlink::SetPskError as SetPskNetlinkError;
 /// let set_psk_nlink_error: SetPskNetlinkError = SetPskNetlinkError::NoSuchInterface;
@@ -114,7 +118,8 @@ impl From<SetPskNetlinkError> for SetPskMsgsError {
 ///
 /// # Examples
 ///
-/// ```
+#[cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 /// use rosenpass::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
 /// use rosenpass::internal::wireguard_broker::WireGuardBroker;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {

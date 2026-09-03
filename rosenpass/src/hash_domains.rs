@@ -9,7 +9,8 @@
 //!
 //! # Tutorial
 //!
-//! ```
+#![cfg_attr(feature = "expose_internal_modules", doc = "```")]
+#![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use rosenpass::{hash_domain, hash_domain_ns};
 //! use rosenpass::hash_domains::protocol;
 //!

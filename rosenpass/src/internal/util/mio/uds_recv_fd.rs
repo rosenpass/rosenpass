@@ -15,7 +15,8 @@ use crate::internal::util::fd::{IntoStdioErr, claim_fd_inplace};
 ///
 /// # Example
 ///
-/// ```rust
+#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use std::collections::VecDeque;
 /// use std::io::Cursor;
 /// use std::io::Read;
