@@ -2,8 +2,8 @@ use mio::net::{UnixListener, UnixStream};
 use std::os::fd::{OwnedFd, RawFd};
 
 use crate::internal::util::{
-    fd::{claim_fd, claim_fd_inplace},
     result::OkExt,
+    rustix::{claim_fd, claim_fd_inplace},
 };
 
 /// Module containing I/O interest flags for Unix operations (see also: [mio::Interest])
@@ -62,7 +62,7 @@ pub mod interest {
 /// ```
 pub trait UnixListenerExt: Sized {
     /// Creates a new Unix listener by claiming ownership of a raw file descriptor
-    /// (see [fd::claim_fd](crate::internal::util::fd::claim_fd))
+    /// (see [rustix::claim_fd](crate::internal::util::rustix::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 }
 
@@ -82,11 +82,11 @@ pub trait UnixStreamExt: Sized {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor and creates a new Unix stream
-    /// (see [fd::claim_fd](crate::internal::util::fd::claim_fd))
+    /// (see [rustix::claim_fd](crate::internal::util::rustix::claim_fd))
     fn claim_fd(fd: RawFd) -> anyhow::Result<Self>;
 
     /// Claims ownership of a raw file descriptor in place and creates a new Unix stream
-    ///  (see [fd::claim_fd_inplace](crate::internal::util::fd::claim_fd_inplace))
+    ///  (see [rustix::claim_fd_inplace](crate::internal::util::rustix::claim_fd_inplace))
     fn claim_fd_inplace(fd: RawFd) -> anyhow::Result<Self>;
 }
 
@@ -94,7 +94,7 @@ impl UnixStreamExt for UnixStream {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self> {
         use std::os::unix::net::UnixStream as StdUnixStream;
         #[cfg(target_os = "linux")] // TODO: We should support this on other plattforms
-        crate::internal::util::fd::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
+        crate::internal::util::rustix::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
         let sock = StdUnixStream::from(fd);
         sock.set_nonblocking(true)?;
         UnixStream::from_std(sock).ok()

@@ -23,7 +23,7 @@ use super::config;
 
 #[cfg(feature = "experiment_api")]
 use {
-    crate::internal::util::fd::claim_fd,
+    crate::internal::util::rustix::claim_fd,
     crate::internal::wireguard_broker::WireguardBrokerMio,
     crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
     command_fds::{CommandFdExt, FdMapping},
