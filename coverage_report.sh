@@ -21,7 +21,7 @@ main() {
     open="1"
   fi
 
-  exc cargo llvm-cov --all-features --workspace --doctests --branch
+  RUST_MIN_STACK=8388608 exc cargo llvm-cov --all-features --workspace --doctests --branch
 
   exc rm -rf target/llvm-cov-target/debug/deps/doctestbins
   exc mv -v target/llvm-cov-target/doctestbins target/llvm-cov-target/debug/deps/

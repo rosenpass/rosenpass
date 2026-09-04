@@ -12,7 +12,7 @@
 //! re-run the test in initialization mode by setting the environment variable:
 //!
 //! ```bash
-//! TEST_MODE=init cargo test crypto_server_test_vector_1
+//! RUST_MIN_STACK=8388608 TEST_MODE=init cargo test --test test_vector_crypto_server -F expose_internal_modules
 //! ```
 
 use assert_tv::{TestValue, TestVector, TestVectorActive, TestVectorSet, test_vec_case};

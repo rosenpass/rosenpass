@@ -105,24 +105,36 @@ pub mod kem_kyber512 {
 }
 
 /// Constants and trait for the Classic McEliece 460896 KEM
+///
+/// - round 3 is documented on page 35 of <https://classic.mceliece.org/nist/mceliece-20201010.pdf>
+/// - round 4 is documented on page 6 of <https://classic.mceliece.org/mceliece-impl-20221023.pdf>
+/// - overview of modifications in round 4: <https://classic.mceliece.org/nist/mceliece-mods3-20221023.pdf>
 pub mod kem_classic_mceliece460896 {
     use crate::internal::cipher_traits::primitives::kem::*;
 
-    // page 6 of https://classic.mceliece.org/mceliece-impl-20221023.pdf
-
     /// The secret key length used in [`KemClassicMceliece460896`].
-    pub const SK_LEN: usize = 13608;
+    /// - round 3: 13568 (read comment below to avoid confusion)
+    ///   - `δ` (keypair seed, 32 B) and `c` (column selections, 8 B) not stored in round 3
+    ///   - This means that the key is still a valid round 3 key depsite `SK_LEN` looking like round 2
+    /// - round 4: 13608
+    pub const SK_LEN: usize = 13568;
 
     /// The public key length used in [`KemClassicMceliece460896`].
+    /// - round 3: 524160
+    /// - round 4: 524160 (same as round 3)
     pub const PK_LEN: usize = 524160;
 
     /// The ciphertext length used in [`KemClassicMceliece460896`].
-    pub const CT_LEN: usize = 156;
+    /// - round 3: 188
+    /// - round 4: 156
+    pub const CT_LEN: usize = 188;
 
     /// The shared key length used in [`KemClassicMceliece460896`].
+    /// - round 3: 32
+    /// - round 4: 32 (same as round 3)
     pub const SHK_LEN: usize = 32;
 
-    /// A [`Kem`] that is ClassicMceliece460896.
+    /// A [`Kem`] that is `ClassicMceliece460896` (round 3)
     pub trait KemClassicMceliece460896: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> {}
 }
 

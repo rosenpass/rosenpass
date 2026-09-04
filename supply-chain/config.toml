@@ -106,7 +106,7 @@ version = "1.8.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.bindgen]]
-version = "0.71.1"
+version = "0.65.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.bitflags]]
@@ -413,10 +413,6 @@ criteria = "safe-to-run"
 version = "1.70.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.itertools]]
-version = "0.13.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.itoa]]
 version = "1.0.18"
 criteria = "safe-to-deploy"
@@ -445,6 +441,10 @@ criteria = "safe-to-run"
 version = "0.2.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.lazycell]]
+version = "1.3.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.libc]]
 version = "0.2.189"
 criteria = "safe-to-deploy"
@@ -459,6 +459,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.libloading]]
 version = "0.8.9"
+criteria = "safe-to-deploy"
+
+[[exemptions.linux-raw-sys]]
+version = "0.4.15"
 criteria = "safe-to-deploy"
 
 [[exemptions.linux-raw-sys]]
@@ -553,12 +557,16 @@ criteria = "safe-to-run"
 version = "0.39.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.once_cell]]
+version = "1.12.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.once_cell_polyfill]]
 version = "1.70.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.oqs-sys]]
-version = "0.11.0+liboqs-0.13.0"
+version = "0.8.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.parking_lot]]
@@ -679,6 +687,10 @@ criteria = "safe-to-run"
 
 [[exemptions.rustc-hash]]
 version = "2.1.3"
+criteria = "safe-to-run"
+
+[[exemptions.rustix]]
+version = "0.38.44"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustix]]
@@ -865,6 +877,10 @@ criteria = "safe-to-run"
 version = "0.3.104"
 criteria = "safe-to-run"
 
+[[exemptions.which]]
+version = "4.3.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.winapi-i686-pc-windows-gnu]]
 version = "0.4.0"
 criteria = "safe-to-run"
@@ -914,11 +930,19 @@ version = "0.45.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]
+version = "0.59.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-sys]]
 version = "0.61.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-targets]]
 version = "0.42.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-targets]]
+version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-threading]]
@@ -929,28 +953,60 @@ criteria = "safe-to-run"
 version = "0.42.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.windows_aarch64_gnullvm]]
+version = "0.52.6"
+criteria = "safe-to-deploy"
+
 [[exemptions.windows_aarch64_msvc]]
 version = "0.42.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_aarch64_msvc]]
+version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_i686_gnu]]
 version = "0.42.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.windows_i686_gnu]]
+version = "0.52.6"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_i686_gnullvm]]
+version = "0.52.6"
+criteria = "safe-to-deploy"
+
 [[exemptions.windows_i686_msvc]]
 version = "0.42.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_i686_msvc]]
+version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_x86_64_gnu]]
 version = "0.42.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.windows_x86_64_gnu]]
+version = "0.52.6"
+criteria = "safe-to-deploy"
+
 [[exemptions.windows_x86_64_gnullvm]]
 version = "0.42.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.windows_x86_64_gnullvm]]
+version = "0.52.6"
+criteria = "safe-to-deploy"
+
 [[exemptions.windows_x86_64_msvc]]
 version = "0.42.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_x86_64_msvc]]
+version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.winnow]]

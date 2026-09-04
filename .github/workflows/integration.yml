@@ -88,5 +88,6 @@ jobs:
           echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
       - name: Check
         run: |
+          # IMPORTANT NOTE: we are not using the root flake.nix here but the second flake.nix in ./tests/integration
           cd ./tests/integration
           nix flake check --print-build-logs --system ${{ matrix.arch.system }} --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER

@@ -15,8 +15,9 @@
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
 
     # Older version of rosenpass, referenced here for backwards compatibility
-    rosenpassOld.url = "github:rosenpass/rosenpass?rev=916a9ebb7133f0b22057fb097a473217f261928a";
-    rosenpassOld.inputs.nixpkgs.follows = "nixpkgs";
+    # 512fe426be9281366d92a910d391fe8ddd72bd10 is v0.2.3
+    rosenpassOld.url = "github:rosenpass/rosenpass?rev=512fe426be9281366d92a910d391fe8ddd72bd10";
+    rosenpassOld.inputs.nixpkgs.follows = "nixpkgs"; # TODO: why do we need this line?
   };
 
   outputs =
@@ -204,8 +205,10 @@
                 inherit system;
                 pkgs = inputs.nixpkgs;
                 lib = nixpkgs.lib;
-                rosenpassNew = self.packages.${system}.default;
-                rosenpassOld = rosenpassOld.packages.${system}.default;
+                rosenpassNew = self.packages.${system}.rosenpass-static;
+                rosenpassOld = inputs.rosenpassOld.packages.${system}.rosenpass-static.overrideAttrs (old: {
+                  doCheck = false; # no need to re-run the check for the old version
+                });
               }
               // {
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
