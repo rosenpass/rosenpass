@@ -36,14 +36,9 @@ pub const BISCUIT_CT_LEN: usize = BISCUIT_PT_LEN + XAead::NONCE_LEN + XAead::TAG
 
 /// Size of the field [Envelope::mac]
 pub const MAC_SIZE: usize = 16;
-/// Size of the field [Envelope::cookie]
-pub const COOKIE_SIZE: usize = MAC_SIZE;
 
 /// Type of the mac field in [Envelope]
 pub type MsgEnvelopeMac = [u8; MAC_SIZE];
-
-/// Type of the cookie field in [Envelope]
-pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 
 /// Header and footer included in all our packages,
 /// including a type field.
@@ -88,8 +83,8 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
     /// Message Authentication Code (mac) over all bytes until (exclusive)
     /// `mac` itself
     pub mac: MsgEnvelopeMac,
-    /// Currently unused, TODO: do something with this
-    pub cookie: MsgEnvelopeCookie,
+    // IMPORTANT: when adding fields after `mac`, add them to
+    // `crate::protocol::protocol::KnownResponseHasher::hash`.
 }
 
 /// This is the first message sent by the initiator to the responder
@@ -322,54 +317,6 @@ pub struct Biscuit {
     pub ck: [u8; KEY_LEN],
 }
 
-/// Specialized message for use in the cookie mechanism.
-///
-/// See the [whitepaper](https://rosenpass.eu/whitepaper.pdf) ([/papers/whitepaper.md] in this repository) for details.
-///
-/// Generally used together with [CookieReply] which brings this up to the size
-/// of [InitHello] to avoid amplification Denial of Service attacks.
-///
-/// # Examples
-///
-/// To understand how the biscuit is used, it is best to read
-/// the code of [crate::protocol::CryptoServer::handle_cookie_reply] and
-/// [crate::protocol::CryptoServer::handle_msg_under_load].
-///
-/// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
-#[repr(packed)]
-#[derive(IntoBytes, FromBytes, Immutable)]
-pub struct CookieReplyInner {
-    /// [MsgType] of this message
-    pub msg_type: u8,
-    /// Reserved for future use
-    pub reserved: [u8; 3],
-    /// Session ID of the sender (initiator)
-    pub sid: [u8; 4],
-    /// Encrypted cookie with authenticated initiator `mac`
-    pub cookie_encrypted: [u8; XAead::NONCE_LEN + COOKIE_SIZE + XAead::TAG_LEN],
-}
-
-/// Specialized message for use in the cookie mechanism.
-///
-/// This just brings [CookieReplyInner] up to the size
-/// of [InitHello] to avoid amplification Denial of Service attacks.
-///
-/// See the [whitepaper](https://rosenpass.eu/whitepaper.pdf) ([/papers/whitepaper.md] in this repository) for details.
-///
-/// # Examples
-///
-/// To understand how the biscuit is used, it is best to read
-/// the code of [crate::protocol::CryptoServer::handle_cookie_reply] and
-/// [crate::protocol::CryptoServer::handle_msg_under_load].
-///
-/// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
-#[repr(packed)]
-#[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
-pub struct CookieReply {
-    pub inner: CookieReplyInner,
-    pub padding: [u8; size_of::<Envelope<InitHello>>() - size_of::<CookieReplyInner>()],
-}
-
 /// Recognized message types
 ///
 /// # Examples
@@ -379,7 +326,7 @@ pub struct CookieReply {
 /// use rosenpass::msgs::MsgType as M;
 /// use rosenpass::RosenpassError;
 ///
-/// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData, M::CookieReply];
+/// let values = [M::InitHello, M::RespHello, M::InitConf, M::EmptyData];
 /// let values_u8 = values.map(|v| -> u8 { v.into() });
 ///
 /// // Can be converted to and from u8 using [::std::convert::Into] or [::std::convert::From]
@@ -412,8 +359,6 @@ pub enum MsgType {
     InitConf = 0x83,
     /// MsgType for [EmptyData]
     EmptyData = 0x84,
-    /// MsgType for [CookieReply]
-    CookieReply = 0x86,
 }
 
 fn construct_invalid_message_type_error(unsupported_value: u8) -> RosenpassError {
