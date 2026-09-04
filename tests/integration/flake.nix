@@ -4,7 +4,7 @@
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     # Override or change these inputs for testing new Integrations. They are overriden automatically when run in the CI
     rosenpass-old.url = "github:rosenpass/rosenpass/main";
     rosenpass-new.url = "github:rosenpass/rosenpass/main";
