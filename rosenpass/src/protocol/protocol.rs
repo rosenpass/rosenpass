@@ -45,10 +45,12 @@ use super::basic_types::{
     XAEADNonce,
 };
 use super::constants::{
-    BISCUIT_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR, REKEY_AFTER_TIME_RESPONDER,
-    RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END, RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
+    BISCUIT_EPOCH, COOKIE_SECRET_EPOCH, COOKIE_SECRET_LEN, COOKIE_VALUE_LEN,
+    PEER_COOKIE_VALUE_EPOCH, REJECT_AFTER_TIME, REKEY_AFTER_TIME_INITIATOR,
+    REKEY_AFTER_TIME_RESPONDER, RETRANSMIT_DELAY_BEGIN, RETRANSMIT_DELAY_END,
+    RETRANSMIT_DELAY_GROWTH, RETRANSMIT_DELAY_JITTER,
 };
-use super::cookies::{BiscuitKey, CookieStore};
+use super::cookies::{BiscuitKey, CookieSecret, CookieStore};
 use super::index::{PeerIndex, PeerIndexKey};
 use super::osk_domain_separator::OskDomainSeparator;
 use super::timing::{BCE, Timing, UNENDING, has_happened};
@@ -131,6 +133,14 @@ pub struct CryptoServer {
     ///
     /// See [CryptoServer::poll], [CryptoServer::peer_ptrs_off].
     pub peer_poll_off: usize,
+
+    /// Cookies issued for the purpose of DOS mitigations are derived from a
+    /// secret key. This field stores those secret keys.
+    ///
+    /// The value is rotated every [COOKIE_SECRET_EPOCH].
+    ///
+    /// See [CryptoServer::handle_msg_under_load], and [CryptoServer::active_or_retired_cookie_secrets].
+    pub cookie_secrets: [CookieSecret; 2],
 }
 
 /// Specifies the protocol version used by a peer.
@@ -382,6 +392,25 @@ pub struct InitiatorHandshake {
     pub tx_len: usize,
     /// The message that should be retransmitted
     pub tx_buf: MsgBuf,
+
+    /// Cookie value used as part of the cookie retransmission mechanism.
+    ///
+    /// See the [whitepaper](https://rosenpass.eu/whitepaper.pdf) for details about the cookie
+    /// mechanism.
+    ///
+    /// TODO: cookie_value should be an Option<_>
+    /// TODO: This should not use CookieStore, which exists to store randomly generated cookie
+    /// secrets
+    ///
+    /// This value seems to default-initialized with a random value according to
+    /// [Self::zero_with_timestamp], which does not really make sense since this
+    /// is not a value that the responder sets. We also seem to use the cookie
+    /// value unconditionally (see [Envelope::seal]). This is not harmful as the
+    /// responder ignores the cookie field by default, but it is quite odd.
+    /// We should check the WireGuard whitepaper about which default value WireGuard
+    /// uses for the cookie values and potentially leave the cookie field empty by
+    /// default.
+    pub cookie_value: CookieStore<COOKIE_VALUE_LEN>,
 }
 
 /// Represents a known response to some network message identified by
@@ -489,7 +518,7 @@ impl KnownResponseHasher {
         &self,
         msg: &Envelope<Msg>,
     ) -> KnownResponseHash {
-        let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..mac)];
+        let data = &msg.as_bytes()[span_of!(Envelope<Msg>, msg_type..cookie)];
         // This function is only used internally and results are not propagated
         // to outside the peer. Thus, it uses SHAKE256 exclusively.
         let mut hash = [0u8; 32];
@@ -628,6 +657,17 @@ pub trait Mortal {
 /// assert!(peer.hs().get(&srv).is_none());
 /// assert!(peer.hs().get_mut(&mut srv).is_none());
 ///
+/// // Produce a cookie value pointer for the particular peer
+/// assert!(peer.cv().get(&srv).is_none());
+///
+/// // The mutable getter for cookie values is a bit special;
+/// // instead of getting access to the container value, you are
+/// // given direct acccess to the underlying buffer. If the value
+/// // is present; the function also updates the cookie value's
+/// // `created_at` value.
+/// // Though in this example, update_mut simply returns none.
+/// assert!(peer.cv().update_mut(&mut srv).is_none());
+///
 /// // Produce a known init conf response pointer for the particular peer
 /// assert!(peer.known_init_conf_response().get(&srv).is_none());
 /// assert!(peer.known_init_conf_response().get_mut(&mut srv).is_none());
@@ -658,6 +698,13 @@ pub struct IniHsPtr(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SessionPtr(pub usize);
 
+/// Valid index to [CryptoServer::peers], focusing on [InitiatorHandshake::cookie_value]
+/// inside [Peer::handshake].
+///
+/// Provides appropriate utility functions, especially those that
+/// somehow focus on the cookie value but require access to the [CryptoServer].
+pub struct PeerCookieValuePtr(usize);
+
 /// Valid index to [CryptoServer::peers], focusing on [Peer::known_init_conf_response].
 ///
 /// Provides appropriate utility functions, especially those that
@@ -670,6 +717,13 @@ pub struct KnownInitConfResponsePtr(PeerNo);
 /// somehow focus on the biscuit key but require access to the [CryptoServer].
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct BiscuitKeyPtr(pub usize);
+
+/// Valid index to [CryptoServer::cookie_secrets]
+///
+/// Provides appropriate utility functions, especially those that
+/// somehow focus on the cookie secret but require access to the [CryptoServer].
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct ServerCookieSecretPtr(pub usize);
 
 impl PeerPtr {
     /// Access a peer
@@ -714,6 +768,15 @@ impl PeerPtr {
     /// See [Self]
     pub fn hs(&self) -> IniHsPtr {
         IniHsPtr(self.0)
+    }
+
+    /// Produce pointer to associated cookie value
+    ///
+    /// # Examples
+    ///
+    /// See [Self]
+    pub fn cv(&self) -> PeerCookieValuePtr {
+        PeerCookieValuePtr(self.0)
     }
 
     /// Produce pointer to associated known init conf response
@@ -876,6 +939,63 @@ impl BiscuitKeyPtr {
     /// Mutable access to the referenced biscuit key
     pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut BiscuitKey {
         &mut srv.biscuit_keys[self.0]
+    }
+}
+
+impl ServerCookieSecretPtr {
+    /// Access the referenced cookie secret
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> &'a CookieSecret {
+        &srv.cookie_secrets[self.0]
+    }
+
+    /// Mutable access to the referenced cookie secret
+    pub fn get_mut<'a>(&self, srv: &'a mut CryptoServer) -> &'a mut CookieSecret {
+        &mut srv.cookie_secrets[self.0]
+    }
+}
+
+impl PeerCookieValuePtr {
+    /// Access the peer cookie value
+    ///
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this does not exist.
+    ///
+    /// # Examples
+    ///
+    /// See [PeerPtr]
+    pub fn get<'a>(&self, srv: &'a CryptoServer) -> Option<&'a CookieStore<COOKIE_SECRET_LEN>> {
+        srv.peers[self.0]
+            .handshake
+            .as_ref()
+            .map(|v| &v.cookie_value)
+    }
+
+    /// Direct mutable access the peer cookie value
+    ///
+    /// Updates the [CookieStore::created_at] value of the cookie value.
+    ///
+    /// # Panic & Safety
+    ///
+    /// The function panics if the peer referenced by this does not exist.
+    ///
+    /// # Examples
+    ///
+    /// See [PeerPtr]
+    pub fn update_mut<'a>(&self, srv: &'a mut CryptoServer) -> Option<&'a mut [u8]> {
+        let timebase = srv.timebase.clone();
+
+        if let Some(cs) = PeerPtr(self.0)
+            .hs()
+            .get_mut(srv)
+            .as_mut()
+            .map(|v| &mut v.cookie_value)
+        {
+            cs.created_at = timebase.now();
+            Some(cs.value.secret_mut())
+        } else {
+            None
+        }
     }
 }
 
@@ -1086,12 +1206,18 @@ impl CryptoServer {
             index: HashMap::new(),
             known_response_hasher: KnownResponseHasher::new(),
             peer_poll_off: 0,
+            cookie_secrets: [CookieStore::new(), CookieStore::new()],
         }
     }
 
     /// Iterate over the available biscuit keys by their pointers [BiscuitKeyPtr]
     pub fn biscuit_key_ptrs(&self) -> impl Iterator<Item = BiscuitKeyPtr> {
         (0..self.biscuit_keys.len()).map(BiscuitKeyPtr)
+    }
+
+    /// Iterate over the available cookie secrets by their pointers [ServerCookieSecretPtr]
+    pub fn cookie_secret_ptrs(&self) -> impl Iterator<Item = ServerCookieSecretPtr> {
+        (0..self.cookie_secrets.len()).map(ServerCookieSecretPtr)
     }
 
     /// Calculate the peer ID of this CryptoServer
@@ -1319,6 +1445,42 @@ impl CryptoServer {
         );
         r
     }
+
+    /// Return all fresh ([Lifecycle::Young]) or stale ([Lifecycle::Retired])
+    /// cookie secrets (from [Self::cookie_secrets]) ordered by age, youngest ones
+    /// first.
+    ///
+    /// If none of the cookie secrets are fresh or stale, the oldest cookie secret will
+    /// be refreshed using [CookieSecret::randomize]; this function therefor always returns
+    /// at least one usable, fresh cookie secret.
+    pub fn active_or_retired_cookie_secrets(&mut self) -> [Option<ServerCookieSecretPtr>; 2] {
+        let (a, b) = (ServerCookieSecretPtr(0), ServerCookieSecretPtr(1));
+        let (t, u) = (a.get(self).created_at, b.get(self).created_at);
+        let mut return_arr = [None, None];
+        let mut index_top = 0;
+
+        // Add the youngest but only if it's youthful first (being added first in case of a tie)
+        let (young, old) = if t >= u { (a, b) } else { (b, a) };
+        if young.lifecycle(self) == Lifecycle::Young || young.lifecycle(self) == Lifecycle::Retired
+        {
+            return_arr[index_top] = Some(young);
+            index_top += 1;
+        }
+
+        if old.lifecycle(self) == Lifecycle::Young || old.lifecycle(self) == Lifecycle::Retired {
+            return_arr[index_top] = Some(old);
+            index_top += 1;
+        }
+
+        if index_top == 0 {
+            // Reap the oldest biscuit key and spawn a new young one
+            let tb = self.timebase.clone();
+            old.get_mut(self).randomize(&tb);
+            return_arr[index_top] = Some(old);
+        }
+
+        return_arr
+    }
 }
 
 impl Peer {
@@ -1397,7 +1559,6 @@ impl Session {
 }
 
 // COOKIE STORE ///////////////////////////////////
-// TODO: put this into [`super::cookies`]
 impl<const N: usize> CookieStore<N> {
     /// Creates a new cookie store value with a random secret value
     /// and a [Self::created_at] value of [BCE].
@@ -1522,6 +1683,48 @@ impl Mortal for BiscuitKeyPtr {
     /// At [Self::retire_at] plus [BISCUIT_EPOCH]
     fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
         self.retire_at(srv).map(|t| t + BISCUIT_EPOCH)
+    }
+}
+
+impl Mortal for ServerCookieSecretPtr {
+    /// At [CookieSecret::created_at]
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        let t = self.get(srv).created_at;
+        if t < 0.0 { None } else { Some(t) }
+    }
+
+    /// At [Self::created_at] plus [COOKIE_SECRET_EPOCH]
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.created_at(srv).map(|t| t + COOKIE_SECRET_EPOCH)
+    }
+
+    /// At [Self::retire_at] plus [COOKIE_SECRET_EPOCH]
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.retire_at(srv).map(|t| t + COOKIE_SECRET_EPOCH)
+    }
+}
+
+impl Mortal for PeerCookieValuePtr {
+    /// At [CookieStore::created_at]
+    fn created_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        if let Some(cs) = self.get(srv) {
+            if cs.created_at < 0.0 {
+                return None;
+            }
+            Some(cs.created_at)
+        } else {
+            None
+        }
+    }
+
+    /// No retirement phase, so this is the same as [Self::die_at]
+    fn retire_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.die_at(srv)
+    }
+
+    /// [Self::created_at] plus [PEER_COOKIE_VALUE_EPOCH]
+    fn die_at(&self, srv: &CryptoServer) -> Option<Timing> {
+        self.created_at(srv).map(|t| t + PEER_COOKIE_VALUE_EPOCH)
     }
 }
 
@@ -1768,8 +1971,27 @@ impl CryptoServer {
     /// as a substitute for [CryptoServer::handle_msg] when the user of [CryptoServer]
     /// has determined that a DOS attack is being performed.
     ///
-    /// This function is currently not adding any functionality to [`CryptoServer::handle_msg`]
-    /// which might change in the future.
+    /// Keeps track of messages processed, and qualifies messages using
+    /// cookie based DoS mitigation.
+    ///
+    /// If receiving a InitHello message, it dispatches message for further processing
+    /// to `process_msg` handler if cookie is valid otherwise sends a cookie reply
+    /// message for sender to process and verify for messages part of the handshake phase
+    ///
+    /// Directly processes InitConf messages.
+    ///
+    /// Bails on messages sent by responder and non-handshake messages.
+    ///
+    /// # Examples
+    ///
+    /// Using this function is a bit complex and the toughest part is how to perform DOS
+    /// mitigation.
+    ///
+    /// The best places to check out to learn more about how this function can be used
+    /// are the tests:
+    ///
+    /// - test::cookie_reply_mechanism_responder_under_load
+    /// - test::cookie_reply_mechanism_initiator_bails_on_message_under_load
     #[inline]
     pub fn handle_msg_under_load<H: HostIdentification>(
         &mut self,
@@ -1973,6 +2195,13 @@ impl CryptoServer {
 
                 self.handle_resp_conf(&msg_in, seal_broken.to_string())?
             }
+            MsgType::CookieReply => {
+                let msg_in: Ref<&[u8], CookieReply> =
+                    Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
+                let peer = self.handle_cookie_reply(&msg_in)?;
+                len = 0;
+                peer
+            }
         };
 
         Ok(HandleMsgResult {
@@ -1997,7 +2226,8 @@ impl CryptoServer {
     }
 
     /// This is used to finalize a message in a transmission buffer
-    /// while ensuring that the [Envelope::mac] field is properly filled.
+    /// while ensuring that the [Envelope::mac] and [Envelope::cookie]
+    /// fields are properly filled.
     ///
     /// The message type is explicitly required as a measure of defensive
     /// programming, because it is very easy to forget setting the message type,
@@ -2510,7 +2740,8 @@ impl CryptoServer {
     /// Handles all timing based events produced in the course of executing the Rosenpass
     /// protocol such as:
     ///
-    /// - Cycling of biscuit keys ([CryptoServer::biscuit_keys])
+    /// - Cycling of biscuit and cookie keys ([CryptoServer::biscuit_keys] and
+    ///   [CryptoServer::cookie_secrets])
     /// - Scheduling of initiation key exchanges and key renegotiations ([PollResult::SendInitiation])
     /// - Scheduling of message retransmission ([PollResult::SendRetransmission])
     /// - Scheduling of key erasure ([PollResult::DeleteKey])
@@ -2541,6 +2772,7 @@ impl CryptoServer {
     pub fn poll(&mut self) -> Result<PollResult> {
         let r = begin_poll() // Poll each biscuit and peer until an event is found
             .poll_children(self, self.biscuit_key_ptrs())?
+            .poll_children(self, self.cookie_secret_ptrs())?
             .poll_children(self, self.peer_ptrs_off(self.peer_poll_off))?;
         self.peer_poll_off = match r.peer() {
             Some(p) => p.0 + 1, // Event found while polling peer p; will poll peer p+1 next
@@ -2554,6 +2786,14 @@ impl Pollable for BiscuitKeyPtr {
     fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
         begin_poll()
             .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale biscuits
+            .ok()
+    }
+}
+
+impl Pollable for ServerCookieSecretPtr {
+    fn poll(&self, srv: &mut CryptoServer) -> Result<PollResult> {
+        begin_poll()
+            .sched(self.life_left(srv), void_poll(|| self.get_mut(srv).erase())) // Erase stale cookie secrets
             .ok()
     }
 }
@@ -2665,6 +2905,10 @@ impl IniHsPtr {
             ih_tx_len = ih.tx_len;
         }
 
+        // Add cookie to retransmitted message
+        let mut envelope = truncating_cast_into::<Envelope<InitHello>>(tx_buf)?;
+        envelope.seal_cookie(self.peer(), srv)?;
+
         Ok(ih_tx_len)
     }
 
@@ -2689,6 +2933,19 @@ impl IniHsPtr {
         Ok(())
     }
 
+    /// Internal business logic; used to register the fact that an immediate retransmission
+    /// has happened in response to a [CookieReply] message
+    pub fn register_immediate_retransmission(&self, srv: &mut CryptoServer) -> Result<()> {
+        let tb = srv.timebase.clone();
+        let ih = self
+            .get_mut(srv)
+            .as_mut()
+            .with_context(|| format!("No current handshake for peer {:?}", self.peer()))?;
+        ih.tx_retry_at = tb.now();
+        ih.tx_count += 1;
+        Ok(())
+    }
+
     /// Internal business logic: Indicates when the next retransmission of the message
     /// stored for the peer will happen
     pub fn retransmission_in(&self, srv: &mut CryptoServer) -> Option<Timing> {
@@ -2704,13 +2961,27 @@ impl<M> Envelope<M>
 where
     M: IntoBytes + FromBytes + Immutable,
 {
-    /// Internal business logic: Calculate the message authentication code (`mac`)
-    #[deny(dead_code)]
+    /// Internal business logic: Calculate the message authentication code (`mac`) and also append cookie value
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         let mac = hash_domains::mac(peer.get(srv).protocol_version.keyed_hash())?
             .mix(peer.get(srv).spkt.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
+        self.seal_cookie(peer, srv)?;
+        Ok(())
+    }
+
+    /// Internal business logic: Calculate and append the cookie value if `cookie_key` exists (`cookie`)
+    ///
+    /// This is called inside [Self::seal] and does not need to be called again separately.
+    pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
+        if let Some(cookie_key) = &peer.cv().get(srv) {
+            let cookie = hash_domains::cookie(KeyedHash::keyed_shake256())?
+                .mix(cookie_key.value.secret())?
+                .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
+            self.cookie
+                .copy_from_slice(cookie.into_value()[..16].as_ref());
+        }
         Ok(())
     }
 }
@@ -2745,6 +3016,7 @@ impl InitiatorHandshake {
             tx_count: 0,
             tx_len: 0,
             tx_buf: MsgBuf::zero(),
+            cookie_value: CookieStore::new(),
         }
     }
 }
@@ -3133,8 +3405,8 @@ macro_rules! protocol_section {
 }
 
 impl CryptoServer {
-    /// Core cryptographic protocol implementation: kicks off the handshake
-    /// on the initiator side, producing the [`InitHello`] message.
+    /// Core cryptographic protocol implementation: Kicks of the handshake
+    /// on the initiator side, producing the InitHello message.
     pub fn handle_initiation(&mut self, peer: PeerPtr, ih: &mut InitHello) -> Result<PeerPtr> {
         self.handle_initiation_with_test_vector::<TestVectorNOP>(peer, ih)
     }
@@ -3163,6 +3435,12 @@ impl CryptoServer {
         let mut hs = InitiatorHandshake::zero_with_timestamp(
             self,
             peer.get(self).protocol_version.keyed_hash(),
+        );
+
+        // hs.cookie_value.created_at = tv_const!(hs.cookie_value.created_at, "init_handshake-cookie-created_at");
+        TV::expose_mut_value(
+            &test_values.init_handshake_cookie,
+            &mut hs.cookie_value.value,
         );
 
         // IHI1
@@ -3690,5 +3968,80 @@ impl CryptoServer {
         hs.take(self);
 
         Ok(hs.peer())
+    }
+
+    /// Core protocol implementation: This is not part of the cryptographic handshake itself,
+    /// instead this function is used to process [CookieReply] messages which is part of Rosenpass'
+    /// DOS mitigation features.
+    ///
+    /// See more on DOS mitigation in Rosenpass in the [whitepaper](https://rosenpass.eu/whitepaper.pdf).
+    pub fn handle_cookie_reply(&mut self, cr: &CookieReply) -> Result<PeerPtr> {
+        #[cfg(feature = "trace_bench")]
+        let _span_guard =
+            crate::internal::util::trace_bench::trace().emit_span("handle_cookie_reply");
+
+        let peer_ptr: Option<PeerPtr> = self
+            .lookup_session(Public::new(cr.inner.sid))
+            .map(|v| PeerPtr(v.0))
+            .or_else(|| {
+                self.lookup_handshake(Public::new(cr.inner.sid))
+                    .map(|v| PeerPtr(v.0))
+            });
+        if let Some(peer) = peer_ptr {
+            // Get last transmitted handshake message
+            if let Some(ih) = &peer.get(self).handshake {
+                let mut mac = [0u8; MAC_SIZE];
+                // TODO: Handle buffer overflow in ih.tx_buf[0] (i.e. the case where the )
+                match ih.tx_buf[0].try_into() {
+                    Ok(MsgType::InitHello) => {
+                        match truncating_cast_into_nomut::<Envelope<InitHello>>(&ih.tx_buf.value) {
+                            Ok(t) => {
+                                mac = t.mac;
+                                Ok(())
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    Ok(MsgType::InitConf) => {
+                        match truncating_cast_into_nomut::<Envelope<InitConf>>(&ih.tx_buf.value) {
+                            Ok(t) => {
+                                mac = t.mac;
+                                Ok(())
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => bail!(
+                        "No last sent message for peer {pidr:?} to decrypt cookie reply.",
+                        pidr = cr.inner.sid
+                    ),
+                }?;
+
+                let spkt = peer.get(self).spkt.deref();
+                let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
+                    .mix(spkt)?
+                    .into_value();
+                let cookie_value = peer.cv().update_mut(self).unwrap();
+
+                XAead.decrypt_with_nonce_in_ctxt(
+                    cookie_value,
+                    &cookie_key,
+                    &mac,
+                    &cr.inner.cookie_encrypted,
+                )?;
+
+                // Immediately retransmit on receiving a cookie reply message
+                peer.hs().register_immediate_retransmission(self)?;
+
+                Ok(peer)
+            } else {
+                bail!(
+                    "No last sent message for peer {pidr:?} to decrypt cookie reply.",
+                    pidr = cr.inner.sid
+                );
+            }
+        } else {
+            bail!("No such peer {pidr:?}.", pidr = cr.inner.sid);
+        }
     }
 }

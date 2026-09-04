@@ -19,7 +19,7 @@
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");
 //!
-//! // Declaring custom hashers
+//! // Declaring a custom hashers
 //! hash_domain_ns!(custom_domain, hashers, "hashers");
 //! hash_domain_ns!(hashers, hasher1, "1");
 //! hash_domain_ns!(hashers, hasher2, "2");
@@ -128,6 +128,42 @@ hash_domain_ns!(
     ///
     /// See the [module](self) documentation on how to use the hash domains in general.
     protocol, mac, "mac");
+hash_domain_ns!(
+    /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
+    ///
+    /// # Examples
+    ///
+    /// See the source of [crate::msgs::Envelope::seal_cookie],
+    /// [crate::protocol::CryptoServer::handle_msg_under_load], and
+    /// [crate::protocol::CryptoServer::handle_cookie_reply]
+    /// to figure out how this is concretely used.
+    ///
+    /// See the [module](self) documentation on how to use the hash domains in general.
+    protocol, cookie, "cookie");
+hash_domain_ns!(
+    /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
+    ///
+    /// # Examples
+    ///
+    /// See the source of [crate::msgs::Envelope::seal_cookie],
+    /// [crate::protocol::CryptoServer::handle_msg_under_load], and
+    /// [crate::protocol::CryptoServer::handle_cookie_reply]
+    /// to figure out how this is concretely used.
+    ///
+    /// See the [module](self) documentation on how to use the hash domains in general.
+    protocol, cookie_value, "cookie-value");
+hash_domain_ns!(
+    /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
+    ///
+    /// # Examples
+    ///
+    /// See the source of [crate::msgs::Envelope::seal_cookie],
+    /// [crate::protocol::CryptoServer::handle_msg_under_load], and
+    /// [crate::protocol::CryptoServer::handle_cookie_reply]
+    /// to figure out how this is concretely used.
+    ///
+    /// See the [module](self) documentation on how to use the hash domains in general.
+    protocol, cookie_key, "cookie-key");
 hash_domain_ns!(
     /// Hash domain based on [protocol] for calculating the peer id as transmitted (encrypted)
     /// in [crate::msgs::InitHello::pidi_ct].
