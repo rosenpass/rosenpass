@@ -16,8 +16,8 @@
 //! ```
 
 use assert_tv::{TestValue, TestVector, TestVectorActive, TestVectorSet, test_vec_case};
+use rosenpass::protocol::OskDomainSeparator;
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::test_vector_sets::deserialize_byte_vec;
 use rosenpass::protocol::test_vector_sets::serialize_byte_vec;
 use rosenpass::protocol::{CryptoServer, PeerPtr, ProtocolVersion};

@@ -14,8 +14,8 @@ use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass_util::trace_bench::RpEvent;
 
+use rosenpass::protocol::OskDomainSeparator;
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 use serde::ser::SerializeStruct;
 

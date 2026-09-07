@@ -31,7 +31,7 @@
 //!
 //! use rosenpass::protocol::basic_types::{SSk, SPk, MsgBuf, SymKey};
 //! use rosenpass::protocol::{PeerPtr, CryptoServer};
-//! use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+//! use rosenpass::protocol::OskDomainSeparator;
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Set security policy for storing secrets
@@ -85,7 +85,8 @@ pub mod basic_types;
 pub mod constants;
 pub mod cookies;
 pub mod index;
-pub mod osk_domain_separator;
+mod osk_domain_separator;
+pub use osk_domain_separator::*;
 pub mod test_vector_sets;
 pub mod testutils;
 pub mod timing;

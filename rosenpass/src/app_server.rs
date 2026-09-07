@@ -28,8 +28,8 @@ use rosenpass_wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBroker
 
 use crate::config;
 
+use crate::protocol::OskDomainSeparator;
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use crate::protocol::osk_domain_separator::OskDomainSeparator;
 use crate::protocol::timing::Timing;
 use crate::protocol::{BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr};
 

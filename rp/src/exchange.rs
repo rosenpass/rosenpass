@@ -13,8 +13,8 @@ use rosenpass::{
     app_server::{AppServer, BrokerPeer},
     config::Verbosity,
     protocol::{
+        OskDomainSeparator,
         basic_types::{SPk, SSk, SymKey},
-        osk_domain_separator::OskDomainSeparator,
     },
 };
 use rosenpass_secret_memory::Secret;

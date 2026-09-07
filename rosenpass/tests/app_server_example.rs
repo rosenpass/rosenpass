@@ -7,7 +7,7 @@ use rosenpass_util::{file::LoadValueB64, functional::run, mem::DiscardResultExt,
 
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
-use rosenpass::{config, protocol::osk_domain_separator::OskDomainSeparator};
+use rosenpass::{config, protocol};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
@@ -65,7 +65,7 @@ fn key_exchange_with_app_server(protocol_version: config::ProtocolVersion) -> an
                     broker_peer,
                     hostname,
                     protocol_version,
-                    OskDomainSeparator::default(),
+                    protocol::OskDomainSeparator::default(),
                 )?;
 
                 srv.app_srv.event_loop()

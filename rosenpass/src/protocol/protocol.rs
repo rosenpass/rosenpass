@@ -40,6 +40,7 @@ use crate::protocol::test_vector_sets::{
 };
 use crate::{RosenpassError, hash_domains, msgs::*};
 
+use super::OskDomainSeparator;
 use super::basic_types::{
     BiscuitId, EPk, ESk, MsgBuf, PeerId, PeerNo, PublicSymKey, SPk, SSk, SessionId, SymKey,
     XAEADNonce,
@@ -52,7 +53,6 @@ use super::constants::{
 };
 use super::cookies::{BiscuitKey, CookieSecret, CookieStore};
 use super::index::{PeerIndex, PeerIndexKey};
-use super::osk_domain_separator::OskDomainSeparator;
 use super::timing::{BCE, Timing, UNENDING, has_happened};
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 
@@ -186,7 +186,7 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
 /// use rosenpass::protocol::{Peer, ProtocolVersion};
-/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+/// use rosenpass::protocol::OskDomainSeparator;
 ///
 /// rosenpass_secret_memory::secret_policy_try_use_memfd_secrets();
 ///
@@ -1235,7 +1235,7 @@ impl CryptoServer {
     /// ```
     /// use std::ops::DerefMut;
     /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::OskDomainSeparator;
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass_ciphers::StaticKem;
     /// use rosenpass_cipher_traits::primitives::Kem;

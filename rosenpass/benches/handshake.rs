@@ -8,8 +8,8 @@ use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_secret_memory::secret_policy_try_use_memfd_secrets;
 
+use rosenpass::protocol::OskDomainSeparator;
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::{CryptoServer, HandleMsgResult, PeerPtr, ProtocolVersion};
 
 fn handle(

@@ -9,8 +9,8 @@ use rosenpass_cipher_traits::primitives::Kem;
 use rosenpass_ciphers::StaticKem;
 use rosenpass_util::result::OkExt;
 
+use rosenpass::protocol::OskDomainSeparator;
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 use rosenpass::protocol::testutils::time_travel_forward;
 use rosenpass::protocol::timing::{Timing, UNENDING};
 use rosenpass::protocol::{CryptoServer, HostIdentification, PeerPtr, PollResult, ProtocolVersion};

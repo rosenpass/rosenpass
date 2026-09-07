@@ -1,6 +1,4 @@
-use rosenpass::config;
-mod common;
-use common::assert_toml_round;
+use rosenpass::{config, config::util::assert_toml_round};
 
 #[test]
 fn test_protocol_version() {

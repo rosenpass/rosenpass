@@ -5,8 +5,8 @@ use rosenpass_util::{build::Build, result::ensure_or};
 
 use crate::config;
 
+use super::OskDomainSeparator;
 use super::basic_types::{SPk, SSk, SymKey};
-use super::osk_domain_separator::OskDomainSeparator;
 use super::{CryptoServer, PeerPtr};
 
 #[derive(Debug, Clone)]
@@ -155,7 +155,7 @@ pub struct MissingKeypair;
 ///
 /// use rosenpass::protocol::basic_types::{SPk, SymKey};
 /// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
-/// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+/// use rosenpass::protocol::OskDomainSeparator;
 ///
 /// // We have to define the security policy before using Secrets.
 /// secret_policy_use_only_malloc_secrets();
@@ -334,7 +334,7 @@ impl BuildCryptoServer {
     /// use rosenpass_util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
-    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
@@ -408,7 +408,7 @@ impl BuildCryptoServer {
     ///
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{BuildCryptoServer, Keypair};
-    /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
+    /// use rosenpass::protocol::OskDomainSeparator;
     ///
     /// // We have to define the security policy before using Secrets.
     /// secret_policy_use_only_malloc_secrets();

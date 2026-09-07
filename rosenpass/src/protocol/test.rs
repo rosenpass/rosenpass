@@ -11,9 +11,9 @@ use rosenpass_util::mem::DiscardResultExt;
 
 use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MAX_MESSAGE_LEN, MsgType, RespHello};
 
+use super::OskDomainSeparator;
 use super::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use super::constants::REKEY_AFTER_TIME_RESPONDER;
-use super::osk_domain_separator::OskDomainSeparator;
 use super::zerocopy::{truncating_cast_into, truncating_cast_into_nomut};
 use super::{
     CryptoServer, HandleMsgResult, HostIdentification, KnownInitConfResponsePtr, PeerPtr,
