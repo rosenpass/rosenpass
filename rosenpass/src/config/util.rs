@@ -112,10 +112,8 @@ mod test {
             );
         };
         // set environment because otherwise the test result would depend on the system running this
-        unsafe {
-            std::env::set_var("USER", "dummy");
-            std::env::set_var("HOME", "/home/dummy");
-        }
+        std::env::set_var("USER", "dummy");
+        std::env::set_var("HOME", "/home/dummy");
 
         // should resolve
         test("~/foo.toml", "/home/dummy/foo.toml");
