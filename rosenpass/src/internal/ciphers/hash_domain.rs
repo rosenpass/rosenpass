@@ -78,7 +78,7 @@ impl HashDomain {
     /// it evaluates
     #[cfg_attr(
         feature = "expose_internal_modules",
-        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::cipher_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
     )]
     #[cfg_attr(
         not(feature = "expose_internal_modules"),
@@ -139,7 +139,7 @@ impl HashDomainNamespace {
     /// it evaluates
     #[cfg_attr(
         feature = "expose_internal_modules",
-        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::cipher_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
     )]
     #[cfg_attr(
         not(feature = "expose_internal_modules"),
@@ -167,7 +167,7 @@ impl SecretHashDomain {
     /// Create a new [SecretHashDomain] with the given key `k` and data `d` by calling
     #[cfg_attr(
         feature = "expose_internal_modules",
-        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::cipher_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
     )]
     #[cfg_attr(
         not(feature = "expose_internal_modules"),
@@ -211,7 +211,7 @@ impl SecretHashDomain {
     /// it evaluates
     #[cfg_attr(
         feature = "expose_internal_modules",
-        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::cipher_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
     )]
     #[cfg_attr(
         not(feature = "expose_internal_modules"),
@@ -286,7 +286,7 @@ impl SecretHashDomainNamespace {
     /// it evaluates
     #[cfg_attr(
         feature = "expose_internal_modules",
-        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::ciphers_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
+        doc = "[`KeyedHashInstance::keyed_hash`](crate::internal::cipher_traits::primitives::keyed_hash::KeyedHashInstance::keyed_hash)"
     )]
     #[cfg_attr(
         not(feature = "expose_internal_modules"),
