@@ -24,6 +24,7 @@ pub mod mem;
 pub mod mio;
 /// Extended Option type functionality.
 pub mod option;
+pub mod ptr;
 /// Extended Result type functionality.
 pub mod result;
 pub mod rustix;
