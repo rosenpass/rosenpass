@@ -31,22 +31,35 @@ bitflags! {
 }
 
 /// Errors for [memfd_secret()]
-#[derive(Copy, Clone, Debug, thiserror::Error)]
-pub enum MemfdSecretError {
-    /// memfd_secret(2) not supported on system
+#[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
+pub enum MemfdSecretUnavailabilityReason {
+    /// memfd_secret(2) is not supported by the kernel or was disabled at boot
     #[error(
-        "Could not create secret memory segment using memfd_secret(2): not supported on your system"
+        "memfd_secret(2) is not supported on your system or was blocked at boot by using the kernel command line `secretmem.enable=0`"
     )]
     NotSupported,
-    /// Other error
-    #[error("Could not create secret memory segment using memfd_secret(2): underlying system error: {:?}", .0)]
+    /// memfd_secret(2) is blocked by a security policy (seccomp/LSM) on this system
+    #[error("memfd_secret(2) is blocked by a security policy (seccomp/LSM) on your system")]
+    BlockedByPolicy,
+}
+
+/// Errors for [memfd_secret()]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
+pub enum MemfdSecretError {
+    /// memfd_secret(2) is unavailable on this system
+    #[error("Could not create secret memory segment using memfd_secret(2): {}", .0)]
+    Unavailable(#[from] MemfdSecretUnavailabilityReason),
+    /// memfd_secret(2) failed with an unexpected system error
+    #[error("Could not create secret memory segment using memfd_secret(2): underlying system error: {}", .0)]
     SystemError(Errno),
 }
 
 impl From<Errno> for MemfdSecretError {
     fn from(value: Errno) -> Self {
+        use MemfdSecretUnavailabilityReason as Unavail;
         match value {
-            Errno::NOSYS => Self::NotSupported,
+            Errno::NOSYS => Unavail::NotSupported.into(),
+            Errno::PERM | Errno::ACCESS => Unavail::BlockedByPolicy.into(),
             e => Self::SystemError(e),
         }
     }
@@ -70,8 +83,7 @@ impl From<Errno> for MemfdSecretError {
 /// use MemfdSecretError as E;
 /// let fd = match res {
 ///     Ok(fd) => fd,
-///     // The system might not have memfd_secret enabled; abort the test
-///     Err(E::NotSupported) => return Ok(()),
+///     Err(E::Unavailable(_)) => return Ok(()), // Blocked, disabled, or not supported
 ///     Err(E::SystemError(err)) => return Err(err)?,
 /// };
 ///
@@ -96,19 +108,23 @@ mod tests {
 
     #[test]
     fn test_memfd_secret_cloexec() {
-        use Errno as E;
-        use MemfdSecretError as M;
-        match memfd_secret(MemfdSecretFlags::empty()) {
-            Ok(fd) => drop(fd),
-            Err(M::NotSupported | M::SystemError(E::INVAL | E::PERM)) => return,
+        // Creating a memfd_secret without any flags must succeed (unless the
+        // feature is unavailable, in which case we skip the test)
+        let fd = match memfd_secret(MemfdSecretFlags::empty()) {
+            Ok(fd) => fd,
+            Err(MemfdSecretError::Unavailable(_)) => return,
             Err(e) => panic!("Unexpected error probing memfd_secret(2): {e:?}"),
-        }
+        };
 
-        // (a) Creating a secret memfd with CLOEXEC set must succeed
+        // This yields a file descriptor without the close on exec flag set
+        let fdflags = rustix::io::fcntl_getfd(&fd).expect("fcntl(F_GETFD) failed");
+        assert!(!fdflags.contains(rustix::io::FdFlags::CLOEXEC));
+
+        // Creating a secret memfd with CLOEXEC set must also succeed
         let fd = memfd_secret(MemfdSecretFlags::CLOEXEC)
             .expect("memfd_secret(2) with CLOEXEC failed although the probe succeeded");
 
-        // (b) The close-on-exec flag must be set on the new file descriptor
+        // Now, the close-on-exec flag must be set on the new file descriptor
         let fdflags = rustix::io::fcntl_getfd(&fd).expect("fcntl(F_GETFD) failed");
         assert!(fdflags.contains(rustix::io::FdFlags::CLOEXEC));
     }

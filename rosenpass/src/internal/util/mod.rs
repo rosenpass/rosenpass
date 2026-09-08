@@ -31,6 +31,7 @@ pub mod ptr;
 pub mod result;
 pub mod ringbuf;
 pub mod rustix;
+pub mod secret_memory;
 pub mod sync;
 /// Time and duration utilities.
 pub mod time;
