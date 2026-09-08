@@ -28,6 +28,7 @@ pub mod ptr;
 /// Extended Result type functionality.
 pub mod result;
 pub mod rustix;
+pub mod sync;
 /// Time and duration utilities.
 pub mod time;
 #[cfg(feature = "tokio")]
