@@ -24,9 +24,9 @@
 use crate::internal::ciphers::KEY_LEN;
 use crate::internal::secret_memory::Secret;
 
-use super::{constants::COOKIE_SECRET_LEN, timing::Timing};
+use super::timing::Timing;
 
-/// Container for storing cookie secrets like [BiscuitKey] or [CookieSecret].
+/// container for storing cookie secrets like [BiscuitKey]
 ///
 /// This is really just a secret key and a time stamp of creation. Concrete
 /// usages (such as for the biscuit key) impose a time limit about how long
@@ -44,14 +44,6 @@ pub struct CookieStore<const N: usize> {
     /// The secret key
     pub value: Secret<N>,
 }
-
-/// Stores cookie secret, which is used to create a rotating the cookie value
-///
-/// Concrete value is in [super::CryptoServer::cookie_secrets].
-///
-/// The pointer type is [super::ServerCookieSecretPtr].
-pub type CookieSecret = CookieStore<COOKIE_SECRET_LEN>;
-
 /// Storage for our biscuit keys.
 ///
 /// The biscuit keys encrypt what we call "biscuits".
