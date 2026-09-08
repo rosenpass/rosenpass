@@ -9,6 +9,7 @@ pub mod b64;
 pub mod build;
 /// Control flow abstractions and utilities.
 pub mod controlflow;
+pub mod convert;
 /// File system operations and handling.
 pub mod file;
 pub mod fmt;
