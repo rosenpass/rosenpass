@@ -18,6 +18,7 @@ pub mod functional;
 pub mod int;
 /// Input/output operations.
 pub mod io;
+pub mod ipc;
 /// Length prefix encoding schemes implementation.
 pub mod length_prefix_encoding;
 /// Memory manipulation and allocation utilities.
