@@ -44,13 +44,13 @@ impl<B: SplitByteSlice> RequestRef<B> {
         RequestRefMaker::new(buf)?.parse()
     }
 
-    /// Produce a [ResponseRef] from the prefix of a raw message buffer,
+    /// Produce a [ResponseRef](crate::api::ResponseRef) from the prefix of a raw message buffer,
     /// reading the type from the buffer.
     pub fn parse_from_prefix(buf: B) -> anyhow::Result<Self> {
         RequestRefMaker::new(buf)?.from_prefix()?.parse()
     }
 
-    /// Produce a [ResponseRef] from the suffix of a raw message buffer,
+    /// Produce a [ResponseRef](crate::api::ResponseRef) from the suffix of a raw message buffer,
     /// reading the type from the buffer.
     pub fn parse_from_suffix(buf: B) -> anyhow::Result<Self> {
         RequestRefMaker::new(buf)?.from_suffix()?.parse()

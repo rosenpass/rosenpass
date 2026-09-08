@@ -5,11 +5,11 @@
 #![cfg_attr(
     feature = "expose_internal_modules",
     doc = r#"
-- [`RefMaker`]: A helper structure for safely creating `zerocopy::Ref` references from byte slices.
-- [`ZerocopyEmancipateExt`]: A trait to convert `Ref<B, T>` into a borrowed `Ref<&[u8], T>`.
-- [`ZerocopyEmancipateMutExt`]: A trait to convert `Ref<B, T>` into a borrowed mutable `Ref<&mut [u8], T>`.
-- [`ZerocopySliceExt`]: Extension methods for parsing byte slices into zero-copy references.
-- [`ZerocopyMutSliceExt`]: Extension methods for parsing and zeroizing byte slices into zero-copy references.
+- [`RefMaker`](crate::internal::util::zerocopy::RefMaker): A helper structure for safely creating `zerocopy::Ref` references from byte slices.
+- [`ZerocopyEmancipateExt`](crate::internal::util::zerocopy::ZerocopyEmancipateExt): A trait to convert `Ref<B, T>` into a borrowed `Ref<&[u8], T>`.
+- [`ZerocopyEmancipateMutExt`](crate::internal::util::zerocopy::ZerocopyEmancipateMutExt): A trait to convert `Ref<B, T>` into a borrowed mutable `Ref<&mut [u8], T>`.
+- [`ZerocopySliceExt`](crate::internal::util::zerocopy::ZerocopySliceExt): Extension methods for parsing byte slices into zero-copy references.
+- [`ZerocopyMutSliceExt`](crate::internal::util::zerocopy::ZerocopyMutSliceExt): Extension methods for parsing and zeroizing byte slices into zero-copy references.
 "#
 )]
 #![cfg_attr(
