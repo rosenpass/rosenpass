@@ -203,7 +203,7 @@ wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
 postcard = { version = "1.1.1", default-features = false, features = [
   "alloc",
 ] } # Socket handler only
-libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+libc = { version = "0.2" } # Always required for some features missing in rustix
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
 oqs-sys = { version = "0.8", default-features = false, features = [
   'classic_mceliece',
@@ -252,7 +252,6 @@ experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:libc",                           # From `rosenpass-wireguard-broker`
   "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
   "experiment_file_descriptor_passing",
 ]
@@ -272,7 +271,6 @@ rp = [
   "dep:netlink-packet-core",
   "dep:netlink-packet-generic",
   "dep:netlink-packet-wireguard",
-  "dep:libc",
 ]
 # features of `rosenpass_util`:
 experiment_file_descriptor_passing = ["dep:uds"]
