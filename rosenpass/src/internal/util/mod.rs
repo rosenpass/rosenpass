@@ -29,6 +29,7 @@ pub mod option;
 pub mod ptr;
 /// Extended Result type functionality.
 pub mod result;
+pub mod ringbuf;
 pub mod rustix;
 pub mod sync;
 /// Time and duration utilities.
