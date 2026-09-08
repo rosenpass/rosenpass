@@ -2,3 +2,4 @@
 
 #[cfg(target_os = "linux")]
 pub mod fd;
+pub mod mmap;

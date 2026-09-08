@@ -168,6 +168,7 @@ rustix = { version = "1.1.4", features = [
   "net",
   "fs",
   "process",
+  "mm",
 ] } # Broker dependencies (might need cleanup or changes)
 uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
   "mio_1xx",
@@ -234,11 +235,6 @@ test_bin = "0.6"
 stacker = "0.1.21"
 serial_test = "4.0"
 tempfile = "3"
-rustix = { version = "1.1.4", features = [
-  "net",
-  "fs",
-  "process",
-] } # Broker dependencies (might need cleanup or changes)
 serde_json = { version = "1.0.140" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 rand = "0.10"
