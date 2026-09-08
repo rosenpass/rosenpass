@@ -15,6 +15,7 @@ pub mod file;
 pub mod fmt;
 /// Functional programming utilities.
 pub mod functional;
+pub mod int;
 /// Input/output operations.
 pub mod io;
 /// Length prefix encoding schemes implementation.
