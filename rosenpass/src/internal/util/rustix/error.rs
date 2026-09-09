@@ -1,10 +1,88 @@
 //! Rustix extensions for error handling
 
-use anyhow::bail;
-use rustix::io::fcntl_dupfd_cloexec;
-use std::os::fd::{AsFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
+/// Provides access to the last system error number
+///
+/// > The integer variable errno is set by system calls and some library functions in the event of an error to indicate what went wrong.
+///
+/// -- `man 3 errno`
+///
+/// # Panics
+///
+/// This function panics if there is no system error to retrieve
+/// (the system error number, errno = 0).
+///
+/// # Examples
+///
+/// ```rust
+///
+/// use rustix::io::Errno as E;
+/// use rosenpass::internal::util::rustix::{errno, try_errno, last_os_result};
+///
+/// // Open a path below /dev/null; /dev/null is a character device, not a
+/// // directory, so this reliably fails with ENOTDIR on any system and,
+/// // being a read-only open, has no side effects.
+/// let res = unsafe { libc::open(c"/dev/null/rosenpass-errno-doctest".as_ptr(), libc::O_RDONLY) };
+/// assert_eq!(res, -1);
+/// assert_eq!(errno(), E::NOTDIR);
+/// assert_eq!(try_errno(), Some(E::NOTDIR));
+/// assert_eq!(last_os_result(), Err(E::NOTDIR));
+///
+/// // Deliberately clear the system error
+/// unsafe { libc::__errno_location().write(0) };
+/// // assert_eq!(errno(), _); // PANICS
+/// assert_eq!(try_errno(), None);
+/// assert_eq!(last_os_result(), Ok(()));
+/// ```
+///
+/// Calling errno() when there is no error causes a panic:
+///
+/// ```rust,should_panic
+///
+/// use rustix::io::Errno as E;
+/// use rosenpass::internal::util::rustix::errno;
+///
+/// // Deliberately clear the system error
+/// unsafe { libc::__errno_location().write(0) };
+/// errno(); // PANICS
+/// ```
+pub fn errno() -> rustix::io::Errno {
+    match try_errno() {
+        None => panic!(
+            "Tried to retrieve last system error, but there was no system error (the system error number, errno = 0)"
+        ),
+        Some(errno) => errno,
+    }
+}
 
-use crate::internal::util::{mem::Forgetting, result::OkExt};
+/// Provides access to the last system error number.
+///
+/// Variant of [errno()] that will return None if there was no system error.
+///
+/// # Examples
+///
+/// See [errno()].
+pub fn try_errno() -> Option<rustix::io::Errno> {
+    let raw = unsafe { libc::__errno_location().read() };
+    match raw {
+        0 => None,
+        _ => Some(rustix::io::Errno::from_raw_os_error(raw)),
+    }
+}
+
+/// Provides access to the last system error number.
+///
+/// Variant of [errno()] that will return `Err(errno)` if there
+/// was a system error and `Ok(())` otherwise.
+///
+/// # Examples
+///
+/// See [errno()].
+pub fn last_os_result() -> Result<(), rustix::io::Errno> {
+    match try_errno() {
+        None => Ok(()),
+        Some(errno) => Err(errno),
+    }
+}
 
 /// Convert low level errors into std::io::Error
 ///
