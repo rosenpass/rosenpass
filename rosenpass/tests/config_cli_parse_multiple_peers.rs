@@ -28,14 +28,14 @@ fn test_cli_parse_multiple_peers() {
     assert_eq!(
         config.peers,
         vec![
-            cfg::RosenpassPeer {
+            cfg::Peer {
                 public_key: PathBuf::from("/peer-a/public-key"),
                 endpoint: Some("peer.test:9999".into()),
                 pre_shared_key: None,
                 key_out: Some(PathBuf::from("/peer-a/rp-out")),
                 ..Default::default()
             },
-            cfg::RosenpassPeer {
+            cfg::Peer {
                 public_key: PathBuf::from("/peer-b/public-key"),
                 endpoint: None,
                 pre_shared_key: None,

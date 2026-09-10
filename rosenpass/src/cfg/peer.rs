@@ -6,7 +6,7 @@ use std::path::PathBuf;
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RosenpassPeer {
+pub struct Peer {
     /// path to the public key of the peer
     pub public_key: PathBuf,
 

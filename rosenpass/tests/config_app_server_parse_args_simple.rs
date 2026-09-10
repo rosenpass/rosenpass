@@ -27,7 +27,7 @@ fn parse_simple() {
     );
     assert_eq!(
         config.peers,
-        vec![cfg::RosenpassPeer {
+        vec![cfg::Peer {
             public_key: PathBuf::from("/peer/public-key"),
             endpoint: Some("peer.test:9999".into()),
             pre_shared_key: None,

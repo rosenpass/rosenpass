@@ -10,8 +10,8 @@
 mod app_server;
 pub use app_server::*;
 
-mod rosenpass_peer;
-pub use rosenpass_peer::*;
+mod peer;
+pub use peer::*;
 
 pub mod util;
 pub use util::*;

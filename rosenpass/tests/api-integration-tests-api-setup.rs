@@ -95,7 +95,7 @@ fn api_integration_api_setup(protocol_version: cfg::ProtocolVersion) -> anyhow::
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![cfg::RosenpassPeer {
+        peers: vec![cfg::Peer {
             public_key: tempfile!("b.pk"),
             key_out: None,
             endpoint: None,
@@ -121,7 +121,7 @@ fn api_integration_api_setup(protocol_version: cfg::ProtocolVersion) -> anyhow::
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![cfg::RosenpassPeer {
+        peers: vec![cfg::Peer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),

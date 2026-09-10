@@ -50,8 +50,8 @@ pub struct AppServer {
 
     /// list of peers
     ///
-    /// See the [`RosenpassPeer`] type for more information and examples.
-    pub peers: Vec<cfg::RosenpassPeer>,
+    /// See the [`Peer`] type for more information and examples.
+    pub peers: Vec<cfg::Peer>,
 
     /// path to the file which provided this configuration
     ///
@@ -402,7 +402,7 @@ impl AppServer {
                     );
 
                     already_set.clear();
-                    current_peer = Some(cfg::RosenpassPeer::default());
+                    current_peer = Some(cfg::Peer::default());
 
                     Peer
                 }
@@ -436,7 +436,7 @@ impl AppServer {
                     config.peers.push(maybe_peer.take().expect(p_exists));
 
                     already_set.clear();
-                    current_peer = Some(cfg::RosenpassPeer::default());
+                    current_peer = Some(cfg::Peer::default());
 
                     Peer
                 }
