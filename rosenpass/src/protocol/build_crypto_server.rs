@@ -151,7 +151,7 @@ pub struct MissingKeypair;
 /// use rosenpass_util::build::Build;
 /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
 ///
-/// use rosenpass::config;
+/// use rosenpass::cfg;
 ///
 /// use rosenpass::protocol::basic_types::{SPk, SymKey};
 /// use rosenpass::protocol::{BuildCryptoServer, Keypair, PeerParams};
@@ -329,7 +329,7 @@ impl BuildCryptoServer {
     /// Adding peers to an existing builder:
     ///
     /// ```rust
-    /// use rosenpass::config;
+    /// use rosenpass::cfg;
     ///
     /// use rosenpass_util::build::Build;
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
@@ -403,7 +403,7 @@ impl BuildCryptoServer {
     /// use rosenpass_util::build::Build;
     /// use rosenpass_secret_memory::secret_policy_use_only_malloc_secrets;
     ///
-    /// use rosenpass::config;
+    /// use rosenpass::cfg;
     /// use rosenpass::hash_domains::protocol;
     ///
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
