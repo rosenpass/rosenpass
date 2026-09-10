@@ -2,7 +2,7 @@ use rosenpass::cfg;
 use std::path::PathBuf;
 
 #[test]
-fn example_config_rosenpass_store() -> anyhow::Result<()> {
+fn example_config_app_server_store() -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let tmpdir = tempfile::tempdir()?;
@@ -11,31 +11,31 @@ fn example_config_rosenpass_store() -> anyhow::Result<()> {
     let pk = tmpdir.path().join("example.pk");
     let cfg = tmpdir.path().join("config.toml");
 
-    let mut c = cfg::AppServer::from_sk_pk(&sk, &pk);
+    let mut config = cfg::AppServer::from_sk_pk(&sk, &pk);
 
     // Can not commit config, path not known
-    assert!(c.commit().is_err());
+    assert!(config.commit().is_err());
 
     // We can store it to an explicit path though
-    c.store(&cfg)?;
+    config.store(&cfg)?;
 
     // Storing does not set commitment path
-    assert!(c.commit().is_err());
+    assert!(config.commit().is_err());
 
     // We can reload the config now and the configurations
     // are equal if we adjust the commitment path
-    let mut c2 = cfg::AppServer::load(&cfg)?;
-    c.config_file_path = PathBuf::from(&cfg);
-    assert_eq!(c, c2);
+    let mut config2 = cfg::AppServer::load(&cfg)?;
+    config.config_file_path = PathBuf::from(&cfg);
+    assert_eq!(config, config2);
 
     // And this loaded config can now be committed
-    c2.verbosity = cfg::Verbosity::Verbose;
-    c2.commit()?;
+    config2.verbosity = cfg::Verbosity::Verbose;
+    config2.commit()?;
 
     // And the changes actually made it to disk
-    let c3 = cfg::AppServer::load(cfg)?;
-    assert_eq!(c2, c3);
-    assert_ne!(c, c3);
+    let config3 = cfg::AppServer::load(cfg)?;
+    assert_eq!(config2, config3);
+    assert_ne!(config, config3);
 
     Ok(())
 }

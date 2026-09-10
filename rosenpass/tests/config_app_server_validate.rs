@@ -3,7 +3,7 @@ use std::fs;
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
-fn example_config_rosenpass_validate() -> anyhow::Result<()> {
+fn example_config_app_server_validate() -> anyhow::Result<()> {
     rosenpass_secret_memory::policy::secret_policy_use_only_malloc_secrets();
 
     let tmpdir = tempfile::tempdir()?;
@@ -16,22 +16,22 @@ fn example_config_rosenpass_validate() -> anyhow::Result<()> {
 
     let sk = tmpdir.path().join("example.sk");
     let pk = tmpdir.path().join("example.pk");
-    let cfg = cfg::AppServer::from_sk_pk(&sk, &pk);
+    let config = cfg::AppServer::from_sk_pk(&sk, &pk);
 
     // Missing secret key does not validate
-    assert!(cfg.validate().is_err());
+    assert!(config.validate().is_err());
 
     // But passes usefulness (the configuration is useful but invalid)
-    assert!(cfg.check_usefullness().is_ok());
+    assert!(config.check_usefullness().is_ok());
 
     // Providing empty key files does not help
     fs::write(&sk, b"")?;
     fs::write(&pk, b"")?;
-    assert!(cfg.validate().is_err());
+    assert!(config.validate().is_err());
 
     // But after providing proper key files, the configuration validates
     generate_and_save_keypair(sk, pk)?;
-    assert!(cfg.validate().is_ok());
+    assert!(config.validate().is_ok());
 
     Ok(())
 }

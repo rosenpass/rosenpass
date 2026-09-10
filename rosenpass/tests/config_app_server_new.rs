@@ -1,7 +1,7 @@
 use rosenpass::cfg;
 
 #[test]
-fn example_config_rosenpass_new() {
+fn example_config_app_server_new() {
     let (sk, pk) = ("./example.sk", "./example.pk");
 
     assert_eq!(
@@ -18,7 +18,7 @@ fn example_config_rosenpass_new() {
         cfg::AppServer::new(Some(cfg::Keypair::new(pk, sk)))
     );
 
-    let mut v = cfg::AppServer::empty();
-    v.keypair = Some(cfg::Keypair::new(pk, sk));
-    assert_eq!(cfg::AppServer::from_sk_pk(sk, pk), v);
+    let mut config = cfg::AppServer::empty();
+    config.keypair = Some(cfg::Keypair::new(pk, sk));
+    assert_eq!(cfg::AppServer::from_sk_pk(sk, pk), config);
 }
