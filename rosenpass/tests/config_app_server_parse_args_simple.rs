@@ -15,7 +15,7 @@ fn parse_simple() {
 
     assert_eq!(
         config.keypair,
-        Some(cfg::RosenpassKeypair::new(
+        Some(cfg::Keypair::new(
             "/my/public-key",
             "/my/secret-key"
         ))

@@ -26,7 +26,7 @@ pub struct AppServer {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
     #[serde(flatten)]
-    pub keypair: Option<cfg::RosenpassKeypair>,
+    pub keypair: Option<cfg::Keypair>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -291,7 +291,7 @@ impl AppServer {
     #[doc = include_str!("../../tests/config_app_server_new.rs")]
     #[doc = "```"]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
-        Self::new(Some(cfg::RosenpassKeypair::new(pk, sk)))
+        Self::new(Some(cfg::Keypair::new(pk, sk)))
     }
 
     /// Initialize a minimal configuration with the [Self::keypair] field supplied
@@ -302,7 +302,7 @@ impl AppServer {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/config_app_server_new.rs")]
     #[doc = "```"]
-    pub fn new(keypair: Option<cfg::RosenpassKeypair>) -> Self {
+    pub fn new(keypair: Option<cfg::Keypair>) -> Self {
         Self {
             keypair,
             listen: vec![],
@@ -350,7 +350,7 @@ impl AppServer {
     #[doc = include_str!("../../tests/config_app_server_parse_args_simple.rs")]
     #[doc = "```"]
     pub fn parse_args(args: Vec<String>) -> anyhow::Result<Self> {
-        let mut config = Self::new(Some(cfg::RosenpassKeypair::new("", "")));
+        let mut config = Self::new(Some(cfg::Keypair::new("", "")));
 
         #[derive(Debug, Hash, PartialEq, Eq)]
         enum State {

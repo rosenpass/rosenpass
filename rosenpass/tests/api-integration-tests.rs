@@ -64,7 +64,7 @@ fn api_integration_test(protocol_version: cfg::ProtocolVersion) -> anyhow::Resul
     let peer_a_osk = tempfile!("a.osk");
     let peer_b_osk = tempfile!("b.osk");
 
-    let peer_a_keypair = cfg::RosenpassKeypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = cfg::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
     let peer_a = cfg::AppServer {
         config_file_path: tempfile!("a.config"),
         keypair: Some(peer_a_keypair.clone()),
@@ -86,7 +86,7 @@ fn api_integration_test(protocol_version: cfg::ProtocolVersion) -> anyhow::Resul
         }],
     };
 
-    let peer_b_keypair = cfg::RosenpassKeypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b_keypair = cfg::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
     let peer_b = cfg::AppServer {
         config_file_path: tempfile!("b.config"),
         keypair: Some(peer_b_keypair.clone()),

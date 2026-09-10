@@ -15,10 +15,10 @@ fn example_config_rosenpass_new() {
 
     assert_eq!(
         cfg::AppServer::from_sk_pk(sk, pk),
-        cfg::AppServer::new(Some(cfg::RosenpassKeypair::new(pk, sk)))
+        cfg::AppServer::new(Some(cfg::Keypair::new(pk, sk)))
     );
 
     let mut v = cfg::AppServer::empty();
-    v.keypair = Some(cfg::RosenpassKeypair::new(pk, sk));
+    v.keypair = Some(cfg::Keypair::new(pk, sk));
     assert_eq!(cfg::AppServer::from_sk_pk(sk, pk), v);
 }

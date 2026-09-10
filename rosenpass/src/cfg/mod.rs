@@ -23,7 +23,7 @@ use std::path::PathBuf;
 /// Public key and secret key locations.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct RosenpassKeypair {
+pub struct Keypair {
     /// path to the public key file
     pub public_key: PathBuf,
 
@@ -31,7 +31,7 @@ pub struct RosenpassKeypair {
     pub secret_key: PathBuf,
 }
 
-impl RosenpassKeypair {
+impl Keypair {
     /// Construct a keypair from its fields
     pub fn new<Pk: AsRef<Path>, Sk: AsRef<Path>>(public_key: Pk, secret_key: Sk) -> Self {
         let public_key = public_key.as_ref().to_path_buf();
