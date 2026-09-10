@@ -1,24 +1,24 @@
-use rosenpass::config;
+use rosenpass::cfg;
 
 #[test]
 fn example_config_rosenpass_new() {
     let (sk, pk) = ("./example.sk", "./example.pk");
 
     assert_eq!(
-        config::RosenpassCfg::empty(),
-        config::RosenpassCfg::new(None)
+        cfg::RosenpassCfg::empty(),
+        cfg::RosenpassCfg::new(None)
     );
     assert_eq!(
-        config::RosenpassCfg::empty(),
-        config::RosenpassCfg::default()
+        cfg::RosenpassCfg::empty(),
+        cfg::RosenpassCfg::default()
     );
 
     assert_eq!(
-        config::RosenpassCfg::from_sk_pk(sk, pk),
-        config::RosenpassCfg::new(Some(config::RosenpassKeypair::new(pk, sk)))
+        cfg::RosenpassCfg::from_sk_pk(sk, pk),
+        cfg::RosenpassCfg::new(Some(cfg::RosenpassKeypair::new(pk, sk)))
     );
 
-    let mut v = config::RosenpassCfg::empty();
-    v.keypair = Some(config::RosenpassKeypair::new(pk, sk));
-    assert_eq!(config::RosenpassCfg::from_sk_pk(sk, pk), v);
+    let mut v = cfg::RosenpassCfg::empty();
+    v.keypair = Some(cfg::RosenpassKeypair::new(pk, sk));
+    assert_eq!(cfg::RosenpassCfg::from_sk_pk(sk, pk), v);
 }

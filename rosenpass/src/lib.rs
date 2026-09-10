@@ -17,7 +17,7 @@
 pub mod api;
 pub mod app_server;
 pub mod cli;
-pub mod config;
+pub mod cfg;
 pub mod hash_domains;
 pub mod msgs;
 pub mod protocol;

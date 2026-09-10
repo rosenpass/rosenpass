@@ -8,10 +8,10 @@ use anyhow::{Context, Result, bail, ensure};
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
-use rosenpass::config;
+use rosenpass::cfg;
 use rosenpass::{
     app_server::{AppServer, BrokerPeer},
-    config::Verbosity,
+    cfg::Verbosity,
     protocol::{
         OskDomainSeparator,
         basic_types::{SPk, SSk, SymKey},
@@ -75,7 +75,7 @@ pub struct ExchangePeer {
     pub allowed_ips: Option<String>,
     /// The protocol version used by the peer.
     #[serde(default)]
-    pub protocol_version: config::ProtocolVersion,
+    pub protocol_version: cfg::ProtocolVersion,
 }
 
 /// Options for the exchange operation of the `rp` binary.

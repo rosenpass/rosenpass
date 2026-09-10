@@ -1,13 +1,13 @@
-use rosenpass::{config, config::util::assert_toml_round};
+use rosenpass::{cfg, cfg::util::assert_toml_round};
 
 #[test]
 fn test_protocol_version() {
-    let mut rosenpass = config::RosenpassCfg::empty();
-    let mut peer_v_02 = config::RosenpassPeer::default();
-    peer_v_02.protocol_version = config::ProtocolVersion::V02;
+    let mut rosenpass = cfg::RosenpassCfg::empty();
+    let mut peer_v_02 = cfg::RosenpassPeer::default();
+    peer_v_02.protocol_version = cfg::ProtocolVersion::V02;
     rosenpass.peers.push(peer_v_02);
-    let mut peer_v_03 = config::RosenpassPeer::default();
-    peer_v_03.protocol_version = config::ProtocolVersion::V03;
+    let mut peer_v_03 = cfg::RosenpassPeer::default();
+    peer_v_03.protocol_version = cfg::ProtocolVersion::V03;
     rosenpass.peers.push(peer_v_03);
     #[cfg(feature = "experiment_api")]
     {

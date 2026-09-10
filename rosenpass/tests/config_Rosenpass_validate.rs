@@ -1,4 +1,4 @@
-use rosenpass::{cli::generate_and_save_keypair, config};
+use rosenpass::{cli::generate_and_save_keypair, cfg};
 use std::fs;
 
 #[test]
@@ -9,14 +9,14 @@ fn example_config_rosenpass_validate() -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
 
     // Empty validates OK
-    assert!(config::RosenpassCfg::empty().validate().is_ok());
+    assert!(cfg::RosenpassCfg::empty().validate().is_ok());
 
     // Missing secret key does not pass usefulness
-    assert!(config::RosenpassCfg::empty().check_usefullness().is_err());
+    assert!(cfg::RosenpassCfg::empty().check_usefullness().is_err());
 
     let sk = tmpdir.path().join("example.sk");
     let pk = tmpdir.path().join("example.pk");
-    let cfg = config::RosenpassCfg::from_sk_pk(&sk, &pk);
+    let cfg = cfg::RosenpassCfg::from_sk_pk(&sk, &pk);
 
     // Missing secret key does not validate
     assert!(cfg.validate().is_err());

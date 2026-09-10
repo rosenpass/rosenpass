@@ -51,6 +51,7 @@ pub enum ProtocolVersion {
     V02,
     V03,
 }
+
 /// Information for supplying exchanged keys directly to WireGuard
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

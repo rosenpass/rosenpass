@@ -1,4 +1,4 @@
-use crate::config;
+use crate::cfg;
 use crate::protocol;
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
@@ -32,15 +32,15 @@ pub struct RosenpassPeer {
 
     /// Information for supplying exchanged keys directly to WireGuard
     #[serde(flatten)]
-    pub wg: Option<config::WireGuard>,
+    pub wg: Option<cfg::WireGuard>,
 
     #[serde(default)]
     /// The protocol version to use for the exchange
-    pub protocol_version: config::ProtocolVersion,
+    pub protocol_version: cfg::ProtocolVersion,
 
     /// Allows using a custom domain separator
     #[serde(flatten)]
-    pub osk_domain_separator: config::OskDomainSeparator,
+    pub osk_domain_separator: cfg::OskDomainSeparator,
 }
 
 /// Configuration for [crate::protocol::OskDomainSeparator]

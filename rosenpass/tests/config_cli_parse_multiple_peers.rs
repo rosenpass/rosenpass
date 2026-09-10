@@ -1,4 +1,4 @@
-use rosenpass::config;
+use rosenpass::cfg;
 use std::path::PathBuf;
 
 fn split_str(s: &str) -> Vec<String> {
@@ -14,28 +14,28 @@ fn test_cli_parse_multiple_peers() {
             peer public-key /peer-b/public-key outfile /peer-b/rp-out",
     );
 
-    let config = config::RosenpassCfg::parse_args(args).unwrap();
+    let config = cfg::RosenpassCfg::parse_args(args).unwrap();
 
     assert_eq!(
         config.keypair,
-        Some(config::RosenpassKeypair::new(
+        Some(cfg::RosenpassKeypair::new(
             "/my/public-key",
             "/my/secret-key"
         ))
     );
-    assert_eq!(config.verbosity, config::Verbosity::Verbose);
+    assert_eq!(config.verbosity, cfg::Verbosity::Verbose);
     assert!(&config.listen.is_empty());
     assert_eq!(
         config.peers,
         vec![
-            config::RosenpassPeer {
+            cfg::RosenpassPeer {
                 public_key: PathBuf::from("/peer-a/public-key"),
                 endpoint: Some("peer.test:9999".into()),
                 pre_shared_key: None,
                 key_out: Some(PathBuf::from("/peer-a/rp-out")),
                 ..Default::default()
             },
-            config::RosenpassPeer {
+            cfg::RosenpassPeer {
                 public_key: PathBuf::from("/peer-b/public-key"),
                 endpoint: None,
                 pre_shared_key: None,
