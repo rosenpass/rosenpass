@@ -14,7 +14,7 @@ fn test_cli_parse_multiple_peers() {
             peer public-key /peer-b/public-key outfile /peer-b/rp-out",
     );
 
-    let config = cfg::RosenpassCfg::parse_args(args).unwrap();
+    let config = cfg::AppServer::parse_args(args).unwrap();
 
     assert_eq!(
         config.keypair,

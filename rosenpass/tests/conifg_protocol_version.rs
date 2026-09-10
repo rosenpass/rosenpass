@@ -2,7 +2,7 @@ use rosenpass::{cfg, cfg::util::assert_toml_round};
 
 #[test]
 fn test_protocol_version() {
-    let mut rosenpass = cfg::RosenpassCfg::empty();
+    let mut rosenpass = cfg::AppServer::empty();
     let mut peer_v_02 = cfg::RosenpassPeer::default();
     peer_v_02.protocol_version = cfg::ProtocolVersion::V02;
     rosenpass.peers.push(peer_v_02);

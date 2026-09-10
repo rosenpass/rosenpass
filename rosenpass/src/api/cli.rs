@@ -28,9 +28,9 @@ pub struct ApiCli {
 }
 
 impl ApiCli {
-    /// Copy the parameters set here into the [cfg::RosenpassCfg].
+    /// Copy the parameters set here into the [cfg::AppServer].
     /// Forwards to [Self::apply_to_api_config]:
-    pub fn apply_to_config(&self, cfg: &mut cfg::RosenpassCfg) -> anyhow::Result<()> {
+    pub fn apply_to_config(&self, cfg: &mut cfg::AppServer) -> anyhow::Result<()> {
         self.apply_to_api_config(&mut cfg.api)
     }
 

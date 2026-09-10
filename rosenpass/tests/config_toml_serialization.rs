@@ -4,7 +4,7 @@ use rosenpass::{cfg, cfg::util::assert_toml_round};
 fn toml_serialization() -> anyhow::Result<()> {
     #[cfg(feature = "experiment_api")]
     assert_toml_round(
-        cfg::RosenpassCfg::empty(),
+        cfg::AppServer::empty(),
         r#"
         listen = []
         verbosity = "Quiet"
@@ -19,7 +19,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "experiment_api"))]
     assert_toml_round(
-        cfg::RosenpassCfg::empty(),
+        cfg::AppServer::empty(),
         r#"
         listen = []
         verbosity = "Quiet"
@@ -29,7 +29,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(feature = "experiment_api")]
     assert_toml_round(
-        cfg::RosenpassCfg::from_sk_pk("/my/sk", "/my/pk"),
+        cfg::AppServer::from_sk_pk("/my/sk", "/my/pk"),
         r#"
         public_key = "/my/pk"
         secret_key = "/my/sk"
@@ -46,7 +46,7 @@ fn toml_serialization() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "experiment_api"))]
     assert_toml_round(
-        cfg::RosenpassCfg::from_sk_pk("/my/sk", "/my/pk"),
+        cfg::AppServer::from_sk_pk("/my/sk", "/my/pk"),
         r#"
         public_key = "/my/pk"
         secret_key = "/my/sk"

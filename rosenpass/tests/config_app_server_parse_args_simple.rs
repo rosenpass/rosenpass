@@ -11,7 +11,7 @@ fn parse_simple() {
                 peer.test:9999 outfile /peer/rp-out";
     let argv = argv.split(' ').map(|s| s.to_string()).collect();
 
-    let config = cfg::RosenpassCfg::parse_args(argv).unwrap();
+    let config = cfg::AppServer::parse_args(argv).unwrap();
 
     assert_eq!(
         config.keypair,
