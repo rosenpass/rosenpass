@@ -15,10 +15,7 @@ fn parse_simple() {
 
     assert_eq!(
         config.keypair,
-        Some(cfg::Keypair::new(
-            "/my/public-key",
-            "/my/secret-key"
-        ))
+        Some(cfg::Keypair::new("/my/public-key", "/my/secret-key"))
     );
     assert_eq!(config.verbosity, cfg::Verbosity::Verbose);
     assert_eq!(

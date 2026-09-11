@@ -1,4 +1,4 @@
-use rosenpass::{cli::generate_and_save_keypair, cfg};
+use rosenpass::{cfg, cli::generate_and_save_keypair};
 use std::fs;
 
 #[test]

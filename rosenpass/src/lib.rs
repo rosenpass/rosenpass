@@ -16,8 +16,8 @@
 #[cfg(feature = "experiment_api")]
 pub mod api;
 pub mod app_server;
-pub mod cli;
 pub mod cfg;
+pub mod cli;
 pub mod hash_domains;
 pub mod msgs;
 pub mod protocol;

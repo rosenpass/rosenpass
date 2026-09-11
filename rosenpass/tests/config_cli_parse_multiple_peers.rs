@@ -18,10 +18,7 @@ fn test_cli_parse_multiple_peers() {
 
     assert_eq!(
         config.keypair,
-        Some(cfg::Keypair::new(
-            "/my/public-key",
-            "/my/secret-key"
-        ))
+        Some(cfg::Keypair::new("/my/public-key", "/my/secret-key"))
     );
     assert_eq!(config.verbosity, cfg::Verbosity::Verbose);
     assert!(&config.listen.is_empty());
