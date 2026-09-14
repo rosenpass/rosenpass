@@ -437,7 +437,7 @@ pub struct EnsureJanitorResult<T, E> {
     /// - `Some(Ok(()))` if a new janitor had to be created and it exited successfully
     /// - `Some(Err(...))` if a new janitor had to be created and it exited with an error
     pub janitor_result: Option<anyhow::Result<()>>,
-    /// See [EnterJanitorResult::callee]
+    /// See [EnterJanitorResult::callee_result]
     pub callee_result: Result<T, E>,
 }
 
