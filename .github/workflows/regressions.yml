@@ -13,11 +13,28 @@ permissions:
   contents: read
 
 jobs:
-  multi-peer:
+  build-rosenpass-binary:
     runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v7
       - run: cargo build --bin rosenpass --release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rosenpass-binary
+          path: target/release/rosenpass
+          if-no-files-found: error
+          retention-days: 1
+
+  multi-peer:
+    runs-on: ubicloud-standard-2
+    needs: build-rosenpass-binary
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: rosenpass-binary
+          path: target/release
+      - run: chmod +x target/release/rosenpass
       - run: python misc/generate_configs.py
       - run: chmod +x .ci/run-regression.sh
       - run: .ci/run-regression.sh 100 20
@@ -26,12 +43,17 @@ jobs:
 
   boot-race:
     runs-on: ubicloud-standard-2
+    needs: build-rosenpass-binary
     steps:
       - uses: actions/checkout@v7
-      - run: cargo build --bin rosenpass --release
+      - uses: actions/download-artifact@v8
+        with:
+          name: rosenpass-binary
+          path: target/release
+      - run: chmod +x target/release/rosenpass
       - run: chmod +x .ci/boot_race/run.sh
-      - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/a.toml
-      - run: cargo run --release --bin rosenpass gen-keys .ci/boot_race/b.toml
+      - run: target/release/rosenpass gen-keys .ci/boot_race/a.toml
+      - run: target/release/rosenpass gen-keys .ci/boot_race/b.toml
       - run: .ci/boot_race/run.sh 5 2 .ci/boot_race/a.toml .ci/boot_race/b.toml
       - run: .ci/boot_race/run.sh 5 1 .ci/boot_race/a.toml .ci/boot_race/b.toml
       - run: .ci/boot_race/run.sh 5 0 .ci/boot_race/a.toml .ci/boot_race/b.toml
