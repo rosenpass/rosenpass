@@ -4,8 +4,10 @@ permissions:
 on:
   push:
     branches:
-      - main
-      # - upgrade-ci-macos
+      - "main"
+      - "v*"
+    tags:
+      - "v*"
   workflow_call:
 
 concurrency:
