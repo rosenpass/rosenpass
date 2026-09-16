@@ -17,12 +17,12 @@ updates:
     directory: "/"
     schedule:
       interval: "cron"
-      cronjob: "12 4 * * MON,THU" # 4:12 in the morning twice per week
+      cronjob: "12 4 * * MON" # 4:12 in the morning once per week
       timezone: "Europe/Berlin"
     allow:
       - dependency-type: "all" # update both Cargo.toml and Cargo.lock
     cooldown:
-      default-days: 3
+      default-days: 5
     groups:
       # group patches for better visibility
       weekly-cargo-patches:
