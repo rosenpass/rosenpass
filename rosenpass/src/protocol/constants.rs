@@ -27,16 +27,6 @@ pub const REKEY_AFTER_TIME_INITIATOR: Timing = 130.0;
 /// discard the key if no rekey is achieved within three
 pub const REJECT_AFTER_TIME: Timing = 180.0;
 
-/// The length of the `cookie_secret` in the [whitepaper](https://rosenpass.eu/whitepaper.pdf)
-pub const COOKIE_SECRET_LEN: usize = MAC_SIZE;
-/// The life time of the `cookie_secret` in the [whitepaper](https://rosenpass.eu/whitepaper.pdf)
-pub const COOKIE_SECRET_EPOCH: Timing = 120.0;
-
-/// Length of a cookie value (see info about the cookie mechanism in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub const COOKIE_VALUE_LEN: usize = MAC_SIZE;
-/// Time after which to delete a cookie, as the initiator, for a certain peer (see info about the cookie mechanism in the [whitepaper](https://rosenpass.eu/whitepaper.pdf))
-pub const PEER_COOKIE_VALUE_EPOCH: Timing = 120.0;
-
 /// Seconds until the biscuit key is changed; we issue biscuits
 /// using one biscuit key for one epoch and store the biscuit for
 /// decryption for a second epoch
