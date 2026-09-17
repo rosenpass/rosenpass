@@ -42,3 +42,15 @@ updates:
       timezone: "Europe/Berlin"
     cooldown:
       default-days: 3
+
+  # upgrade Nix from time to time
+  - package-ecosystem: "nix"
+    directories:
+      - "/"
+      - "/tests/integration"
+    schedule:
+      interval: "cron"
+      cronjob: "34 4 1 * *" # once per month
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 14
