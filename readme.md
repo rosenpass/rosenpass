@@ -1,11 +1,11 @@
 # Rosenpass README
 
-[![GitHub Release](https://img.shields.io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
-[![crates.io](https://img.shields.io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
-[![License](https://img.shields.io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
-![Nix](https://github.com/rosenpass/rosenpass/actions/workflows/nix.yaml/badge.svg)
-![QC](https://github.com/rosenpass/rosenpass/actions/workflows/qc.yaml/badge.svg)
-[![docs.rs](https://docs.rs/rosenpass/badge.svg)](https://docs.rs/rosenpass)
+[![GitHub Release](https://badges.islabtech.com/shields-io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
+[![crates.io](https://badges.islabtech.com/shields-io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
+[![License](https://badges.islabtech.com/shields-io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
+![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml)
+![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml)
+[![docs.rs](https://badges.islabtech.com/shields-io/docsrs/rosenpass/latest)](https://docs.rs/rosenpass)
 
 This repository contains
 
@@ -74,7 +74,7 @@ Documentation and installation guides can be found at the [Rosenpass website](ht
 
 Rosenpass is packaged for more and more distributions, maybe also for the distribution of your choice?
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
+[![Packaging status](https://badges.islabtech.com/repology/vertical-allrepos/rosenpass.svg)](https://repology.org/project/rosenpass/versions)
 
 ## Docker Images
 
