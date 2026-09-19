@@ -123,6 +123,8 @@ let
 in
 {
   name = "rosenpass with key exchangers";
+  requiredFeatures.kvm = false; # These two lines allow us to run the check
+  qemu.forceAccel = false; # on a machine without KVM hardware acceleration.
   defaults = {
     imports = [
       ./rp-key-exchange.nix
