@@ -9,7 +9,11 @@ use std::ptr::null_mut;
 
 use rustix::io::Errno;
 
+use crate::internal::util::convert::{IntoTypeExt, TryIntoTypeExt};
+use crate::internal::util::functional::SideffectExt;
+use crate::internal::util::int::u64uint::{MAX_U64_IN_USIZE, U64USize};
 use crate::internal::util::mem::CopyExt;
+use crate::internal::util::result::OkExt;
 
 /// Size of the memory mapping for [MappableFd]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -162,11 +166,11 @@ pub enum MMapError {
     )]
     OutOfBounds {
         /// Underlying error
-        err: <u64 as TryInto<usize>>::Error,
+        err: <u64 as TryInto<U64USize>>::Error,
         /// The size of the memory map requested
-        requested_len: u64,
+        requested_size: u64,
         /// Maximum supported size
-        max_supported_len: usize,
+        max_supported_len: u64,
     },
     /// Tried to map a file descriptor into memory, but the size policy was never set. Developer
     /// error.
@@ -179,9 +183,9 @@ pub enum MMapError {
         "Tried to map file descriptor into memory with a size of zero; the kernel rejects zero-length mappings with EINVAL"
     )]
     ZeroSize,
-    /// fseek(3)/ftell(3) system call failed
-    #[error("Tried to map file descriptor into memory, but failed to determine the size of the file descriptor: {:?}", .0)]
-    CouldNotDetermineSize(rustix::io::Errno),
+    /// fstat(2)/fstatfs(2) system call failed
+    #[error("Tried to map file descriptor into memory, but failed to determine the size and type of the file descriptor (fstat(2)/fstatfs(2) failed): {}", .0)]
+    CouldNotDetermineFileDescriptorInfo(rustix::io::Errno),
     /// Mismatch between expected and actual size of the file descriptor
     #[error(
         "Tried to map file descriptor into memory with expected size {expected:?}, but instead we found that the true size is {actual:?}"
@@ -262,23 +266,6 @@ impl<Fd: AsFd> MappableFd<Fd> {
         self
     }
 
-    fn size_of_underlying_data_from_stat(&self) -> Result<u64, MMapError> {
-        use MMapError as E;
-        let size = rustix::fs::fstat(self)
-            .map_err(E::CouldNotDetermineSize)?
-            .st_size;
-        size.try_into().map_err(|err| E::InvalidSize { err, size })
-    }
-
-    /// Determine the size of the data associated with the file descriptor
-    fn size_of_underlying_data(&self) -> Result<u64, MMapError> {
-        use MMapError as E;
-        let size = rustix::fs::fstat(self)
-            .map_err(E::CouldNotDetermineSize)?
-            .st_size;
-        size.try_into().map_err(|err| E::InvalidSize { err, size })
-    }
-
     /// Map the file into memory
     ///
     /// # Determining the size of the mapping
@@ -305,47 +292,57 @@ impl<Fd: AsFd> MappableFd<Fd> {
         let prot = self.config().mmap_prot();
         let flags = self.config().mmap_flags();
 
-        // Determine the size of the mapping to be used as u64
-        let (requested_size, actual_size) = match self.config().size_policy {
+        let mut stat = Quickstat::new(self.fd.as_fd());
+
+        let size_policy = match self.config().size_policy {
+            Some(v) => v,
             None => return Err(E::MissingSizePolicy),
-            Some(MMapSizePolicy::Assumed(size)) => (size, size),
-            Some(MMapSizePolicy::Resize(size)) => (size, self.size_of_underlying_data()?),
-            Some(MMapSizePolicy::Checked(expected)) => {
-                let actual = self.size_of_underlying_data()?;
-                if expected != actual {
-                    return Err(E::IncorrectSize { expected, actual });
-                }
-                (expected, actual)
-            }
         };
+
+        // Retrieve the expected size, raising an error if the
+        // requested_size can not be represented as usize (this should never happen in general,
+        // but it could conceivably be thrown on 32 bit systems when very large mappings (>= 4GB)
+        // are requested
+        let requested_size = size_policy
+            .size_value()
+            .try_into_type::<U64USize>()
+            .map_err(|err| {
+                let requested_size = err.given_value().copy();
+                let max_supported_len = MAX_U64_IN_USIZE;
+                E::OutOfBounds {
+                    err,
+                    requested_size,
+                    max_supported_len,
+                }
+            })?;
 
         // The kernel rejects zero-length mappings with EINVAL; reject them
         // up front, BEFORE any ftruncate(2) below, so a failed mmap never
         // leaves the underlying file descriptor truncated as a side effect
-        if requested_size == 0 {
+        if requested_size.u64() == 0 {
             return Err(E::ZeroSize);
         }
 
         // Resize the file descriptor if requested and necessary
-        if let Some(MMapSizePolicy::Resize(size)) = self.config().size_policy {
-            if requested_size != actual_size {
-                rustix::fs::ftruncate(self, size).map_err(E::ResizeError)?;
+        use MMapSizePolicy as P;
+        match size_policy {
+            P::Assumed(_) => {} // Nothing to do
+            P::Resize(_) => {
+                let actual_size = stat.size()?;
+                if requested_size.u64() != actual_size {
+                    rustix::fs::ftruncate(self, requested_size.u64()).map_err(E::ResizeError)?;
+                }
+            }
+            P::Checked(_) => {
+                let expected = requested_size.u64();
+                let actual = stat.size()?;
+                if expected != actual {
+                    return Err(E::IncorrectSize { expected, actual });
+                }
             }
         }
 
-        // Cast the size of the mapping to be used to usize, raising an error if the
-        // requested_size can not be represented as usize (this should never happen in general,
-        // but it could conceivably be thrown on 32 bit systems when very large mappings (>= 4GB)
-        // are requested
-        let len = requested_size.try_into().map_err(|err| {
-            let max_supported_len = usize::MAX;
-            E::OutOfBounds {
-                err,
-                requested_len: requested_size,
-                max_supported_len,
-            }
-        })?;
-
+        let len = requested_size.usize();
         let ptr = unsafe { mmap(null_mut(), len, prot, flags, self, 0) };
         let ptr = ptr.map_err(E::MMapError)?;
         let ptr = unsafe { MappedSegment::from_raw_parts(ptr.cast(), len) };
@@ -443,6 +440,45 @@ impl Drop for MappedSegment {
         if let Err((errno, _ptr, _len)) = owned.unmap() {
             panic!("Failed to unmap MappedSegment: {errno:?}")
         }
+    }
+}
+
+/// Helper for calling fstat in [MappableFd::mmap()]
+#[derive(Copy, Clone, Debug)]
+struct Quickstat<Fd: AsFd> {
+    /// The file descriptor being interrogated
+    fd: Fd,
+    /// Cached fstat(2) result
+    stat: Option<rustix::fs::Stat>,
+}
+
+impl<Fd: AsFd> Quickstat<Fd> {
+    /// New [Quickstat] wrapping the given file descriptor; no system calls
+    /// have been issued yet, results are cached on first use
+    pub fn new(fd: Fd) -> Self {
+        let stat = None;
+        Self { fd, stat }
+    }
+
+    /// fstat(2) the file descriptor (cached)
+    pub fn stat(&mut self) -> Result<rustix::fs::Stat, MMapError> {
+        if let Some(stat) = self.stat {
+            return Ok(stat);
+        }
+
+        rustix::fs::fstat(self.fd.as_fd())
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?
+            .sideeffect(|stat| {
+                self.stat = Some(*stat);
+            })
+            .ok()
+    }
+
+    /// The size of the file descriptor according to fstat(2)
+    pub fn size(&mut self) -> Result<u64, MMapError> {
+        let size = self.stat()?.st_size;
+        size.try_into()
+            .map_err(|err| MMapError::InvalidSize { err, size })
     }
 }
 
