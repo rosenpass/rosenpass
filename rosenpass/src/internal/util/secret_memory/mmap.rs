@@ -7,6 +7,8 @@
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::ptr::null_mut;
 
+use rustix::io::Errno;
+
 use crate::internal::util::mem::CopyExt;
 
 /// Size of the memory mapping for [MappableFd]
@@ -260,8 +262,16 @@ impl<Fd: AsFd> MappableFd<Fd> {
         self
     }
 
+    fn size_of_underlying_data_from_stat(&self) -> Result<u64, MMapError> {
+        use MMapError as E;
+        let size = rustix::fs::fstat(self)
+            .map_err(E::CouldNotDetermineSize)?
+            .st_size;
+        size.try_into().map_err(|err| E::InvalidSize { err, size })
+    }
+
     /// Determine the size of the data associated with the file descriptor
-    pub fn size_of_underlying_data(&self) -> Result<u64, MMapError> {
+    fn size_of_underlying_data(&self) -> Result<u64, MMapError> {
         use MMapError as E;
         let size = rustix::fs::fstat(self)
             .map_err(E::CouldNotDetermineSize)?
@@ -296,16 +306,16 @@ impl<Fd: AsFd> MappableFd<Fd> {
         let flags = self.config().mmap_flags();
 
         // Determine the size of the mapping to be used as u64
-        let requested_size = match self.config().size_policy {
+        let (requested_size, actual_size) = match self.config().size_policy {
             None => return Err(E::MissingSizePolicy),
-            Some(MMapSizePolicy::Assumed(size)) => size,
-            Some(MMapSizePolicy::Resize(size)) => size,
+            Some(MMapSizePolicy::Assumed(size)) => (size, size),
+            Some(MMapSizePolicy::Resize(size)) => (size, self.size_of_underlying_data()?),
             Some(MMapSizePolicy::Checked(expected)) => {
                 let actual = self.size_of_underlying_data()?;
                 if expected != actual {
                     return Err(E::IncorrectSize { expected, actual });
                 }
-                expected
+                (expected, actual)
             }
         };
 
@@ -316,9 +326,11 @@ impl<Fd: AsFd> MappableFd<Fd> {
             return Err(E::ZeroSize);
         }
 
-        // Resize the file descriptor if requested
+        // Resize the file descriptor if requested and necessary
         if let Some(MMapSizePolicy::Resize(size)) = self.config().size_policy {
-            rustix::fs::ftruncate(self, size).map_err(E::ResizeError)?;
+            if requested_size != actual_size {
+                rustix::fs::ftruncate(self, size).map_err(E::ResizeError)?;
+            }
         }
 
         // Cast the size of the mapping to be used to usize, raising an error if the
