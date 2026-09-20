@@ -3,7 +3,7 @@
 use super::MAX_U64_IN_USIZE;
 
 /// Error produced by [U64USize::try_new]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Copy, Clone, PartialEq, Eq)]
 pub enum U64USizeConversionError<T: std::fmt::Debug> {
     /// Value can not be represented as u64
     #[error("Value can not be represented as a u64 value (max = {}): {:?}", u64::MAX, .0)]
@@ -14,6 +14,17 @@ pub enum U64USizeConversionError<T: std::fmt::Debug> {
     /// Value can not be represented as usize or u64
     #[error("Value can not be represented as a u64 (max = {}) or a usize (max = {}) value: {:?}", u64::MAX, usize::MAX, .0)]
     NoU64OrUSizeRepr(T),
+}
+
+impl<T: std::fmt::Debug> U64USizeConversionError<T> {
+    /// Return the value that the caller had tried to convert
+    pub fn given_value(&self) -> &T {
+        match self {
+            Self::NoU64Repr(v) => v,
+            Self::NoUSizeRepr(v) => v,
+            Self::NoU64OrUSizeRepr(v) => v,
+        }
+    }
 }
 
 /// A number that can be represented as both a usize and a u64.
