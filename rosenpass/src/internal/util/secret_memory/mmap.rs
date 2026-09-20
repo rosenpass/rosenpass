@@ -13,6 +13,8 @@ use crate::internal::util::convert::{IntoTypeExt, TryIntoTypeExt};
 use crate::internal::util::functional::SideffectExt;
 use crate::internal::util::int::u64uint::{MAX_U64_IN_USIZE, U64USize};
 use crate::internal::util::mem::CopyExt;
+#[cfg(target_os = "linux")]
+use crate::internal::util::mem::DiscardResultExt;
 use crate::internal::util::result::OkExt;
 
 /// Size of the memory mapping for [MappableFd]
@@ -212,6 +214,12 @@ pub enum MMapError {
     /// mmap(2) system call failed
     #[error("Tried to map file descriptor into memory, but mmap(2) system call failed: {:?}", .0)]
     MMapError(rustix::io::Errno),
+    /// mlock(2) system call failed
+    ///
+    /// mlock(2) counts against the RLIMIT_MEMLOCK resource limit; see
+    /// [MappableFd::mmap] for deployment notes
+    #[error("Tried to lock the file-descriptor based allocation into memory, but the mlock(2) system call failed: {}", .0)]
+    MLockError(rustix::io::Errno),
 }
 
 /// Handle mapping a file descriptor into memory
@@ -282,6 +290,22 @@ impl<Fd: AsFd> MappableFd<Fd> {
     /// excessively large, sparse file. If you implement size auto-detection facilities, you should
     /// still enforce some bounds on the size.
     ///
+    /// # Locking pages into memory
+    ///
+    /// The mapped pages are locked into memory with mlock(2) unless the mapping is
+    /// unreadable or the file descriptor is a memfd_secret(2). mlock(2) counts against
+    /// the RLIMIT_MEMLOCK resource limit; production deployments must configure the
+    /// limit, otherwise the mapping fails fatally with [MMapError::MLockError].
+    ///
+    /// # memfd_secret(2) based mappings
+    ///
+    /// Secretmem pages are fault-allocated lazily: mmap(2) succeeding does not
+    /// guarantee that the pages can actually be populated; if the fault-time
+    /// accounting fails, a later access can still fail fatally (SIGBUS or
+    /// SIGKILL depending on the fault path). mlock(2) is skipped for
+    /// memfd_secret(2) file descriptors: secretmem pages are never swapped by
+    /// design, so locking them is unnecessary.
+    ///
     /// # Safety
     ///
     /// If there exist any Rust references referring to the memory region, or if you subsequently create a Rust reference referring to the resulting region, it is your responsibility to ensure that the Rust reference invariants are preserved, including ensuring that the memory is not mutated in a way that a Rust reference would not expect.
@@ -323,6 +347,10 @@ impl<Fd: AsFd> MappableFd<Fd> {
             return Err(E::ZeroSize);
         }
 
+        // Ensure that the fstatfs(2) call happens now; we will need the information
+        // whether the file descriptor is memfd_secret(2) later (on linux)
+        stat.is_memfd_secret().discard_result();
+
         // Resize the file descriptor if requested and necessary
         use MMapSizePolicy as P;
         match size_policy {
@@ -342,10 +370,40 @@ impl<Fd: AsFd> MappableFd<Fd> {
             }
         }
 
+        // SAFETY:
+        //
+        // * `ptr` is NULL, so mmap chooses a fresh mapping; rustix's
+        //   non-null input-pointer provenance requirement does not apply.
+        // * We don't use MAP_FIXED, so no existing Rust allocation/reference
+        //   is replaced.
         let len = requested_size.usize();
         let ptr = unsafe { mmap(null_mut(), len, prot, flags, self, 0) };
         let ptr = ptr.map_err(E::MMapError)?;
         let ptr = unsafe { MappedSegment::from_raw_parts(ptr.cast(), len) };
+
+        // mlock(2) the memory region into memory (prevent swapping)
+        //
+        // We do not mlock(2) the memory in two cases:
+        //
+        // - The backing file descriptor is memfd_secret(2), as the semantics of memfd_secret(2)
+        //   automatically lock all memfd_secret(2) derived pages into memory
+        // - The mapping is unreadable, in which case [rustix::mm::mlock] documents
+        //   that mlock is not supported on unreadable mappings
+        //
+        // SAFETY:
+        //
+        // * The pointer came directly from mmap, so it retains the mapping's
+        //   provenance.
+        // * mmap returns a page-aligned mapping address.
+        // * POSIX mmap operates on whole pages, so the page-rounded range
+        //   touched by mlock is part of this mapping.
+        // * PROT_READ makes the range readable, satisfying rustix's
+        //   documented mlock precondition. PROT_READ is set, because we check for
+        //   `self.config().unreadable` explicitly.
+        if !stat.is_memfd_secret()? && !self.config().unreadable {
+            let res = unsafe { rustix::mm::mlock(ptr.ptr().cast(), len) };
+            res.map_err(E::MLockError)?;
+        }
 
         Ok(ptr)
     }
@@ -450,14 +508,21 @@ struct Quickstat<Fd: AsFd> {
     fd: Fd,
     /// Cached fstat(2) result
     stat: Option<rustix::fs::Stat>,
+    #[cfg(target_os = "linux")]
+    /// Cached fstatfs(2) result
+    statfs: Option<rustix::fs::StatFs>,
 }
 
 impl<Fd: AsFd> Quickstat<Fd> {
     /// New [Quickstat] wrapping the given file descriptor; no system calls
     /// have been issued yet, results are cached on first use
     pub fn new(fd: Fd) -> Self {
-        let stat = None;
-        Self { fd, stat }
+        Self {
+            fd,
+            stat: None,
+            #[cfg(target_os = "linux")]
+            statfs: None,
+        }
     }
 
     /// fstat(2) the file descriptor (cached)
@@ -474,11 +539,39 @@ impl<Fd: AsFd> Quickstat<Fd> {
             .ok()
     }
 
+    /// fstatfs(2) the file descriptor (cached)
+    #[cfg(target_os = "linux")]
+    pub fn statfs(&mut self) -> Result<rustix::fs::StatFs, MMapError> {
+        if let Some(statfs) = self.statfs {
+            return Ok(statfs);
+        }
+
+        rustix::fs::fstatfs(self.fd.as_fd())
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?
+            .sideeffect(|statfs| {
+                self.statfs = Some(*statfs);
+            })
+            .ok()
+    }
+
     /// The size of the file descriptor according to fstat(2)
     pub fn size(&mut self) -> Result<u64, MMapError> {
         let size = self.stat()?.st_size;
         size.try_into()
             .map_err(|err| MMapError::InvalidSize { err, size })
+    }
+
+    #[cfg(target_os = "linux")]
+    /// Whether the file descriptor is a memfd_secret(2) file descriptor,
+    /// determined via the fstatfs(2) f_type magic
+    pub fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
+        use crate::internal::util::rustix::IsMemfdSecretExt;
+        self.statfs()?.is_memfd_secret().ok()
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
+        Ok(false)
     }
 }
 

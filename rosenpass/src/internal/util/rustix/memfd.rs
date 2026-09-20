@@ -102,6 +102,23 @@ pub fn memfd_secret(flags: MemfdSecretFlags) -> Result<rustix::fd::OwnedFd, Memf
     res.map_err(MemfdSecretError::from)
 }
 
+/// Extension trait for [rustix::fs::StatFs] to determine whether
+/// a file descriptor is a memfd_secret(2)
+#[cfg(target_os = "linux")]
+pub trait IsMemfdSecretExt {
+    /// Determine whether the underlying file descriptor that generated this [rustix::fs::StatFs]
+    /// is a memfd_secret(2) file descriptor
+    fn is_memfd_secret(&self) -> bool;
+}
+
+#[cfg(target_os = "linux")]
+impl IsMemfdSecretExt for rustix::fs::StatFs {
+    fn is_memfd_secret(&self) -> bool {
+        const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
+        self.f_type == SECRETMEM_MAGIC
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
