@@ -31,8 +31,13 @@ impl SharedMemorySegmentBuilder {
     ///
     /// Note that this always sets [MapFdConfig::set_shared()], but you can overwrite this behavior
     /// by un-setting the flag again.
+    ///
+    /// The file descriptor is created with [SecretMemfdConfig::used_in_shared_memory()]; on
+    /// systems where memfd_secret(2) is not protected against resizing, this makes
+    /// [SecretMemfdConfig::validate_config()] reject configurations that would use
+    /// memfd_secret(2) for shared memory, instead of proceeding insecurely.
     pub const fn new(len: usize) -> Self {
-        let secret_memfd_cfg = SecretMemfdConfig::new();
+        let secret_memfd_cfg = SecretMemfdConfig::new().used_in_shared_memory();
         let map_fd_cfg = MapFdConfig::new()
             .set_shared()
             .resize_on_mmap(usize_to_u64(len));
@@ -45,10 +50,23 @@ impl SharedMemorySegmentBuilder {
     /// Create a secret memory segment using the configuration stored here
     pub fn create_segment(&self) -> anyhow::Result<(OwnedFd, SharedMemorySegment)> {
         let fd = self.secret_memfd_cfg.create()?;
-        let seg = self.map_fd_cfg.mappable_fd(&fd).mmap()?;
+
+        // Use the mapping configuration stored here, but take over the
+        // [MapFdConfig::no_resizing_protection] flag determined during file descriptor
+        // creation; whether protection against resizing needs to be disabled depends
+        // on the allocation mechanism used and on system support, which is detected
+        // by [SecretMemfdConfig::create()]
+        let cfg = {
+            let mut cfg = self.map_fd_cfg;
+            cfg.no_resizing_protection |= fd.config().no_resizing_protection;
+            cfg
+        };
+
+        let fd = fd.with_config(cfg);
+        let seg = fd.mmap()?;
         let seg = unsafe { SharedMemorySegment::from_mapped_segment(seg) };
 
-        Ok((fd, seg))
+        Ok((fd.into_fd(), seg))
     }
 }
 
