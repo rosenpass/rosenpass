@@ -231,6 +231,17 @@ pub enum MMapInvalidConfigError {
         /// (the inverse of [MapFdConfig::no_resizing_protection])
         protection_requested: bool,
     },
+    /// When memory mapping memfd_secret(2) file descriptors, [MapFdConfig::shared] MUST be used
+    /// as MAP_PRIVATE is not supported by the operating system.
+    #[error(
+        "\
+        When mapping a memfd_secret(2) into memory, MAP_PRIVATE can not be used
+        and usage of MAP_SHARED is mandatory. Please always set MapFdConfig::shared
+        when memory mapping memfd_secret(2) based file descriptors, even if the file
+        is not actually shared between processes.\
+    "
+    )]
+    MapSharedNeededForMemfdSecret,
 }
 
 /// Errors for sealing memfd_create(2) file descriptors against resizing in [MappableFd::mmap()]
@@ -459,6 +470,11 @@ impl<Fd: AsFd> MappableFd<Fd> {
         // Ensure that the fstatfs(2) call happens now so we report errors early
         // we will need the information whether the file descriptor is memfd_secret(2) later
         stat.is_memfd_secret()?.discard_result();
+
+        // memfd_secret(2) does not support MAP_PRIVATE in mmap(2)
+        if stat.is_memfd_secret()? && !self.config.shared {
+            return Err(EC::MapSharedNeededForMemfdSecret)?;
+        }
 
         // Validate that the resizing protection settings match the mandatory settings
         // with memfd_secret(2)
