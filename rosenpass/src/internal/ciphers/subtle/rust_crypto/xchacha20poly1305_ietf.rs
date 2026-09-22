@@ -37,11 +37,11 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
 
         // This only fails if the length is wrong, which really shouldn't happen and would
         // constitute an internal error.
-        let encrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::InternalError)?;
+        let encrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::Internal)?;
 
         let mac_value = encrypter
             .encrypt_in_place_detached(nonce, ad, ct)
-            .map_err(|_| AeadError::InternalError)?;
+            .map_err(|_| AeadError::Internal)?;
         copy_slice(&mac_value[..]).to(mac);
         Ok(())
     }
@@ -67,11 +67,11 @@ impl Aead<KEY_LEN, NONCE_LEN, TAG_LEN> for XChaCha20Poly1305 {
 
         // This only fails if the length is wrong, which really shouldn't happen and would
         // constitute an internal error.
-        let decrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::InternalError)?;
+        let decrypter = AeadImpl::new_from_slice(key).map_err(|_| AeadError::Internal)?;
 
         decrypter
             .decrypt_in_place_detached(nonce, ad, plaintext, tag)
-            .map_err(|_| AeadError::DecryptError)?;
+            .map_err(|_| AeadError::DecryptionFailed)?;
         Ok(())
     }
 }

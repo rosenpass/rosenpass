@@ -84,7 +84,7 @@ fn generate_key_pairs(secret_key_paths: &[PathBuf], public_key_paths: &[PathBuf]
             .arg("--public-key")
             .arg(pub_key_path)
             .output()
-            .expect(format!("failed to start {BIN}").as_str());
+            .unwrap_or_else(|_| panic!("failed to start {BIN}"));
         println!("command has finished, status: {}", output.status);
         std::io::stdout().write_all(&output.stdout).unwrap();
         std::io::stderr().write_all(&output.stderr).unwrap();

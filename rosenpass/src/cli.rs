@@ -145,7 +145,6 @@ impl CliArgs {
     /// Return the WireGuard PSK broker interface configured.
     ///
     /// Returns `None` if the `experiment_api` feature is disabled.
-
     #[cfg(feature = "experiment_api")]
     pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
         if let Some(path_ref) = self.psk_broker_path.as_ref() {
