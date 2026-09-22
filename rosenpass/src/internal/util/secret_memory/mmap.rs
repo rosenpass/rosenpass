@@ -473,7 +473,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
 
         // memfd_secret(2) does not support MAP_PRIVATE in mmap(2)
         if stat.is_memfd_secret()? && !self.config.shared {
-            return Err(EC::MapSharedNeededForMemfdSecret)?;
+            Err(EC::MapSharedNeededForMemfdSecret)?;
         }
 
         // Validate that the resizing protection settings match the mandatory settings
@@ -483,7 +483,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
             let resize_protection_enabled =
                 memfd_secret_protects_against_resizing().map_err(ES::SystemError)?;
             if resize_protection_requested != resize_protection_enabled {
-                return Err(EC::IncorrectResizingProtectionSetting {
+                Err(EC::IncorrectResizingProtectionSetting {
                     protection_enabled_by_system: resize_protection_enabled,
                     protection_requested: resize_protection_requested,
                 })?;
@@ -519,7 +519,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
 
             // Unable to add the missing seals, FD is already sealed against adding further seals
             if current_seals.contains(SSEAL) && !missing.is_empty() {
-                return Err(ES::PresealedWithMissingSeals { missing })?;
+                Err(ES::PresealedWithMissingSeals { missing })?;
             }
         }
 
@@ -584,7 +584,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
 
             // Abort this loop after too many failed attempts just to be safe
             if seal_ctr >= 16 {
-                return Err(ES::RetriesAborted)?;
+                Err(ES::RetriesAborted)?;
             }
 
             // Add the seals
@@ -612,7 +612,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
 
             // Unable to add the missing seals, FD is already sealed against adding further seals
             if current_seals.contains(SSEAL) && !missing.is_empty() {
-                return Err(ES::PresealedWithMissingSeals { missing })?;
+                Err(ES::PresealedWithMissingSeals { missing })?;
             }
 
             // Adding seals was denied and the seal set did not change since the
@@ -620,7 +620,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
             // is not writable), so retrying would merely spin until the retry
             // limit; report the persistent permission error instead
             if add_denied && prev_seals == Some(current_seals) {
-                return Err(ES::SystemError(Errno::PERM))?;
+                Err(ES::SystemError(Errno::PERM))?;
             }
             prev_seals = Some(current_seals);
 
@@ -634,7 +634,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
             // an error
             let (expected_size, actual_size) = (requested_size.u64(), Quickstat::new(self).size()?);
             if expected_size != actual_size {
-                return Err(ES::ResizeRace {
+                Err(ES::ResizeRace {
                     expected_size,
                     actual_size,
                 })?;

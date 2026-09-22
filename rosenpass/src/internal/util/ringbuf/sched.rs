@@ -258,7 +258,7 @@ where
             .borrow()
             .into_iter()
             .map(|op| op.len.into_type::<u128>())
-            .fold(0u128, std::ops::Add::add)
+            .sum::<u128>()
             .try_into()
     }
 
@@ -765,7 +765,7 @@ pub enum RingBufferFromCountersError {
         // buf_len > MAX_BUF_LEN) panic-free.
         data_avail = Modulus::<u64>::try_new(*buf_len)
             .and_then(|bm| bm.double())
-            .unwrap_or_else(|| Modulus::new_full_range())
+            .unwrap_or_else(Modulus::new_full_range)
             .formula([*items_written, *items_read], |[w, r]| {
                 w - r
             }),
