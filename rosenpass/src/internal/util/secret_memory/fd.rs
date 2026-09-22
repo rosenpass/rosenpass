@@ -188,21 +188,16 @@ impl SecretMemfdUsage {
 }
 
 /// How secure memory file descriptors should be allocated
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Default)]
 pub enum SecretMemfdPolicy {
     /// Use memfd_secret(2) if available, otherwise fall back to less
     /// secure options
+    #[default]
     Opportunistic,
     /// Enforce the use of memfd_secret(2)
     UseMemfdSecret,
     /// Never use memfd_secret(2)
     DisableMemfdSecret,
-}
-
-impl Default for SecretMemfdPolicy {
-    fn default() -> Self {
-        Self::Opportunistic
-    }
 }
 
 impl SecretMemfdPolicy {
