@@ -11,7 +11,7 @@ use crate::internal::util::result::OkExt;
 use crate::internal::util::rustix::{
     MemfdSecretError, MemfdSecretFlags, MemfdSecretUnavailabilityReason, memfd_create, memfd_secret,
 };
-use crate::internal::util::secret_memory::mmap::MappableFd;
+use crate::internal::util::secret_memory::mmap::{MapFdConfig, MappableFd};
 
 /// Type indicating the level of support for memfd_secret(2), returned by
 /// [memfd_secret_support()]
@@ -463,10 +463,26 @@ impl SecretMemfdConfig {
             break 'fd fd;
         };
 
-        // Wrap into MappableFd
-        let fd = MappableFd::from_fd(fd);
-        let cfg = fd.config();
+        // Wrap into MappableFd with the correct configuration
+        MappableFd::new(fd, self.map_fd_config()?).ok()
+    }
 
+    /// Infers the correct [MapFdConfig] for this [SecretMemfdConfig]
+    /// on the current operating system.
+    ///
+    /// This incorporates information such as:
+    ///
+    /// - Is the [SecretMemfdUsage::shared_memory] flag set?
+    /// - Are memfd_create(2) or memfd_secret(2) used?
+    /// - Does memfd_secret(2) support resizing protection?
+    pub fn map_fd_config(&self) -> Result<MapFdConfig, SecretMemfdConfigValidationError> {
+        use SecretMemfdConfigValidationError as E;
+
+        self.validate_config()?;
+
+        let cfg = MapFdConfig::new();
+
+        let mech = self.mechanism().map_err(E::FailedToDetectSupport)?;
         let mfds_use = matches!(mech, SecretMemfdMechanism::MemfdSecret);
 
         // Propagate information about whether shared memory is used into the config
@@ -482,13 +498,13 @@ impl SecretMemfdConfig {
 
         // If necessary, disable protection against resizing (if not supported)
         let mfds_prot_resize =
-            memfd_secret_protects_against_resizing().map_err(VE::FailedToDetectSupport)?;
+            memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?;
         let cfg = match mfds_use && !mfds_prot_resize {
             false => cfg,
             true => cfg.disable_resizing_protection(),
         };
 
-        Ok(fd.with_config(cfg))
+        Ok(cfg)
     }
 }
 
