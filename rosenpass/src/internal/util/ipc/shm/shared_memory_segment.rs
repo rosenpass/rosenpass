@@ -36,32 +36,23 @@ impl SharedMemorySegmentBuilder {
     /// systems where memfd_secret(2) is not protected against resizing, this makes
     /// [SecretMemfdConfig::validate_config()] reject configurations that would use
     /// memfd_secret(2) for shared memory, instead of proceeding insecurely.
-    pub const fn new(len: usize) -> Self {
+    pub fn new(len: usize) -> anyhow::Result<Self> {
         let secret_memfd_cfg = SecretMemfdConfig::new().used_in_shared_memory();
-        let map_fd_cfg = MapFdConfig::new()
+        let map_fd_cfg = secret_memfd_cfg
+            .map_fd_config()?
             .set_shared()
             .resize_on_mmap(usize_to_u64(len));
-        Self {
+        Ok(Self {
             secret_memfd_cfg,
             map_fd_cfg,
-        }
+        })
     }
 
     /// Create a secret memory segment using the configuration stored here
     pub fn create_segment(&self) -> anyhow::Result<(OwnedFd, SharedMemorySegment)> {
         let fd = self.secret_memfd_cfg.create()?;
 
-        // Use the mapping configuration stored here, but take over the
-        // [MapFdConfig::no_resizing_protection] flag determined during file descriptor
-        // creation; whether protection against resizing needs to be disabled depends
-        // on the allocation mechanism used and on system support, which is detected
-        // by [SecretMemfdConfig::create()]
-        let cfg = {
-            let mut cfg = self.map_fd_cfg;
-            cfg.no_resizing_protection |= fd.config().no_resizing_protection;
-            cfg
-        };
-
+        let cfg = self.map_fd_cfg;
         let fd = fd.with_config(cfg);
         let seg = fd.mmap()?;
         let seg = unsafe { SharedMemorySegment::from_mapped_segment(seg) };
@@ -284,7 +275,7 @@ pub struct SharedMemorySegment {
 impl SharedMemorySegment {
     /// Create a new shared memory segment.
     pub fn create(len: usize) -> anyhow::Result<(OwnedFd, Self)> {
-        SharedMemorySegmentBuilder::new(len).create_segment()
+        SharedMemorySegmentBuilder::new(len)?.create_segment()
     }
 
     /// Create a shared memory segment from a file descriptor

@@ -17,7 +17,9 @@ use crate::internal::util::mem::CopyExt;
 use crate::internal::util::result::OkExt;
 
 use crate::internal::util::mem::DiscardResultExt;
-use crate::internal::util::secret_memory::fd::memfd_secret_protects_against_resizing;
+use crate::internal::util::secret_memory::fd::{
+    SecretMemfdConfig, SecretMemfdConfigValidationError, memfd_secret_protects_against_resizing,
+};
 
 /// Size of the memory mapping for [MappableFd]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -56,7 +58,7 @@ pub struct MapFdConfig {
     /// MAP_PRIVATE mappings of memfd_secret(2) file descriptors with EINVAL
     /// (secretmem_mmap() in mm/secretmem.c), so this flag is kernel-enforced for such
     /// file descriptors. For a file descriptor no other process holds, a shared mapping
-    /// is semantically private; [super::fd::SecretMemfdConfig::create()] therefore always
+    /// is semantically private; [SecretMemfdConfig::create()] therefore always
     /// sets this flag when memfd_secret(2) is used.
     ///
     /// Note that when this flag is used together with [Self::no_resizing_protection],
@@ -65,7 +67,7 @@ pub struct MapFdConfig {
     /// This insecure configuration will not be rejected as it may still be useful in some
     /// scenarios where the other process is trusted.
     ///
-    /// When using [super::fd::SecretMemfdConfig::create()], this flag and [Self::no_resizing_protection] are
+    /// When using [SecretMemfdConfig::create()], this flag and [Self::no_resizing_protection] are
     /// automatically configured.
     pub shared: bool,
     /// Whether the file descriptor should be protected against resizing
@@ -83,7 +85,7 @@ pub struct MapFdConfig {
     /// descriptors only; for other file descriptors, the flag merely selects whether
     /// resizing protection (sealing) is requested.
     ///
-    /// When using [super::fd::SecretMemfdConfig::create()], this flag and [Self::shared] are
+    /// When using [SecretMemfdConfig::create()], this flag and [Self::shared] are
     /// automatically configured.
     pub no_resizing_protection: bool,
     /// How [MappableFd::mmap] will determine the size to be used for the mapping
@@ -106,6 +108,13 @@ impl MapFdConfig {
             no_resizing_protection: false,
             size_policy: None,
         }
+    }
+
+    /// Alias for [SecretMemfdConfig::map_fd_config()]
+    pub fn from_secret_memfd_config(
+        cfg: &SecretMemfdConfig,
+    ) -> Result<Self, SecretMemfdConfigValidationError> {
+        cfg.map_fd_config()
     }
 
     /// New MapFdConfig with shared memory turned on
