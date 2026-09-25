@@ -2048,6 +2048,7 @@ dependencies = [
  "rustix 1.1.4",
  "serde",
  "serde_json",
+ "serde_plain",
  "serial_test",
  "shake",
  "signal-hook",
@@ -2059,8 +2060,10 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "toml",
+ "toml_edit",
  "typenum",
  "uds",
+ "windows-sys 0.61.2",
  "wireguard-uapi",
  "x25519-dalek",
  "zerocopy",
@@ -2230,6 +2233,15 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1fc6db65a611022b23a0dec6975d63fb80a302cb3388835ff02c097258d50"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -2571,8 +2583,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap",
+ "serde_core",
+ "serde_spanned",
  "toml_datetime",
  "toml_parser",
+ "toml_writer",
  "winnow",
 ]
 

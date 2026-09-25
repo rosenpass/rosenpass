@@ -1,0 +1,24 @@
+# This config file is generated with rosenpass 0.2.3:
+# ```
+# rosenpass gen-config rosenpass-stable.toml
+# ```
+# It has not been modified at all.
+
+public_key = "rp-public-key"
+secret_key = "rp-secret-key"
+listen = []
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "rp-peer-public-key"
+endpoint = "my-peer.test:9999"
+key_out = "rp-key-out"
+exchange_command = [
+  "wg",
+  "set",
+  "wg0",
+  "peer",
+  "<PEER_ID>",
+  "preshared-key",
+  "/dev/stdin",
+]
