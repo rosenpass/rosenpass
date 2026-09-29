@@ -328,141 +328,28 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     });
 }
 
-// ====================== cookie_reply_mechanism_responder_under_load ======================
-#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
+// ====================== test_regular_resp_hello_retransmit ======================
 #[test]
 #[serial]
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_responder_under_load_v02() {
-    cookie_reply_mechanism_responder_under_load(ProtocolVersion::V02)
-}
-
-#[ignore = "https://github.com/rosenpass/rosenpass/issues/932"]
-#[test]
-#[serial]
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_responder_under_load_v03() {
-    cookie_reply_mechanism_responder_under_load(ProtocolVersion::V03)
-}
-
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion) {
-    use std::{thread::sleep, time::Duration};
-
-    use super::{Lifecycle, MortalExt};
-
-    setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-    stacker::grow(8 * 1024 * 1024, || {
-        type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version.clone()).unwrap();
-
-        let mut a_to_b_buf = MsgBufPlus::zero();
-        let mut b_to_a_buf = MsgBufPlus::zero();
-
-        let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-        let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-        ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-
-        let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
-        let socket_addr_a = std::net::SocketAddr::V4(ip_a);
-        let mut ip_addr_port_a = match socket_addr_a.ip() {
-            std::net::IpAddr::V4(ipv4) => ipv4.octets().to_vec(),
-            std::net::IpAddr::V6(ipv6) => ipv6.octets().to_vec(),
-        };
-
-        ip_addr_port_a.extend_from_slice(&socket_addr_a.port().to_be_bytes());
-
-        let ip_addr_port_a: VecHostIdentifier = ip_addr_port_a.into();
-
-        //B handles handshake under load, should send cookie reply message with invalid cookie
-        let HandleMsgResult { resp, .. } = b
-            .handle_msg_under_load(
-                &a_to_b_buf.as_slice()[..init_hello_len],
-                &mut *b_to_a_buf,
-                &ip_addr_port_a,
-            )
-            .unwrap();
-
-        let cookie_reply_len = resp.unwrap();
-
-        //A handles cookie reply message
-        a.handle_msg(&b_to_a_buf[..cookie_reply_len], &mut *a_to_b_buf)
-            .unwrap();
-
-        assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
-
-        let expected_cookie_value =
-            crate::hash_domains::cookie_value(protocol_version.keyed_hash())
-                .unwrap()
-                .mix(
-                    b.active_or_retired_cookie_secrets()[0]
-                        .unwrap()
-                        .get(&b)
-                        .value
-                        .secret(),
-                )
-                .unwrap()
-                .mix(ip_addr_port_a.encode())
-                .unwrap()
-                .into_value()[..16]
-                .to_vec();
-
-        assert_eq!(
-            PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
-            Some(&expected_cookie_value[..])
-        );
-
-        let retx_init_hello_len = loop {
-            match a.poll().unwrap() {
-                PollResult::SendRetransmission(peer) => {
-                    break a.retransmit_handshake(peer, &mut *a_to_b_buf).unwrap();
-                }
-                PollResult::Sleep(time) => {
-                    sleep(Duration::from_secs_f64(time));
-                }
-                _ => {}
-            }
-        };
-
-        let retx_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
-        assert_eq!(retx_msg_type, MsgType::InitHello);
-
-        //B handles retransmitted message
-        let HandleMsgResult { resp, .. } = b
-            .handle_msg_under_load(
-                &a_to_b_buf.as_slice()[..retx_init_hello_len],
-                &mut *b_to_a_buf,
-                &ip_addr_port_a,
-            )
-            .unwrap();
-
-        let _resp_hello_len = resp.unwrap();
-
-        let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
-        assert_eq!(resp_msg_type, MsgType::RespHello);
-    });
-}
-
-// ====================== cookie_reply_mechanism_initiator_bails_on_message_under_load ======================
-#[test]
-#[serial]
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v02() {
-    cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V02)
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_regular_resp_hello_retransmit_v02() {
+    test_regular_resp_hello_retransmit(ProtocolVersion::V02)
 }
 
 #[test]
 #[serial]
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v03() {
-    cookie_reply_mechanism_initiator_bails_on_message_under_load(ProtocolVersion::V03)
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_regular_resp_hello_retransmit_v03() {
+    test_regular_resp_hello_retransmit(ProtocolVersion::V03)
 }
 
-#[cfg(feature = "experiment_cookie_dos_mitigation")]
-fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version: ProtocolVersion) {
+/// The initiator retransmits InitHello until it receives a RespHello and the responder
+/// answers every InitHello with a new RespHello. If an earlier RespHello is delayed in
+/// the network, the initiator may thus receive an "old" RespHello after a newer one was
+/// already processed. Such retransmissions must be tolerated: They must produce neither
+/// an error, nor a response, nor another key exchange event. Afterwards, the handshake
+/// must still be able to conclude normally.
+fn test_regular_resp_hello_retransmit(protocol_version: ProtocolVersion) {
     setup_logging();
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
@@ -472,52 +359,74 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
 
-        let ip_a: SocketAddrV4 = "127.0.0.1:8080".parse().unwrap();
-        let mut ip_addr_port_a = ip_a.ip().octets().to_vec();
-        ip_addr_port_a.extend_from_slice(&ip_a.port().to_be_bytes());
-        let ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
-
-        //A initiates handshake
         let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
 
-        //B handles InitHello message, should respond with RespHello
+        // B handles InitHello, sends RespHello, but this RespHello is delayed in the network
         let HandleMsgResult { resp, .. } = b
             .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
             .unwrap();
+        let delayed_resp_hello_len = resp.unwrap();
+        let mut delayed_resp_hello = MsgBufPlus::zero();
+        delayed_resp_hello.value[..delayed_resp_hello_len]
+            .copy_from_slice(&b_to_a_buf.value[..delayed_resp_hello_len]);
 
+        // A does not receive the first RespHello in time and retransmits InitHello;
+        // B handles the retransmission, generating a new RespHello
+        let HandleMsgResult { resp, .. } = b
+            .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+            .unwrap();
         let resp_hello_len = resp.unwrap();
         let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
         assert_eq!(resp_msg_type, MsgType::RespHello);
 
-        let socket_addr_b = std::net::SocketAddr::V4(ip_b);
-        let mut ip_addr_port_b = [0u8; 18];
-        let mut ip_addr_port_b_len = 0;
-        match socket_addr_b.ip() {
-            std::net::IpAddr::V4(ipv4) => {
-                ip_addr_port_b[0..4].copy_from_slice(&ipv4.octets());
-                ip_addr_port_b_len += 4;
-            }
-            std::net::IpAddr::V6(ipv6) => {
-                ip_addr_port_b[0..16].copy_from_slice(&ipv6.octets());
-                ip_addr_port_b_len += 16;
-            }
-        };
+        // A handles the new RespHello, sends InitConf, exchanges keys
+        let HandleMsgResult {
+            resp,
+            exchanged_with,
+        } = a
+            .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+            .unwrap();
+        let init_conf_len = resp.unwrap();
+        assert_eq!(exchanged_with, Some(PeerPtr(0)));
+        let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+        assert_eq!(init_conf_msg_type, MsgType::InitConf);
 
-        ip_addr_port_b[ip_addr_port_b_len..ip_addr_port_b_len + 2]
-            .copy_from_slice(&socket_addr_b.port().to_be_bytes());
-        ip_addr_port_b_len += 2;
-
-        let ip_addr_port_b: VecHostIdentifier =
-            ip_addr_port_b[..ip_addr_port_b_len].to_vec().into();
-
-        //A handles RespHello message under load, should not send cookie reply
-        assert!(
-            a.handle_msg_under_load(
-                &b_to_a_buf[..resp_hello_len],
+        // The delayed RespHello finally arrives at A; the retransmission must be tolerated
+        let HandleMsgResult {
+            resp,
+            exchanged_with,
+        } = a
+            .handle_msg(
+                &delayed_resp_hello.as_slice()[..delayed_resp_hello_len],
                 &mut *a_to_b_buf,
-                &ip_addr_port_b
             )
-            .is_err()
+            .unwrap();
+        assert_eq!(resp, None);
+        assert_eq!(exchanged_with, None);
+
+        // The handshake can still conclude normally:
+        // B handles InitConf, sends EmptyData
+        let HandleMsgResult {
+            resp,
+            exchanged_with,
+        } = b
+            .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .unwrap();
+        let empty_data_len = resp.unwrap();
+        assert_eq!(exchanged_with, Some(PeerPtr(0)));
+        let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+        assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+
+        // A handles EmptyData, concluding the handshake
+        let HandleMsgResult { resp, .. } = a
+            .handle_msg(&b_to_a_buf[..empty_data_len], &mut *a_to_b_buf)
+            .unwrap();
+        assert_eq!(resp, None);
+
+        // Both servers derived the same key
+        assert_eq!(
+            a.osk(PeerPtr(0)).unwrap().secret(),
+            b.osk(PeerPtr(0)).unwrap().secret()
         );
     });
 }
