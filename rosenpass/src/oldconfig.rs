@@ -284,10 +284,10 @@ impl Rosenpass {
         }
         for peer in config.peers.iter_mut() {
             resolve_path_with_tilde(&mut peer.public_key);
-            if let Some(ref mut psk) = &mut peer.pre_shared_key {
+            if let Some(psk) = &mut peer.pre_shared_key {
                 resolve_path_with_tilde(psk);
             }
-            if let Some(ref mut ko) = &mut peer.key_out {
+            if let Some(ko) = &mut peer.key_out {
                 resolve_path_with_tilde(ko);
             }
         }
@@ -954,11 +954,11 @@ pub mod util {
     ///
     /// ## Example
     /// ```
-    /// use rosenpass::config::util::resolve_path_with_tilde;
-    /// std::env::set_var("HOME","/home/dummy");
+    /// use rosenpass::oldconfig::util::resolve_path_with_tilde;
+    /// let home = home::home_dir().unwrap();
     /// let mut path = std::path::PathBuf::from("~/foo.toml");
     /// resolve_path_with_tilde(&mut path);
-    /// assert!(path == std::path::PathBuf::from("/home/dummy/foo.toml"));
+    /// assert!(path == home.join("foo.toml"));
     /// ```
     pub fn resolve_path_with_tilde(path: &mut PathBuf) {
         if let Some(first_segment) = path.iter().next() {
@@ -976,38 +976,98 @@ pub mod util {
             }
         }
     }
+    /// takes a path that can be relative to a working directory or might start with a `~` and resolves it
+    ///
+    /// Note: `working_diretory` may not start with a tilde.
+    ///
+    /// ```
+    /// use rosenpass::oldconfig::util::resolve_relative_path_with_tilde;
+    /// let path = std::path::PathBuf::from("foo.toml");
+    /// let working_directory = std::path::PathBuf::from("some_dir");
+    /// let resolved_path = resolve_relative_path_with_tilde(&path, &working_directory);
+    /// assert!(resolved_path == working_directory.join(path));
+    /// ```
+    pub fn resolve_relative_path_with_tilde(
+        path: &PathBuf,
+        working_directory: &PathBuf,
+    ) -> PathBuf {
+        let mut path = path.clone();
+        resolve_path_with_tilde(&mut path);
+        if !path.is_relative() {
+            path
+        } else {
+            working_directory.join(path)
+        }
+    }
+
+    pub trait ResolvePathWithTilde {
+        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf;
+    }
+    impl ResolvePathWithTilde for PathBuf {
+        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf {
+            resolve_relative_path_with_tilde(&self, &working_directory)
+        }
+    }
 
     #[cfg(test)]
     mod test {
+        use std::str::FromStr;
+
         use super::*;
         #[test]
         fn test_resolve_path_with_tilde() {
-            let test = |path_str: &str, resolved: &str| {
+            let test = |path_str: &str, resolved: PathBuf| {
                 let mut path = PathBuf::from(path_str);
                 resolve_path_with_tilde(&mut path);
                 assert!(
-                    path == PathBuf::from(resolved),
+                    path == resolved,
                     "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
                     path_str,
                     path,
                     resolved
                 );
             };
-            // set environment because otherwise the test result would depend on the system running this
-            std::env::set_var("USER", "dummy");
-            std::env::set_var("HOME", "/home/dummy");
+            // do not use `std::env::set_var` here because it is unsound in multi-threaded
+            // programs and tests are run multi-threaded by default
+            let home_dir = home::home_dir().expect("can not determine home directory");
 
             // should resolve
-            test("~/foo.toml", "/home/dummy/foo.toml");
-            test("~//foo", "/home/dummy/foo");
-            test("~/../other_user/foo", "/home/dummy/../other_user/foo");
+            test("~/foo.toml", home_dir.join("foo.toml"));
+            test("~//foo", home_dir.join("foo"));
+            test("~/../other_user/foo", home_dir.join("../other_user/foo"));
 
             // should _not_ resolve
-            test("~foo/bar", "~foo/bar");
-            test(".~/foo", ".~/foo");
-            test("/~/foo.toml", "/~/foo.toml");
-            test(r"~\foo", r"~\foo");
-            test(r"C:\~\foo.toml", r"C:\~\foo.toml");
+            test("~foo/bar", PathBuf::from("~foo/bar"));
+            test(".~/foo", PathBuf::from(".~/foo"));
+            test("/~/foo.toml", PathBuf::from("/~/foo.toml"));
+            test(r"~\foo", PathBuf::from(r"~\foo"));
+            test(r"C:\~\foo.toml", PathBuf::from(r"C:\~\foo.toml"));
+        }
+        #[test]
+        fn test_resolve_relative_path_with_tilde() {
+            let home_dir = home::home_dir().expect("can not determine home directory");
+            let working_dir = PathBuf::from("/foo/bar");
+            assert_ne!(
+                home_dir, working_dir,
+                "home dir and working dir are unexpectedly the same"
+            );
+            let test = |path_str: &str, resolved: PathBuf| {
+                let result =
+                    resolve_relative_path_with_tilde(&PathBuf::from(path_str), &working_dir);
+                assert_eq!(
+                    result, resolved,
+                    "Path {:?} has been resolved to {:?} but should have been resolved to {:?}.",
+                    path_str, result, resolved
+                )
+            };
+
+            // should resolve
+            test("~/foo.toml", home_dir.join("foo.toml"));
+            test("foo.toml", working_dir.join("foo.toml"));
+            test("a/b.toml", working_dir.join("a").join("b.toml"));
+
+            // should _not_ resolve
+            // TODO
         }
     }
 }

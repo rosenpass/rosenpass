@@ -1,4 +1,4 @@
-use rosenpass::config::Rosenpass;
+use rosenpass::oldconfig::Rosenpass;
 
 #[test]
 fn config_rosenpass_add_if_any_example() {
