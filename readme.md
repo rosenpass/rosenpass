@@ -2,7 +2,7 @@
 
 [![GitHub Release](https://badges.islabtech.com/shields-io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
 [![crates.io](https://badges.islabtech.com/shields-io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
-[![License](https://badges.islabtech.com/shields-io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
+[![License](https://img.shields.io/badge/license-Apache%202.0/MIT-green)](https://github.com/rosenpass/rosenpass)
 ![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml)
 ![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml)
 [![docs.rs](https://badges.islabtech.com/shields-io/docsrs/rosenpass/latest)](https://docs.rs/rosenpass)
