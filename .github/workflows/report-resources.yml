@@ -1,0 +1,21 @@
+name: Report Resources
+on:
+  push:
+
+jobs:
+  report-resources:
+    runs-on: ubicloud-standard-2
+    steps:
+      - name: report-resources
+        shell: bash
+        run: |
+          echo "===== Memory ====="
+          cat /proc/meminfo
+
+          echo
+          echo "===== Filesystems ====="
+          df -h
+
+          echo
+          echo "===== Inodes ====="
+          df -ih
