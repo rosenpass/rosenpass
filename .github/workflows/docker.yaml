@@ -112,6 +112,10 @@ jobs:
           sudo cmp workdir-server/server-sharedkey workdir-client/client-sharedkey
 
           echo "Standalone Key Exchange test OK."
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   # --------------------------------
   # 2. PUSH (only if tests pass)
   # --------------------------------
@@ -180,6 +184,10 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   docker-image-rosenpass:
     needs:
       - build-and-test-rp
@@ -244,6 +252,10 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   merge-digests:
     runs-on: ubicloud-standard-2
     needs:
@@ -286,3 +298,7 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ matrix.target }}:${{ steps.meta.outputs.version }}
+
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

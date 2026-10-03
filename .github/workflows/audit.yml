@@ -25,3 +25,6 @@ jobs:
         with:
           command: check
           arguments: --all-features
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

@@ -47,3 +47,7 @@ jobs:
           message: Update docs
           cwd: rosenpass-website/static/docs
           github_token: ${{ secrets.PRIVACC }}
+
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

@@ -20,6 +20,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   rustfmt:
     name: Code Formatting
@@ -37,6 +40,9 @@ jobs:
         run: nix fmt -- --fail-on-change
       - name: Run Rust Markdown code block Formatting Script
         run: nix-shell -p rustfmt --command './format_rust_code.sh --mode check'
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-bench:
     runs-on: ubicloud-standard-2
@@ -55,6 +61,9 @@ jobs:
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
       - run: RUST_MIN_STACK=8388608 cargo bench --workspace --exclude rosenpass-fuzzing
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   mandoc:
     name: mandoc
@@ -65,6 +74,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Check rp.1
         run: doc/check.sh doc/rp.1
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-clippy:
     runs-on: ubicloud-standard-2
@@ -84,6 +96,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-doc:
     runs-on: ubicloud-standard-2
@@ -103,6 +118,9 @@ jobs:
       # - https://github.com/rosenpass/rosenpass/issues/62
       # - https://github.com/rust-lang/rust/issues/108378
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-test:
     runs-on: ubicloud-standard-2
@@ -121,6 +139,9 @@ jobs:
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --all-features
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-test-nix-devshell-x86_64-linux:
     runs-on: ubicloud-standard-2
@@ -143,6 +164,9 @@ jobs:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - run: nix develop --set-env-var RUST_MIN_STACK 8388608 --command cargo test --workspace --all-features
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   cargo-fuzz:
     runs-on: ubicloud-standard-2
@@ -181,6 +205,9 @@ jobs:
           cargo fuzz run fuzz_vec_secret_alloc_malloc -- -max_total_time=5
           cargo fuzz run fuzz_vec_secret_alloc_memfdsec -- -max_total_time=5
           cargo fuzz run fuzz_vec_secret_alloc_memfdsec_mallocfb -- -max_total_time=5
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   codecov:
     runs-on: ubicloud-standard-8
@@ -215,3 +242,6 @@ jobs:
           files: ./target/grcov/lcov
           verbose: true
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

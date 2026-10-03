@@ -40,7 +40,11 @@ jobs:
         run: cargo supply-chain publishers
       - name: Generate cargo-supply-chain report about crates
         run: cargo supply-chain crates
-    # The setup for cargo-vet follows the recommendations in the cargo-vet documentation: https://mozilla.github.io/cargo-vet/configuring-ci.html
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
+  # The setup for cargo-vet follows the recommendations in the cargo-vet documentation: https://mozilla.github.io/cargo-vet/configuring-ci.html
   cargo-vet:
     name: Vet Dependencies
     runs-on: ubicloud-standard-2
@@ -169,3 +173,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_BOT_PAT }}
       - name: Invoke cargo-vet
         run: cargo vet --locked
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
