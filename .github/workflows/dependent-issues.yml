@@ -61,3 +61,6 @@ jobs:
             {{ dependencies }}
 
             By **[Dependent Issues](https://github.com/z0al/dependent-issues)** (🤖). Happy coding!
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

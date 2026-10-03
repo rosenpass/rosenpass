@@ -1,0 +1,26 @@
+# This action provides a report about the resources (memory, storage) at the end of a CI job.
+# It can be used by appending the following step to a CI job:
+#
+# - name: Report runner resources
+#   uses: ./.github/actions/report-resources
+#   if: ${{ always() }}
+
+name: Report runner resources
+description: Print remaining runner memory and filesystem capacity
+
+runs:
+  using: composite # https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
+  steps:
+    - name: Report runner resources
+      shell: bash
+      run: |
+        echo "===== Memory ====="
+        cat /proc/meminfo
+
+        echo
+        echo "===== Filesystems ====="
+        df -h
+
+        echo
+        echo "===== Inodes ====="
+        df -ih

@@ -29,6 +29,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-darwin.default --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-darwin---release-package:
     name: Build aarch64-darwin.release-package
     runs-on: warp-macos-26-arm64-6x
@@ -47,6 +51,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-darwin.release-package --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-darwin---rosenpass:
     name: Build aarch64-darwin.rosenpass
     runs-on: warp-macos-26-arm64-6x
@@ -62,6 +69,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-darwin.rosenpass --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-darwin---rp:
     name: Build aarch64-darwin.rp
     runs-on: warp-macos-26-arm64-6x
@@ -77,6 +87,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-darwin.rp --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-darwin---rosenpass-oci-image:
     name: Build aarch64-darwin.rosenpass-oci-image
     runs-on: warp-macos-26-arm64-6x
@@ -93,6 +106,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-darwin.rosenpass-oci-image --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-darwin---check:
     name: Run Nix checks on aarch64-darwin
     runs-on: warp-macos-26-arm64-6x
@@ -107,3 +124,6 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
         run: nix flake check . --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

@@ -67,6 +67,9 @@ jobs:
           auto-push: true
           fail-on-alert: true
           base-path: benchmarks/
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   ciphers-protocol-bench-status:
     if: ${{ always() }}
@@ -83,3 +86,9 @@ jobs:
         run: |
           echo "ERROR: the previous job (proto-benchmark) has failed"
           exit 1
+      # reporting runner resources is disabled intentionally:
+      # 1. this step is trivial with regard to resources
+      # 2. to run it would require running actions/checkout first
+      # - name: Report runner resources
+      #   uses: ./.github/actions/report-resources
+      #   if: ${{ always() }}

@@ -88,6 +88,9 @@ jobs:
           auto-push: true
           fail-on-alert: true
           base-path: benchmarks/
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   ciphers-primitives-bench-status:
     if: ${{ always() }}
@@ -100,3 +103,6 @@ jobs:
       - name: Failing
         if: ${{ (contains(needs.*.result, 'failure')) }}
         run: exit 1
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

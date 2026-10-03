@@ -91,3 +91,6 @@ jobs:
           # IMPORTANT NOTE: we are not using the root flake.nix here but the second flake.nix in ./tests/integration
           cd ./tests/integration
           nix flake check --print-build-logs --system ${{ matrix.arch.system }} --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
