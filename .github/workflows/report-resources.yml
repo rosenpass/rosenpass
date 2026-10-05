@@ -3,6 +3,9 @@ on:
   push:
 
 jobs:
+  # for documentation, see:
+  # - RUNNER_OS: https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables
+  # - vm_stat: https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/VMPages.html
   report-resources:
     runs-on: ubicloud-standard-2
     steps:
@@ -10,7 +13,14 @@ jobs:
         shell: bash
         run: |
           echo "===== Memory ====="
-          cat /proc/meminfo
+          case "$RUNNER_OS" in
+            Linux)
+              free -h
+              ;;
+            macOS)
+              vm_stat
+              ;;
+          esac
 
           echo
           echo "===== Filesystems ====="
