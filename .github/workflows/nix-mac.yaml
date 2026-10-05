@@ -5,7 +5,16 @@ on:
   push:
     branches:
       - main
-      # - upgrade-ci-macos
+      - "**macos**"
+
+    # > If you define both `branches`/`branches-ignore` and `paths`/`paths-ignore`, the workflow will only run when **both** filters are satisfied.
+    # https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#patterns-to-match-file-paths
+    #
+    # paths:
+    #   - .github/workflows/nix-mac.yaml
+    #   - .github/workflows/qc-mac.yaml
+    #   - .github/actions/report-resources/*
+
   workflow_call:
 
 concurrency:
