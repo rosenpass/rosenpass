@@ -61,6 +61,10 @@ jobs:
             {{ dependencies }}
 
             By **[Dependent Issues](https://github.com/z0al/dependent-issues)** (🤖). Happy coding!
-      - name: Report runner resources
-        uses: ./.github/actions/report-resources
-        if: ${{ always() }}
+
+      # reporting runner resources is disabled intentionally:
+      # 1. this step is trivial with regard to resources
+      # 2. to run it would require running actions/checkout first
+      # - name: Report runner resources
+      #   uses: ./.github/actions/report-resources
+      #   if: ${{ always() }}
