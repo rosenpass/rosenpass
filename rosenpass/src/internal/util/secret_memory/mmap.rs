@@ -4,11 +4,13 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::ffi::c_void;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::ptr::null_mut;
 
 use rustix::fs::{SealFlags, fcntl_add_seals, fcntl_get_seals};
 use rustix::io::Errno;
+use rustix::mm::{MapFlags, ProtFlags, mmap_anonymous};
 
 use crate::internal::util::convert::TryIntoTypeExt;
 use crate::internal::util::functional::SideffectExt;
@@ -444,6 +446,13 @@ impl<Fd: AsFd> MappableFd<Fd> {
     /// allocating an excessively large, sparse file. If you implement size auto-detection
     /// facilities, you should still enforce some bounds on the size.
     ///
+    /// # Guard pages
+    ///
+    /// Guard pages will be allocated before and behind the allocated region.
+    /// Note that the allocation size will be rounded up to a multiple of the system page size,
+    /// so if the requested size is not a multiple of the page size, there may be some unused
+    /// but accessible and valid memory between the end of the allocation and the guard pages.
+    ///
     /// # Locking pages into memory
     ///
     /// The mapped pages are locked into memory with mlock(2) unless the mapping is
@@ -475,6 +484,9 @@ impl<Fd: AsFd> MappableFd<Fd> {
         use MMapError as E;
         use MMapInvalidConfigError as EC;
         use MemfdCreateSealError as ES;
+
+        // System properties
+        let pagesize = rustix::param::page_size();
 
         // Configuration options
         let prot = self.config().mmap_prot();
@@ -666,18 +678,50 @@ impl<Fd: AsFd> MappableFd<Fd> {
             break 'seal;
         }
 
-        // Map the region into memory
+        // Allocate guard pages and prepare the memory region for the actual allocation.
+        // Note that we make sure the guard-page gets deallocated even if the later mmap(2)
+        // call fails by immediately constructing the MappedSegment, which has an appropriate
+        // destructor.
         //
         // SAFETY:
         //
-        // * `ptr` is NULL, so mmap chooses a fresh mapping; rustix's
-        //   non-null input-pointer provenance requirement does not apply.
-        // * We don't use MAP_FIXED, so no existing Rust allocation/reference
-        //   is replaced.
+        // * For mmap_anonymous: the address passed is NULL, so mmap chooses a fresh
+        //   mapping; rustix's non-null input-pointer provenance requirement does
+        //   not apply.
+        // * For from_raw_parts: `guard_ptr` is the page-aligned start of the fresh
+        //   anonymous mapping and `guard_len` is its exact length, so the region is
+        //   contiguous and currently valid. The segment `ptr .. ptr + len` is fully
+        //   contained in `guard_ptr .. guard_ptr + guard_len`: `ptr` is exactly one
+        //   page into the allocation and `len <= guard_len - 2 * pagesize`. The
+        //   mapping was just created by us and no other handle refers to it, so it
+        //   is exclusively owned.
         let ptr = unsafe {
+            let prot = ProtFlags::empty(); // PROT_NONE,
+            let guard_len = requested_size.usize().next_multiple_of(pagesize) + 2 * pagesize;
+            let guard_ptr = mmap_anonymous(null_mut(), guard_len, prot, MapFlags::empty())
+                .map_err(E::MMapError)?;
             let len = requested_size.usize();
-            let ptr = mmap(null_mut(), len, prot, flags, self, 0).map_err(E::MMapError)?;
-            MappedSegment::from_raw_parts(ptr.cast(), len)
+            let ptr = guard_ptr.add(pagesize).cast();
+            MappedSegment::from_raw_parts(guard_ptr, guard_len, ptr, len)
+        };
+
+        // Map the region into memory, replacing the middle of the guard-page
+        // reservation with the file-descriptor mapping
+        //
+        // SAFETY:
+        //
+        // * `ptr` points exactly one page into the guard-page allocation owned
+        //   by the MappedSegment created above, so it is page-aligned and the
+        //   range `ptr .. ptr + len`, rounded up to the page size, lies inside
+        //   that live mapping and is valid to mutate with `ptr`'s provenance.
+        // * MAP_FIXED replaces part of the guard-page allocation we exclusively
+        //   own (via the MappedSegment), so no existing Rust allocation/reference
+        //   is unmapped or replaced; the MappedSegment remains the sole owner of
+        //   the resulting composite region.
+        unsafe {
+            let (ptr, len) = (ptr.ptr().cast(), ptr.len());
+            let flags = flags | MapFlags::FIXED;
+            mmap(ptr, len, prot, flags, self, 0).map_err(E::MMapError)?
         };
 
         // mlock(2) the memory region into memory (prevent swapping)
@@ -700,7 +744,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
         //   documented mlock precondition. PROT_READ is set, because we check for
         //   `self.config().unreadable` explicitly.
         if !stat.is_memfd_secret()? && !self.config().unreadable {
-            let res = unsafe { rustix::mm::mlock(ptr.ptr().cast(), len) };
+            let res = unsafe { rustix::mm::mlock(ptr.ptr().cast(), ptr.len()) };
             res.map_err(E::MLockError)?;
         }
 
@@ -739,6 +783,10 @@ impl<Fd: AsFd> MappableFd<Fd> {
 /// [Self::unmap] instead
 #[derive(Debug)]
 pub struct MappedSegment {
+    /// Pointer to the backing allocation
+    alloc_ptr: *mut c_void,
+    /// Length of the backing allocation in bytes
+    alloc_len: usize,
     /// The location of the memory segment
     ptr: *mut u8,
     /// Length of the segment in bytes
@@ -748,35 +796,57 @@ pub struct MappedSegment {
 unsafe impl Send for MappedSegment {}
 
 impl MappedSegment {
-    /// Construct a new [Self] from a pointer and a length
+    /// Construct a new [Self] from an allocation pointer, an allocation length,
+    /// a segment pointer, and a segment length
+    ///
+    /// `alloc_ptr` is the address of the backing allocation and `alloc_len` is
+    /// its length in bytes. The backing allocation may be larger than the memory
+    /// segment itself (e.g. to accommodate guard pages); it is what is unmapped
+    /// when the returned [Self] is dropped.
     ///
     /// `ptr` is the address of the memory segment and `len` is its length in bytes
     ///
     /// # Safety
     ///
-    /// Dropping the returned [Self] unmaps the memory region with munmap(2);
+    /// Dropping the returned [Self] unmaps the backing allocation
+    /// `alloc_ptr .. alloc_ptr + alloc_len` with munmap(2);
     /// the caller must guarantee all of the following, both for the region to
     /// be usable and for the destructor not to fail (which would panic):
     ///
-    /// - `ptr` is the page-aligned start address of a memory mapping, as
+    /// - `alloc_ptr` is the page-aligned start address of a memory mapping, as
     ///   returned by mmap(2)
-    /// - `len` is greater than zero and `ptr + len` does not overflow the
-    ///   address space
-    /// - the entire region `ptr .. ptr + len` is part of that same, currently
-    ///   valid mapping: any pointer `ptr.add(n)` with `n < len` is a valid
-    ///   pointer; see the `# Safety` section in [std::ptr]
+    /// - `alloc_len` is greater than zero and `alloc_ptr + alloc_len` does not
+    ///   overflow the address space
+    /// - the entire region `alloc_ptr .. alloc_ptr + alloc_len` is one
+    ///   contiguous, currently valid mapped region (it may consist of several
+    ///   adjacent mappings, such as guard pages surrounding a MAP_FIXED file
+    ///   mapping): any pointer `alloc_ptr.add(n)` with `n < alloc_len` is a
+    ///   valid pointer; see the `# Safety` section in [std::ptr]
+    /// - the memory segment `ptr .. ptr + len` is fully contained in the
+    ///   backing allocation `alloc_ptr .. alloc_ptr + alloc_len`
     /// - the mapping is exclusively owned by the returned [Self]: no other
     ///   handle (such as another [MappedSegment]) refers to the same mapping,
     ///   and no other code unmaps or remaps the region
     /// - the mapping remains valid for the entire lifetime of the returned
     ///   [Self]
-    pub unsafe fn from_raw_parts(ptr: *mut u8, len: usize) -> Self {
-        Self { ptr, len }
+    pub unsafe fn from_raw_parts(
+        alloc_ptr: *mut c_void,
+        alloc_len: usize,
+        ptr: *mut u8,
+        len: usize,
+    ) -> Self {
+        Self {
+            alloc_ptr,
+            alloc_len,
+            ptr,
+            len,
+        }
     }
 
-    /// Decompose a MappedSegment into its raw components: pointer and length
-    pub fn into_raw_parts(self) -> (*mut u8, usize) {
-        let r = (self.ptr(), self.len());
+    /// Decompose a MappedSegment into its raw components: allocation pointer,
+    /// allocation length, segment pointer, and segment length
+    pub fn into_raw_parts(self) -> (*mut c_void, usize, *mut u8, usize) {
+        let r = (self.alloc_ptr, self.alloc_len, self.ptr(), self.len());
         std::mem::forget(self);
         r
     }
@@ -799,21 +869,23 @@ impl MappedSegment {
     /// If this returns an error, the memory segment has not been freed. The values from
     /// [Self::into_raw_parts()] are returned as part of the error value so the caller has
     /// some chance to free the memory some other way (or to leak it if they so choose)
-    pub fn unmap(self) -> Result<(), (rustix::io::Errno, *mut u8, usize)> {
-        let (ptr, len) = self.into_raw_parts();
-        let res = unsafe { rustix::mm::munmap(ptr.cast(), len) };
-        res.map_err(|errno| (errno, ptr, len))
+    pub fn unmap(self) -> Result<(), (rustix::io::Errno, *mut c_void, usize, *mut u8, usize)> {
+        let (alloc_ptr, alloc_len, ptr, len) = self.into_raw_parts();
+        let res = unsafe { rustix::mm::munmap(alloc_ptr.cast(), alloc_len) };
+        res.map_err(|errno| (errno, alloc_ptr, alloc_len, ptr, len))
     }
 }
 
 impl Drop for MappedSegment {
     fn drop(&mut self) {
         let mut owned = MappedSegment {
+            alloc_ptr: null_mut(),
+            alloc_len: 0,
             ptr: null_mut(),
             len: 0,
         };
         std::mem::swap(self, &mut owned);
-        if let Err((errno, _ptr, _len)) = owned.unmap() {
+        if let Err((errno, _, _, _, _)) = owned.unmap() {
             panic!("Failed to unmap MappedSegment: {errno:?}")
         }
     }
