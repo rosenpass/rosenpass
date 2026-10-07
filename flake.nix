@@ -14,7 +14,9 @@
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
 
-    # Older version of rosenpass, referenced here for backwards compatibility
+    # older version of rosenpass against which backwards-compatibility integration tests are run
+    #
+    # This input is usually overriden by the CI which executes the tests (see .github/workflows/integration.yml) but the default value is sensible, too.
     # 512fe426be9281366d92a910d391fe8ddd72bd10 is v0.2.3
     rosenpassOld.url = "github:rosenpass/rosenpass?rev=512fe426be9281366d92a910d391fe8ddd72bd10";
     rosenpassOld.inputs.nixpkgs.follows = "nixpkgs"; # TODO: why do we need this line?
@@ -201,16 +203,23 @@
             };
 
             checks =
-              import ./tests/integration/integration-checks.nix {
-                inherit system;
-                pkgs = inputs.nixpkgs;
-                lib = nixpkgs.lib;
-                rosenpassNew = self.packages.${system}.rosenpass-static;
-                rosenpassOld = inputs.rosenpassOld.packages.${system}.rosenpass-static.overrideAttrs (old: {
-                  doCheck = false; # no need to re-run the check for the old version
-                });
-              }
+              let
+                integrationChecks = import ./tests/integration/integration-checks.nix {
+                  inherit system;
+                  pkgs = inputs.nixpkgs;
+                  lib = nixpkgs.lib;
+                  rosenpassNew = self.packages.${system}.rosenpass-static;
+                  rosenpassOld = inputs.rosenpassOld.packages.${system}.rosenpass-static.overrideAttrs (old: {
+                    doCheck = false; # no need to re-run the check for the old version
+                  });
+                };
+              in
+              integrationChecks
               // {
+                # Aggregate target so the CI can run just the integration tests:
+                # nix build .#checks.<system>.integration
+                # docs: https://noogle.dev/f/pkgs/linkFarm/
+                integration = pkgs.linkFarm "integration-checks" integrationChecks;
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
                 systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
                 formatting = treefmtEval.config.build.check self;
