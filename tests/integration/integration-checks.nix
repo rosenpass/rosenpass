@@ -106,6 +106,14 @@ let
         multiPeer = true;
       }
     );
+
+    # CLI and config file compatibility checks
+    cliAndConfigBackwardsCompatibility = pkgsBasicConnectivity.testers.runNixOSTest (
+      import ./cli-and-config-integration-checks.nix {
+        pkgs = pkgsBasicConnectivity;
+        inherit lib rosenpassOld rosenpassNew;
+      }
+    );
   };
 in
 generatedChecks
