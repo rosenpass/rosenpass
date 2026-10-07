@@ -3,8 +3,8 @@
 [![GitHub Release](https://badges.islabtech.com/shields-io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
 [![crates.io](https://badges.islabtech.com/shields-io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
 [![License](https://badges.islabtech.com/shields-io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
-![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml)
-![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml)
+![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml?label=Nix)
+![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml?label=QC)
 [![docs.rs](https://badges.islabtech.com/shields-io/docsrs/rosenpass/latest)](https://docs.rs/rosenpass)
 
 This repository contains
