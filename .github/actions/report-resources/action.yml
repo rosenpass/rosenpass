@@ -15,7 +15,14 @@ runs:
       shell: bash
       run: |
         echo "===== Memory ====="
-        cat /proc/meminfo
+        case "$RUNNER_OS" in
+          Linux)
+            free -h
+            ;;
+          macOS)
+            vm_stat
+            ;;
+        esac
 
         echo
         echo "===== Filesystems ====="
