@@ -666,16 +666,19 @@ impl<Fd: AsFd> MappableFd<Fd> {
             break 'seal;
         }
 
+        // Map the region into memory
+        //
         // SAFETY:
         //
         // * `ptr` is NULL, so mmap chooses a fresh mapping; rustix's
         //   non-null input-pointer provenance requirement does not apply.
         // * We don't use MAP_FIXED, so no existing Rust allocation/reference
         //   is replaced.
-        let len = requested_size.usize();
-        let ptr = unsafe { mmap(null_mut(), len, prot, flags, self, 0) };
-        let ptr = ptr.map_err(E::MMapError)?;
-        let ptr = unsafe { MappedSegment::from_raw_parts(ptr.cast(), len) };
+        let ptr = unsafe {
+            let len = requested_size.usize();
+            let ptr = mmap(null_mut(), len, prot, flags, self, 0).map_err(E::MMapError)?;
+            MappedSegment::from_raw_parts(ptr.cast(), len)
+        };
 
         // mlock(2) the memory region into memory (prevent swapping)
         //
