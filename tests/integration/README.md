@@ -1,14 +1,16 @@
 # Integration Tests
 
-This directory contains integration tests for rosenpass in the form of a nix flake. Put simply, in order to run the integration tests for the main branch as they are on github right now, just run the following on a linux machine with nix installed and flakes enabled:
+This directory contains the integration tests for rosenpass. They are exposed as Nix flake checks. In order to run the integration tests as they are on github right now, just run the following on a linux machine with nix installed and flakes enabled:
 
 ```
-nix flake check
+nix build .#checks.x86_64-linux.integration
 ```
+
+(Replace `x86_64-linux` with your system. Alternatively, `nix flake check` runs the integration tests together with all other checks of the rosenpass flake.)
 
 ## Overview
 
-The integration tests recognize two rosenpass versions, a new version and an old version. If not adapted, both are set to the version of the current main branch of rosenpass on github. We describe below how to change this.
+The integration tests recognize two rosenpass versions, a new version and an old version. The new version is always the state of your local checkout. The old version is the rosenpass version v0.2.3 by default; we describe below how to change this.
 All integration tests install rosenpass on virtual machines, run the key exchange, create a connection via wireguard that uses rosenpass and then checks whether all peers can ping each other via wireguard. Overall there are four integration tests:
 
 - `basicConnectivity` -- This test only uses the new rosenpass version and checks whether the key exchange between two peers works such that they can ping each other.
@@ -18,12 +20,12 @@ All integration tests install rosenpass on virtual machines, run the key exchang
 
 ## Testing specific versions
 
-You can specify specific versions of rosenpass to test compatibility. The proper way to do so is by overriding the respective inputs to the nix flake. As an example, say you want to test the compatibility of your local version of rosenpass with the branch `new-feature` on github. You can achieve this by running the following command:
+You can specify the old version of rosenpass to test compatibility against. The proper way to do so is by overriding the `rosenpassOld` input of the nix flake. The new version is always the state of your local checkout; if you want to test a specific version as the new version, check it out locally first. Example (test against `main` branch):
 
 ```
-nix flake check  --override-input rosenpass-old ../../ --override-input rosenpass-new github:rosenpass/rosenpass/new-feature
+nix build .#checks.x86_64-linux.integration --override-input rosenpassOld github:rosenpass/rosenpass/main
 ```
 
 ## Usage in the CI
 
-In the CI, the integration tests are used differently, depending on whether the CI run is triggered by a push to the main branch or by a pull request. If the CI run is triggered by a pull request, then the result of merging the main branch and the PR branch is set as the new version and the current state of the main branch is set as the old version. For push events, the CI is only triggered if the push is onto the main branch. In that case, the state before the push event is considered the old version and the state after the push event is considered as the new version.
+In the CI, the old rosenpass version is chosen depending on whether the CI run is triggered by a push to the main branch or by a pull request. If the CI run is triggered by a pull request, then the result of merging the main branch and the PR branch is the new version and the current state of the main branch is the old version. For push events, the CI is only triggered if the push is onto the main branch. In that case, the state before the push event is the old version and the state after the push event is the new version. Additionally, the CI tests against further old versions from the test matrix in `.github/workflows/integration.yml`, such as the `main` branch and the stable `v0.2.3`.

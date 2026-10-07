@@ -63,34 +63,29 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Extract the reference of before and after for the integration tests.
+      - name: extract reference to old rosenpass version
         run: |
           EVENT_NAME="${{ github.event_name }}"
           # An empty target ref means: test against the previous state of this
           # repository (see the comment on the matrix above).
           TARGET_REF="${{ matrix.target.ref }}"
-          REF_AFTER="path:../../"
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "This CI run was triggered in the context of a pull request."
             TARGET_REF="${TARGET_REF:-${{ github.event.pull_request.base.ref }}}"
-            git checkout -B pr-${{ github.event.pull_request.number }}
-            REF_AFTER="git+file://../../../?ref=pr-${{ github.event.pull_request.number }}"
           elif [[ "$EVENT_NAME" == "push" ]]; then
             echo "This CI run was triggered in the context of a push."
             TARGET_REF="${TARGET_REF:-${{ github.event.before }}}"
-            REF_AFTER="github:rosenpass/rosenpass/${{ github.event.after }}"
           else
             echo "ERROR: This CI run was not triggered in the context of a pull request or a push. Exiting with error."
             exit 1
           fi
           REF_BEFORE="github:rosenpass/rosenpass/$TARGET_REF"
           echo "REF_BEFORE=$REF_BEFORE" >> $GITHUB_ENV
-          echo "REF_AFTER=$REF_AFTER" >> $GITHUB_ENV
       - name: Check
         run: |
-          # IMPORTANT NOTE: we are not using the root flake.nix here but the second flake.nix in ./tests/integration
-          cd ./tests/integration
-          nix flake check --print-build-logs --system ${{ matrix.arch.system }} --override-input rosenpass-old $REF_BEFORE --override-input rosenpass-new $REF_AFTER
+          # NOTE: old version is determined by `REF_BEFORE` (see previous workflow step)
+          # NOTE: new version is this checkout worktree
+          nix build .#checks.${{ matrix.arch.system }}.integration --print-build-logs --override-input rosenpassOld $REF_BEFORE
       - name: Report runner resources
         uses: ./.github/actions/report-resources
         if: ${{ always() }}
