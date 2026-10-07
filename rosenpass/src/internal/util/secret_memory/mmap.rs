@@ -366,6 +366,14 @@ pub enum MMapError {
         "Tried to seal file descriptor against being grown/shrunken before mapping into memory: {0}"
     )]
     SealError(#[from] MemfdCreateSealError),
+    /// `madvise(…, MADV_DONTFORK)` failed
+    #[cfg(target_os = "linux")]
+    #[error("Tried to protect the allocated memory region against forking using madvise(2) with MADV_DONTFORK, but got following error instead: {}", .0)]
+    CouldNotProtectAgainstForks(rustix::io::Errno),
+    /// `madvise(…, MADV_DONTDUMP)` failed
+    #[cfg(target_os = "linux")]
+    #[error("Tried to protect the allocated memory region against memory dumps using madvise(2) with MADV_DONTDUMP, but got following error instead: {}", .0)]
+    CouldNotProtectAgainstMemoryDumps(rustix::io::Errno),
 }
 
 /// Handle mapping a file descriptor into memory
@@ -451,6 +459,11 @@ impl<Fd: AsFd> MappableFd<Fd> {
     /// SIGKILL depending on the fault path). mlock(2) is skipped for
     /// memfd_secret(2) file descriptors: secretmem pages are never swapped by
     /// design, so locking them is unnecessary.
+    ///
+    /// # fork(2)
+    ///
+    /// The pages allocated here must not be accessed after the process has been forked.
+    /// MADV_DONTFORK is used to deliberately free pages on fork as a precaution.
     ///
     /// # Safety
     ///
@@ -686,6 +699,25 @@ impl<Fd: AsFd> MappableFd<Fd> {
         if !stat.is_memfd_secret()? && !self.config().unreadable {
             let res = unsafe { rustix::mm::mlock(ptr.ptr().cast(), len) };
             res.map_err(E::MLockError)?;
+        }
+
+        // Advise the kernel that the memory pages must neither be inherited
+        // by child processes on fork(2) nor be included in memory dumps.
+        //
+        // SAFETY:
+        //
+        // * The pointer came directly from mmap, so it is valid and owned exclusively
+        //   by us and retains provenance.
+        // * The length is the mapping's exact length; madvise operates on
+        //   whole pages and rounds to the page's length.
+        // * MADV_DONTFORK and MADV_DONTDUMP only manipulate virtual memory flags; they
+        //   do not change the underlying fd or data in memory.
+        {
+            use rustix::mm::{Advice, madvise};
+            unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontFork) }
+                .map_err(E::CouldNotProtectAgainstForks)?;
+            unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontDump) }
+                .map_err(E::CouldNotProtectAgainstMemoryDumps)?;
         }
 
         Ok(ptr)
