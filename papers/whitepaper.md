@@ -282,7 +282,7 @@ Rosenpass uses a cryptographic hash function for multiple purposes:
 * Key derivation during and after the handshake
 * Computing the additional data for the biscuit encryption, to provide some privacy for its contents
 
-Recall from Section \ref{hash} that rosenpass supports using either BLAKE2b or SHAKE256 as hash function, which can be configured for each peer ID. However, as noted above, rosenpass uses a hash function to compute the peer ID and thus also to access the configuration for a peer ID. This is an issue when receiving an `InitHello`-message, because the correct hash function is not known when a responder receives this message and at the same the responders needs it in order to compute the peer ID and by that also identfy the hash function for that peer. The reference implementation resolves this issue by first trying to derive the peer ID using SHAKE256. If that does not work (i.e. leads to an AEAD decryption error), the reference implementation tries again with BLAKE2b. The reference implementation verifies that the hash function matches the one confgured for the peer. Similarly, if the correct peer ID is not cached when receiving an InitConf message, the reference implementation proceeds in the same manner.
+Recall from Section \ref{hash} that rosenpass supports using either BLAKE2b or SHAKE256 as hash function, which can be configured for each peer ID. However, as noted above, rosenpass uses a hash function to compute the peer ID and thus also to access the configuration for a peer ID. This is an issue when receiving an `InitHello`-message, because the correct hash function is not known when a responder receives this message and at the same the responders needs it in order to compute the peer ID and by that also identify the hash function for that peer. The reference implementation resolves this issue by first trying to derive the peer ID using SHAKE256. If that does not work (i.e. leads to an AEAD decryption error), the reference implementation tries again with BLAKE2b. The reference implementation verifies that the hash function matches the one configured for the peer. Similarly, if the correct peer ID is not cached when receiving an InitConf message, the reference implementation proceeds in the same manner.
 
 Using one hash function for multiple purposes can cause real-world security issues and even key recovery attacks [@oraclecloning]. We choose a tree-based domain separation scheme based on a keyed hash function – the previously introduced primitive `hash` – to make sure all our hash function calls can be seen as distinct.
 
@@ -607,7 +607,7 @@ cookie_value = lhash("cookie-value", cookie_secret, initiator_host_info)[0..16]
 cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_peer)
 ```
 
-where `cookie_secret` is a secret variable that changes every two minutes to a random value. Moreover, `lhash` is always instantiated with SHAKE256 when computing `cookie_value` for compatibility reasons.  `initiator_host_info` is used to identify the initiator host, and is implementation-specific for the client. This paramaters used to identify the host must be carefully chosen to ensure there is a unique mapping, especially when using IPv4 and IPv6 addresses to identify the host (such as taking care of IPv6 link-local addresses). `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.
+where `cookie_secret` is a secret variable that changes every two minutes to a random value. Moreover, `lhash` is always instantiated with SHAKE256 when computing `cookie_value` for compatibility reasons.  `initiator_host_info` is used to identify the initiator host, and is implementation-specific for the client. This parameters used to identify the host must be carefully chosen to ensure there is a unique mapping, especially when using IPv4 and IPv6 addresses to identify the host (such as taking care of IPv6 link-local addresses). `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.
 
 #### Envelope `mac` Field {#envelope-mac-field}
 
@@ -636,7 +636,7 @@ else {
 
 Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds elapsed since last cookie was received, and `COOKIE_WIRE_DATA` are the message contents of all bytes of the retransmitted message prior to the `cookie` field.
 
-The inititator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
+The initiator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
 However, when the responder is under load, it may reject InitHello messages with the invalid `cookie` value, and issue a cookie reply message.
 
 ### Conditions to trigger DoS Mechanism
@@ -645,7 +645,7 @@ This whitepaper does not mandate any specific mechanism to detect responder cont
 
 For the reference implementation, Rosenpass has derived inspiration from the Linux implementation of WireGuard.  This implementation suggests that the receiver keep track of the number of messages it is processing at a given time.
 
-On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When recieving subsequent messages, if the client is still in an under load state, the client will check if the time elapsed since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
+On receiving an incoming message, if the length of the message queue to be processed exceeds a threshold `MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD`, the client is considered under load and its state is stored as under load. In addition, the timestamp of this instant when the client was last under load is stored. When receiving subsequent messages, if the client is still in an under load state, the client will check if the time elapsed since the client was last under load has exceeded `LAST_UNDER_LOAD_WINDOW` seconds. If this is the case, the client will update its state to normal operation, and process the message in a normal fashion.
 
 Currently, the following constants are derived from the Linux kernel implementation of WireGuard:
 
@@ -664,11 +664,11 @@ The responder uses less complex form of the same mechanism: The responder never 
 
 The cookie reply system does not interfere with the retransmission logic discussed above.
 
-When the initator is under load, it will ignore processing any incoming messages.
+When the initiator is under load, it will ignore processing any incoming messages.
 
-When a responder is under load and it receives an InitHello handshake message, the InitHello message will be discarded and a cookie reply message is sent. The initiator, then on the reciept of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process.
+When a responder is under load and it receives an InitHello handshake message, the InitHello message will be discarded and a cookie reply message is sent. The initiator, then on the receipt of the cookie reply message, will store a decrypted `cookie_value` to set the `cookie` field to subsequently sent messages. As per the retransmission mechanism above, the initiator will send a retransmitted InitHello message with a valid `cookie` value appended. On receiving the retransmitted handshake message, the responder will validate the `cookie` value and resume with the handshake process.
 
-When the responder is under load and it recieves an InitConf message, the message will be directly processed without checking the validity of the cookie field.
+When the responder is under load and it receives an InitConf message, the message will be directly processed without checking the validity of the cookie field.
 
 ## Timers
 
@@ -1097,7 +1097,7 @@ PR: [#653](https://github.com/rosenpass/rosenpass/pull/653)
 We document the support for SHAKE256 with prepended key as an alternative to BLAKE2s with HMAC.
 
 Previously, BLAKE2s with HMAC was the only supported keyed hash function. Recently, SHAKE256 was added as an option. SHAKE256 is used as a keyed hash function by prepending the key to the variable-length data and then evaluating SHAKE256.
-In order to maintain compatablity without introducing an explcit version number in the protocol messages, SHAKE256 is truncated to 32 bytes. In the update to the whitepaper, we explain where and how SHAKE256 is used. That is:
+In order to maintain compatibility without introducing an explicit version number in the protocol messages, SHAKE256 is truncated to 32 bytes. In the update to the whitepaper, we explain where and how SHAKE256 is used. That is:
 
 1. We explain that SHAKE256 or BLAKE2s can be configured to be used on a peer basis.
 2. We explain under which circumstances, the reference implementation tries both hash functions for messages in order to determine the correct hash function.
