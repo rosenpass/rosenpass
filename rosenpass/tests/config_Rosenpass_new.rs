@@ -1,4 +1,4 @@
-use rosenpass::config::{Keypair, Rosenpass};
+use rosenpass::oldconfig::{Keypair, Rosenpass};
 
 #[test]
 fn example_config_rosenpass_new() {

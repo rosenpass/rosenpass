@@ -26,7 +26,7 @@ use crate::internal::util::{
 use crate::internal::secret_memory::{Public, Secret};
 use crate::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
 
-use crate::config::{ProtocolVersion, Verbosity};
+use crate::oldconfig::{ProtocolVersion, Verbosity};
 
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
