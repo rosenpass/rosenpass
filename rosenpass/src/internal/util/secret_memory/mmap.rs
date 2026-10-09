@@ -8,19 +8,19 @@ use std::ffi::c_void;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::ptr::null_mut;
 
-use rustix::fs::{SealFlags, fcntl_add_seals, fcntl_get_seals};
+use rustix::fs::{fcntl_add_seals, fcntl_get_seals, SealFlags};
 use rustix::io::Errno;
-use rustix::mm::{MapFlags, ProtFlags, mmap_anonymous};
+use rustix::mm::{mmap_anonymous, MapFlags, ProtFlags};
 
 use crate::internal::util::convert::TryIntoTypeExt;
 use crate::internal::util::functional::SideffectExt;
-use crate::internal::util::int::u64uint::{MAX_U64_IN_USIZE, U64USize};
+use crate::internal::util::int::u64uint::{U64USize, MAX_U64_IN_USIZE};
 use crate::internal::util::mem::CopyExt;
 use crate::internal::util::result::OkExt;
 
 use crate::internal::util::mem::DiscardResultExt;
 use crate::internal::util::secret_memory::fd::{
-    SecretMemfdConfig, SecretMemfdConfigValidationError, memfd_secret_protects_against_resizing,
+    memfd_secret_protects_against_resizing, SecretMemfdConfig, SecretMemfdConfigValidationError,
 };
 
 /// Size of the memory mapping for [MappableFd]
@@ -688,21 +688,26 @@ impl<Fd: AsFd> MappableFd<Fd> {
         // * For mmap_anonymous: the address passed is NULL, so mmap chooses a fresh
         //   mapping; rustix's non-null input-pointer provenance requirement does
         //   not apply.
-        // * For from_raw_parts: `guard_ptr` is the page-aligned start of the fresh
-        //   anonymous mapping and `guard_len` is its exact length, so the region is
+        // * For from_raw_parts: `alloc_ptr` is the page-aligned start of the fresh
+        //   anonymous mapping and `alloc_len` is its exact length, so the region is
         //   contiguous and currently valid. The segment `ptr .. ptr + len` is fully
-        //   contained in `guard_ptr .. guard_ptr + guard_len`: `ptr` is exactly one
-        //   page into the allocation and `len <= guard_len - 2 * pagesize`. The
+        //   contained in `alloc_ptr .. alloc_ptr + alloc_len`: `ptr` is exactly one
+        //   page into the allocation and `len <= alloc_len - 2 * pagesize`. The
         //   mapping was just created by us and no other handle refers to it, so it
         //   is exclusively owned.
         let ptr = unsafe {
             let prot = ProtFlags::empty(); // PROT_NONE,
-            let guard_len = requested_size.usize().next_multiple_of(pagesize) + 2 * pagesize;
-            let guard_ptr = mmap_anonymous(null_mut(), guard_len, prot, MapFlags::empty())
+            let alloc_len = requested_size.usize().next_multiple_of(pagesize) + 2 * pagesize;
+            let alloc_ptr = mmap_anonymous(null_mut(), alloc_len, prot, MapFlags::empty())
                 .map_err(E::MMapError)?;
             let len = requested_size.usize();
-            let ptr = guard_ptr.add(pagesize).cast();
-            MappedSegment::from_raw_parts(guard_ptr, guard_len, ptr, len)
+            let ptr = alloc_ptr.add(pagesize).cast();
+            MappedSegment {
+                alloc_ptr,
+                alloc_len,
+                ptr,
+                len,
+            }
         };
 
         // Map the region into memory, replacing the middle of the guard-page
@@ -760,7 +765,7 @@ impl<Fd: AsFd> MappableFd<Fd> {
         // * MADV_DONTFORK and MADV_DONTDUMP only manipulate virtual memory flags; they
         //   do not change the underlying fd or data in memory.
         {
-            use rustix::mm::{Advice, madvise};
+            use rustix::mm::{madvise, Advice};
             unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontFork) }
                 .map_err(E::CouldNotProtectAgainstForks)?;
             unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontDump) }
@@ -796,61 +801,6 @@ pub struct MappedSegment {
 unsafe impl Send for MappedSegment {}
 
 impl MappedSegment {
-    /// Construct a new [Self] from an allocation pointer, an allocation length,
-    /// a segment pointer, and a segment length
-    ///
-    /// `alloc_ptr` is the address of the backing allocation and `alloc_len` is
-    /// its length in bytes. The backing allocation may be larger than the memory
-    /// segment itself (e.g. to accommodate guard pages); it is what is unmapped
-    /// when the returned [Self] is dropped.
-    ///
-    /// `ptr` is the address of the memory segment and `len` is its length in bytes
-    ///
-    /// # Safety
-    ///
-    /// Dropping the returned [Self] unmaps the backing allocation
-    /// `alloc_ptr .. alloc_ptr + alloc_len` with munmap(2);
-    /// the caller must guarantee all of the following, both for the region to
-    /// be usable and for the destructor not to fail (which would panic):
-    ///
-    /// - `alloc_ptr` is the page-aligned start address of a memory mapping, as
-    ///   returned by mmap(2)
-    /// - `alloc_len` is greater than zero and `alloc_ptr + alloc_len` does not
-    ///   overflow the address space
-    /// - the entire region `alloc_ptr .. alloc_ptr + alloc_len` is one
-    ///   contiguous, currently valid mapped region (it may consist of several
-    ///   adjacent mappings, such as guard pages surrounding a MAP_FIXED file
-    ///   mapping): any pointer `alloc_ptr.add(n)` with `n < alloc_len` is a
-    ///   valid pointer; see the `# Safety` section in [std::ptr]
-    /// - the memory segment `ptr .. ptr + len` is fully contained in the
-    ///   backing allocation `alloc_ptr .. alloc_ptr + alloc_len`
-    /// - the mapping is exclusively owned by the returned [Self]: no other
-    ///   handle (such as another [MappedSegment]) refers to the same mapping,
-    ///   and no other code unmaps or remaps the region
-    /// - the mapping remains valid for the entire lifetime of the returned
-    ///   [Self]
-    pub unsafe fn from_raw_parts(
-        alloc_ptr: *mut c_void,
-        alloc_len: usize,
-        ptr: *mut u8,
-        len: usize,
-    ) -> Self {
-        Self {
-            alloc_ptr,
-            alloc_len,
-            ptr,
-            len,
-        }
-    }
-
-    /// Decompose a MappedSegment into its raw components: allocation pointer,
-    /// allocation length, segment pointer, and segment length
-    pub fn into_raw_parts(self) -> (*mut c_void, usize, *mut u8, usize) {
-        let r = (self.alloc_ptr, self.alloc_len, self.ptr(), self.len());
-        std::mem::forget(self);
-        r
-    }
-
     /// The location of the memory segment
     pub fn ptr(&self) -> *mut u8 {
         self.ptr
@@ -870,7 +820,13 @@ impl MappedSegment {
     /// [Self::into_raw_parts()] are returned as part of the error value so the caller has
     /// some chance to free the memory some other way (or to leak it if they so choose)
     pub fn unmap(self) -> Result<(), (rustix::io::Errno, *mut c_void, usize, *mut u8, usize)> {
-        let (alloc_ptr, alloc_len, ptr, len) = self.into_raw_parts();
+        let MappedSegment {
+            alloc_ptr,
+            alloc_len,
+            ptr,
+            len,
+        } = self;
+        std::mem::forget(self);
         let res = unsafe { rustix::mm::munmap(alloc_ptr.cast(), alloc_len) };
         res.map_err(|errno| (errno, alloc_ptr, alloc_len, ptr, len))
     }
