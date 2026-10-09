@@ -1,5 +1,7 @@
 //! memcmp
 
+use cmov::CmovEq;
+
 /// compares two sclices of memory content and returns whether they are equal
 ///
 /// ## Leaks
@@ -24,7 +26,36 @@
 /// ```
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len() && unsafe { memsec::memeq(a.as_ptr(), b.as_ptr(), a.len()) }
+    let mut equal = 0u8;
+    a.cmoveq(b, 1, &mut equal);
+    equal == 1
+}
+
+#[cfg(test)]
+mod test_correctness {
+    use super::*;
+
+    #[test]
+    fn memcmp_detects_a_single_differing_byte() {
+        // Cover lengths on both sides of the word size the comparison is chunked into
+        for len in 0..=17 {
+            let a = vec![0xaau8; len];
+            assert!(memcmp(&a, &a));
+
+            for i in 0..len {
+                let mut b = a.clone();
+                b[i] ^= 1;
+                assert!(!memcmp(&a, &b));
+            }
+        }
+    }
+
+    #[test]
+    fn memcmp_rejects_slices_of_unequal_length() {
+        assert!(!memcmp(b"", b"\0"));
+        assert!(!memcmp(b"abc", b"abcd"));
+        assert!(!memcmp(b"abcd", b"abc"));
+    }
 }
 
 /// [tests::memcmp_runs_in_constant_time] runs a stasticial test that the equality of the two
