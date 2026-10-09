@@ -87,7 +87,7 @@ pub trait Server {
     /// # API Return Status
     ///
     /// 1. [crate::api::add_listen_socket_response_status::OK] - Indicates success
-    /// 2. [add_listen_socket_response_status::INVALID_REQUEST] – Malformed request; could be:
+    /// 2. [crate::api::add_listen_socket_response_status::INVALID_REQUEST] – Malformed request; could be:
     ///     - Missing file descriptors for public key
     ///     - Invalid file descriptor type
     /// 3. [crate::api::add_listen_socket_response_status::INTERNAL_ERROR] – Some other, non-fatal error

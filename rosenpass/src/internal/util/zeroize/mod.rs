@@ -1,13 +1,16 @@
 //!
 //! This module provides the extension trait
-#![cfg_attr(feature = "expose_internal_modules", doc = "[`ZeroizedExt`],")]
+#![cfg_attr(
+    feature = "expose_internal_modules",
+    doc = "[`ZeroizedExt`](crate::internal::util::zeroize::ZeroizedExt),"
+)]
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "`ZeroizedExt`,")]
 //! for all types implementing the
 //! `zeroize::Zeroize` trait.
 //! It introduces the
 #![cfg_attr(
     feature = "expose_internal_modules",
-    doc = "[`zeroized`](ZeroizedExt::zeroized)"
+    doc = "[`zeroized`](crate::internal::util::zeroize::ZeroizedExt::zeroized)"
 )]
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "`zeroized`")]
 //! method, which zeroizes a value in place and returns it, making it convenient
