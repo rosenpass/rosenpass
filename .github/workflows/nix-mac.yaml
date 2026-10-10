@@ -4,8 +4,11 @@ permissions:
 on:
   push:
     branches:
-      - main
+      - "main"
       - "**macos**"
+      - "v*"
+    tags:
+      - "v*"
 
     # > If you define both `branches`/`branches-ignore` and `paths`/`paths-ignore`, the workflow will only run when **both** filters are satisfied.
     # https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#patterns-to-match-file-paths
