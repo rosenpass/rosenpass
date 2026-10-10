@@ -415,6 +415,11 @@ impl CliArgs {
                     match config::Rosenpass::load(file) {
                         Ok(config) => {
                             eprintln!("{file:?} is valid TOML and conforms to the expected schema");
+                            for path in config.unknown_field_paths() {
+                                eprintln!(
+                                    "{file:?} contains unknown field `{path}`, which is ignored"
+                                );
+                            }
                             match config.validate() {
                                 Ok(_) => eprintln!("{file:?} has passed all logical checks"),
                                 Err(err) => eprintln!("{file:?} contains logical errors: '{err}'"),

@@ -7,13 +7,15 @@
 //! - TODO: support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
 //! - TODO: provide tooling to create config file from shell <https://github.com/rosenpass/rosenpass/issues/247>
 
+use std::collections::{BTreeSet, HashSet};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::path::{Path, PathBuf};
-use std::{collections::HashSet, fs, io::Write};
+use std::{fmt, fs, io::Write};
 
 use anyhow::{bail, ensure};
 
-use serde::{Deserialize, Serialize};
+use serde::de::{IgnoredAny, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::internal::util::file::{LoadValue, Visibility, fopen_w};
 
@@ -28,14 +30,17 @@ fn empty_api_config() -> crate::api::config::ApiConfig {
         listen_path: Vec::new(),
         listen_fd: Vec::new(),
         stream_fd: Vec::new(),
+        unknown_fields: UnknownFields::default(),
     }
 }
 
 /// Configuration for the Rosenpass key exchange
 ///
 /// i.e. configuration for the `rosenpass exchange` and `rosenpass exchange-config` commands
+///
+/// Fields that Rosenpass does not know are not an error; they are collected in
+/// [`Self::unknown_fields`] and reported as warnings by [`Self::load`].
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
 pub struct Rosenpass {
     // TODO: Raise error if secret key or public key alone is set during deserialization
     // SEE: https://github.com/serde-rs/serde/issues/2793
@@ -73,6 +78,54 @@ pub struct Rosenpass {
     /// the config file.
     #[serde(skip)]
     pub config_file_path: PathBuf,
+
+    /// fields of the top-level table that Rosenpass does not know
+    ///
+    /// See [`UnknownFields`]. This must stay the last `flatten` field.
+    #[serde(flatten, skip_serializing)]
+    pub unknown_fields: UnknownFields,
+}
+
+/// Names of the fields in a configuration table that Rosenpass does not know.
+///
+/// A configuration file may contain fields that this version of Rosenpass does not know, for
+/// instance the `exchange_command` of older versions. Rejecting such a file would make every
+/// removed or not yet supported option a hard error, so unknown fields are collected here
+/// instead and [`Rosenpass::load`] reports them as warnings.
+///
+/// Unknown fields are never written back; serialization skips this type.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct UnknownFields(BTreeSet<String>);
+
+impl UnknownFields {
+    /// Names of the unknown fields, in sorted order
+    pub fn iter(&self) -> impl Iterator<Item = &str> {
+        self.0.iter().map(String::as_str)
+    }
+}
+
+impl<'de> Deserialize<'de> for UnknownFields {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct UnknownFieldsVisitor;
+
+        impl<'de> Visitor<'de> for UnknownFieldsVisitor {
+            type Value = UnknownFields;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a table")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut names = BTreeSet::new();
+                while let Some((name, IgnoredAny)) = map.next_entry::<String, IgnoredAny>()? {
+                    names.insert(name);
+                }
+                Ok(UnknownFields(names))
+            }
+        }
+
+        deserializer.deserialize_map(UnknownFieldsVisitor)
+    }
 }
 
 /// Public key and secret key locations.
@@ -122,7 +175,6 @@ pub enum ProtocolVersion {
 
 /// Configuration data for a single Rosenpass peer
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct RosenpassPeer {
     /// path to the public key of the peer
     pub public_key: PathBuf,
@@ -158,6 +210,12 @@ pub struct RosenpassPeer {
     /// Allows using a custom domain separator
     #[serde(flatten)]
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
+
+    /// fields of this peer's table that Rosenpass does not know
+    ///
+    /// See [`UnknownFields`]. This must stay the last `flatten` field.
+    #[serde(flatten, skip_serializing)]
+    pub unknown_fields: UnknownFields,
 }
 
 /// Configuration for [crate::protocol::osk_domain_separator::OskDomainSeparator]
@@ -276,6 +334,11 @@ impl Rosenpass {
         // read file and deserialize
         let mut config: Self = toml::from_str(&fs::read_to_string(&p)?)?;
 
+        // unknown fields are a warning, not an error
+        for path in config.unknown_field_paths() {
+            log::warn!("{}: ignoring unknown field `{path}`", p.as_ref().display());
+        }
+
         // resolve `~` (see https://github.com/rosenpass/rosenpass/issues/237)
         use util::resolve_path_with_tilde;
         if let Some(ref mut keypair) = config.keypair {
@@ -297,6 +360,24 @@ impl Rosenpass {
 
         // return
         Ok(config)
+    }
+
+    /// Paths of all fields in the configuration that Rosenpass does not know
+    ///
+    /// The paths name the table the field was found in, e.g. `peers[0].exchange_command`.
+    /// See [`UnknownFields`].
+    pub fn unknown_field_paths(&self) -> Vec<String> {
+        let mut paths: Vec<String> = self.unknown_fields.iter().map(str::to_owned).collect();
+        #[cfg(feature = "experiment_api")]
+        paths.extend(self.api.unknown_fields.iter().map(|f| format!("api.{f}")));
+        for (i, peer) in self.peers.iter().enumerate() {
+            paths.extend(
+                peer.unknown_fields
+                    .iter()
+                    .map(|f| format!("peers[{i}].{f}")),
+            );
+        }
+        paths
     }
 
     /// Encode a configuration object as toml and write it to a file
@@ -493,6 +574,7 @@ impl Rosenpass {
             verbosity: Verbosity::Quiet,
             peers: vec![],
             config_file_path: PathBuf::new(),
+            unknown_fields: UnknownFields::default(),
         }
     }
 
@@ -859,6 +941,85 @@ mod test {
         "#,
         )?;
 
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fields_are_collected_not_rejected() -> anyhow::Result<()> {
+        let config: Rosenpass = toml::from_str(
+            r#"
+            listen = []
+            foo = 1
+
+            [[peers]]
+            public_key = "/peer-a/public-key"
+            exchange_command = ["wg", "set", "wg0"]
+
+            [[peers]]
+            public_key = "/peer-b/public-key"
+            "#,
+        )?;
+
+        assert_eq!(
+            config.unknown_field_paths(),
+            vec!["foo".to_string(), "peers[0].exchange_command".to_string()]
+        );
+        assert_eq!(
+            config.peers[0].public_key,
+            PathBuf::from("/peer-a/public-key")
+        );
+        assert_eq!(config.peers[1].unknown_fields.iter().count(), 0);
+
+        // unknown fields are not written back
+        let serialized = toml::to_string(&config)?;
+        assert!(!serialized.contains("foo"));
+        assert!(!serialized.contains("exchange_command"));
+
+        Ok(())
+    }
+
+    #[cfg(feature = "experiment_api")]
+    #[test]
+    fn unknown_api_fields_are_collected_not_rejected() -> anyhow::Result<()> {
+        let config: Rosenpass = toml::from_str(
+            r#"
+            listen = []
+            peers = []
+
+            [api]
+            listen_path = []
+            listen_fd = []
+            stream_fd = []
+            bar = "baz"
+            "#,
+        )?;
+        assert_eq!(config.unknown_field_paths(), vec!["api.bar".to_string()]);
+        Ok(())
+    }
+
+    #[test]
+    fn known_fields_are_not_unknown() -> anyhow::Result<()> {
+        let config: Rosenpass = toml::from_str(
+            r#"
+            public_key = "/my/public-key"
+            secret_key = "/my/secret-key"
+            listen = []
+
+            [[peers]]
+            public_key = "/peer/public-key"
+            endpoint = "peer.test:9999"
+            pre_shared_key = "/peer/psk"
+            key_out = "/peer/rp-out"
+            device = "wg0"
+            peer = "peer-wg-public-key"
+            extra_params = []
+            protocol_version = "V03"
+            osk_organization = "myorg.com"
+            osk_label = ["my app"]
+            "#,
+        )?;
+        assert!(config.unknown_field_paths().is_empty());
+        assert!(config.peers[0].wg.is_some());
         Ok(())
     }
 

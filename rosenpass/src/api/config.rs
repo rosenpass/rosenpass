@@ -8,7 +8,6 @@ use crate::app_server::AppServer;
 
 /// Configuration options for the Rosenpass API
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
 pub struct ApiConfig {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
     /// connections on
@@ -22,6 +21,12 @@ pub struct ApiConfig {
     /// When rosenpass is called from another process, the other process can connect the unix socket for the API
     /// themselves, for instance using the `socketpair(2)` system call.
     pub stream_fd: Vec<i32>,
+
+    /// fields of the `api` table that Rosenpass does not know
+    ///
+    /// See [`crate::config::UnknownFields`].
+    #[serde(flatten, skip_serializing)]
+    pub unknown_fields: crate::config::UnknownFields,
 }
 
 impl ApiConfig {

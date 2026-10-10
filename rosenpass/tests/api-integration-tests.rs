@@ -80,6 +80,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
+            unknown_fields: Default::default(),
         },
         peers: vec![config::RosenpassPeer {
             public_key: tempfile!("b.pk"),
@@ -89,7 +90,9 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             wg: None,
             protocol_version: protocol_version,
             osk_domain_separator: Default::default(),
+            unknown_fields: Default::default(),
         }],
+        unknown_fields: Default::default(),
     };
 
     let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
@@ -102,6 +105,7 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
+            unknown_fields: Default::default(),
         },
         peers: vec![config::RosenpassPeer {
             public_key: tempfile!("a.pk"),
@@ -111,7 +115,9 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
             wg: None,
             protocol_version: protocol_version,
             osk_domain_separator: Default::default(),
+            unknown_fields: Default::default(),
         }],
+        unknown_fields: Default::default(),
     };
 
     // Generate the keys
