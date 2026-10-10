@@ -28,7 +28,6 @@ use rosenpass::protocol::{CryptoServer, PeerPtr, ProtocolVersion};
 use std::ops::DerefMut;
 
 use rosenpass::internal::ciphers::KEY_LEN;
-use rosenpass::protocol::constants::COOKIE_SECRET_LEN;
 
 #[derive(TestVectorSet)]
 pub struct TestCaseValues {
@@ -68,12 +67,6 @@ pub struct TestCaseValues {
 
 #[derive(TestVectorSet)]
 struct CryptoServerTestValues {
-    #[test_vec(name = "CryptoServer::cookie_secrets[0]")]
-    cookie_secret_0: TestValue<Secret<COOKIE_SECRET_LEN>>,
-
-    #[test_vec(name = "CryptoServer::cookie_secrets[1]")]
-    cookie_secret_1: TestValue<Secret<COOKIE_SECRET_LEN>>,
-
     #[test_vec(name = "CryptoServer::biscuit_keys[0]")]
     biscuit_key_0: TestValue<Secret<KEY_LEN>>,
 
@@ -164,18 +157,6 @@ fn gen_keypair<TV: TestVector>() -> (SSk, SPk) {
 
 pub fn de_randomize_time_base_cookie_secrets<TV: TestVector>(cs: &mut CryptoServer) {
     let test_values: CryptoServerTestValues = TV::initialize_values();
-
-    TV::expose_mut_value(
-        &test_values.cookie_secret_0,
-        &mut cs.cookie_secrets[0].value,
-    );
-
-    TV::expose_mut_value(
-        &test_values.cookie_secret_1,
-        &mut cs.cookie_secrets[1].value,
-    );
-
     TV::expose_mut_value(&test_values.biscuit_key_0, &mut cs.biscuit_keys[0].value);
-
     TV::expose_mut_value(&test_values.biscuit_key_1, &mut cs.biscuit_keys[1].value);
 }
