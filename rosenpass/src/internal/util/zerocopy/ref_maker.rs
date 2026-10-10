@@ -206,6 +206,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// assert_eq!(prefix_rm.bytes(), &[1,2,3,4]);
     /// assert_eq!(tail, &[5,6,7,8]);
     /// ```
+    #[allow(clippy::wrong_self_convention)]
     pub fn from_prefix_with_tail(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let (head, tail) = self.split_at_point(Self::target_size())?;
@@ -250,6 +251,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// let prefix_rm = RefMaker::<_, u32>::new(bytes).from_prefix().unwrap();
     /// assert_eq!(prefix_rm.bytes(), &[1,2,3,4]);
     /// ```
+    #[allow(clippy::wrong_self_convention)]
     pub fn from_prefix(self) -> anyhow::Result<Self> {
         Ok(Self::from_prefix_with_tail(self)?.0)
     }
@@ -270,6 +272,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// assert_eq!(suffix_rm.bytes(), &[7,8,9,10]);
     /// assert_eq!(head, &[1,2,3,4,5,6]);
     /// ```
+    #[allow(clippy::wrong_self_convention)]
     pub fn from_suffix_with_head(self) -> anyhow::Result<(Self, B)> {
         self.ensure_fit()?;
         let point = self.bytes().len() - Self::target_size();
@@ -315,6 +318,7 @@ impl<B: SplitByteSlice, T> RefMaker<B, T> {
     /// let suffix_rm = RefMaker::<_, u32>::new(bytes).from_suffix().unwrap();
     /// assert_eq!(suffix_rm.bytes(), &[7,8,9,10]);
     /// ```
+    #[allow(clippy::wrong_self_convention)]
     pub fn from_suffix(self) -> anyhow::Result<Self> {
         Ok(Self::from_suffix_with_head(self)?.0)
     }

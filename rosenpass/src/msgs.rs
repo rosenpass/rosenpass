@@ -76,7 +76,7 @@ pub type MsgEnvelopeCookie = [u8; COOKIE_SIZE];
 /// assert_ne!(ih.as_bytes(), ih3.as_bytes());
 /// assert_eq!(ih3.msg_type, 42);
 /// ```
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Clone)]
 pub struct Envelope<M: IntoBytes + FromBytes> {
     /// [MsgType] of this message
@@ -126,7 +126,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 /// // Check that write above on byte representation was effective
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct InitHello {
     /// Randomly generated connection id
@@ -175,7 +175,7 @@ pub struct InitHello {
 /// // Check that write above on byte representation was effective
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct RespHello {
     /// Randomly generated connection id
@@ -226,7 +226,7 @@ pub struct RespHello {
 /// // Check that write above on byte representation was effective
 /// assert_eq!(ih.payload.sidi, [1,2,3,4]);
 /// ```
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Debug)]
 pub struct InitConf {
     /// Copied from InitHello
@@ -284,7 +284,7 @@ pub struct InitConf {
 /// // Check that write above on byte representation was effective
 /// assert_eq!(ih.payload.sid, [1,2,3,4]);
 /// ```
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable, Clone, Copy)]
 pub struct EmptyData {
     /// Copied from RespHello
@@ -311,7 +311,7 @@ pub struct EmptyData {
 /// [crate::protocol::HandshakeState::load_biscuit]
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct Biscuit {
     /// H(spki) – Ident ifies the initiator
@@ -336,7 +336,7 @@ pub struct Biscuit {
 /// [crate::protocol::CryptoServer::handle_msg_under_load].
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, Immutable)]
 pub struct CookieReplyInner {
     /// [MsgType] of this message
@@ -363,7 +363,7 @@ pub struct CookieReplyInner {
 /// [crate::protocol::CryptoServer::handle_msg_under_load].
 ///
 /// [Envelope] and [InitHello] contain some extra examples on how to use structures from the [::zerocopy] crate.
-#[repr(packed)]
+#[repr(Rust, packed)]
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 pub struct CookieReply {
     pub inner: CookieReplyInner,

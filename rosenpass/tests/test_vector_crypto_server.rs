@@ -91,13 +91,13 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     secret_policy_try_use_memfd_secrets();
 
     // initialize secret and public key for peer a ...
-    let (mut peer_a_sk, mut peer_a_pk) = gen_keypair::<TV>();
+    let (mut peer_a_sk, mut peer_a_pk) = gen_keypair();
 
     TV::expose_mut_value(&test_values.peer_a_sk, &mut peer_a_sk);
     TV::expose_mut_value(&test_values.peer_a_pk, &mut peer_a_pk);
 
     // ... and for peer b
-    let (mut peer_b_sk, mut peer_b_pk) = gen_keypair::<TV>();
+    let (mut peer_b_sk, mut peer_b_pk) = gen_keypair();
 
     TV::expose_mut_value(&test_values.peer_b_sk, &mut peer_b_sk);
     TV::expose_mut_value(&test_values.peer_b_pk, &mut peer_b_pk);
@@ -154,7 +154,7 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     TV::check_value(&test_values.exchanged_key, &a_key);
     Ok(())
 }
-fn gen_keypair<TV: TestVector>() -> (SSk, SPk) {
+fn gen_keypair() -> (SSk, SPk) {
     let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
     StaticKem
         .keygen(sk.secret_mut(), pk.deref_mut())

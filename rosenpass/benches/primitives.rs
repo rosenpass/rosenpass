@@ -192,7 +192,7 @@ mod aead {
 
             bench.iter(|| {
                 scheme
-                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &mut ctxt)
+                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &ctxt)
                     .unwrap()
             })
         });
@@ -219,7 +219,7 @@ mod aead {
 
             bench.iter(|| {
                 scheme
-                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &mut ctxt)
+                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &ctxt)
                     .unwrap()
             })
         });
@@ -245,7 +245,7 @@ mod aead {
 
             bench.iter(|| {
                 scheme
-                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &mut ctxt)
+                    .decrypt(&mut ptxt_out, &key, &nonce, &ad, &ctxt)
                     .unwrap()
             })
         });
