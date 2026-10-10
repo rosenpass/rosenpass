@@ -4,24 +4,22 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::borrow::Borrow;
 use std::ffi::c_void;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::ptr::null_mut;
 
-use rustix::fs::{fcntl_add_seals, fcntl_get_seals, SealFlags};
-use rustix::io::Errno;
-use rustix::mm::{mmap_anonymous, MapFlags, ProtFlags};
+use rustix::fs::SealFlags;
 
-use crate::internal::util::convert::TryIntoTypeExt;
-use crate::internal::util::functional::SideffectExt;
-use crate::internal::util::int::u64uint::{U64USize, MAX_U64_IN_USIZE};
+use crate::internal::util::functional::ApplyExt;
+use crate::internal::util::int::u64uint::U64USize;
 use crate::internal::util::mem::CopyExt;
-use crate::internal::util::result::OkExt;
 
-use crate::internal::util::mem::DiscardResultExt;
 use crate::internal::util::secret_memory::fd::{
-    memfd_secret_protects_against_resizing, SecretMemfdConfig, SecretMemfdConfigValidationError,
+    SecretMemfdConfig, SecretMemfdConfigValidationError, memfd_secret_protects_against_resizing,
 };
+
+mod allocation_code;
 
 /// Size of the memory mapping for [MappableFd]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -409,6 +407,11 @@ impl<Fd: AsFd> MappableFd<Fd> {
         Self { fd, config }
     }
 
+    /// Access the underlying file descriptor
+    pub fn fd(&self) -> &Fd {
+        self.fd.borrow()
+    }
+
     /// Extract the underlying file descriptor
     pub fn into_fd(self) -> Fd {
         self.fd
@@ -478,301 +481,9 @@ impl<Fd: AsFd> MappableFd<Fd> {
     ///
     /// If there exist any Rust references referring to the memory region, or if you subsequently create a Rust reference referring to the resulting region, it is your responsibility to ensure that the Rust reference invariants are preserved, including ensuring that the memory is not mutated in a way that a Rust reference would not expect.
     pub fn mmap(&self) -> Result<MappedSegment, MMapError> {
-        use rustix::mm::mmap;
-
-        // Error types used
-        use MMapError as E;
-        use MMapInvalidConfigError as EC;
-        use MemfdCreateSealError as ES;
-
-        // System properties
-        let pagesize = rustix::param::page_size();
-
-        // Configuration options
-        let prot = self.config().mmap_prot();
-        let flags = self.config().mmap_flags();
-
-        // Determine the size policy used
-        let size_policy = match self.config().size_policy {
-            Some(v) => v,
-            None => return Err(E::MissingSizePolicy),
-        };
-
-        // Prepare file information
-        let mut stat = Quickstat::new(self.fd.as_fd());
-
-        // Ensure that the fstatfs(2) call happens now so we report errors early
-        // we will need the information whether the file descriptor is memfd_secret(2) later
-        stat.is_memfd_secret()?.discard_result();
-
-        // memfd_secret(2) does not support MAP_PRIVATE in mmap(2)
-        if stat.is_memfd_secret()? && !self.config.shared {
-            Err(EC::MapSharedNeededForMemfdSecret)?;
-        }
-
-        // Validate that the resizing protection settings match the mandatory settings
-        // with memfd_secret(2)
-        let resize_protection_requested = !self.config.no_resizing_protection;
-        if stat.is_memfd_secret()? {
-            let resize_protection_enabled =
-                memfd_secret_protects_against_resizing().map_err(ES::SystemError)?;
-            if resize_protection_requested != resize_protection_enabled {
-                Err(EC::IncorrectResizingProtectionSetting {
-                    protection_enabled_by_system: resize_protection_enabled,
-                    protection_requested: resize_protection_requested,
-                })?;
-            }
-        }
-
-        // Seal sets used when sealing
-        //
-        // - SRESIZE (F_SEAL_SHRINK | F_SEAL_GROW): The required seal set;
-        //   needed to prevent adversarial users in shared memory from
-        //   triggering SIGSEGV/SIGBUS (invalid memory access) by truncating
-        //   the shared file descriptor
-        // - F_SEAL_SEAL is deliberately NOT installed: third parties holding
-        //   the same file descriptor can only ever ADD seals, never remove
-        //   ours, so our resize protection cannot be weakened; leaving the
-        //   seal set open permits installing further seals later (e.g.
-        //   F_SEAL_FUTURE_WRITE)
-        // - SSEAL (F_SEAL_SEAL): Never installed; used only to detect file
-        //   descriptors that are already sealed against adding further seals
-        use SealFlags as FS;
-        const SRESIZE: SealFlags = FS::SHRINK.union(FS::GROW);
-        const SSEAL: SealFlags = FS::SEAL;
-
-        // Check early whether it will be impossible to set the right seals on the file descriptor,
-        // so we won't modify the file descriptor by resizing it in this case.
-        //
-        // Skipped entirely when resize protection is not requested: the sealing loop below
-        // no-ops in that case, and the fcntl(2) sealing interface is not even implemented
-        // for regular (non-memfd) files (fcntl_get_seals fails with EINVAL)
-        if resize_protection_requested && !stat.is_memfd_secret()? {
-            let current_seals = fcntl_get_seals(self).map_err(ES::SystemError)?;
-            let missing = SRESIZE.difference(current_seals);
-
-            // Unable to add the missing seals, FD is already sealed against adding further seals
-            if current_seals.contains(SSEAL) && !missing.is_empty() {
-                Err(ES::PresealedWithMissingSeals { missing })?;
-            }
-        }
-
-        // Retrieve the expected size, raising an error if the
-        // requested_size can not be represented as usize (this should never happen in general,
-        // but it could conceivably be thrown on 32 bit systems when very large mappings (>= 4GB)
-        // are requested
-        let requested_size = size_policy
-            .size_value()
-            .try_into_type::<U64USize>()
-            .map_err(|err| {
-                let requested_size = err.given_value().copy();
-                let max_supported_len = MAX_U64_IN_USIZE;
-                E::OutOfBounds {
-                    err,
-                    requested_len: requested_size,
-                    max_supported_len,
-                }
-            })?;
-
-        // The kernel rejects zero-length mappings with EINVAL; reject them
-        // up front, BEFORE any ftruncate(2) below, so a failed mmap never
-        // leaves the underlying file descriptor truncated as a side effect
-        if requested_size.u64() == 0 {
-            return Err(E::ZeroSize);
-        }
-
-        // Resize the file descriptor if requested and necessary
-        use MMapSizePolicy as P;
-        match size_policy {
-            P::Resize(_) => {
-                let actual_size = stat.size()?;
-                if requested_size.u64() != actual_size {
-                    rustix::fs::ftruncate(self, requested_size.u64()).map_err(E::ResizeError)?;
-                }
-            }
-            P::Checked(_) => {
-                let expected = requested_size.u64();
-                let actual = stat.size()?;
-                if expected != actual {
-                    return Err(E::IncorrectSize { expected, actual });
-                }
-            }
-        }
-
-        // Protect against future resizing
-        let mut seal_ctr: usize = usize::MAX;
-        let mut prev_seals: Option<SealFlags> = None;
-        'seal: loop {
-            // Do not protect against resizing if this is disabled
-            if !resize_protection_requested {
-                break 'seal;
-
-            // No active steps needed to protect memfd_secret based file descriptors
-            // against resizing
-            } else if stat.is_memfd_secret()? {
-                break 'seal;
-            }
-
-            // Increment the loop counter
-            seal_ctr = seal_ctr.overflowing_add(1).0;
-
-            // Abort this loop after too many failed attempts just to be safe
-            if seal_ctr >= 16 {
-                Err(ES::RetriesAborted)?;
-            }
-
-            // Add the seals
-            //
-            // The call succeeding and failing with permission denied are both
-            // handled the same way: fetch the list of seals below and check
-            // what seals we actually got
-            //
-            // Permission denied could happen because F_SEAL_SEAL raced in
-            // concurrently (detected via the seal set below and reported as
-            // PresealedWithMissingSeals), or because the file descriptor is
-            // not writable — adding seals requires a writable file descriptor;
-            // that case can never make progress and is detected by the
-            // no-progress check below
-            let add_denied = match fcntl_add_seals(self, SRESIZE) {
-                Ok(()) => false,
-                Err(Errno::PERM) => true,
-                // Other error; just propagate this error to the function caller
-                Err(errno) => return Err(ES::SystemError(errno))?,
-            };
-
-            // Figure out what seals are set and which ones we need to add
-            let current_seals = fcntl_get_seals(self).map_err(ES::SystemError)?;
-            let missing = SRESIZE.difference(current_seals);
-
-            // Unable to add the missing seals, FD is already sealed against adding further seals
-            if current_seals.contains(SSEAL) && !missing.is_empty() {
-                Err(ES::PresealedWithMissingSeals { missing })?;
-            }
-
-            // Adding seals was denied and the seal set did not change since the
-            // last attempt: no progress is possible (e.g. the file descriptor
-            // is not writable), so retrying would merely spin until the retry
-            // limit; report the persistent permission error instead
-            if add_denied && prev_seals == Some(current_seals) {
-                Err(ES::SystemError(Errno::PERM))?;
-            }
-            prev_seals = Some(current_seals);
-
-            // Missing seals, but not sealed against further seals. Try to add the seals we need.
-            if !missing.is_empty() {
-                continue 'seal;
-            }
-
-            // All the seals are present; check the size of the file descriptor again
-            // just to make sure that the size is correct. If it's not correct, we raise
-            // an error
-            let (expected_size, actual_size) = (requested_size.u64(), Quickstat::new(self).size()?);
-            if expected_size != actual_size {
-                Err(ES::ResizeRace {
-                    expected_size,
-                    actual_size,
-                })?;
-            }
-
-            // Sealing successful; now aborting
-            break 'seal;
-        }
-
-        // Allocate guard pages and prepare the memory region for the actual allocation.
-        // Note that we make sure the guard-page gets deallocated even if the later mmap(2)
-        // call fails by immediately constructing the MappedSegment, which has an appropriate
-        // destructor.
-        //
-        // SAFETY:
-        //
-        // * For mmap_anonymous: the address passed is NULL, so mmap chooses a fresh
-        //   mapping; rustix's non-null input-pointer provenance requirement does
-        //   not apply.
-        // * For from_raw_parts: `alloc_ptr` is the page-aligned start of the fresh
-        //   anonymous mapping and `alloc_len` is its exact length, so the region is
-        //   contiguous and currently valid. The segment `ptr .. ptr + len` is fully
-        //   contained in `alloc_ptr .. alloc_ptr + alloc_len`: `ptr` is exactly one
-        //   page into the allocation and `len <= alloc_len - 2 * pagesize`. The
-        //   mapping was just created by us and no other handle refers to it, so it
-        //   is exclusively owned.
-        let ptr = unsafe {
-            let prot = ProtFlags::empty(); // PROT_NONE,
-            let alloc_len = requested_size.usize().next_multiple_of(pagesize) + 2 * pagesize;
-            let alloc_ptr = mmap_anonymous(null_mut(), alloc_len, prot, MapFlags::empty())
-                .map_err(E::MMapError)?;
-            let len = requested_size.usize();
-            let ptr = alloc_ptr.add(pagesize).cast();
-            MappedSegment {
-                alloc_ptr,
-                alloc_len,
-                ptr,
-                len,
-            }
-        };
-
-        // Map the region into memory, replacing the middle of the guard-page
-        // reservation with the file-descriptor mapping
-        //
-        // SAFETY:
-        //
-        // * `ptr` points exactly one page into the guard-page allocation owned
-        //   by the MappedSegment created above, so it is page-aligned and the
-        //   range `ptr .. ptr + len`, rounded up to the page size, lies inside
-        //   that live mapping and is valid to mutate with `ptr`'s provenance.
-        // * MAP_FIXED replaces part of the guard-page allocation we exclusively
-        //   own (via the MappedSegment), so no existing Rust allocation/reference
-        //   is unmapped or replaced; the MappedSegment remains the sole owner of
-        //   the resulting composite region.
-        unsafe {
-            let (ptr, len) = (ptr.ptr().cast(), ptr.len());
-            let flags = flags | MapFlags::FIXED;
-            mmap(ptr, len, prot, flags, self, 0).map_err(E::MMapError)?
-        };
-
-        // mlock(2) the memory region into memory (prevent swapping)
-        //
-        // We do not mlock(2) the memory in two cases:
-        //
-        // - The backing file descriptor is memfd_secret(2), as the semantics of memfd_secret(2)
-        //   automatically lock all memfd_secret(2) derived pages into memory
-        // - The mapping is unreadable, in which case [rustix::mm::mlock] documents
-        //   that mlock is not supported on unreadable mappings
-        //
-        // SAFETY:
-        //
-        // * The pointer came directly from mmap, so it retains the mapping's
-        //   provenance.
-        // * mmap returns a page-aligned mapping address.
-        // * POSIX mmap operates on whole pages, so the page-rounded range
-        //   touched by mlock is part of this mapping.
-        // * PROT_READ makes the range readable, satisfying rustix's
-        //   documented mlock precondition. PROT_READ is set, because we check for
-        //   `self.config().unreadable` explicitly.
-        if !stat.is_memfd_secret()? && !self.config().unreadable {
-            let res = unsafe { rustix::mm::mlock(ptr.ptr().cast(), ptr.len()) };
-            res.map_err(E::MLockError)?;
-        }
-
-        // Advise the kernel that the memory pages must neither be inherited
-        // by child processes on fork(2) nor be included in memory dumps.
-        //
-        // SAFETY:
-        //
-        // * The pointer came directly from mmap, so it is valid and owned exclusively
-        //   by us and retains provenance.
-        // * The length is the mapping's exact length; madvise operates on
-        //   whole pages and rounds to the page's length.
-        // * MADV_DONTFORK and MADV_DONTDUMP only manipulate virtual memory flags; they
-        //   do not change the underlying fd or data in memory.
-        {
-            use rustix::mm::{madvise, Advice};
-            unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontFork) }
-                .map_err(E::CouldNotProtectAgainstForks)?;
-            unsafe { madvise(ptr.ptr().cast(), ptr.len(), Advice::LinuxDontDump) }
-                .map_err(E::CouldNotProtectAgainstMemoryDumps)?;
-        }
-
-        Ok(ptr)
+        MappableFd::from_fd(self.as_fd())
+            .with_config(self.config())
+            .apply(allocation_code::AllocationCode::mmap)
     }
 }
 
@@ -844,70 +555,5 @@ impl Drop for MappedSegment {
         if let Err((errno, _, _, _, _)) = owned.unmap() {
             panic!("Failed to unmap MappedSegment: {errno:?}")
         }
-    }
-}
-
-/// Helper for calling fstat in [MappableFd::mmap()]
-#[derive(Copy, Clone, Debug)]
-struct Quickstat<Fd: AsFd> {
-    /// The file descriptor being interrogated
-    fd: Fd,
-    /// Cached fstat(2) result
-    stat: Option<rustix::fs::Stat>,
-    /// Cached fstatfs(2) result
-    statfs: Option<rustix::fs::StatFs>,
-}
-
-impl<Fd: AsFd> Quickstat<Fd> {
-    /// New [Quickstat] wrapping the given file descriptor; no system calls
-    /// have been issued yet, results are cached on first use
-    pub fn new(fd: Fd) -> Self {
-        Self {
-            fd,
-            stat: None,
-            statfs: None,
-        }
-    }
-
-    /// fstat(2) the file descriptor (cached)
-    pub fn stat(&mut self) -> Result<rustix::fs::Stat, MMapError> {
-        if let Some(stat) = self.stat {
-            return Ok(stat);
-        }
-
-        rustix::fs::fstat(self.fd.as_fd())
-            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?
-            .sideeffect(|stat| {
-                self.stat = Some(*stat);
-            })
-            .ok()
-    }
-
-    /// fstatfs(2) the file descriptor (cached)
-    pub fn statfs(&mut self) -> Result<rustix::fs::StatFs, MMapError> {
-        if let Some(statfs) = self.statfs {
-            return Ok(statfs);
-        }
-
-        rustix::fs::fstatfs(self.fd.as_fd())
-            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?
-            .sideeffect(|statfs| {
-                self.statfs = Some(*statfs);
-            })
-            .ok()
-    }
-
-    /// The size of the file descriptor according to fstat(2)
-    pub fn size(&mut self) -> Result<u64, MMapError> {
-        let size = self.stat()?.st_size;
-        size.try_into()
-            .map_err(|err| MMapError::InvalidSize { err, size })
-    }
-
-    /// Whether the file descriptor is a memfd_secret(2) file descriptor,
-    /// determined via the fstatfs(2) f_type magic
-    pub fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
-        use crate::internal::util::rustix::IsMemfdSecretExt;
-        self.statfs()?.is_memfd_secret().ok()
     }
 }
