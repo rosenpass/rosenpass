@@ -6,6 +6,7 @@
 
 use std::borrow::Borrow;
 use std::ffi::c_void;
+use std::mem::ManuallyDrop;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::ptr::null_mut;
 
@@ -523,32 +524,26 @@ impl MappedSegment {
     ///
     /// Compared to using the destructor which panics if unmapping fails, this allows explicit error handling to be used.
     ///
-    /// If this returns an error, the memory segment has not been freed. The values from
-    /// [Self::into_raw_parts()] are returned as part of the error value so the caller has
-    /// some chance to free the memory some other way (or to leak it if they so choose)
-    pub fn unmap(self) -> Result<(), (rustix::io::Errno, *mut c_void, usize, *mut u8, usize)> {
-        let MappedSegment {
-            alloc_ptr,
-            alloc_len,
-            ptr,
-            len,
-        } = self;
-        std::mem::forget(self);
-        let res = unsafe { rustix::mm::munmap(alloc_ptr.cast(), alloc_len) };
-        res.map_err(|errno| (errno, alloc_ptr, alloc_len, ptr, len))
+    /// If this returns an error, the memory segment has not been freed and is returned along with
+    /// the error.
+    pub fn unmap(self) -> Result<(), (rustix::io::Errno, Self)> {
+        let me = ManuallyDrop::new(self);
+        let res = unsafe { rustix::mm::munmap(me.alloc_ptr.cast(), me.alloc_len) };
+        res.map_err(|errno| (errno, ManuallyDrop::into_inner(me)))
     }
 }
 
 impl Drop for MappedSegment {
     fn drop(&mut self) {
-        let mut owned = MappedSegment {
+        let nullseg = MappedSegment {
             alloc_ptr: null_mut(),
             alloc_len: 0,
             ptr: null_mut(),
             len: 0,
         };
-        std::mem::swap(self, &mut owned);
-        if let Err((errno, _, _, _, _)) = owned.unmap() {
+        let owned = std::mem::replace(self, nullseg);
+        if let Err((errno, seg)) = owned.unmap() {
+            std::mem::forget(seg);
             panic!("Failed to unmap MappedSegment: {errno:?}")
         }
     }
