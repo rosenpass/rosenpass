@@ -11,9 +11,8 @@ use std::{
 use rustix::{fs::SealFlags, io::Errno};
 
 use crate::internal::util::{
-    convert::TryIntoTypeExt,
     functional::SideffectExt,
-    int::u64uint::{MAX_U64_IN_USIZE, U64USize},
+    int::u64uint::MAX_U64_IN_USIZE,
     mem::{CopyExt, DiscardResultExt},
     result::OkExt,
     secret_memory::fd::memfd_secret_protects_against_resizing,
@@ -509,25 +508,40 @@ impl<'fd> AllocationCode<'fd> {
         Ok(self.data_len()? as u64)
     }
 
+    // Maximum supported size for data allocations
+    fn max_supported_data_len(&self) -> u64 {
+        let ps = self.pagesize() as u64;
+
+        // Size must be representable as usize and as u64
+        let v = MAX_U64_IN_USIZE;
+
+        // Previous multiple of the page size (will always
+        // effectively map fill pages into memory)
+        let v = match v.is_multiple_of(ps) {
+            true => v,
+            false => (v - ps).next_multiple_of(ps),
+        };
+
+        // Subtract the two singular guard pages before/after the data
+        v - 2 * ps
+    }
+
     /// Retrieve the expected size, raising an error if the
     /// requested_size can not be represented as usize (this should never happen in general,
     /// but it could conceivably be thrown on 32 bit systems when very large mappings (>= 4GB)
     /// are requested
     fn data_len(&self) -> Result<usize, MMapError> {
-        self.size_policy()?
-            .size_value()
-            .try_into_type::<U64USize>()
-            .map_err(|err| {
-                let requested_size = err.given_value().copy();
-                let max_supported_len = MAX_U64_IN_USIZE;
-                MMapError::OutOfBounds {
-                    err,
-                    requested_len: requested_size,
-                    max_supported_len,
-                }
-            })?
-            .usize()
-            .ok()
+        let max = self.max_supported_data_len();
+        let len = self.size_policy()?.size_value();
+
+        if len > max {
+            return Err(MMapError::OutOfBounds {
+                requested_len: len,
+                max_supported_len: max,
+            });
+        }
+
+        Ok(len as usize)
     }
 
     /// A copy of the underlying file descriptor

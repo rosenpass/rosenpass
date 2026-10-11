@@ -12,7 +12,6 @@ use std::ptr::null_mut;
 use rustix::fs::SealFlags;
 
 use crate::internal::util::functional::ApplyExt;
-use crate::internal::util::int::u64uint::U64USize;
 use crate::internal::util::mem::CopyExt;
 
 use crate::internal::util::secret_memory::fd::{
@@ -300,16 +299,13 @@ pub enum MMapError {
     /// Invalid mapping configuration; see [MMapInvalidConfigError]
     #[error("Could not map file descriptor into memory: {0}")]
     InvalidConfig(#[from] MMapInvalidConfigError),
-    /// Error converting from u64 to usize
+    /// Allocation requested is too big
     #[error("Requested memory map of size {requested_len} but maximum supported size is {max_supported_len}. \
         This is a low level error that usually arises on architectures where the integer type usize ({} bytes) can not \
-        represent all values in u64 ({} bytes). Are you possibly on a 32-bit CPU architecture requesting a buffer bigger than 4 GB?\n\
-          Error: {err:?}",
+        represent all values in u64 ({} bytes). Are you possibly on a 32-bit CPU architecture requesting a buffer bigger than 4 GB?",
         (usize::BITS as f64)/8f64, (u64::BITS as f64)/8f64
     )]
     OutOfBounds {
-        /// Underlying error
-        err: <u64 as TryInto<U64USize>>::Error,
         /// The size of the memory map requested
         requested_len: u64,
         /// Maximum supported size
