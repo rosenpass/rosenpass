@@ -2084,9 +2084,9 @@ impl CryptoServer {
         }
 
         // Otherwise send cookie reply
-        if active_cookie_value.is_none() {
+        let Some(cookie_value) = active_cookie_value else {
             bail!("No active cookie value found");
-        }
+        };
 
         log::debug!(
             "Rx {:?} from {} under load, tx cookie reply message",
@@ -2094,7 +2094,6 @@ impl CryptoServer {
             host_identification
         );
 
-        let cookie_value = active_cookie_value.unwrap();
         let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
             .mix(self.spkm.deref())?
             .into_value();
@@ -2268,8 +2267,8 @@ impl CryptoServer {
                         let cached = cached
                             .get(self)
                             .map(|v| v.response.borrow())
-                            // Invalid! Found peer no with cache in index but the cache does not exist
-                            .unwrap();
+                            // Found the peer through the index, but the cache does not exist
+                            .context("InitConf response index points at a peer without a cached response")?;
                         copy_slice(cached.as_bytes()).to(msg_out.as_mut_bytes());
                         peer
                     }
@@ -3331,7 +3330,8 @@ impl HandshakeState {
         let test_values: StoreBiscuitTestValues = TV::initialize_values();
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buffer
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice())
+                .map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
         // calculate pt contents
         biscuit
@@ -3393,7 +3393,8 @@ impl HandshakeState {
         // Allocate and decrypt the biscuit data
         let mut biscuit = Secret::<BISCUIT_PT_LEN>::zero(); // pt buf
         let mut biscuit: Ref<&mut [u8], Biscuit> =
-            Ref::from_bytes(biscuit.secret_mut().as_mut_slice()).unwrap();
+            Ref::from_bytes(biscuit.secret_mut().as_mut_slice())
+                .map_err(|_| RosenpassError::BufferSizeMismatch)?;
         XAead.decrypt_with_nonce_in_ctxt(
             biscuit.as_mut_bytes(),
             bk.get(srv).value.secret(),
@@ -3833,12 +3834,18 @@ impl CryptoServer {
 
         macro_rules! hs {
             () => {
-                peer.hs().get(self).as_ref().unwrap()
+                peer.hs()
+                    .get(self)
+                    .as_ref()
+                    .context("RespHello refers to a peer without initiator handshake state")?
             };
         }
         macro_rules! hs_mut {
             () => {
-                peer.hs().get_mut(self).as_mut().unwrap()
+                peer.hs()
+                    .get_mut(self)
+                    .as_mut()
+                    .context("RespHello refers to a peer without initiator handshake state")?
             };
         }
 
@@ -4149,7 +4156,10 @@ impl CryptoServer {
                 let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
                     .mix(spkt)?
                     .into_value();
-                let cookie_value = peer.cv().update_mut(self).unwrap();
+                let cookie_value = peer
+                    .cv()
+                    .update_mut(self)
+                    .context("CookieReply refers to a peer without initiator handshake state")?;
 
                 XAead.decrypt_with_nonce_in_ctxt(
                     cookie_value,
