@@ -4,15 +4,13 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::borrow::Borrow;
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
-use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
+use std::os::fd::AsFd;
 use std::ptr::null_mut;
 
 use rustix::fs::SealFlags;
 
-use crate::internal::util::functional::ApplyExt;
 use crate::internal::util::mem::CopyExt;
 
 use crate::internal::util::secret_memory::fd::{
@@ -45,7 +43,7 @@ impl MMapSizePolicy {
 
 /// Configuration for [MappableFd::mmap]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MapFdConfig {
+pub struct MappingConfig {
     /// The memory region can not be read from
     pub unreadable: bool,
     /// The memory region can not be written to
@@ -95,13 +93,13 @@ pub struct MapFdConfig {
     pub size_policy: Option<MMapSizePolicy>,
 }
 
-impl MapFdConfig {
+impl MappingConfig {
     /// New MapFdConfig with all settings turned off
     ///
     /// You still must set [Self::size_policy], otherwise [MappableFd::mmap] will raise
     /// an error when called
     pub const fn new() -> Self {
-        MapFdConfig {
+        MappingConfig {
             unreadable: false,
             immutable: false,
             shared: false,
@@ -151,8 +149,8 @@ impl MapFdConfig {
     }
 
     /// Create a [MappableFd] instance with this configuration
-    pub fn mappable_fd<Fd: AsFd>(&self, fd: Fd) -> MappableFd<Fd> {
-        MappableFd::new(fd, self.copy())
+    pub fn mappable<Fd: AsFd>(&self, fd: Fd) -> Mappable<Fd> {
+        Mappable::new(Some(fd), self.copy())
     }
 
     /// Calculate [rustix::mm::ProtFlags] for this configuration
@@ -373,59 +371,60 @@ pub enum MMapError {
     CouldNotProtectAgainstMemoryDumps(rustix::io::Errno),
 }
 
-/// Handle mapping a file descriptor into memory
-pub struct MappableFd<Fd: AsFd> {
+/// Handle mapping a file descriptor into memory or creating anonymous memory allocations
+pub struct Mappable<Fd> {
     /// The file descriptor this struct refers to
-    fd: Fd,
+    fd: Option<Fd>,
     /// The configuration for mmap
-    config: MapFdConfig,
+    config: MappingConfig,
 }
 
-impl<Fd: AsFd> AsFd for MappableFd<Fd> {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        self.fd.as_fd()
-    }
-}
-
-impl<Fd: AsFd> AsRawFd for MappableFd<Fd> {
-    fn as_raw_fd(&self) -> RawFd {
-        self.as_fd().as_raw_fd()
-    }
-}
-
-impl<Fd: AsFd> MappableFd<Fd> {
+impl<Fd: AsFd> Mappable<Fd> {
     /// Create a [MappableFd] using the default configuration ([MapFdConfig])
     pub fn from_fd(fd: Fd) -> Self {
-        Self::new(fd, MapFdConfig::default())
+        Self::new(Some(fd), MappingConfig::default())
     }
 
-    /// Create a new [MappableFd] for an existing file descriptor
-    pub fn new(fd: Fd, config: MapFdConfig) -> Self {
+    /// Create a new [MappableFd] for an existing file descriptor or an anonymous mapping
+    ///
+    /// Note that while it is sometimes useful to use this function with a file descriptor
+    /// obtained through some other means than [SecretMemfdConfig], it generally does not make
+    /// sense to use this function manually with None as the file descriptor to create anonymous
+    /// mappings. Instead you should go through [SecretMemfdConfig] and set [crate::internal::util::secret_memory::fd::SecretMemfdUsage::allow_anonymous]
+    /// through [SecretMemfdConfig::allow_anonymous_mappings()], which will allow you to use a
+    /// memfd_secret(2) based mapping on systems where this feature is available or fall back to
+    /// an anonymous mapping if this is not supported.
+    ///
+    /// In most cases, for anonymous mappings, its easiest to use
+    /// [crate::internal::util::secret_memory::alloc::allocate()], which
+    /// handles all the steps of creating an anonymous mapping with extra
+    /// security features automatically.
+    pub fn new(fd: Option<Fd>, config: MappingConfig) -> Self {
         Self { fd, config }
     }
 
     /// Access the underlying file descriptor
-    pub fn fd(&self) -> &Fd {
-        self.fd.borrow()
+    pub fn fd(&self) -> Option<&Fd> {
+        self.fd.as_ref()
     }
 
     /// Extract the underlying file descriptor
-    pub fn into_fd(self) -> Fd {
+    pub fn into_fd(self) -> Option<Fd> {
         self.fd
     }
 
     /// Access the [MapFdConfig] associated with Self
-    pub fn config(&self) -> MapFdConfig {
+    pub fn config(&self) -> MappingConfig {
         self.config
     }
 
     /// Access the [MapFdConfig] associated with Self
-    pub fn config_mut(&mut self) -> &mut MapFdConfig {
+    pub fn config_mut(&mut self) -> &mut MappingConfig {
         &mut self.config
     }
 
     /// Modify the [MapFdConfig] associated with Self, chainable
-    pub fn with_config(mut self, config: MapFdConfig) -> Self {
+    pub fn with_config(mut self, config: MappingConfig) -> Self {
         self.config = config;
         self
     }
@@ -478,9 +477,9 @@ impl<Fd: AsFd> MappableFd<Fd> {
     ///
     /// If there exist any Rust references referring to the memory region, or if you subsequently create a Rust reference referring to the resulting region, it is your responsibility to ensure that the Rust reference invariants are preserved, including ensuring that the memory is not mutated in a way that a Rust reference would not expect.
     pub fn mmap(&self) -> Result<MappedSegment, MMapError> {
-        MappableFd::from_fd(self.as_fd())
-            .with_config(self.config())
-            .apply(allocation_code::AllocationCode::mmap)
+        let fd = self.fd.as_ref().map(AsFd::as_fd);
+        let me = Mappable::new(fd, self.config());
+        allocation_code::AllocationCode::mmap(me)
     }
 }
 

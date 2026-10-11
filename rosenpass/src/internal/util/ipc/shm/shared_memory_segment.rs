@@ -11,7 +11,7 @@ use crate::internal::util::{
     result::OkExt,
     secret_memory::{
         fd::SecretMemfdConfig,
-        mmap::{MMapError, MapFdConfig, MappedSegment},
+        mmap::{MMapError, MappedSegment, MappingConfig},
     },
 };
 
@@ -23,16 +23,13 @@ pub struct SharedMemorySegmentBuilder {
     /// Configuration for allocating memory file descriptors and their secrecy level
     pub secret_memfd_cfg: SecretMemfdConfig,
     /// Configuration for mapping file descriptors into memory
-    pub map_fd_cfg: MapFdConfig,
+    pub map_fd_cfg: MappingConfig,
 }
 
 impl SharedMemorySegmentBuilder {
     /// Create a new shared memory segment builder.
     ///
-    /// Note that this always sets [MapFdConfig::set_shared()], but you can overwrite this
-    /// behavior by assigning to the public [Self::map_fd_cfg] field directly. (mmap()
-    /// rejects private mappings of memfd_secret(2) file descriptors; see
-    /// [MapFdConfig::shared].)
+    /// Note that this always sets [MapFdConfig::set_shared()].
     ///
     /// The file descriptor is created with [SecretMemfdConfig::used_in_shared_memory()]; on
     /// systems where memfd_secret(2) is not protected against resizing, this makes
@@ -54,7 +51,10 @@ impl SharedMemorySegmentBuilder {
     ///
     /// The freshly created segment is zero-filled (fresh memfd pages are zero-filled by the
     /// kernel).
-    pub fn create_segment(&self) -> anyhow::Result<(OwnedFd, SharedMemorySegment)> {
+    ///
+    /// This will always return a file descriptor, unless [crate::internal::util::secret_memory::fd::SecretMemfdUsage]
+    /// inside [SecretMemfdConfig::usage] is set, in which case None will be return.
+    pub fn create_segment(&self) -> anyhow::Result<(Option<OwnedFd>, SharedMemorySegment)> {
         let fd = self.secret_memfd_cfg.create()?;
 
         let cfg = self.map_fd_cfg;
@@ -330,7 +330,9 @@ impl SharedMemorySegment {
     /// The freshly created segment is zero-filled (fresh memfd pages are zero-filled by the
     /// kernel).
     pub fn create(len: usize) -> anyhow::Result<(OwnedFd, Self)> {
-        SharedMemorySegmentBuilder::new(len)?.create_segment()
+        let (fd, seg) = SharedMemorySegmentBuilder::new(len)?.create_segment()?;
+        let fd = fd.expect("SharedMemorySegmentBuilder::create_segment() did not produce a file descriptor for the default configuration. This is a bug.");
+        Ok((fd, seg))
     }
 
     /// Create a shared memory segment from a file descriptor
@@ -342,7 +344,7 @@ impl SharedMemorySegment {
     ///
     /// See the comments in [Self].
     pub unsafe fn from_fd<Fd: AsFd>(fd: Fd, size: usize) -> Result<Self, MMapError> {
-        let cfg = MapFdConfig::new()
+        let cfg = MappingConfig::new()
             .set_shared()
             .expected_size(usize_to_u64(size));
         unsafe { Self::from_fd_with_config(fd, cfg) }
@@ -360,9 +362,9 @@ impl SharedMemorySegment {
     /// See the comments in [Self].
     pub unsafe fn from_fd_with_config<Fd: AsFd>(
         fd: Fd,
-        cfg: MapFdConfig,
+        cfg: MappingConfig,
     ) -> Result<Self, MMapError> {
-        let segment = cfg.mappable_fd(&fd).mmap()?;
+        let segment = cfg.mappable(&fd).mmap()?;
         unsafe { Self::from_mapped_segment(segment).ok() }
     }
 
