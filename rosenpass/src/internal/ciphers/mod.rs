@@ -4,6 +4,10 @@ use static_assertions::const_assert;
 pub mod hash_domain;
 pub mod subtle;
 
+pub use subtle::EphemeralKemChoice;
+
+// ==================== cipher choices ====================
+
 /// All keyed primitives in this module use 32 byte keys
 pub const KEY_LEN: usize = 32;
 const_assert!(KEY_LEN == Aead::KEY_LEN);
@@ -39,4 +43,4 @@ pub use crate::internal::oqs::ClassicMceliece460896 as StaticKem;
 /// (choice during run time).
 ///
 /// see [`crate::protocol::EphemeralKemChoice`] for more details
-pub use crate::protocol::EphemeralKemChoice as EphemeralKem;
+pub use subtle::EphemeralKemChoice as EphemeralKem;

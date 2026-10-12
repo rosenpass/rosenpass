@@ -1,8 +1,8 @@
 //! This module only contains [`EphemeralKemChoice`] – see its documentation.
 
+use super::rust_crypto::ml_kem::MlKem512;
 use crate::internal::cipher_traits::algorithms::kem_ml_kem512;
 use crate::internal::cipher_traits::primitives::{Kem, KemError};
-use crate::internal::ml_kem::MlKem512;
 use crate::internal::oqs::Kyber512;
 
 /// choice of the  ephemeral key encapsulation mechanism to use in the Rosenpass protocol
@@ -132,8 +132,8 @@ mod test {
 
     #[test]
     fn kyber512_dispatch_still_works() {
-        use super::Kem;
-        use crate::protocol::EphemeralKemChoice; // Kem trait re-exported by super
+        use super::EphemeralKemChoice;
+        use super::Kem; // Kem trait re-exported by super
 
         // keygen
         let (mut sk, mut pk) = (

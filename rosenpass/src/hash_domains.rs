@@ -55,8 +55,8 @@
 //! Ok::<(), anyhow::Error>(())
 //! ```
 
+use crate::internal::ciphers::EphemeralKemChoice;
 use crate::internal::ciphers::{hash_domain::HashDomain, subtle::keyed_hash::KeyedHash};
-use crate::protocol::EphemeralKemChoice;
 use anyhow::Result;
 
 macro_rules! COMMON_HASH_DOCSTRING {
@@ -82,7 +82,7 @@ macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
         #[doc = COMMON_HASH_DOCSTRING!()]
-        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::protocol::EphemeralKemChoice) -> ::anyhow::Result<$crate::internal::ciphers::hash_domain::HashDomain> {
+        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::internal::ciphers::EphemeralKemChoice) -> ::anyhow::Result<$crate::internal::ciphers::hash_domain::HashDomain> {
             let t = $base(hash_choice, ekem_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
@@ -102,7 +102,7 @@ macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
         #[doc = COMMON_HASH_DOCSTRING!()]
-        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::protocol::EphemeralKemChoice) -> ::anyhow::Result<[u8; $crate::internal::ciphers::KEY_LEN]> {
+        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::internal::ciphers::EphemeralKemChoice) -> ::anyhow::Result<[u8; $crate::internal::ciphers::KEY_LEN]> {
             let t = $base(hash_choice, ekem_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
