@@ -91,6 +91,8 @@ pub struct CryptoServer {
     pub sskm: SSk,
     /// Static Public Key Mine (our public key)
     pub spkm: SPk,
+    /// the ephemeral KEM to use in handshakes
+    pub ephemeral_kem: EphemeralKem,
     /// Counter used to fill the [Biscuit::biscuit_no] field for biscuits issued.
     ///
     /// Every [Biscuit] issued contains a biscuit number; this is the counter used to generate
@@ -189,7 +191,7 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
 ///
 /// use rosenpass::protocol::basic_types::{SSk, SPk, SymKey};
-/// use rosenpass::protocol::{Peer, ProtocolVersion};
+/// use rosenpass::protocol::{EphemeralKem, Peer, ProtocolVersion};
 /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 ///
 /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
@@ -212,8 +214,9 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// let peer_psk_2 = Peer::new(SymKey::zero(), spkt2, ProtocolVersion::V03, OskDomainSeparator::default());
 ///
 /// // Peer ID does not depend on PSK, but it does depend on the public key
-/// assert_eq!(peer_psk.pidt()?, peer_nopsk.pidt()?);
-/// assert_ne!(peer_psk.pidt()?, peer_psk_2.pidt()?);
+/// let ekem = EphemeralKem::Kyber512;
+/// assert_eq!(peer_psk.pidt(ekem)?, peer_nopsk.pidt(ekem)?);
+/// assert_ne!(peer_psk.pidt(ekem)?, peer_psk_2.pidt(ekem)?);
 ///
 /// Ok::<(), anyhow::Error>(())
 /// ```
@@ -320,10 +323,19 @@ impl Peer {
 pub struct HandshakeState {
     /// Session ID of Initiator
     pub sidi: SessionId,
+
     /// Session ID of Responder
     pub sidr: SessionId,
+
     /// Chaining Key; i.e. the core cryptographic state
-    pub ck: SecretHashDomainNamespace, // TODO: We should probably add an abstr
+    ///
+    /// This item also contains the keyed hash function to use for this handshake.
+    ///
+    /// TODO: We should probably add an abstr.
+    pub ck: SecretHashDomainNamespace,
+
+    /// ephemeral KEM used for this handshake
+    pub ephemeral_kem: EphemeralKem,
 }
 
 /// Indicates which role a party takes (or took) during the handshake
@@ -1199,6 +1211,7 @@ impl CryptoServer {
             spkm: pk,
 
             // Defaults
+            ephemeral_kem: EphemeralKem::default(),
             timebase: tb,
             biscuit_ctr: BiscuitId::new([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), // 1, LSB
             biscuit_keys: [CookieStore::new(), CookieStore::new()],
@@ -1224,7 +1237,7 @@ impl CryptoServer {
     #[rustfmt::skip]
     pub fn pidm(&self, keyed_hash: KeyedHash) -> Result<PeerId> {
         Ok(Public::new(
-            hash_domains::peerid(keyed_hash)?
+            hash_domains::peerid(keyed_hash, self.ephemeral_kem)?
                 .mix(self.spkm.deref())?
                 .into_value()))
     }
@@ -1284,7 +1297,7 @@ impl CryptoServer {
             protocol_version,
             osk_domain_separator,
         };
-        let peerid = peer.pidt()?;
+        let peerid = peer.pidt(self.ephemeral_kem)?;
         let peerno = self.peers.len();
         match self.index.entry(PeerIndexKey::Peer(peerid)) {
             Occupied(_) => bail!(
@@ -1519,9 +1532,9 @@ impl Peer {
     ///
     /// See example in [Self].
     #[rustfmt::skip]
-    pub fn pidt(&self) -> Result<PeerId> {
+    pub fn pidt(&self, ephemeral_kem: EphemeralKem) -> Result<PeerId> {
         Ok(Public::new(
-            hash_domains::peerid(self.protocol_version.keyed_hash())?
+            hash_domains::peerid(self.protocol_version.keyed_hash(), ephemeral_kem)?
                 .mix(self.spkt.deref())?
                 .into_value()))
     }
@@ -2042,7 +2055,7 @@ impl CryptoServer {
                 let cookie_secret = cookie_secret.get(self).value.secret();
                 let mut cookie_value = [0u8; 16];
                 cookie_value.copy_from_slice(
-                    &hash_domains::cookie_value(KeyedHash::keyed_shake256())?
+                    &hash_domains::cookie_value(KeyedHash::keyed_shake256(), self.ephemeral_kem)?
                         .mix(cookie_secret)?
                         .mix(host_identification.encode())?
                         .into_value()[..16],
@@ -2058,7 +2071,7 @@ impl CryptoServer {
                 let msg_in = Ref::<&[u8], Envelope<InitHello>>::from_bytes(rx_buf)
                     .map_err(|_| RosenpassError::BufferSizeMismatch)?;
                 expected.copy_from_slice(
-                    &hash_domains::cookie(KeyedHash::keyed_shake256())?
+                    &hash_domains::cookie(KeyedHash::keyed_shake256(), self.ephemeral_kem)?
                         .mix(&cookie_value)?
                         .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
                         .into_value()[..16],
@@ -2095,7 +2108,7 @@ impl CryptoServer {
         );
 
         let cookie_value = active_cookie_value.unwrap();
-        let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
+        let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256(), self.ephemeral_kem)?
             .mix(self.spkm.deref())?
             .into_value();
 
@@ -3091,9 +3104,12 @@ where
 {
     /// Internal business logic: Calculate the message authentication code (`mac`) and also append cookie value
     pub fn seal(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
-        let mac = hash_domains::mac(peer.get(srv).protocol_version.keyed_hash())?
-            .mix(peer.get(srv).spkt.deref())?
-            .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
+        let mac = hash_domains::mac(
+            peer.get(srv).protocol_version.keyed_hash(),
+            srv.ephemeral_kem,
+        )?
+        .mix(peer.get(srv).spkt.deref())?
+        .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         self.mac.copy_from_slice(mac.into_value()[..16].as_ref());
         self.seal_cookie(peer, srv)?;
         Ok(())
@@ -3104,7 +3120,7 @@ where
     /// This is called inside [Self::seal] and does not need to be called again separately.
     pub fn seal_cookie(&mut self, peer: PeerPtr, srv: &CryptoServer) -> Result<()> {
         if let Some(cookie_key) = &peer.cv().get(srv) {
-            let cookie = hash_domains::cookie(KeyedHash::keyed_shake256())?
+            let cookie = hash_domains::cookie(KeyedHash::keyed_shake256(), srv.ephemeral_kem)?
                 .mix(cookie_key.value.secret())?
                 .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
             self.cookie
@@ -3120,7 +3136,7 @@ where
 {
     /// Internal business logic: Check the message authentication code produced by [Self::seal]
     pub fn check_seal(&self, srv: &CryptoServer, shake_or_blake: KeyedHash) -> Result<bool> {
-        let expected = hash_domains::mac(shake_or_blake)?
+        let expected = hash_domains::mac(shake_or_blake, srv.ephemeral_kem)?
             .mix(srv.spkm.deref())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..mac)])?;
         Ok(constant_time::memcmp(
@@ -3136,7 +3152,7 @@ impl InitiatorHandshake {
         InitiatorHandshake {
             created_at: srv.timebase.now(),
             next: HandshakeStateMachine::RespHello,
-            core: HandshakeState::zero(keyed_hash),
+            core: HandshakeState::zero(keyed_hash, srv.ephemeral_kem),
             eski: ESk::zero(),
             epki: EPk::zero(),
             tx_at: 0.0,
@@ -3151,11 +3167,12 @@ impl InitiatorHandshake {
 
 impl HandshakeState {
     /// Zero initialization of an HandshakeState
-    pub fn zero(keyed_hash: KeyedHash) -> Self {
+    pub fn zero(keyed_hash: KeyedHash, ephemeral_kem: EphemeralKem) -> Self {
         Self {
             sidi: SessionId::zero(),
             sidr: SessionId::zero(),
             ck: SecretHashDomain::zero(keyed_hash).dup(),
+            ephemeral_kem,
         }
     }
 
@@ -3167,7 +3184,7 @@ impl HandshakeState {
     /// Initialize the handshake state with the responder public key and the protocol domain
     /// separator
     pub fn init(&mut self, spkr: &[u8]) -> Result<&mut Self> {
-        self.ck = hash_domains::ckinit(self.ck.keyed_hash().clone())?
+        self.ck = hash_domains::ckinit(self.ck.keyed_hash().clone(), self.ephemeral_kem)?
             .turn_secret()
             .mix(spkr)?
             .dup();
@@ -3179,7 +3196,10 @@ impl HandshakeState {
     pub fn mix(&mut self, a: &[u8]) -> Result<&mut Self> {
         self.ck = self
             .ck
-            .mix(&hash_domains::mix(self.ck.keyed_hash().clone())?)?
+            .mix(&hash_domains::mix(
+                self.ck.keyed_hash().clone(),
+                self.ephemeral_kem,
+            )?)?
             .mix(a)?
             .dup();
         Ok(self)
@@ -3190,7 +3210,10 @@ impl HandshakeState {
     pub fn encrypt_and_mix(&mut self, ct: &mut [u8], pt: &[u8]) -> Result<&mut Self> {
         let k = self
             .ck
-            .mix(&hash_domains::hs_enc(self.ck.keyed_hash().clone())?)?
+            .mix(&hash_domains::hs_enc(
+                self.ck.keyed_hash().clone(),
+                self.ephemeral_kem,
+            )?)?
             .into_secret();
         ensure!(Aead::NONCE_LEN == 12);
         Aead.encrypt(ct, k.secret(), &[0u8; 12], &[], pt)?;
@@ -3204,7 +3227,10 @@ impl HandshakeState {
     pub fn decrypt_and_mix(&mut self, pt: &mut [u8], ct: &[u8]) -> Result<&mut Self> {
         let k = self
             .ck
-            .mix(&hash_domains::hs_enc(self.ck.keyed_hash().clone())?)?
+            .mix(&hash_domains::hs_enc(
+                self.ck.keyed_hash().clone(),
+                self.ephemeral_kem,
+            )?)?
             .into_secret();
         ensure!(Aead::NONCE_LEN == 12);
         Aead.decrypt(pt, k.secret(), &[0u8; 12], &[], ct)?;
@@ -3336,7 +3362,7 @@ impl HandshakeState {
         // calculate pt contents
         biscuit
             .pidi
-            .copy_from_slice(peer.get(srv).pidt()?.as_slice());
+            .copy_from_slice(peer.get(srv).pidt(srv.ephemeral_kem)?.as_slice());
         biscuit.biscuit_no.copy_from_slice(&*srv.biscuit_ctr);
         biscuit
             .ck
@@ -3345,11 +3371,14 @@ impl HandshakeState {
         TV::check_value(&test_values.biscuit, &biscuit.as_bytes().to_vec());
 
         // calculate ad contents
-        let ad = hash_domains::biscuit_ad(peer.get(srv).protocol_version.keyed_hash())?
-            .mix(srv.spkm.deref())?
-            .mix(self.sidi.as_slice())?
-            .mix(self.sidr.as_slice())?
-            .into_value();
+        let ad = hash_domains::biscuit_ad(
+            peer.get(srv).protocol_version.keyed_hash(),
+            srv.ephemeral_kem,
+        )?
+        .mix(srv.spkm.deref())?
+        .mix(self.sidi.as_slice())?
+        .mix(self.sidr.as_slice())?
+        .into_value();
 
         // consume biscuit no
         constant_time::increment(&mut *srv.biscuit_ctr);
@@ -3384,7 +3413,7 @@ impl HandshakeState {
         let bk = BiscuitKeyPtr(((biscuit_ct[0] & 0b1000_0000) >> 7) as usize);
 
         // Calculate additional data fields
-        let ad = hash_domains::biscuit_ad(shake_or_blake)?
+        let ad = hash_domains::biscuit_ad(shake_or_blake, srv.ephemeral_kem)?
             .mix(srv.spkm.deref())?
             .mix(sidi.as_slice())?
             .mix(sidr.as_slice())?
@@ -3415,7 +3444,12 @@ impl HandshakeState {
         )
         .dup();
         // Reconstruct the handshake state
-        let mut hs = Self { sidi, sidr, ck };
+        let mut hs = Self {
+            sidi,
+            sidr,
+            ck,
+            ephemeral_kem: srv.ephemeral_kem,
+        };
         hs.mix(biscuit_ct)?;
 
         Ok((peer, no, hs))
@@ -3432,12 +3466,23 @@ impl HandshakeState {
         role: HandshakeRole,
         either_shake_or_blake: KeyedHash,
     ) -> Result<Session> {
-        let HandshakeState { ck, sidi, sidr } = self;
+        let HandshakeState {
+            ck,
+            sidi,
+            sidr,
+            ephemeral_kem,
+        } = self;
         let tki = ck
-            .mix(&hash_domains::ini_enc(either_shake_or_blake.clone())?)?
+            .mix(&hash_domains::ini_enc(
+                either_shake_or_blake.clone(),
+                ephemeral_kem,
+            )?)?
             .into_secret();
         let tkr = ck
-            .mix(&hash_domains::res_enc(either_shake_or_blake)?)?
+            .mix(&hash_domains::res_enc(
+                either_shake_or_blake,
+                ephemeral_kem,
+            )?)?
             .into_secret();
         let created_at = srv.timebase.now();
         let (ntx, nrx) = (0, 0);
@@ -3486,7 +3531,8 @@ impl CryptoServer {
         domain_separator: &OskDomainSeparator,
     ) -> Result<SymKey> {
         let hash_choice = peer.get(self).protocol_version.keyed_hash();
-        let compressed_domain_separator = domain_separator.compress_with(hash_choice)?;
+        let compressed_domain_separator =
+            domain_separator.compress_with(hash_choice, self.ephemeral_kem)?;
         self.osk_with_compressed_domain_separator(peer, &compressed_domain_separator)
     }
 
@@ -3510,10 +3556,11 @@ impl CryptoServer {
     /// about using custom domain separators.
     pub fn osk(&self, peer: PeerPtr) -> Result<SymKey> {
         let hash_choice = peer.get(self).protocol_version.keyed_hash();
+        let ekem_choice = self.ephemeral_kem;
         let compressed_domain_separator = peer
             .get(self)
             .osk_domain_separator
-            .compress_with(hash_choice)?;
+            .compress_with(hash_choice, ekem_choice)?;
         self.osk_with_compressed_domain_separator(peer, &compressed_domain_separator)
     }
 }
@@ -3585,7 +3632,8 @@ impl CryptoServer {
 
         // IHI3
         protocol_section!("IHI3", {
-            EphemeralKem.keygen(hs.eski.secret_mut(), &mut hs.epki)?;
+            self.ephemeral_kem
+                .keygen(hs.eski.secret_mut(), &mut hs.epki)?;
             TV::expose_mut_value(&test_values.init_handshake_eski, &mut hs.eski);
             TV::expose_mut_value(&test_values.init_handshake_epki, &mut hs.epki);
             ih.epki.copy_from_slice(&hs.epki.value);
@@ -3688,7 +3736,7 @@ impl CryptoServer {
         let _span_guard =
             crate::internal::util::trace_bench::trace().emit_span("handle_init_hello");
 
-        let mut core = HandshakeState::zero(keyed_hash);
+        let mut core = HandshakeState::zero(keyed_hash, self.ephemeral_kem);
 
         core.sidi = SessionId::from_slice(&ih.sidi);
 
@@ -3767,7 +3815,7 @@ impl CryptoServer {
         protocol_section!("RHR4", {
             use std::marker::PhantomData;
             core.encaps_and_mix_with_test_vector(
-                &EphemeralKem,
+                &self.ephemeral_kem,
                 &mut rh.ecti,
                 &ih.epki,
                 PhantomData::<TV>,
@@ -3870,7 +3918,7 @@ impl CryptoServer {
         // RHI4
         protocol_section!("RHI4", {
             core.decaps_and_mix(
-                &EphemeralKem,
+                &self.ephemeral_kem,
                 hs!().eski.secret(),
                 hs!().epki.deref(),
                 &rh.ecti,
@@ -4146,9 +4194,10 @@ impl CryptoServer {
                 }?;
 
                 let spkt = peer.get(self).spkt.deref();
-                let cookie_key = hash_domains::cookie_key(KeyedHash::keyed_shake256())?
-                    .mix(spkt)?
-                    .into_value();
+                let cookie_key =
+                    hash_domains::cookie_key(KeyedHash::keyed_shake256(), self.ephemeral_kem)?
+                        .mix(spkt)?
+                        .into_value();
                 let cookie_value = peer.cv().update_mut(self).unwrap();
 
                 XAead.decrypt_with_nonce_in_ctxt(
