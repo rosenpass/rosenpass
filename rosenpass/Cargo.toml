@@ -208,10 +208,14 @@ postcard = { version = "1.1.1", default-features = false, features = [
 ] } # Socket handler only
 libc = { version = "0.2" } # Always required for some features missing in rustix
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
+# Rust bindings for liboqs
 oqs-sys = { version = "0.8", default-features = false, features = [
-  'classic_mceliece',
-  'kyber',
+  'classic_mceliece', # McEliece (NIST round 3), not to be confused with McEliece (NIST round 4 (final round))
+  'kyber',            # Kyber-512 (NIST round 3), not to be confused with ML-KEM (FIPS 203)
 ] }
+# RustCrypto's official pure Rust implementation of ML-KEM (FIPS 203)
+ml-kem = { version = "0.3", default-features = false, features = ["zeroize"] }
+
 # dependencies of `rp`
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
