@@ -5,6 +5,7 @@ use serial_test::serial;
 use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Ref};
 
 use crate::internal::cipher_traits::primitives::Kem;
+use crate::internal::ciphers::EphemeralKemChoice;
 use crate::internal::ciphers::StaticKem;
 use crate::internal::secret_memory::Public;
 use crate::internal::util::mem::DiscardResultExt;
@@ -91,7 +92,7 @@ fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
 
         const PEER0: PeerPtr = PeerPtr(0);
 
-        let (mut me, mut they) = make_server_pair(protocol_version).unwrap();
+        let (mut me, mut they) = make_server_pair(protocol_version, Default::default()).unwrap();
         let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
 
         // Process the entire handshake
@@ -143,7 +144,10 @@ fn keygen() -> Result<(SSk, SPk)> {
     Ok((sk, pk))
 }
 
-fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, CryptoServer)> {
+fn make_server_pair(
+    protocol_version: ProtocolVersion,
+    ephemeral_kem_choice: EphemeralKemChoice,
+) -> Result<(CryptoServer, CryptoServer)> {
     // TODO: Copied from the benchmark; deduplicate
     let psk = SymKey::random();
     let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
@@ -151,6 +155,10 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         CryptoServer::new(ska, pka.clone()),
         CryptoServer::new(skb, pkb.clone()),
     );
+    // The ephemeral KEM must be set before adding peers, since adding a peer
+    // computes its peer ID under the server's ephemeral KEM
+    a.ephemeral_kem = ephemeral_kem_choice;
+    b.ephemeral_kem = ephemeral_kem_choice;
     a.add_peer(
         Some(psk.clone()),
         pkb,
@@ -170,23 +178,40 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
-fn test_regular_exchange_v02() {
-    test_regular_exchange(ProtocolVersion::V02)
+fn test_regular_exchange_v02_kyber() {
+    test_regular_exchange(ProtocolVersion::V02, EphemeralKemChoice::Kyber512Round3)
 }
 
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
-fn test_regular_exchange_v03() {
-    test_regular_exchange(ProtocolVersion::V03)
+fn test_regular_exchange_v03_kyber() {
+    test_regular_exchange(ProtocolVersion::V03, EphemeralKemChoice::Kyber512Round3)
 }
 
-fn test_regular_exchange(protocol_version: ProtocolVersion) {
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_regular_exchange_v02_mlkem() {
+    test_regular_exchange(ProtocolVersion::V02, EphemeralKemChoice::MlKem512)
+}
+
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_regular_exchange_v03_mlkem() {
+    test_regular_exchange(ProtocolVersion::V03, EphemeralKemChoice::MlKem512)
+}
+
+fn test_regular_exchange(
+    protocol_version: ProtocolVersion,
+    ephemeral_kem_choice: EphemeralKemChoice,
+) {
     setup_logging();
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair(protocol_version, ephemeral_kem_choice).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -260,7 +285,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair(protocol_version, Default::default()).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -355,7 +380,8 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version.clone()).unwrap();
+        let (mut a, mut b) =
+            make_server_pair(protocol_version.clone(), Default::default()).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -395,7 +421,7 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
         assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
         let expected_cookie_value =
-            crate::hash_domains::cookie_value(protocol_version.keyed_hash())
+            crate::hash_domains::cookie_value(protocol_version.keyed_hash(), b.ephemeral_kem)
                 .unwrap()
                 .mix(
                     b.active_or_retired_cookie_secrets()[0]
@@ -467,7 +493,7 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair(protocol_version, Default::default()).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
