@@ -82,6 +82,9 @@
 mod build_crypto_server;
 pub use build_crypto_server::*;
 
+pub mod ephemeral_kem;
+pub use ephemeral_kem::EphemeralKemChoice;
+
 pub mod basic_types;
 pub mod constants;
 pub mod cookies;

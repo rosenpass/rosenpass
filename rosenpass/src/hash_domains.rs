@@ -13,13 +13,14 @@
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use rosenpass::{hash_domain, hash_domain_ns};
 //! use rosenpass::hash_domains::protocol;
+//! use rosenpass::protocol::EphemeralKem;
 //!
 //! use rosenpass::internal::ciphers::subtle::keyed_hash::KeyedHash;
 //!
 //! // Declaring a custom hash domain
 //! hash_domain_ns!(protocol, custom_domain, "my custom hash domain label");
 //!
-//! // Declaring a custom hashers
+//! // Declaring custom hashers
 //! hash_domain_ns!(custom_domain, hashers, "hashers");
 //! hash_domain_ns!(hashers, hasher1, "1");
 //! hash_domain_ns!(hashers, hasher2, "2");
@@ -29,18 +30,19 @@
 //! hash_domain!(domain_separators, sep1, "1");
 //! hash_domain!(domain_separators, sep2, "2");
 //!
-//! // We use the SHAKE256 hash function for this example
+//! // We use the SHAKE256 hash function and Kyber 512 ephemeral KEM for this example
 //! let hash_choice = KeyedHash::keyed_shake256();
+//! let ekem_choice = EphemeralKem::Kyber512;
 //!
 //! // Generating values under hasher1 with both domain separators
-//! let h1 = hasher1(hash_choice.clone())?.mix(b"some data")?.dup();
-//! let h1v1 = h1.mix(&sep1(hash_choice.clone())?)?.mix(b"More data")?.into_value();
-//! let h1v2 = h1.mix(&sep2(hash_choice.clone())?)?.mix(b"More data")?.into_value();
+//! let h1 = hasher1(hash_choice.clone(), ekem_choice)?.mix(b"some data")?.dup();
+//! let h1v1 = h1.mix(&sep1(hash_choice.clone(), ekem_choice)?)?.mix(b"More data")?.into_value();
+//! let h1v2 = h1.mix(&sep2(hash_choice.clone(), ekem_choice)?)?.mix(b"More data")?.into_value();
 //!
 //! // Generating values under hasher2 with both domain separators
-//! let h2 = hasher2(hash_choice.clone())?.mix(b"some data")?.dup();
-//! let h2v1 = h2.mix(&sep1(hash_choice.clone())?)?.mix(b"More data")?.into_value();
-//! let h2v2 = h2.mix(&sep2(hash_choice.clone())?)?.mix(b"More data")?.into_value();
+//! let h2 = hasher2(hash_choice.clone(), ekem_choice)?.mix(b"some data")?.dup();
+//! let h2v1 = h2.mix(&sep1(hash_choice.clone(), ekem_choice)?)?.mix(b"More data")?.into_value();
+//! let h2v2 = h2.mix(&sep2(hash_choice.clone(), ekem_choice)?)?.mix(b"More data")?.into_value();
 //!
 //! // All of the domain separators are now different, random strings
 //! let values = [h1v1, h1v2, h2v1, h2v2];
@@ -54,7 +56,18 @@
 //! ```
 
 use crate::internal::ciphers::{hash_domain::HashDomain, subtle::keyed_hash::KeyedHash};
+use crate::protocol::EphemeralKemChoice;
 use anyhow::Result;
+
+macro_rules! COMMON_HASH_DOCSTRING {
+    () => {
+r#"
+
+Parameters:
+- `hash_choice`: the hash function chosen for the protocol, see type [`KeyedHash`] for valid values
+- `ekem_choice`: the ephemeral KEM chosen for the protocol, see type [`EphemeralKem`] for valid values"#
+    };
+}
 
 /// Declare a hash function
 ///
@@ -68,8 +81,9 @@ use anyhow::Result;
 macro_rules! hash_domain_ns {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<$crate::internal::ciphers::hash_domain::HashDomain> {
-            let t = $base(hash_choice)?;
+        #[doc = COMMON_HASH_DOCSTRING!()]
+        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::protocol::EphemeralKemChoice) -> ::anyhow::Result<$crate::internal::ciphers::hash_domain::HashDomain> {
+            let t = $base(hash_choice, ekem_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t)
         }
@@ -87,8 +101,9 @@ macro_rules! hash_domain_ns {
 macro_rules! hash_domain {
     ($(#[$($attrss:tt)*])* $base:ident, $name:ident, $($lbl:expr),+ ) => {
         $(#[$($attrss)*])*
-        pub fn $name(hash_choice: KeyedHash) -> ::anyhow::Result<[u8; $crate::internal::ciphers::KEY_LEN]> {
-            let t = $base(hash_choice)?;
+        #[doc = COMMON_HASH_DOCSTRING!()]
+        pub fn $name(hash_choice: KeyedHash, ekem_choice: $crate::protocol::EphemeralKemChoice) -> ::anyhow::Result<[u8; $crate::internal::ciphers::KEY_LEN]> {
+            let t = $base(hash_choice, ekem_choice)?;
             $( let t = t.mix($lbl.as_bytes())?; )*
             Ok(t.into_value())
         }
@@ -100,21 +115,27 @@ macro_rules! hash_domain {
 /// This serves as a global [domain separator](https://en.wikipedia.org/wiki/Domain_separation)
 /// used in various places in the rosenpass protocol.
 ///
-/// This is generally used to create further hash-domains for specific purposes. Depending on
-/// the used hash function, the protocol string is different.
+/// This is generally used to create further hash-domains for specific purposes (e.g. [`mac`], [`cookie`], [`peerid`]).
+/// Depending on the used hash function and the chosen ephemeral KEM, the protocol string is different.
 ///
 /// # Examples
 ///
 /// See the source file for details about how this is used concretely.
 ///
-/// See the [module](self) documentation on how to use the hash domains in general
-pub fn protocol(hash_choice: KeyedHash) -> Result<HashDomain> {
+/// See the [module](self) documentation on how to use the hash domains in general.
+pub fn protocol(
+    hash_choice: KeyedHash,
+    ephemeral_kem_choice: EphemeralKemChoice,
+) -> Result<HashDomain> {
+    let ekem_string = ephemeral_kem_choice.protocol_string_kem_id();
     // Depending on the hash function, we use different protocol strings
     match hash_choice {
-        KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice)
-            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 SHAKE256".as_bytes()),
-        KeyedHash::IncorrectHmacBlake2b(_) => HashDomain::zero(hash_choice)
-            .mix("Rosenpass v1 mceliece460896 Kyber512 ChaChaPoly1305 BLAKE2s".as_bytes()),
+        KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice).mix(
+            format!("Rosenpass v1 mceliece460896 {ekem_string} ChaChaPoly1305 SHAKE256").as_bytes(),
+        ),
+        KeyedHash::IncorrectHmacBlake2b(_) => HashDomain::zero(hash_choice).mix(
+            format!("Rosenpass v1 mceliece460896 {ekem_string} ChaChaPoly1305 BLAKE2s").as_bytes(),
+        ),
     }
 }
 
