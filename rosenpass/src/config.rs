@@ -62,6 +62,15 @@ pub struct Rosenpass {
     #[serde(default)]
     pub verbosity: Verbosity,
 
+    /// whether to use the standardized ML-KEM (FIPS 203) instead of Kyber
+    /// (round 3) as the ephemeral KEM
+    ///
+    /// Note: `bool` defaults to `false` so default is Kyber512
+    ///
+    /// TODO: use more meaningful type than `bool` (will be done with the CLI+config rewrite currently in progress)
+    #[serde(default, skip_serializing)]
+    pub use_ml_kem: bool,
+
     /// list of peers
     ///
     /// See the [`RosenpassPeer`] type for more information and examples.
@@ -491,6 +500,7 @@ impl Rosenpass {
             #[cfg(feature = "experiment_api")]
             api: crate::api::config::ApiConfig::default(),
             verbosity: Verbosity::Quiet,
+            use_ml_kem: false,
             peers: vec![],
             config_file_path: PathBuf::new(),
         }
@@ -733,6 +743,10 @@ secret_key = "/path/to/rp-secret-key"
 listen = []
 verbosity = "Verbose"
 
+# Use the standardized ML-KEM (FIPS 203) instead of Kyber (round 3) as the
+# ephemeral KEM. Defaults to false.
+# use_ml_kem = false
+
 [[peers]]
 # Commented out fields are optional
 public_key = "/path/to/rp-peer-public-key"
@@ -907,6 +921,12 @@ mod test {
           public_key = ""
           "#;
         assert_toml_round(rosenpass, expected_toml).unwrap()
+    }
+
+    #[test]
+    fn test_use_ml_kem_field_defaults_to_false() {
+        let cfg: Rosenpass = toml::from_str("listen = []\npeers = []\n").unwrap();
+        assert!(!cfg.use_ml_kem);
     }
 
     #[test]
