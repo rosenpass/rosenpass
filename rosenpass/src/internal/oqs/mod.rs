@@ -4,7 +4,7 @@
 //!
 //! provides bindings to `liboqs` C library
 //!
-//! This is an internal library; not guarantee is made about its API at this point in time.
+//! This is an internal library; no guarantee is made about its API at this point in time.
 
 /// Call into a libOQS function
 macro_rules! oqs_call {
