@@ -5,6 +5,7 @@
 //!
 use std::{
     ffi::c_void,
+    mem::ManuallyDrop,
     os::fd::{AsFd, BorrowedFd},
     ptr::null_mut,
 };
@@ -272,30 +273,101 @@ impl<'fd> AllocationCode<'fd> {
     ///   is unmapped or replaced; the MappedSegment remains the sole owner of
     ///   the resulting composite region.
     fn allocate_data_page(&mut self) -> Result<&mut MappedSegment, MMapError> {
-        use rustix::mm::MapFlags;
+        use rustix::mm::{Advice, MapFlags};
 
         if self.segment.is_data_page() {
             return self.segment.data_page_mut().unwrap().ok();
         }
 
         self.guard_page()?; // Allocate the guard page if necessary (just in case)
-        let segment = self.segment.take_segment().unwrap();
+        let segment = ManuallyDrop::new(self.segment.take_segment().unwrap());
 
-        let res = unsafe {
-            let (ptr, len) = (segment.ptr().cast(), segment.len());
-            let flags = self.mmap_flags() | MapFlags::FIXED;
-            mmap_maybe_anon(ptr, len, self.mmap_prot(), flags, self.fd(), 0)
-                .map_err(MMapError::MMapError)
+        let (ptr, len) = (segment.ptr().cast(), segment.len());
+        let flags = self.mmap_flags() | MapFlags::FIXED;
+
+        // There is a bug on some linux version where mmap() may return EINVAL
+        // while also deallocating the pages we are replacing with MAP_FIXED.
+        // This breaks the POSIX.1-2024 compliance
+        let bug_detected = flags.contains(MapFlags::PRIVATE)
+            && !flags.contains(MapFlags::SHARED)
+            && self.is_memfd_secret()?;
+        if bug_detected {
+            return Err(MMapError::MMapError(Errno::INVAL));
+        }
+
+        let res = unsafe { mmap_maybe_anon(ptr, len, self.mmap_prot(), flags, self.fd(), 0) };
+
+        use Errno as E;
+        let err = match res {
+            // Everything good. Store the segment, now a data segment and return a reference to it.
+            Ok(_) => {
+                let seg = self
+                    .segment
+                    .insert_data_page(ManuallyDrop::into_inner(segment));
+                return Ok(seg);
+            }
+            // mmap(3p) (POSIX.1-2024) specifies that mmap is allowed to unmap the pages
+            // we are overwriting, but only on errnos other than these three, so for these
+            // three it is safe to just reuse the guard page
+            Err(err @ (E::BADF | E::INVAL | E::NOTSUP)) => {
+                self.segment
+                    .insert_guard_page(ManuallyDrop::into_inner(segment));
+                return Err(MMapError::MMapError(err));
+            }
+
+            // So on a different error, we do not know whether the pages are present or where
+            // unmapped; this requires some complicated logic because we have to handle different
+            // parts of the allocation in different ways.
+            Err(err) => err, // handled below */
         };
 
-        let segment = match res {
-            Ok(_) => self.segment.insert_data_page(segment),
-            Err(_) => self.segment.insert_guard_page(segment),
+        let data_seg_occupied = match unsafe { rustix::mm::madvise(ptr, len, Advice::Normal) } {
+            Ok(()) => Some(true),
+            Err(E::NOMEM) => Some(false),
+            Err(e) => {
+                log::warn!(
+                    "Tried to use madvise(ptr={ptr:?}, len={len}, MADV_NORMAL) to test if a memory segment is mapped, \
+                    but it returned an unexpected error: {e:?}"
+                );
+                None
+            }
         };
 
-        res?;
+        if data_seg_occupied.unwrap_or(true) {
+            log::warn!(
+                "Tried to allocate a secret memory segment, but we received an unexpected error ({err}) \
+                and there are some pages in place where we tried to add the memory mapping for out data. \
+                Unfortunately, by the mmap specification (POSIX.1-2024) we can not know if mmap(3p) has \
+                left our initial mapping in place or whether mmap(3p) has unmapped our pages. \
+                Therefor, even though we know there are pages mapped in that memory segment, we have no way of knowing \
+                whether these are our pages: this could also be a memory segment by another thread who raced to allocate \
+                some pages in this area. We therefor are forced to leak these pages of memory.\n\
+                This can happen in regular operation, but it should happen rarely. If you see this message often, tell us.\n\
+                  May leak up to: {len} bytes of address space without consuming any real memory."
+            )
+        }
 
-        Ok(segment)
+        let head = segment.ptr().cast();
+        let tail = segment
+            .ptr()
+            .wrapping_add(segment.len() - self.pagesize())
+            .cast();
+        let e1 = unsafe { rustix::mm::munmap(head, self.pagesize()) };
+        let e2 = unsafe { rustix::mm::munmap(tail, self.pagesize()) };
+        let leak = ((e1.is_err() as usize) + (e2.is_err() as usize)) * self.pagesize();
+
+        if e1.is_err() || e2.is_err() {
+            log::warn!("\
+                Tried to allocate a secret memory segment, but we received an unexpected error ({err}). \
+                In this case we have to treat the guard pages and the data pages of the secret memory segment separately \
+                and we need to unmap both guard pages manually. During unmapping of at least one of these pages an error \
+                occured:\n\
+                  Error from unmapping the head guard page: {e1:?}
+                  Error from unmapping the tail guard page: {e2:?}
+                  May leak up to: {leak} bytes of address space without consuming any real memory.")
+        }
+
+        Err(MMapError::MMapError(err))
     }
 
     /// Allocate guard pages and prepare the memory region for the actual allocation.
