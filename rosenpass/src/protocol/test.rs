@@ -240,6 +240,63 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
     });
 }
 
+// ====================== init_conf_without_cached_response ======================
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn init_conf_without_cached_response_is_an_error_v02() {
+    init_conf_without_cached_response_is_an_error(ProtocolVersion::V02);
+}
+
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn init_conf_without_cached_response_is_an_error_v03() {
+    init_conf_without_cached_response_is_an_error(ProtocolVersion::V03);
+}
+
+/// A retransmitted InitConf whose MAC is still in the response index, while the
+/// peer no longer holds the cached response, is rejected with an error. The
+/// server must not panic on a received packet.
+fn init_conf_without_cached_response_is_an_error(protocol_version: ProtocolVersion) {
+    setup_logging();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    stacker::grow(8 * 1024 * 1024, || {
+        type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+
+        let mut a_to_b_buf = MsgBufPlus::zero();
+        let mut b_to_a_buf = MsgBufPlus::zero();
+
+        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let HandleMsgResult { resp, .. } = b
+            .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+            .unwrap();
+        let resp_hello_len = resp.unwrap();
+        let HandleMsgResult { resp, .. } = a
+            .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+            .unwrap();
+        let init_conf_len = resp.unwrap();
+
+        // B handles InitConf and caches the EmptyData response
+        b.handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .unwrap();
+        assert!(b.peers[0].known_init_conf_response.is_some());
+
+        // Drop the cached response behind the index's back
+        b.peers[0].known_init_conf_response = None;
+
+        // Retransmit InitConf
+        let err = b
+            .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+            .unwrap_err();
+        assert!(
+            format!("{err:#}").contains("without a cached response"),
+            "unexpected error: {err:#}"
+        );
+    });
+}
+
 // ====================== test_regular_init_conf_retransmit ======================
 #[test]
 #[serial]
