@@ -1,6 +1,5 @@
 use thiserror::Error;
 
-use crate::internal::ciphers::EphemeralKemChoice;
 use crate::internal::util::mem::{DiscardResultExt, SwapWithDefaultExt};
 use crate::internal::util::{build::Build, result::ensure_or};
 
@@ -206,9 +205,6 @@ pub struct BuildCryptoServer {
 
     /// A list of network peers that should be registered when launching the server.
     pub peers: Vec<PeerParams>,
-
-    /// the ephemeral KEM to use in handshakes
-    pub ephemeral_kem: EphemeralKemChoice,
 }
 
 impl Build<CryptoServer> for BuildCryptoServer {
@@ -226,7 +222,6 @@ impl Build<CryptoServer> for BuildCryptoServer {
         };
 
         let mut srv = CryptoServer::new(sk, pk);
-        srv.ephemeral_kem = self.ephemeral_kem;
 
         for (idx, params) in self.peers.into_iter().enumerate() {
             let PeerParams {
@@ -270,11 +265,7 @@ pub struct PeerParams {
 impl BuildCryptoServer {
     /// Creates a new builder instance using the given key pair and peer list.
     pub fn new(keypair: Option<Keypair>, peers: Vec<PeerParams>) -> Self {
-        Self {
-            keypair,
-            peers,
-            ephemeral_kem: EphemeralKemChoice::default(),
-        }
+        Self { keypair, peers }
     }
 
     /// Creates an "incomplete" builder instance, without assigning a key pair.
@@ -283,11 +274,10 @@ impl BuildCryptoServer {
     }
 
     /// Creates a builder instance from the given key pair and peer list components.
-    pub fn from_parts(parts: (Option<Keypair>, Vec<PeerParams>, EphemeralKemChoice)) -> Self {
+    pub fn from_parts(parts: (Option<Keypair>, Vec<PeerParams>)) -> Self {
         Self {
             keypair: parts.0,
             peers: parts.1,
-            ephemeral_kem: parts.2,
         }
     }
 
@@ -295,18 +285,13 @@ impl BuildCryptoServer {
     ///
     /// Replaces all parameters with their default values, which allows extracting them
     /// while leaving the builder in a reusable state.
-    pub fn take_parts(&mut self) -> (Option<Keypair>, Vec<PeerParams>, EphemeralKemChoice) {
-        let return_value = (
-            self.keypair.take(),
-            self.peers.swap_with_default(),
-            self.ephemeral_kem,
-        );
-        self.ephemeral_kem = Default::default();
+    pub fn take_parts(&mut self) -> (Option<Keypair>, Vec<PeerParams>) {
+        let return_value = (self.keypair.take(), self.peers.swap_with_default());
         return_value
     }
 
     /// Deconstructs the builder instance, yielding the assigned key pair and peer list.
-    pub fn into_parts(mut self) -> (Option<Keypair>, Vec<PeerParams>, EphemeralKemChoice) {
+    pub fn into_parts(mut self) -> (Option<Keypair>, Vec<PeerParams>) {
         self.take_parts()
     }
 

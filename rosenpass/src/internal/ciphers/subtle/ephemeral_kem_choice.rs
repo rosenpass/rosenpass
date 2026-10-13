@@ -8,15 +8,16 @@ use crate::internal::oqs::Kyber512;
 /// choice of the  ephemeral key encapsulation mechanism to use in the Rosenpass protocol
 ///
 /// See the ephemeral keypairs `eski`/`epki` in the whitepaper.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EphemeralKemChoice {
     /// Kyber512 (NIST competition, round 3)
     ///
-    /// This was the original choice in early Rosenpass version when ML-KEM had not been standardized back then.
-    #[default]
+    /// This was the original choice in early Rosenpass version (protocol v02) when ML-KEM had not been standardized back then.
     Kyber512Round3,
 
     /// ML-KEM-512 (FIPS 203)
+    ///
+    /// newer choice since protocol version v03
     MlKem512,
 }
 
@@ -37,16 +38,6 @@ impl EphemeralKemChoice {
         match self {
             EphemeralKemChoice::Kyber512Round3 => "Kyber512",
             EphemeralKemChoice::MlKem512 => "ML-KEM-512",
-        }
-    }
-
-    /// Select the ephemeral KEM based on the `use_ml_kem` configuration switch
-    /// (see [`crate::config::Rosenpass::use_ml_kem`])
-    pub const fn from_config_value(use_ml_kem: bool) -> Self {
-        if use_ml_kem {
-            Self::MlKem512
-        } else {
-            Self::Kyber512Round3
         }
     }
 }

@@ -1267,7 +1267,7 @@ impl AppServer {
     ) -> anyhow::Result<()> {
         let peerid = {
             let srv = self.crypto_server()?;
-            peer.lower().get(srv).pidt(srv.ephemeral_kem)?
+            peer.lower().get(srv).pidt()?
         };
 
         if self.verbose() {
