@@ -1,3 +1,5 @@
+//! Memory allocation facilities for secret memory
+
 use std::{
     borrow::{Borrow, BorrowMut},
     ops::{Deref, DerefMut},
@@ -32,6 +34,7 @@ pub fn allocate(size: usize) -> Result<OwnedSegment, AllocatorError> {
         .allocate()
 }
 
+/// Errors during allocation of secret memory
 #[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
 pub enum AllocatorError {
     /// Error creating the [crate::internal::util::secret_memory::mmap::Mappable] using [SecretMemfdConfig::create()]
@@ -54,7 +57,12 @@ pub enum AllocatorError {
 /// 3. Wrapping the resulting [MappedSegment] into an [OwnedSegment] for convenient access
 #[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
 pub struct AllocatorConfig {
+    /// Secret memory governance mechanism. This is used to set up the
+    /// file descriptor backing the memory allocation. Based on policy,
+    /// different mechanisms such as memfd_secret(2), memfd_create(2), or
+    /// anonymous allocations (no file descriptor) are used
     pub memfd_config: SecretMemfdConfig,
+    /// Settings for the memory allocation itself
     pub mapping_config: MappingConfig,
 }
 
@@ -82,8 +90,6 @@ impl AllocatorConfig {
     /// 2. Applying the config from [AllocatorConfig::mapping_config] via [crate::internal::util::secret_memory::mmap::Mappable::with_config()]
     /// 3. Mapping the [crate::internal::util::secret_memory::mmap::Mappable] into memory using [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
     /// 4. Wrapping the [crate::internal::util::secret_memory::mmap::MappedSegment] in [OwnedSegment] so the allocated memory can actually be accessed
-    ///
-    /// The
     pub fn allocate(&self) -> Result<OwnedSegment, AllocatorError> {
         self.memfd_config
             .create()?
@@ -93,18 +99,26 @@ impl AllocatorConfig {
             .ok()
     }
 
+    /// Return a copy with an updated [SecretMemfdConfig]
+    ///
+    /// Note that this does not update [Self::mapping_config],
+    /// with the value from [SecretMemfdConfig::map_fd_config()].
+    /// If this behavior is desired, you must update [Self::mapping_config]
+    /// yourself.
     pub fn with_memfd_config(&self, memfd_config: SecretMemfdConfig) -> Self {
         let mut r = self.copy();
         r.memfd_config = memfd_config;
         r
     }
 
+    /// Return a copy with an updated [MappingConfig]
     pub fn with_mapping_config(&self, mapping_config: MappingConfig) -> Self {
         let mut r = self.copy();
         r.mapping_config = mapping_config;
         r
     }
 
+    /// Return a copy requesting `size` data bytes via via the [MMapSizePolicy::Resize] policy
     pub fn sized(&self, size: usize) -> Self {
         let size = U64USize::new_or_panic(size).u64();
         let cfg = self
@@ -113,17 +127,61 @@ impl AllocatorConfig {
         self.with_mapping_config(cfg)
     }
 
+    /// Return a copy requiring memfd_secret(2) backed allocations even on systems
+    /// where this is not supported.
+    ///
+    /// Delegates to [SecretMemfdConfig::enforce_high_security()].
+    ///
+    /// If this is set and memfd_secret(2) based allocations are not enabled on the system,
+    /// then [Self::allocate()] will return an error instead of falling back to less secure
+    /// configurations.
     pub fn enforce_high_security(&self) -> Self {
         let cfg = self.memfd_config.enforce_high_security();
         self.with_memfd_config(cfg)
     }
 }
 
+/// An exclusively owned mapped data segment accessible as a byte slice.
 pub struct OwnedSegment {
+    /// Owns the backing allocation and identifies the data range satisfying
+    /// [OwnedSegment::new()]'s slice-access and lifetime requirements.
     inner: MappedSegment,
 }
 
 impl OwnedSegment {
+    /// Take ownership of a mapping and enable safe shared and mutable byte-slice access.
+    ///
+    /// This does not validate the mapping's protection, length, or aliasing, and
+    /// does not initialize its contents or change its protection.
+    ///
+    /// # Safety
+    ///
+    /// The caller must establish and maintain the following until this value is
+    /// dropped, including for the full lifetime of every slice borrowed from it:
+    ///
+    /// - `mapped_segment.ptr()` must be live, non-null, properly aligned for `u8`,
+    ///   and carry provenance permitting access to the data range, even at zero length.
+    /// - The entire `mapped_segment.len()`-byte data range must be initialized,
+    ///   readable, and writable, and lie within a single allocation. Its length
+    ///   must not exceed `isize::MAX`, and computing its end must not wrap the
+    ///   address space. Guard pages must be outside this range.
+    /// - Access to the data must be exclusive to this owner and its borrows. There
+    ///   must be no outstanding references at construction and no conflicting
+    ///   access through retained pointers, aliased mappings, or another thread or
+    ///   process. This includes mutation through a backing-file descriptor: bytes
+    ///   must not change behind a shared slice, and a mutable slice must have
+    ///   exclusive access, including against reads through such aliases.
+    /// - The data range must remain valid and readable+writable: no truncation,
+    ///   unmapping, remapping, protection change (mprotect), or fork may invalidate
+    ///   it or introduce conflicting aliases. In particular, a forked child must
+    ///   not access or drop an inherited value whose mapping was excluded by
+    ///   MADV_DONTFORK.
+    /// - `mapped_segment` must exclusively own its complete live backing
+    ///   allocation, including any guards, with a page-aligned base, valid length,
+    ///   and provenance suitable for its eventual munmap in [MappedSegment]'s
+    ///   destructor. At destruction its page-rounded range must be valid to mutate
+    ///   with that provenance and contain no live Rust references. No other owner
+    ///   may release or replace that allocation.
     pub unsafe fn new(mapped_segment: MappedSegment) -> Self {
         Self {
             inner: mapped_segment,
@@ -135,12 +193,20 @@ impl Deref for OwnedSegment {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: OwnedSegment::new requires a live, non-null, aligned pointer
+        // to initialized readable data in one allocation, with len <= isize::MAX
+        // and no address-space wrap. Ownership keeps it valid for this borrow,
+        // and the constructor contract excludes mutation behind the shared slice.
         unsafe { std::slice::from_raw_parts(self.inner.ptr(), self.inner.len()) }
     }
 }
 
 impl DerefMut for OwnedSegment {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: OwnedSegment::new requires initialized readable+writable data
+        // in one live allocation with a non-null aligned pointer, len <= isize::MAX,
+        // and no address-space wrap. Its no-alias contract and this exclusive
+        // borrow ensure no other access occurs while the mutable slice is live.
         unsafe { std::slice::from_raw_parts_mut(self.inner.ptr(), self.inner.len()) }
     }
 }

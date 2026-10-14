@@ -284,8 +284,7 @@ impl<'fd> AllocationCode<'fd> {
     ///   that live mapping and is valid to mutate with `ptr`'s provenance.
     /// * MAP_FIXED replaces part of the guard-page allocation we exclusively
     ///   own (via the MappedSegment), so no existing Rust allocation/reference
-    ///   is unmapped or replaced; the MappedSegment remains the sole owner of
-    ///   the resulting composite region.
+    ///   is unmapped or replaced.
     fn allocate_data_page(&mut self) -> Result<&mut MappedSegment, MMapError> {
         use rustix::mm::{Advice, MapFlags};
 
@@ -309,6 +308,9 @@ impl<'fd> AllocationCode<'fd> {
             return Err(MMapError::MMapError(Errno::INVAL));
         }
 
+        // SAFETY: ptr retains the reservation's provenance and is page-aligned.
+        // Rounding len up to pages stays inside its exclusively owned middle,
+        // excluding both guards. No Rust references to this middle exist yet.
         let res = unsafe { mmap_maybe_anon(ptr, len, self.mmap_prot(), flags, self.fd(), 0) };
 
         use Errno as E;
@@ -323,6 +325,9 @@ impl<'fd> AllocationCode<'fd> {
             // mmap(3p) (POSIX.1-2024) specifies that mmap is allowed to unmap the pages
             // we are overwriting, but only on errnos other than these three, so for these
             // three it is safe to just reuse the guard page
+            // Restoring Drop relies on the implementation honoring this preservation
+            // rule. The local check excludes the known private-secretmem EINVAL bug,
+            // but does not establish preservation for arbitrary file mmap callbacks.
             Err(err @ (E::BADF | E::INVAL | E::NOTSUP)) => {
                 self.segment
                     .insert_guard_page(ManuallyDrop::into_inner(segment));
