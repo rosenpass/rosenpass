@@ -159,6 +159,7 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Memory allocation algorithm
     fn mmap_impl(&mut self) -> Result<MappedSegment, MMapError> {
+        self.validate_configuration()?;
         self.prefetch_file_descriptor_info()?;
         self.harden_file_descriptor()?;
         self.allocate_guard_page()?;
@@ -166,6 +167,14 @@ impl<'fd> AllocationCode<'fd> {
         self.harden_mapped_segment()?;
 
         Ok(self.segment.take_data_page().unwrap())
+    }
+
+    /// Validate the configuration
+    ///
+    /// Used to issue any validation errors as early as possible
+    fn validate_configuration(&mut self) -> Result<(), MMapError> {
+        self.size_policy()?; // MMapError::MissingSizePolicy
+        Ok(())
     }
 
     /// Prefetch information; this is mainly used to report errors
