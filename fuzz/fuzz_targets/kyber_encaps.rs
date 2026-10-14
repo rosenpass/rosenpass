@@ -16,7 +16,7 @@ fuzz_target!(|input: Input| {
     let mut ciphertext = [0u8; EphemeralKem::CT_LEN];
     let mut shared_secret = [0u8; EphemeralKem::SHK_LEN];
 
-    EphemeralKem
+    EphemeralKem::Kyber512Round3
         .encaps(&mut shared_secret, &mut ciphertext, &input.pk)
         .unwrap();
 });
