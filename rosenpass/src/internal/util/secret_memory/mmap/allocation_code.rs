@@ -13,11 +13,12 @@ use std::{
 use rustix::{fs::SealFlags, io::Errno};
 
 use crate::internal::util::{
-    functional::run,
+    convert::TryIntoTypeExt,
     int::u64uint::MAX_U64_IN_USIZE,
-    mem::CopyExt,
+    mem::{CopyExt, DiscardResultExt},
+    option::SomeExt,
     result::OkExt,
-    rustix::IsMemfdSecretExt,
+    rustix::{TryStatExt, TryStatFsExt},
     secret_memory::{
         fd::memfd_secret_protects_against_resizing,
         mmap::{
@@ -137,8 +138,9 @@ impl SegmentLifecycle {
 pub struct AllocationCode<'fd> {
     /// The file descriptor to map and the configuration for the mapping
     mappable: Mappable<BorrowedFd<'fd>>,
-    /// Cached fstat(2)/fstatfs(2) results for the file descriptor
-    stat: Option<Quickstat>,
+    /// Whether the file descriptor represents a memfd_secret(2)
+    fd_is_memfd_secret: Option<bool>,
+    /// Size of this file descriptor
     /// Ownership state of the mapping being assembled
     segment: SegmentLifecycle,
 }
@@ -147,29 +149,32 @@ impl<'fd> AllocationCode<'fd> {
     /// Entry point implementing [MappableFd::mmap]: set up the state machine
     /// and run [Self::mmap_impl].
     pub fn mmap(mappable: Mappable<BorrowedFd<'fd>>) -> Result<MappedSegment, MMapError> {
-        let stat = None;
-        let segment = SegmentLifecycle::None;
         let mut me = Self {
             mappable,
-            stat,
-            segment,
+            fd_is_memfd_secret: None,
+            segment: SegmentLifecycle::None,
         };
         me.mmap_impl()
     }
 
     /// Memory allocation algorithm
     fn mmap_impl(&mut self) -> Result<MappedSegment, MMapError> {
-        // Do the fstat(2)/fstatfs(2) call not and report errors early
-        self.fetch_stat()?;
-
+        self.prefetch_file_descriptor_info()?;
         self.harden_file_descriptor()?;
-
         self.allocate_guard_page()?;
         self.allocate_data_page()?;
-
         self.harden_mapped_segment()?;
 
         Ok(self.segment.take_data_page().unwrap())
+    }
+
+    /// Prefetch information; this is mainly used to report errors
+    /// from fstat(2)/fstatfs(2) calls early
+    fn prefetch_file_descriptor_info(&mut self) -> Result<(), MMapError> {
+        self.try_load_size_now()?.discard_result(); // The fstat(2) system call
+        self.is_memfd_secret()?; // The fstatfs(2) system call
+
+        Ok(())
     }
 
     /// Apply memory-level hardening to the data page
@@ -422,7 +427,6 @@ impl<'fd> AllocationCode<'fd> {
     /// [MemfdCreateSealError] for the failure modes reported to the caller
     fn appropriately_size_and_seal_fd(&mut self) -> Result<(), MMapError> {
         let Some(fd) = self.fd() else { return Ok(()) };
-        let stat = self.stat()?.copied().expect("Could not fetch file descriptor information through AllocationCode::stat() despite the file descriptor being available. This is a bug.");
 
         if self.resize_protection_requested() && !self.is_memfd_secret()? {
             let current_seals =
@@ -440,19 +444,15 @@ impl<'fd> AllocationCode<'fd> {
         }
 
         // Resize the file descriptor if requested and necessary
-        use MMapSizePolicy as P;
-        match self.size_policy()? {
-            P::Resize(_) => {
-                let actual_size = stat.size()?;
-                if self.data_len_u64()? != actual_size {
-                    rustix::fs::ftruncate(fd, self.data_len_u64()?)
-                        .map_err(MMapError::ResizeError)?;
+        {
+            use MMapSizePolicy as P;
+            let (expected, actual) = (self.data_len_u64()?, self.load_size_now()?);
+            match (expected == actual, self.size_policy()?) {
+                (true, _) => {} // Size is as expected; all good
+                (false, P::Resize(_)) => {
+                    rustix::fs::ftruncate(fd, expected).map_err(MMapError::ResizeError)?;
                 }
-            }
-            P::Checked(_) => {
-                let expected = self.data_len_u64()?;
-                let actual = stat.size()?;
-                if expected != actual {
+                (false, P::Checked(_)) => {
                     return Err(MMapError::IncorrectSize { expected, actual });
                 }
             }
@@ -525,12 +525,9 @@ impl<'fd> AllocationCode<'fd> {
             // All the seals are present; check the size of the file descriptor again
             // just to make sure that the size is correct. If it's not correct, we raise
             // an error
-            let (expected_size, actual_size) = (self.data_len_u64()?, Quickstat::new(fd)?.size()?);
-            if expected_size != actual_size {
-                Err(MemfdCreateSealError::ResizeRace {
-                    expected_size,
-                    actual_size,
-                })?;
+            let (expected, actual) = (self.data_len_u64()?, self.load_size_now()?);
+            if expected != actual {
+                Err(MemfdCreateSealError::ResizeRace { expected, actual })?;
             }
 
             // Sealing successful; now aborting
@@ -624,28 +621,55 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Check if this allocation is for a memfd_secret(2) FD
     fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
-        self.stat()?
-            .map(Quickstat::is_memfd_secret)
-            .unwrap_or(Ok(false))
-    }
-
-    /// Alias for [Self::fetch_stat]
-    fn stat(&mut self) -> Result<Option<&Quickstat>, MMapError> {
-        self.fetch_stat()
-    }
-
-    /// Fetch the fstat(2)/fstatfs(2) information for the file descriptor
-    fn fetch_stat(&mut self) -> Result<Option<&Quickstat>, MMapError> {
-        if let Some(ref stat) = self.stat {
-            return Ok(Some(stat));
+        if let Some(val) = self.fd_is_memfd_secret {
+            return Ok(val);
         }
 
+        let Some(fd) = self.fd() else {
+            return Ok(false);
+        };
+
+        let val = fd
+            .is_memfd_secret()
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
+        self.fd_is_memfd_secret.insert(val).discard_result();
+
+        Ok(val)
+    }
+
+    /// Look up the size of the file represented by the file descriptor we are
+    /// mapping into memory.
+    ///
+    /// Compared to [Self::try_load_size_now()]/[Self::try_size()], this function panics if we
+    /// are mapping anonymous memory ([Self::fd()] is `None`), whereas [Self::try_load_size_now()]
+    /// panics, whereas [Self::try_load_size_now()]/[Self::try_size()] just return `Ok(None)`.
+    fn load_size_now(&mut self) -> Result<u64, MMapError> {
+        self.try_load_size_now()?
+            .expect("\
+                Failed to load size in AllocationCode::appropriately_size_and_seal_fd() after we already \
+                checked that the we are operating on a file descriptor, not on anonymous memory. \
+                This is a bug!")
+            .ok()
+    }
+
+    /// Look up the size of the file represented by the file descriptor we are
+    /// mapping into memory.
+    ///
+    /// Compared to [Self::load_size_now()], this function returns `Ok(None)` if we
+    /// are mapping anonymous memory ([Self::fd()] is `None`), whereas [Self::load_size_now()]
+    /// panics.
+    fn try_load_size_now(&mut self) -> Result<Option<u64>, MMapError> {
         let Some(fd) = self.fd() else {
             return Ok(None);
         };
 
-        let stat = self.stat.insert(Quickstat::new(fd)?);
-        Ok(Some(stat))
+        let size = fd
+            .size()
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
+        size.try_into_type::<u64>()
+            .map_err(|err| MMapError::InvalidSize { err, size })?
+            .some()
+            .ok()
     }
 
     /// A copy of the underlying file descriptor
@@ -696,40 +720,5 @@ unsafe fn mmap_maybe_anon<Fd: AsFd>(
     match fd {
         Some(fd) => unsafe { mmap(ptr, len, prot, flags, fd, offset) },
         None => unsafe { mmap_anonymous(ptr, len, prot, flags) },
-    }
-}
-
-/// Helper for calling fstat in [MappableFd::mmap()]
-#[derive(Copy, Clone, Debug)]
-struct Quickstat {
-    /// Cached fstat(2) result
-    stat: rustix::fs::Stat,
-    /// Cached fstatfs(2) result
-    statfs: rustix::fs::StatFs,
-}
-
-impl Quickstat {
-    /// New [Quickstat] wrapping the given file descriptor; no system calls
-    /// have been issued yet, results are cached on first use
-    pub fn new<Fd: AsFd>(fd: Fd) -> Result<Self, MMapError> {
-        run(|| {
-            let stat = rustix::fs::fstat(&fd)?;
-            let statfs = rustix::fs::fstatfs(&fd)?;
-            Ok(Self { stat, statfs })
-        })
-        .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)
-    }
-
-    /// The size of the file descriptor according to fstat(2)
-    pub fn size(&self) -> Result<u64, MMapError> {
-        let size = self.stat.st_size;
-        size.try_into()
-            .map_err(|err| MMapError::InvalidSize { err, size })
-    }
-
-    /// Whether the file descriptor is a memfd_secret(2) file descriptor,
-    /// determined via the fstatfs(2) f_type magic
-    pub fn is_memfd_secret(&self) -> Result<bool, MMapError> {
-        self.statfs.is_memfd_secret().ok()
     }
 }

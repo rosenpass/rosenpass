@@ -271,14 +271,14 @@ pub enum MemfdCreateSealError {
         Tried to seal the underlying file descriptor against being grown/shrunken, but during the process, \
         the file descriptor was resized from the expected size of {} to {}. The file descriptor is now the \
         wrong size, but since it has been sealed, we can no longer resize it.",
-        expected_size,
-        actual_size
+        expected,
+        actual
     )]
     ResizeRace {
         /// The size the file descriptor was expected to have
-        expected_size: u64,
+        expected: u64,
         /// The size the file descriptor actually had after sealing
-        actual_size: u64,
+        actual: u64,
     },
     /// One of the fcntl(2) system calls used for sealing failed
     #[error(

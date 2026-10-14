@@ -21,6 +21,9 @@ pub trait StatExt {
     /// Ok::<(), rustix::io::Errno>(())
     /// ````
     fn is_socket(&self) -> bool;
+
+    /// Access to the size of a file
+    fn size(&self) -> i64;
 }
 
 impl StatExt for rustix::fs::Stat {
@@ -28,6 +31,26 @@ impl StatExt for rustix::fs::Stat {
         use rustix::fs::FileType;
         let ft = FileType::from_raw_mode(self.st_mode);
         matches!(ft, FileType::Socket)
+    }
+
+    fn size(&self) -> i64 {
+        self.st_size
+    }
+}
+
+/// Helpers for accessing statfs(2) information
+pub trait StatFsExt {
+    /// Determine whether the underlying file descriptor that generated this [rustix::fs::StatFs]
+    /// is a memfd_secret(2) file descriptor
+    #[cfg(target_os = "linux")]
+    fn is_memfd_secret(&self) -> bool;
+}
+
+impl StatFsExt for rustix::fs::StatFs {
+    #[cfg(target_os = "linux")]
+    fn is_memfd_secret(&self) -> bool {
+        const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
+        self.f_type == SECRETMEM_MAGIC
     }
 }
 
@@ -48,6 +71,9 @@ pub trait TryStatExt {
     /// Ok::<(), rustix::io::Errno>(())
     /// ````
     fn is_socket(&self) -> Result<bool, Self::Error>;
+
+    /// Access the size of the file
+    fn size(&self) -> Result<i64, Self::Error>;
 }
 
 impl<T> TryStatExt for T
@@ -58,6 +84,32 @@ where
 
     fn is_socket(&self) -> Result<bool, Self::Error> {
         rustix::fs::fstat(self)?.is_socket().ok()
+    }
+
+    fn size(&self) -> Result<i64, Self::Error> {
+        rustix::fs::fstat(self)?.size().ok()
+    }
+}
+
+/// Helpers for accessing stat(2) information on an open file descriptor
+pub trait TryStatFsExt {
+    /// Error type returned by operations
+    type Error;
+
+    /// Determine whether the underlying file descriptor is a memfd_secret(2) file descriptor
+    #[cfg(target_os = "linux")]
+    fn is_memfd_secret(&self) -> Result<bool, Self::Error>;
+}
+
+impl<T> TryStatFsExt for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    #[cfg(target_os = "linux")]
+    fn is_memfd_secret(&self) -> Result<bool, Self::Error> {
+        rustix::fs::fstatfs(self)?.is_memfd_secret().ok()
     }
 }
 
