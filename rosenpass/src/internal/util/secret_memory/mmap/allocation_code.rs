@@ -396,7 +396,8 @@ impl<'fd> AllocationCode<'fd> {
         }
 
         let segment = unsafe {
-            let (prot, flags) = (ProtFlags::empty(), MapFlags::empty()); // PROT_NONE,
+            // PROT_NONE, MAP_PRIVATE
+            let (prot, flags) = (ProtFlags::empty(), MapFlags::PRIVATE);
             let ptr = mmap_anonymous(null_mut(), self.alloc_len()?, prot, flags)
                 .map_err(MMapError::MMapError)?;
             MappedSegment {
