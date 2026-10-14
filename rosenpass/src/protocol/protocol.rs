@@ -2072,7 +2072,7 @@ impl CryptoServer {
                 cookie_value.copy_from_slice(
                     &hash_domains::cookie_value(
                         KeyedHash::keyed_shake256(),
-                        unimplemented!("experiment_cookie_dos_mitigation"),
+                        EphemeralKem::Kyber512Round3, // TODO: remove experiment_cookie_dos_mitigation
                     )?
                     .mix(cookie_secret)?
                     .mix(host_identification.encode())?
@@ -2091,7 +2091,7 @@ impl CryptoServer {
                 expected.copy_from_slice(
                     &hash_domains::cookie(
                         KeyedHash::keyed_shake256(),
-                        unimplemented!("experiment_cookie_dos_mitigation"),
+                        EphemeralKem::Kyber512Round3, // TODO: remove experiment_cookie_dos_mitigation
                     )?
                     .mix(&cookie_value)?
                     .mix(&msg_in.as_bytes()[span_of!(Envelope<InitHello>, msg_type..cookie)])?
@@ -2131,7 +2131,7 @@ impl CryptoServer {
         let cookie_value = active_cookie_value.unwrap();
         let cookie_key = hash_domains::cookie_key(
             KeyedHash::keyed_shake256(),
-            unimplemented!("experiment_cookie_dos_mitigation"),
+            EphemeralKem::Kyber512Round3, // TODO: remove experiment_cookie_dos_mitigation
         )?
         .mix(self.spkm.deref())?
         .into_value();
@@ -3199,7 +3199,7 @@ where
         if let Some(cookie_key) = &peer.cv().get(srv) {
             let cookie = hash_domains::cookie(
                 KeyedHash::keyed_shake256(),
-                unimplemented!("experiment_cookie_dos_mitigation"),
+                EphemeralKem::Kyber512Round3, // TODO: remove experiment_cookie_dos_mitigation
             )?
             .mix(cookie_key.value.secret())?
             .mix(&self.as_bytes()[span_of!(Self, msg_type..cookie)])?;
@@ -4305,7 +4305,7 @@ impl CryptoServer {
                 let spkt = peer.get(self).spkt.deref();
                 let cookie_key = hash_domains::cookie_key(
                     KeyedHash::keyed_shake256(),
-                    unimplemented!("experiment_cookie_dos_mitigation"),
+                    EphemeralKem::Kyber512Round3, // TODO: remove experiment_cookie_dos_mitigation
                 )?
                 .mix(spkt)?
                 .into_value();
