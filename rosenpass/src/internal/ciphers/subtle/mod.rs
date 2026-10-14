@@ -9,6 +9,10 @@ pub mod ephemeral_kem_choice;
 pub mod keyed_hash;
 pub mod rust_crypto;
 
+// The re-export are used by other crates, e.g. `rosenpass-fuzzing`
+#[allow(unused_imports)]
 pub use custom::incorrect_hmac_blake2b;
+#[allow(unused_imports)]
 pub use ephemeral_kem_choice::EphemeralKemChoice;
+#[allow(unused_imports)]
 pub use rust_crypto::{blake2b, keyed_shake256};

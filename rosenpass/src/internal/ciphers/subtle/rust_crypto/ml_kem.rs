@@ -11,7 +11,7 @@ use crate::internal::cipher_traits::{
 
 use ::ml_kem::kem::{Decapsulate, Encapsulate};
 use ::ml_kem::{
-    EncapsulationKey, Kem as UpstreamKem, Key, KeyExport, MlKem512 as UpstreamMlKem512, Seed,
+    EncapsulationKey, Kem as UpstreamKem, Key, KeyExport, MlKem512 as UpstreamMlKem512,
 };
 use ml_kem::ExpandedKeyEncoding;
 
@@ -22,7 +22,7 @@ use ml_kem::ExpandedKeyEncoding;
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// use rosenpass::internal::cipher_traits::primitives::Kem;
-/// use rosenpass::internal::ml_kem::MlKem512 as MyKem;
+/// use rosenpass::internal::ciphers::subtle::rust_crypto::ml_kem::MlKem512 as MyKem;
 /// use rosenpass::internal::secret_memory::{Secret, Public};
 /// use rosenpass::internal::constant_time::compare;
 ///

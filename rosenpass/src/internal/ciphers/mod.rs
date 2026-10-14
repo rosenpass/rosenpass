@@ -4,7 +4,7 @@ use static_assertions::const_assert;
 pub mod hash_domain;
 pub mod subtle;
 
-pub use subtle::EphemeralKemChoice;
+pub use subtle::ephemeral_kem_choice::EphemeralKemChoice;
 
 // ==================== cipher choices ====================
 
@@ -42,5 +42,5 @@ pub use crate::internal::oqs::ClassicMceliece460896 as StaticKem;
 /// The user can choose which one of these two KEMs will be used
 /// (choice during run time).
 ///
-/// see [`crate::protocol::EphemeralKemChoice`] for more details
-pub use subtle::EphemeralKemChoice as EphemeralKem;
+/// see type variants documentation for more details
+pub use subtle::ephemeral_kem_choice::EphemeralKemChoice as EphemeralKem;
