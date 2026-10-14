@@ -110,16 +110,12 @@ macro_rules! hash_domain {
 ///
 /// See the [module](self) documentation on how to use the hash domains in general.
 pub fn protocol(hash_choice: KeyedHash, ephemeral_kem_choice: EphemeralKem) -> Result<HashDomain> {
+    let hash_string = hash_choice.protocol_string_hash_id();
     let ekem_string = ephemeral_kem_choice.protocol_string_kem_id();
-    // Depending on the hash function, we use different protocol strings
-    match hash_choice {
-        KeyedHash::KeyedShake256(_) => HashDomain::zero(hash_choice).mix(
-            format!("Rosenpass v1 mceliece460896 {ekem_string} ChaChaPoly1305 SHAKE256").as_bytes(),
-        ),
-        KeyedHash::IncorrectHmacBlake2b(_) => HashDomain::zero(hash_choice).mix(
-            format!("Rosenpass v1 mceliece460896 {ekem_string} ChaChaPoly1305 BLAKE2s").as_bytes(),
-        ),
-    }
+    HashDomain::zero(hash_choice).mix(
+        format!("Rosenpass v1 mceliece460896 {ekem_string} ChaChaPoly1305 {hash_string}")
+            .as_bytes(),
+    )
 }
 
 hash_domain_ns!(

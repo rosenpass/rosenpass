@@ -33,7 +33,7 @@ impl EphemeralKemChoice {
 
     /// identifier used in the protocol's hash domain separation strings
     ///
-    /// also see implementation of [`crate::hash_domains::protocol`]
+    /// used by [`crate::hash_domains::protocol`]
     pub const fn protocol_string_kem_id(&self) -> &'static str {
         match self {
             EphemeralKemChoice::Kyber512Round3 => "Kyber512",

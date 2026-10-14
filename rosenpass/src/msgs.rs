@@ -131,7 +131,7 @@ pub struct Envelope<M: IntoBytes + FromBytes> {
 pub struct InitHello {
     /// Randomly generated connection id
     pub sidi: [u8; 4],
-    /// Kyber 512 Ephemeral Public Key
+    /// Kyber-512 or ML-KEM Ephemeral Public Key (see `EphemeralKem` documentation)
     pub epki: [u8; EphemeralKem::PK_LEN],
     /// Classic McEliece Ciphertext
     pub sctr: [u8; StaticKem::CT_LEN],
@@ -182,7 +182,7 @@ pub struct RespHello {
     pub sidr: [u8; 4],
     /// Copied from InitHello
     pub sidi: [u8; 4],
-    /// Kyber 512 Ephemeral Ciphertext
+    /// Kyber-512 or ML-KEM Ephemeral Ciphertext (see `EphemeralKem` documentation)
     pub ecti: [u8; EphemeralKem::CT_LEN],
     /// Classic McEliece Ciphertext
     pub scti: [u8; StaticKem::CT_LEN],
