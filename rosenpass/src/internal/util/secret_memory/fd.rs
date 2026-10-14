@@ -523,14 +523,6 @@ impl SecretMemfdConfig {
             true => cfg.set_shared(),
         };
 
-        // If necessary, disable protection against resizing (if not supported)
-        let mfds_prot_resize =
-            memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?;
-        let cfg = match mfds_use && !mfds_prot_resize {
-            false => cfg,
-            true => cfg.disable_resizing_protection(),
-        };
-
         Ok(cfg)
     }
 }

@@ -44,10 +44,6 @@ impl MMapSizePolicy {
 /// Configuration for [MappableFd::mmap]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MappingConfig {
-    /// The memory region can not be read from
-    pub unreadable: bool,
-    /// The memory region can not be written to
-    pub immutable: bool,
     /// The memory region is shared-memory; other mappings of the same
     /// region within and outside this process can see the modifications
     /// to the memory region (as long as they also set the shared flag)
@@ -68,24 +64,6 @@ pub struct MappingConfig {
     /// When using [SecretMemfdConfig::create()], this flag and [Self::no_resizing_protection] are
     /// automatically configured.
     pub shared: bool,
-    /// Whether the file descriptor should be protected against resizing
-    ///
-    /// Note that when this flag is used together with [Self::shared],
-    /// then the configuration is vulnerable to the attack described in [super::fd::memfd_secret_support()].
-    ///
-    /// This insecure configuration will not be rejected as it may still be useful in some
-    /// scenarios where the other process is trusted.
-    ///
-    /// Note that when the file descriptor used for allocation is a memfd_secret(2),
-    /// this flag MUST be set when [super::fd::memfd_secret_protects_against_resizing()] is false (this is
-    /// the case on some systems) and it MUST NOT be set when [super::fd::memfd_secret_protects_against_resizing()]
-    /// is true. [MappableFd::mmap] enforces this constraint for memfd_secret(2) file
-    /// descriptors only; for other file descriptors, the flag merely selects whether
-    /// resizing protection (sealing) is requested.
-    ///
-    /// When using [SecretMemfdConfig::create()], this flag and [Self::shared] are
-    /// automatically configured.
-    pub no_resizing_protection: bool,
     /// How [MappableFd::mmap] will determine the size to be used for the mapping
     ///
     /// You should usually set this value through [Self::set_size_policy],
@@ -100,10 +78,7 @@ impl MappingConfig {
     /// an error when called
     pub const fn new() -> Self {
         MappingConfig {
-            unreadable: false,
-            immutable: false,
             shared: false,
-            no_resizing_protection: false,
             size_policy: None,
         }
     }
@@ -120,31 +95,10 @@ impl MappingConfig {
         Self::new().set_shared()
     }
 
-    /// Set the [Self::unreadable] flag
-    pub const fn set_unreadable(&self) -> Self {
-        let mut r = *self;
-        r.unreadable = true;
-        r
-    }
-
-    /// Set the [Self::immutable] flag
-    pub const fn set_immutable(&self) -> Self {
-        let mut r = *self;
-        r.immutable = true;
-        r
-    }
-
     /// Set the [Self::shared] flag
     pub const fn set_shared(&self) -> Self {
         let mut r = *self;
         r.shared = true;
-        r
-    }
-
-    /// Set the [Self::no_resizing_protection] flag
-    pub const fn disable_resizing_protection(&self) -> Self {
-        let mut r = *self;
-        r.no_resizing_protection = true;
         r
     }
 
@@ -156,18 +110,7 @@ impl MappingConfig {
     /// Calculate [rustix::mm::ProtFlags] for this configuration
     pub const fn mmap_prot(&self) -> rustix::mm::ProtFlags {
         use rustix::mm::ProtFlags as P;
-
-        let p_read = match self.unreadable {
-            true => P::empty(),
-            false => P::READ,
-        };
-
-        let p_write = match self.immutable {
-            true => P::empty(),
-            false => P::WRITE,
-        };
-
-        p_read.union(p_write)
+        P::READ.union(P::WRITE)
     }
 
     /// Calculate [rustix::mm::MapFlags] for this configuration
@@ -369,6 +312,10 @@ pub enum MMapError {
     #[cfg(target_os = "linux")]
     #[error("Tried to protect the allocated memory region against memory dumps using madvise(2) with MADV_DONTDUMP, but got following error instead: {}", .0)]
     CouldNotProtectAgainstMemoryDumps(rustix::io::Errno),
+    /// Some other (system) error occurred that prevented us from determining whether
+    /// memfd_secret(2) is supported.
+    #[error("Failed to determine whether memfd_secret(2) is supported due to an underlying system error: {}", .0)]
+    FailedToDetectMemfdSecretSupport(rustix::io::Errno),
 }
 
 /// Handle mapping a file descriptor into memory or creating anonymous memory allocations

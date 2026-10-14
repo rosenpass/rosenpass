@@ -201,7 +201,6 @@ impl<'fd> AllocationCode<'fd> {
             Err(MMapInvalidConfigError::MapSharedNeededForMemfdSecret)?;
         }
 
-        self.enforce_mandatory_memfd_secret_resize_settings()?;
         self.appropriately_size_and_seal_fd()?;
 
         Ok(())
@@ -257,7 +256,7 @@ impl<'fd> AllocationCode<'fd> {
     ///   documented mlock precondition. PROT_READ is set, because we check for
     ///   `self.config().unreadable` explicitly.
     fn mlock(&mut self) -> Result<(), MMapError> {
-        if self.is_memfd_secret()? || self.config().unreadable {
+        if self.is_memfd_secret()? {
             return Ok(());
         }
 
@@ -442,7 +441,7 @@ impl<'fd> AllocationCode<'fd> {
     fn appropriately_size_and_seal_fd(&mut self) -> Result<(), MMapError> {
         let Some(fd) = self.fd() else { return Ok(()) };
 
-        if self.resize_protection_requested() && !self.is_memfd_secret()? {
+        if self.resize_protection_enabled()? && !self.is_memfd_secret()? {
             let current_seals =
                 rustix::fs::fcntl_get_seals(fd).map_err(MemfdCreateSealError::SystemError)?;
             let missing = SRESIZE.difference(current_seals);
@@ -476,7 +475,7 @@ impl<'fd> AllocationCode<'fd> {
         let mut prev_seals: Option<SealFlags> = None;
         'seal: loop {
             // Do not protect against resizing if this is disabled
-            if !self.resize_protection_requested() {
+            if !self.resize_protection_enabled()? {
                 break 'seal;
 
             // No active steps needed to protect memfd_secret based file descriptors
@@ -551,28 +550,11 @@ impl<'fd> AllocationCode<'fd> {
         Ok(())
     }
 
-    /// Validate that the resizing protection settings match the mandatory settings
-    /// with memfd_secret(2)
-    fn enforce_mandatory_memfd_secret_resize_settings(&mut self) -> Result<(), MMapError> {
-        if !self.is_memfd_secret()? {
-            return Ok(());
-        }
-
-        let resize_protection_enabled =
-            memfd_secret_protects_against_resizing().map_err(MemfdCreateSealError::SystemError)?;
-        if self.resize_protection_requested() != resize_protection_enabled {
-            Err(MMapInvalidConfigError::IncorrectResizingProtectionSetting {
-                protection_enabled_by_system: resize_protection_enabled,
-                protection_requested: self.resize_protection_requested(),
-            })?;
-        }
-
-        Ok(())
-    }
-
     /// Whether the configuration requests protection against resizing
-    fn resize_protection_requested(&self) -> bool {
-        !self.config().no_resizing_protection
+    fn resize_protection_enabled(&mut self) -> Result<bool, MMapError> {
+        let memfd_secret_protects_against_resizing = memfd_secret_protects_against_resizing()
+            .map_err(MMapError::FailedToDetectMemfdSecretSupport)?;
+        Ok(!self.is_memfd_secret()? || memfd_secret_protects_against_resizing)
     }
 
     /// Ensure the backing segment has been allocated and return a mutable
