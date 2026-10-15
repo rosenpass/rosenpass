@@ -34,7 +34,12 @@ impl std::fmt::Display for KvPairs<'_> {
 }
 
 mod kem {
-    criterion::criterion_group!(benches, bench_kyber512_oqs, bench_classicmceliece460896_oqs);
+    criterion::criterion_group!(
+        benches,
+        bench_mlkem_rustcrypto,
+        bench_kyber512_oqs,
+        bench_classicmceliece460896_oqs
+    );
 
     use criterion::Criterion;
 
@@ -49,6 +54,15 @@ mod kem {
 
     fn bench_kyber512_oqs(c: &mut Criterion) {
         template(c, "kyber512", "oqs", rosenpass::internal::oqs::Kyber512);
+    }
+
+    fn bench_mlkem_rustcrypto(c: &mut Criterion) {
+        template(
+            c,
+            "mlkem512",
+            "rustcrypto",
+            rosenpass::internal::ciphers::subtle::rust_crypto::ml_kem::MlKem512,
+        );
     }
 
     use rosenpass::internal::cipher_traits::primitives::Kem;

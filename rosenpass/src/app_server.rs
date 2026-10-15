@@ -1265,7 +1265,10 @@ impl AppServer {
         why: KeyOutputReason,
         key: &SymKey,
     ) -> anyhow::Result<()> {
-        let peerid = peer.lower().get(self.crypto_server()?).pidt()?;
+        let peerid = {
+            let srv = self.crypto_server()?;
+            peer.lower().get(srv).pidt()?
+        };
 
         if self.verbose() {
             let msg = match why {
