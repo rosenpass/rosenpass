@@ -1,72 +1,41 @@
 //! Memory allocation facilities for secret memory
 
 use std::{
-    borrow::{Borrow, BorrowMut},
-    ops::{Deref, DerefMut},
+    alloc::{AllocError, Allocator},
+    ffi::c_void,
+    mem::ManuallyDrop,
 };
+
+use rustix::param::page_size;
 
 use crate::internal::util::{
     functional::ApplyExt,
-    int::u64uint::U64USize,
     mem::CopyExt,
     result::OkExt,
     secret_memory::{
-        fd::{SecretMemfdConfig, SecretMemfdConfigValidationError, SecretMemfdWithConfigError},
-        mmap::{MMapError, MMapSizePolicy, MappedSegment, MappingConfig},
+        fd::{SecretMemfdConfig, SecretMemfdConfigValidationError},
+        mmap::{MappedSegment, RawMappedSegment},
     },
 };
-
-/// Allocate a segment of memory in a particularly secure way
-/// and expose the resulting memory segment as an [OwnedSegment]
-///
-/// This is just a shorthand for:
-///
-/// 1. Creating an [AllocatorConfig] using [AllocatorConfig::new()]
-/// 2. Installing a size configuration using [AllocatorConfig::sized()]
-/// 3. Calling [AllocatorConfig::allocate()]
-///
-/// The [SecretMemfdConfigValidationError] from [AllocatorConfig::new()] is
-/// exposed as a [SecretMemfdWithConfigError::InvalidConfig] error.
-pub fn allocate(size: usize) -> Result<OwnedSegment, AllocatorError> {
-    AllocatorConfig::new()
-        .map_err(SecretMemfdWithConfigError::InvalidConfig)?
-        .sized(size)
-        .allocate()
-}
-
-/// Errors during allocation of secret memory
-#[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
-pub enum AllocatorError {
-    /// Error creating the [crate::internal::util::secret_memory::mmap::Mappable] using [SecretMemfdConfig::create()]
-    #[error("Could not create the secret memory file descriptor or set up the anonymous mapping: {}", .0)]
-    MemfdError(#[from] SecretMemfdWithConfigError),
-    /// Error while trying to map the memory file descriptor/the anonymous segment into memory
-    /// using [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
-    #[error("Could not allocate secret memory: {}", .0)]
-    MMapError(#[from] MMapError),
-}
 
 /// A configurable memory allocator for secret memory regions
 ///
 /// The allocation proceeds in roughly two phases:
 ///
 /// 1. Creating a [crate::internal::util::secret_memory::mmap::Mappable] using
-///    [SecretMemfdConfig::create()] in [AllocatorConfig::new()]
+///    [SecretMemfdConfig::create()] in [SecretMemoryAllocator::new()]
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
-/// 3. Wrapping the resulting [MappedSegment] into an [OwnedSegment] for convenient access
 #[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
-pub struct AllocatorConfig {
+pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
     /// file descriptor backing the memory allocation. Based on policy,
     /// different mechanisms such as memfd_secret(2), memfd_create(2), or
     /// anonymous allocations (no file descriptor) are used
     pub memfd_config: SecretMemfdConfig,
-    /// Settings for the memory allocation itself
-    pub mapping_config: MappingConfig,
 }
 
-impl AllocatorConfig {
+impl SecretMemoryAllocator {
     /// Create a new configuration for later allocations
     ///
     /// The [Self::memfd_config] is created using [SecretMemfdConfig::new()]
@@ -74,29 +43,7 @@ impl AllocatorConfig {
     /// and the [Self::mapping_config] is derived using [SecretMemfdConfig::map_fd_config()].
     pub fn new() -> Result<Self, SecretMemfdConfigValidationError> {
         let memfd_config = SecretMemfdConfig::new().allow_anonymous_mappings();
-        let mapping_config = memfd_config.map_fd_config()?;
-        Ok(Self {
-            memfd_config,
-            mapping_config,
-        })
-    }
-
-    /// Allocate a segment of memory with this allocator configuration
-    ///
-    /// This is pretty much just a convenience wrapper for:
-    ///
-    /// 1. Creating a secret memory [crate::internal::util::secret_memory::mmap::Mappable] (i.e. a
-    ///    memfd(2)/memfd_secret(2) file descriptor or no file descriptor for an anonymous mapping)
-    /// 2. Applying the config from [AllocatorConfig::mapping_config] via [crate::internal::util::secret_memory::mmap::Mappable::with_config()]
-    /// 3. Mapping the [crate::internal::util::secret_memory::mmap::Mappable] into memory using [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
-    /// 4. Wrapping the [crate::internal::util::secret_memory::mmap::MappedSegment] in [OwnedSegment] so the allocated memory can actually be accessed
-    pub fn allocate(&self) -> Result<OwnedSegment, AllocatorError> {
-        self.memfd_config
-            .create()?
-            .with_config(self.mapping_config)
-            .mmap()?
-            .apply(|seg| unsafe { OwnedSegment::new(seg) })
-            .ok()
+        Ok(Self { memfd_config })
     }
 
     /// Return a copy with an updated [SecretMemfdConfig]
@@ -109,22 +56,6 @@ impl AllocatorConfig {
         let mut r = self.copy();
         r.memfd_config = memfd_config;
         r
-    }
-
-    /// Return a copy with an updated [MappingConfig]
-    pub fn with_mapping_config(&self, mapping_config: MappingConfig) -> Self {
-        let mut r = self.copy();
-        r.mapping_config = mapping_config;
-        r
-    }
-
-    /// Return a copy requesting `size` data bytes via via the [MMapSizePolicy::Resize] policy
-    pub fn sized(&self, size: usize) -> Self {
-        let size = U64USize::new_or_panic(size).u64();
-        let cfg = self
-            .mapping_config
-            .set_size_policy(MMapSizePolicy::Resize(size));
-        self.with_mapping_config(cfg)
     }
 
     /// Return a copy requiring memfd_secret(2) backed allocations even on systems
@@ -141,84 +72,164 @@ impl AllocatorConfig {
     }
 }
 
-/// An exclusively owned mapped data segment accessible as a byte slice.
-pub struct OwnedSegment {
-    /// Owns the backing allocation and identifies the data range satisfying
-    /// [OwnedSegment::new()]'s slice-access and lifetime requirements.
-    inner: MappedSegment,
+unsafe impl Allocator for SecretMemoryAllocator {
+    fn allocate(
+        &self,
+        layout: std::alloc::Layout,
+    ) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
+        AllocatorSegment::allocate(self, layout)?
+            .into_alloc_ptr()
+            .ok()
+    }
+
+    unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
+        std::mem::drop(AllocatorSegment::from_alloc_ptr_and_layout(ptr, layout))
+    }
 }
 
-impl OwnedSegment {
-    /// Take ownership of a mapping and enable safe shared and mutable byte-slice access.
-    ///
-    /// This does not validate the mapping's protection, length, or aliasing, and
-    /// does not initialize its contents or change its protection.
-    ///
-    /// # Safety
-    ///
-    /// The caller must establish and maintain the following until this value is
-    /// dropped, including for the full lifetime of every slice borrowed from it:
-    ///
-    /// - `mapped_segment.ptr()` must be live, non-null, properly aligned for `u8`,
-    ///   and carry provenance permitting access to the data range, even at zero length.
-    /// - The entire `mapped_segment.len()`-byte data range must be initialized,
-    ///   readable, and writable, and lie within a single allocation. Its length
-    ///   must not exceed `isize::MAX`, and computing its end must not wrap the
-    ///   address space. Guard pages must be outside this range.
-    /// - Access to the data must be exclusive to this owner and its borrows. There
-    ///   must be no outstanding references at construction and no conflicting
-    ///   access through retained pointers, aliased mappings, or another thread or
-    ///   process. This includes mutation through a backing-file descriptor: bytes
-    ///   must not change behind a shared slice, and a mutable slice must have
-    ///   exclusive access, including against reads through such aliases.
-    /// - The data range must remain valid and readable+writable: no truncation,
-    ///   unmapping, remapping, protection change (mprotect), or fork may invalidate
-    ///   it or introduce conflicting aliases. In particular, a forked child must
-    ///   not access or drop an inherited value whose mapping was excluded by
-    ///   MADV_DONTFORK.
-    /// - `mapped_segment` must exclusively own its complete live backing
-    ///   allocation, including any guards, with a page-aligned base, valid length,
-    ///   and provenance suitable for its eventual munmap in [MappedSegment]'s
-    ///   destructor. At destruction its page-rounded range must be valid to mutate
-    ///   with that provenance and contain no live Rust references. No other owner
-    ///   may release or replace that allocation.
-    pub unsafe fn new(mapped_segment: MappedSegment) -> Self {
-        Self {
+#[derive(Debug)]
+struct AllocatorSegment {
+    pub inner: MappedSegment,
+}
+
+impl AllocatorSegment {
+    pub fn allocate(
+        alloc: &SecretMemoryAllocator,
+        layout: std::alloc::Layout,
+    ) -> Result<Self, AllocError> {
+        // Checks for safety; these must ALWAYS hold anyway
+        assert!(layout.align() <= page_size());
+        assert!(layout.align().count_ones() == 1);
+
+        let me = alloc
+            // FD Creation
+            .memfd_config
+            .create()
+            .map_err(log_alloc_err)?
+            // Memory Alloc
+            .mmap()
+            .map_err(log_alloc_err)?
+            // Conversion
+            .apply(Self::from_mapped_segment);
+
+        me.validate_allocation_layout(layout);
+
+        Ok(me)
+    }
+
+    fn from_mapped_segment(mapped_segment: MappedSegment) -> Self {
+        let me = Self {
             inner: mapped_segment,
-        }
+        };
+        me.validate_memory_layout();
+        me
+    }
+
+    fn from_alloc_ptr_and_layout(ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) -> Self {
+        let (ptr, len) = (ptr.as_ptr(), layout.size());
+        let data_pages_len = len.next_multiple_of(page_size());
+        let alloc_ptr = ptr.wrapping_sub(page_size()).cast();
+        let alloc_len = data_pages_len + page_size();
+
+        let seg = RawMappedSegment {
+            alloc_ptr,
+            alloc_len,
+            ptr,
+            len,
+        };
+        let seg = unsafe { MappedSegment::from_raw(seg) };
+        let seg = Self::from_mapped_segment(seg);
+
+        seg.validate_allocation_layout(layout);
+
+        seg
+    }
+
+    fn into_alloc_ptr(self) -> std::ptr::NonNull<[u8]> {
+        let me = ManuallyDrop::new(self);
+        me.data_ptr()
+    }
+
+    fn validate_allocation_layout(&self, layout: std::alloc::Layout) {
+        assert!(self.data_start().is_multiple_of(page_size()));
+
+        assert_eq!(self.data_len(), layout.size());
+        assert!(self.data_start().is_multiple_of(layout.align()));
+    }
+
+    fn validate_memory_layout(&self) {
+        assert_eq!(self.front_guard_len(), page_size());
+        assert_eq!(self.back_guard_len(), page_size());
+        assert!(self.unused_len() < page_size());
+    }
+
+    fn alloc_ptr(&self) -> std::ptr::NonNull<*mut c_void> {
+        std::ptr::NonNull::new(self.inner.raw().alloc_ptr)
+            .unwrap()
+            .cast()
+    }
+
+    fn data_ptr(&self) -> std::ptr::NonNull<[u8]> {
+        use std::ptr::slice_from_raw_parts_mut as slice_ptr;
+        self.inner
+            .raw()
+            .alloc_ptr
+            .cast::<u8>()
+            .apply(|ptr| slice_ptr(ptr, self.data_len()))
+            .apply(std::ptr::NonNull::new)
+            .unwrap()
+    }
+
+    fn alloc_len(&self) -> usize {
+        self.inner.raw().alloc_len
+    }
+
+    fn data_len(&self) -> usize {
+        self.inner.raw().len
+    }
+
+    fn data_pages_len(&self) -> usize {
+        self.data_len().next_multiple_of(page_size())
+    }
+
+    fn alloc_start(&self) -> usize {
+        self.alloc_ptr().addr().get()
+    }
+
+    fn data_start(&self) -> usize {
+        self.data_ptr().addr().get()
+    }
+
+    fn data_pages_start(&self) -> usize {
+        self.data_ptr().addr().get()
+    }
+
+    fn data_end(&self) -> usize {
+        self.data_start().wrapping_add(self.data_len())
+    }
+
+    fn alloc_end(&self) -> usize {
+        self.alloc_start().wrapping_add(self.alloc_len())
+    }
+
+    fn data_pages_end(&self) -> usize {
+        self.data_start().wrapping_add(self.data_pages_len())
+    }
+
+    fn front_guard_len(&self) -> usize {
+        self.data_start() - self.alloc_start()
+    }
+
+    fn back_guard_len(&self) -> usize {
+        self.alloc_end() - self.data_pages_end()
+    }
+
+    fn unused_len(&self) -> usize {
+        self.data_pages_end() - self.data_end()
     }
 }
 
-impl Deref for OwnedSegment {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        // SAFETY: OwnedSegment::new requires a live, non-null, aligned pointer
-        // to initialized readable data in one allocation, with len <= isize::MAX
-        // and no address-space wrap. Ownership keeps it valid for this borrow,
-        // and the constructor contract excludes mutation behind the shared slice.
-        unsafe { std::slice::from_raw_parts(self.inner.ptr(), self.inner.len()) }
-    }
-}
-
-impl DerefMut for OwnedSegment {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        // SAFETY: OwnedSegment::new requires initialized readable+writable data
-        // in one live allocation with a non-null aligned pointer, len <= isize::MAX,
-        // and no address-space wrap. Its no-alias contract and this exclusive
-        // borrow ensure no other access occurs while the mutable slice is live.
-        unsafe { std::slice::from_raw_parts_mut(self.inner.ptr(), self.inner.len()) }
-    }
-}
-
-impl Borrow<[u8]> for OwnedSegment {
-    fn borrow(&self) -> &[u8] {
-        self.deref()
-    }
-}
-
-impl BorrowMut<[u8]> for OwnedSegment {
-    fn borrow_mut(&mut self) -> &mut [u8] {
-        self.deref_mut()
-    }
+fn log_alloc_err<E: std::fmt::Display>(e: E) -> std::alloc::AllocError {
+    log::warn!("Could not allocate secret memory: {e}");
+    std::alloc::AllocError
 }

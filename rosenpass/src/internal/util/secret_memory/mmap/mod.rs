@@ -7,7 +7,6 @@
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
 use std::os::fd::AsFd;
-use std::ptr::null_mut;
 
 use rustix::fs::SealFlags;
 
@@ -430,6 +429,25 @@ impl<Fd: AsFd> Mappable<Fd> {
     }
 }
 
+/// Raw data contained in a [MappedSegment]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct RawMappedSegment {
+    /// Pointer to the backing allocation
+    pub alloc_ptr: *mut c_void,
+    /// Length of the backing allocation in bytes
+    pub alloc_len: usize,
+    /// The location of the memory segment
+    pub ptr: *mut u8,
+    /// Length of the segment in bytes
+    pub len: usize,
+}
+
+impl RawMappedSegment {
+    pub fn zero() -> Self {
+        Self::default()
+    }
+}
+
 /// Represents exclusive ownership of a memory segment mapped into memory
 ///
 /// Automatically unmaps the memory segment as this goes out of scope
@@ -442,28 +460,34 @@ impl<Fd: AsFd> Mappable<Fd> {
 /// [Self::unmap] instead
 #[derive(Debug)]
 pub struct MappedSegment {
-    /// Pointer to the backing allocation
-    alloc_ptr: *mut c_void,
-    /// Length of the backing allocation in bytes
-    alloc_len: usize,
-    /// The location of the memory segment
-    ptr: *mut u8,
-    /// Length of the segment in bytes
-    len: usize,
+    inner: RawMappedSegment,
 }
 
 unsafe impl Send for MappedSegment {}
 
 impl MappedSegment {
+    pub fn raw(&self) -> RawMappedSegment {
+        self.inner
+    }
+
+    pub fn into_raw(self) -> RawMappedSegment {
+        let me = ManuallyDrop::new(self);
+        me.raw()
+    }
+
+    pub unsafe fn from_raw(raw: RawMappedSegment) -> Self {
+        Self { inner: raw }
+    }
+
     /// The location of the memory segment
     pub fn ptr(&self) -> *mut u8 {
-        self.ptr
+        self.inner.ptr
     }
 
     /// Length of the segment in bytes
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        self.len
+        self.inner.len
     }
 
     /// Release the memory segment
@@ -474,7 +498,7 @@ impl MappedSegment {
     /// the error.
     pub fn unmap(self) -> Result<(), (rustix::io::Errno, Self)> {
         let me = ManuallyDrop::new(self);
-        let res = unsafe { rustix::mm::munmap(me.alloc_ptr.cast(), me.alloc_len) };
+        let res = unsafe { rustix::mm::munmap(me.raw().alloc_ptr.cast(), me.raw().alloc_len) };
         res.map_err(|errno| (errno, ManuallyDrop::into_inner(me)))
     }
 }
@@ -482,10 +506,7 @@ impl MappedSegment {
 impl Drop for MappedSegment {
     fn drop(&mut self) {
         let nullseg = MappedSegment {
-            alloc_ptr: null_mut(),
-            alloc_len: 0,
-            ptr: null_mut(),
-            len: 0,
+            inner: RawMappedSegment::zero(),
         };
         let owned = std::mem::replace(self, nullseg);
         if let Err((errno, seg)) = owned.unmap() {

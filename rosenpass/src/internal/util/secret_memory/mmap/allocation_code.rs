@@ -23,7 +23,7 @@ use crate::internal::util::{
         fd::memfd_secret_protects_against_resizing,
         mmap::{
             MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment,
-            MappingConfig, MemfdCreateSealError,
+            MappingConfig, MemfdCreateSealError, RawMappedSegment,
         },
     },
 };
@@ -226,7 +226,7 @@ impl<'fd> AllocationCode<'fd> {
         };
 
         let seg = self.data_page()?;
-        let (addr, len) = (seg.ptr().cast(), seg.len);
+        let (addr, len) = (seg.ptr().cast(), seg.len());
         unsafe {
             madvise(addr, len, AFork).map_err(EFork)?;
             madvise(addr, len, ADump).map_err(EDump)?;
@@ -419,10 +419,12 @@ impl<'fd> AllocationCode<'fd> {
             let ptr = mmap_anonymous(null_mut(), self.alloc_len()?, prot, flags)
                 .map_err(MMapError::MMapError)?;
             MappedSegment {
-                alloc_ptr: ptr,
-                alloc_len: self.alloc_len()?,
-                ptr: ptr.add(self.pagesize()).cast(),
-                len: self.data_len()?,
+                inner: RawMappedSegment {
+                    alloc_ptr: ptr,
+                    alloc_len: self.alloc_len()?,
+                    ptr: ptr.add(self.pagesize()).cast(),
+                    len: self.data_len()?,
+                },
             }
         };
 
