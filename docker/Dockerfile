@@ -18,6 +18,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage 3: Cache dependencies using the recipe
 FROM chef AS cacher
 WORKDIR /app
+# rustup must select the toolchain before cargo-chef cooks dependencies.
+COPY rust-toolchain.toml rust-toolchain.toml
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --features rp --recipe-path recipe.json
 
