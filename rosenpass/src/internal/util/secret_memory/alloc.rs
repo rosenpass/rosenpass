@@ -27,8 +27,9 @@ use crate::internal::util::{
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
 ///
-/// Zero-sized layouts and alignments larger than the system page size are
-/// unsupported and return [AllocError].
+/// Zero-sized layouts return an aligned dangling pointer without creating a
+/// mapping or guard pages; their deallocation is a no-op. Layouts with
+/// alignments larger than the system page size are unsupported and return [AllocError].
 /// Unexpected panics during allocation or deallocation abort the process, as
 /// required by the [Allocator] contract; ordinary allocation failures return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -106,8 +107,9 @@ unsafe impl Allocator for SecretMemoryAllocator {
 }
 
 #[derive(Debug)]
-struct AllocatorSegment {
-    pub inner: MappedSegment,
+enum AllocatorSegment {
+    Mapped(MappedSegment),
+    ZeroSized(std::ptr::NonNull<u8>),
 }
 
 impl AllocatorSegment {
@@ -115,8 +117,10 @@ impl AllocatorSegment {
         alloc: &SecretMemoryAllocator,
         layout: std::alloc::Layout,
     ) -> Result<Self, AllocError> {
-        if layout.size() == 0 || layout.align() > page_size() {
+        if layout.align() > page_size() {
             return Err(AllocError);
+        } else if layout.size() == 0 {
+            return Ok(Self::ZeroSized(layout.dangling_ptr()));
         }
 
         let mappable = alloc.memfd_config.create().map_err(log_alloc_err)?;
@@ -133,14 +137,16 @@ impl AllocatorSegment {
     }
 
     fn from_mapped_segment(mapped_segment: MappedSegment) -> Self {
-        let me = Self {
-            inner: mapped_segment,
-        };
+        let me = Self::Mapped(mapped_segment);
         me.validate_memory_layout();
         me
     }
 
     fn from_alloc_ptr_and_layout(ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) -> Self {
+        if layout.size() == 0 {
+            return Self::ZeroSized(ptr);
+        }
+
         let (ptr, len) = (ptr.as_ptr(), layout.size());
         let data_pages_len = len.next_multiple_of(page_size());
         let alloc_ptr = ptr.wrapping_sub(page_size()).cast();
@@ -166,41 +172,51 @@ impl AllocatorSegment {
     }
 
     fn validate_allocation_layout(&self, layout: std::alloc::Layout) {
-        assert!(self.data_start().is_multiple_of(page_size()));
-
+        assert!(matches!(self, Self::Mapped(_)) && self.data_start().is_multiple_of(page_size()));
         assert_eq!(self.data_len(), layout.size());
         assert!(self.data_start().is_multiple_of(layout.align()));
     }
 
     fn validate_memory_layout(&self) {
-        assert_eq!(self.front_guard_len(), page_size());
-        assert_eq!(self.back_guard_len(), page_size());
+        let guard_len = match self {
+            Self::Mapped(_) => page_size(),
+            Self::ZeroSized(_) => 0,
+        };
+        assert_eq!(self.front_guard_len(), guard_len);
+        assert_eq!(self.back_guard_len(), guard_len);
         assert!(self.unused_len() < page_size());
     }
 
     fn alloc_ptr(&self) -> std::ptr::NonNull<*mut c_void> {
-        std::ptr::NonNull::new(self.inner.raw().alloc_ptr)
-            .unwrap()
-            .cast()
+        match self {
+            Self::Mapped(inner) => std::ptr::NonNull::new(inner.raw().alloc_ptr)
+                .unwrap()
+                .cast(),
+            Self::ZeroSized(ptr) => ptr.cast(),
+        }
     }
 
     fn data_ptr(&self) -> std::ptr::NonNull<[u8]> {
-        use std::ptr::slice_from_raw_parts_mut as slice_ptr;
-        self.inner
-            .raw()
-            .ptr
-            .cast::<u8>()
-            .apply(|ptr| slice_ptr(ptr, self.data_len()))
-            .apply(std::ptr::NonNull::new)
-            .unwrap()
+        let ptr = match self {
+            Self::Mapped(inner) => inner.raw().ptr.apply(std::ptr::NonNull::new).unwrap(),
+            Self::ZeroSized(ptr) => ptr.copy(),
+        };
+
+        std::ptr::NonNull::slice_from_raw_parts(ptr, self.data_len())
     }
 
     fn alloc_len(&self) -> usize {
-        self.inner.raw().alloc_len
+        match self {
+            Self::Mapped(inner) => inner.raw().alloc_len,
+            Self::ZeroSized(_) => 0,
+        }
     }
 
     fn data_len(&self) -> usize {
-        self.inner.raw().len
+        match self {
+            Self::Mapped(inner) => inner.raw().len,
+            Self::ZeroSized(_) => 0,
+        }
     }
 
     fn data_pages_len(&self) -> usize {
