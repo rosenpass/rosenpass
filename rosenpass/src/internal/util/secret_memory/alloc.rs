@@ -129,7 +129,7 @@ impl AllocatorSegment {
         let (ptr, len) = (ptr.as_ptr(), layout.size());
         let data_pages_len = len.next_multiple_of(page_size());
         let alloc_ptr = ptr.wrapping_sub(page_size()).cast();
-        let alloc_len = data_pages_len + page_size();
+        let alloc_len = data_pages_len + 2 * page_size();
 
         let seg = RawMappedSegment {
             alloc_ptr,
