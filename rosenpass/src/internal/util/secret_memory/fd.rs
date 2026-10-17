@@ -370,7 +370,7 @@ impl SecretMemfdConfig {
     /// (i.e. one without a file descriptor)
     pub const fn allow_anonymous_mappings(&self) -> Self {
         let mut r = *self;
-        r.usage.shared_memory = true;
+        r.usage.allow_anonymous = true;
         r
     }
 
