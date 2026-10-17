@@ -5,12 +5,13 @@
 use std::{os::fd::OwnedFd, sync::OnceLock};
 
 use rustix::fs::ftruncate;
-use rustix::{fs::MemfdFlags, io::Errno};
+use rustix::io::Errno;
 
 use crate::internal::util::option::SomeExt;
 use crate::internal::util::result::OkExt;
 use crate::internal::util::rustix::{
-    MemfdSecretError, MemfdSecretFlags, MemfdSecretUnavailabilityReason, memfd_create, memfd_secret,
+    MemfdFlags, MemfdSecretError, MemfdSecretFlags, MemfdSecretUnavailabilityReason, memfd_create,
+    memfd_secret,
 };
 use crate::internal::util::secret_memory::mmap::{Mappable, MappingConfig};
 

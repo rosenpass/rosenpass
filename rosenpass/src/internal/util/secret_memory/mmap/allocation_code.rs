@@ -10,7 +10,12 @@ use std::{
     ptr::null_mut,
 };
 
-use rustix::{fs::SealFlags, io::Errno};
+#[cfg(target_os = "linux")]
+use rustix::fs::SealFlags;
+use rustix::io::Errno;
+
+#[cfg(target_os = "linux")]
+use super::MemfdCreateSealError;
 
 use crate::internal::util::{
     convert::TryIntoTypeExt,
@@ -19,12 +24,9 @@ use crate::internal::util::{
     option::SomeExt,
     result::OkExt,
     rustix::{TryStatExt, TryStatFsExt},
-    secret_memory::{
-        fd::memfd_secret_protects_against_resizing,
-        mmap::{
-            MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment,
-            MappingConfig, MemfdCreateSealError, RawMappedSegment,
-        },
+    secret_memory::mmap::{
+        MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment, MappingConfig,
+        RawMappedSegment,
     },
 };
 
@@ -32,6 +34,7 @@ use crate::internal::util::{
 /// needed to prevent adversarial users in shared memory from
 /// triggering SIGSEGV/SIGBUS (invalid memory access) by truncating
 /// the shared file descriptor
+#[cfg(target_os = "linux")]
 const SRESIZE: SealFlags = SealFlags::SHRINK.union(SealFlags::GROW);
 
 /// (F_SEAL_SEAL): Never installed; used only to detect file
@@ -42,6 +45,7 @@ const SRESIZE: SealFlags = SealFlags::SHRINK.union(SealFlags::GROW);
 /// ours, so our resize protection cannot be weakened; leaving the
 /// seal set open permits installing further seals later (e.g.
 /// F_SEAL_FUTURE_WRITE)
+#[cfg(target_os = "linux")]
 const SSEAL: SealFlags = SealFlags::SEAL;
 
 /// Lifecycle of the mapping being assembled by [AllocationCode]
@@ -209,6 +213,10 @@ impl<'fd> AllocationCode<'fd> {
     /// Advise the kernel that the memory pages must neither be inherited
     /// by child processes on fork(2) nor be included in memory dumps.
     ///
+    /// The available advice is platform-dependent: the fork/dump protection
+    /// advice only exists on Linux, so the advice list is empty on other
+    /// operating systems and no madvise(2) hardening calls are issued there.
+    ///
     /// SAFETY:
     ///
     /// * The pointer came directly from mmap, so it is valid and owned exclusively
@@ -218,6 +226,15 @@ impl<'fd> AllocationCode<'fd> {
     /// * MADV_DONTFORK and MADV_DONTDUMP only manipulate virtual memory flags; they
     ///   do not change the underlying fd or data in memory.
     fn madvise(&mut self) -> Result<(), MMapError> {
+        cfg_select! {
+            target_os = "linux" => self.madvise_linux(),
+            _ => Ok(()),
+        }
+    }
+
+    /// Platform-specific implementation of [Self::madvise()]
+    #[cfg(target_os = "linux")]
+    fn madvise_linux(&mut self) -> Result<(), MMapError> {
         use rustix::mm::{Advice, madvise};
 
         use Advice::{LinuxDontDump as ADump, LinuxDontFork as AFork};
@@ -439,51 +456,100 @@ impl<'fd> AllocationCode<'fd> {
     ///
     /// Adding seals can race with another party sealing the same file
     /// descriptor, so it is retried a bounded number of times; see
-    /// [MemfdCreateSealError] for the failure modes reported to the caller
+    /// [super::MemfdCreateSealError] for the failure modes reported to the caller
+    ///
+    /// File sealing only exists on Linux. On other operating systems the
+    /// sizing steps above are still performed, but the file descriptor is not
+    /// sealed and thus not protected against hostile resizing by another
+    /// party holding the same file descriptor.
     fn appropriately_size_and_seal_fd(&mut self) -> Result<(), MMapError> {
-        let Some(fd) = self.fd() else { return Ok(()) };
-
-        if self.resize_protection_enabled()? && !self.is_memfd_secret()? {
-            let current_seals =
-                rustix::fs::fcntl_get_seals(fd).map_err(MemfdCreateSealError::SystemError)?;
-            let missing = SRESIZE.difference(current_seals);
-
-            // Unable to add the missing seals, FD is already sealed against adding further seals
-            if current_seals.contains(SSEAL) && !missing.is_empty() {
-                Err(MemfdCreateSealError::PresealedWithMissingSeals { missing })?;
-            }
+        if self.fd().is_none() {
+            return Ok(());
         }
 
         if self.data_len()? == 0 {
             return Err(MMapError::ZeroSize);
         }
 
-        // Resize the file descriptor if requested and necessary
-        {
-            use MMapSizePolicy as P;
-            let (expected, actual) = (self.data_len_u64()?, self.load_size_now()?);
-            match (expected == actual, self.size_policy()?) {
-                (true, _) => {} // Size is as expected; all good
-                (false, P::Resize(_)) => {
-                    rustix::fs::ftruncate(fd, expected).map_err(MMapError::ResizeError)?;
-                }
-                (false, P::Checked(_)) => {
-                    return Err(MMapError::IncorrectSize { expected, actual });
-                }
-            }
+        self.check_for_seal_misconfiguration()?;
+        self.resize_file_descriptor()?;
+        self.seal_file_descriptor_against_resizing()?;
+
+        Ok(())
+    }
+
+    /// Resize the file descriptor if requested and necessary
+    fn resize_file_descriptor(&mut self) -> Result<(), MMapError> {
+        use MMapSizePolicy as P;
+
+        let Some(fd) = self.fd() else { return Ok(()) };
+
+        let (expected, actual) = (self.data_len_u64()?, self.load_size_now()?);
+        match (expected == actual, self.size_policy()?) {
+            (true, _) => return Ok(()), // Size is as expected; all good
+            (false, P::Resize(_)) => {} // Needs resizing, continue below
+            (false, P::Checked(_)) => return Err(MMapError::IncorrectSize { expected, actual }),
         }
+
+        // Resize
+        rustix::fs::ftruncate(fd, expected).map_err(MMapError::ResizeError)?;
+
+        Ok(())
+    }
+
+    /// Check if the configuration of seals on the given file descriptor
+    /// either allows for adding resizing seals or has them already installed
+    fn check_for_seal_misconfiguration(&mut self) -> Result<(), MMapError> {
+        cfg_select! {
+            target_os = "linux" => self.check_for_seal_misconfiguration_linux(),
+            _ => Ok(())
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn check_for_seal_misconfiguration_linux(&mut self) -> Result<(), MMapError> {
+        if !self.resize_protection_enabled()? || self.is_memfd_secret()? {
+            return Ok(());
+        }
+
+        let Some(fd) = self.fd() else { return Ok(()) };
+
+        let current_seals =
+            rustix::fs::fcntl_get_seals(fd).map_err(MemfdCreateSealError::SystemError)?;
+        let missing = SRESIZE.difference(current_seals);
+
+        // Unable to add the missing seals, FD is already sealed against adding further seals
+        if current_seals.contains(SSEAL) && !missing.is_empty() {
+            Err(MemfdCreateSealError::PresealedWithMissingSeals)?;
+        }
+
+        Ok(())
+    }
+
+    /// Seal the underlying file descriptor against resizing
+    fn seal_file_descriptor_against_resizing(&mut self) -> Result<(), MMapError> {
+        cfg_select! {
+            target_os = "linux" => self.seal_file_descriptor_against_resizing_linux(),
+            _ => Ok(())
+        }
+    }
+
+    /// Linux implementation of [Self::seal_file_descriptor_against_resizing()]
+    #[cfg(target_os = "linux")]
+    fn seal_file_descriptor_against_resizing_linux(&mut self) -> Result<(), MMapError> {
+        let Some(fd) = self.fd() else { return Ok(()) };
 
         let mut seal_ctr: usize = usize::MAX;
         let mut prev_seals: Option<SealFlags> = None;
-        'seal: loop {
+        loop {
             // Do not protect against resizing if this is disabled
             if !self.resize_protection_enabled()? {
-                break 'seal;
+                return Ok(());
 
             // No active steps needed to protect memfd_secret based file descriptors
             // against resizing
             } else if self.is_memfd_secret()? {
-                break 'seal;
+                return Ok(());
             }
 
             // Increment the loop counter
@@ -520,7 +586,7 @@ impl<'fd> AllocationCode<'fd> {
 
             // Unable to add the missing seals, FD is already sealed against adding further seals
             if current_seals.contains(SSEAL) && !missing.is_empty() {
-                Err(MemfdCreateSealError::PresealedWithMissingSeals { missing })?;
+                Err(MemfdCreateSealError::PresealedWithMissingSeals)?;
             }
 
             // Adding seals was denied and the seal set did not change since the
@@ -534,7 +600,7 @@ impl<'fd> AllocationCode<'fd> {
 
             // Missing seals, but not sealed against further seals. Try to add the seals we need.
             if !missing.is_empty() {
-                continue 'seal;
+                continue;
             }
 
             // All the seals are present; check the size of the file descriptor again
@@ -546,17 +612,22 @@ impl<'fd> AllocationCode<'fd> {
             }
 
             // Sealing successful; now aborting
-            break 'seal;
+            return Ok(());
         }
-
-        Ok(())
     }
 
     /// Whether the configuration requests protection against resizing
     fn resize_protection_enabled(&mut self) -> Result<bool, MMapError> {
-        let memfd_secret_protects_against_resizing = memfd_secret_protects_against_resizing()
-            .map_err(MMapError::FailedToDetectMemfdSecretSupport)?;
-        Ok(!self.is_memfd_secret()? || memfd_secret_protects_against_resizing)
+        cfg_select! {
+            target_os = "linux" => {
+                use crate::internal::util::secret_memory::fd::memfd_secret_protects_against_resizing;
+
+                let memfd_secret_protects_against_resizing = memfd_secret_protects_against_resizing()
+                    .map_err(MMapError::FailedToDetectMemfdSecretSupport)?;
+                Ok(!self.is_memfd_secret()? || memfd_secret_protects_against_resizing)
+            },
+            _ => Ok(false),
+        }
     }
 
     /// Ensure the backing segment has been allocated and return a mutable

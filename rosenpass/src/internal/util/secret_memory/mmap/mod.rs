@@ -8,8 +8,6 @@ use std::ffi::c_void;
 use std::mem::ManuallyDrop;
 use std::os::fd::AsFd;
 
-use rustix::fs::SealFlags;
-
 use crate::internal::util::mem::CopyExt;
 
 use crate::internal::util::secret_memory::fd::{
@@ -199,14 +197,9 @@ pub enum MemfdCreateSealError {
     /// The file descriptor is already sealed against adding further seals while
     /// still missing seals we need to add
     #[error(
-        "Tried to seal the underlying file descriptor against being grown/shrunken, but the file descriptor already carried {:?} while missing {:?}, so the seals could not be added.",
-        SealFlags::SEAL,
-        missing
+        "Tried to seal the underlying file descriptor against being grown/shrunken, but the file descriptor already carried FSEAL_SEAL, so the seals could not be added."
     )]
-    PresealedWithMissingSeals {
-        /// The seals that still needed to be added
-        missing: SealFlags,
-    },
+    PresealedWithMissingSeals,
     /// The file descriptor was resized while it was being sealed against resizing
     #[error(
         "\
@@ -304,11 +297,9 @@ pub enum MMapError {
     )]
     SealError(#[from] MemfdCreateSealError),
     /// `madvise(…, MADV_DONTFORK)` failed
-    #[cfg(target_os = "linux")]
     #[error("Tried to protect the allocated memory region against forking using madvise(2) with MADV_DONTFORK, but got following error instead: {}", .0)]
     CouldNotProtectAgainstForks(rustix::io::Errno),
     /// `madvise(…, MADV_DONTDUMP)` failed
-    #[cfg(target_os = "linux")]
     #[error("Tried to protect the allocated memory region against memory dumps using madvise(2) with MADV_DONTDUMP, but got following error instead: {}", .0)]
     CouldNotProtectAgainstMemoryDumps(rustix::io::Errno),
     /// Some other (system) error occurred that prevented us from determining whether
@@ -417,7 +408,18 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// # fork(2)
     ///
     /// The pages allocated here must not be accessed after the process has been forked.
-    /// MADV_DONTFORK is used to deliberately free pages on fork as a precaution.
+    /// On Linux, MADV_DONTFORK is used to deliberately free pages on fork as a
+    /// precaution; this advice is not available on other operating systems.
+    ///
+    /// # Portability
+    ///
+    /// Resizing protection through memfd sealing (fcntl(2)) and the
+    /// MADV_DONTFORK/MADV_DONTDUMP advice are only available on Linux. On
+    /// other operating systems, the mappings created here still perform file
+    /// descriptor sizing, guard pages, and mlock(2), but an externally
+    /// supplied file descriptor is not protected against hostile resizing by
+    /// another party holding it, and the pages are not protected against
+    /// being inherited on fork(2) or included in memory dumps.
     ///
     /// # Safety
     ///

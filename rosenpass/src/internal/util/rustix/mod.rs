@@ -14,7 +14,5 @@ mod syscall;
 #[cfg(target_os = "linux")]
 pub use syscall::*;
 
-#[cfg(target_os = "linux")]
 mod memfd;
-#[cfg(target_os = "linux")]
 pub use memfd::*;

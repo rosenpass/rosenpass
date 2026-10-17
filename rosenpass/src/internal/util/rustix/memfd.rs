@@ -2,22 +2,43 @@
 
 use std::os::fd::OwnedFd;
 
-use rustix::fs::MemfdFlags;
 use rustix::io::Errno;
 use rustix::path::Arg as Path;
 
 use bitflags::bitflags;
 
-use crate::internal::util::convert::IntoTypeExt;
+#[cfg(target_os = "linux")]
+pub use rustix::fs::MemfdFlags;
 
-use super::SyscallResult;
+#[cfg(not(target_os = "linux"))]
+bitflags! {
+    /// Linux memfd_create(2) flags accepted by the unsupported-platform stub.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MemfdFlags: std::ffi::c_uint {
+        /// Close the file descriptor on exec.
+        const CLOEXEC = 0x0001;
+        /// Allow adding file seals.
+        const ALLOW_SEALING = 0x0002;
+        /// Seal the file descriptor against execution.
+        const NOEXEC_SEAL = 0x0008;
+    }
+}
 
 /// Create an anonymous file
 /// using the memfd_create(2) syscall
 ///
 /// Just forwards to [rustix::fs::memfd_create]
+///
+/// Returns ENOSYS on platforms without this Linux backend
 pub fn memfd_create<P: Path>(name: P, flags: MemfdFlags) -> rustix::io::Result<OwnedFd> {
-    rustix::fs::memfd_create(name, flags)
+    cfg_select! {
+        target_os = "linux" => rustix::fs::memfd_create(name, flags),
+        _ => {
+            let _ = (name, flags);
+            Err(Errno::NOSYS)?
+        }
+    }
 }
 
 bitflags! {
@@ -92,14 +113,25 @@ impl From<Errno> for MemfdSecretError {
 /// Ok::<(), anyhow::Error>(())
 /// ```
 pub fn memfd_secret(flags: MemfdSecretFlags) -> Result<rustix::fd::OwnedFd, MemfdSecretError> {
-    let res = unsafe {
-        use libc::{SYS_memfd_secret, syscall};
-        syscall(SYS_memfd_secret, flags)
-            .into_type::<SyscallResult>()
-            .claim_fd()
-    };
+    cfg_select! {
+        target_os = "linux" => {
+            use crate::internal::util::convert::IntoTypeExt;
+            use super::SyscallResult;
 
-    res.map_err(MemfdSecretError::from)
+            let res = unsafe {
+                use libc::{SYS_memfd_secret, syscall};
+                syscall(SYS_memfd_secret, flags)
+                    .into_type::<SyscallResult>()
+                    .claim_fd()
+            };
+
+            res.map_err(MemfdSecretError::from)
+        },
+        _ => {
+            let _ = flags;
+            Err(Errno::NOSYS)?
+        }
+    }
 }
 
 #[cfg(test)]
