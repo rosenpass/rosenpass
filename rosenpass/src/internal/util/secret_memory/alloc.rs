@@ -29,6 +29,8 @@ use crate::internal::util::{
 ///
 /// Zero-sized layouts and alignments larger than the system page size are
 /// unsupported and return [AllocError].
+/// Unexpected panics during allocation or deallocation abort the process, as
+/// required by the [Allocator] contract; ordinary allocation failures return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
@@ -87,13 +89,19 @@ unsafe impl Allocator for SecretMemoryAllocator {
         &self,
         layout: std::alloc::Layout,
     ) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
-        AllocatorSegment::allocate(self, layout)?
-            .into_alloc_ptr()
-            .ok()
+        std::panic::catch_unwind(|| {
+            AllocatorSegment::allocate(self, layout)?
+                .into_alloc_ptr()
+                .ok()
+        })
+        .unwrap_or_else(|_| std::process::abort())
     }
 
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
-        std::mem::drop(AllocatorSegment::from_alloc_ptr_and_layout(ptr, layout))
+        std::panic::catch_unwind(|| {
+            std::mem::drop(AllocatorSegment::from_alloc_ptr_and_layout(ptr, layout))
+        })
+        .unwrap_or_else(|_| std::process::abort())
     }
 }
 
