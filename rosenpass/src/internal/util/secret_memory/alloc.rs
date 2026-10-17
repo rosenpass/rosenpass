@@ -26,6 +26,9 @@ use crate::internal::util::{
 ///    [SecretMemfdConfig::create()] in [SecretMemoryAllocator::new()]
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
+///
+/// Zero-sized layouts and alignments larger than the system page size are
+/// unsupported and return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
@@ -104,9 +107,9 @@ impl AllocatorSegment {
         alloc: &SecretMemoryAllocator,
         layout: std::alloc::Layout,
     ) -> Result<Self, AllocError> {
-        // Checks for safety; these must ALWAYS hold anyway
-        assert!(layout.align() <= page_size());
-        assert!(layout.align().count_ones() == 1);
+        if layout.size() == 0 || layout.align() > page_size() {
+            return Err(AllocError);
+        }
 
         let mappable = alloc.memfd_config.create().map_err(log_alloc_err)?;
         let config = mappable.config().resize_on_mmap(layout.size() as u64);
