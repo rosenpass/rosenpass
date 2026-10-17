@@ -3,10 +3,11 @@
 use std::{
     alloc::{AllocError, Allocator},
     ffi::c_void,
-    mem::ManuallyDrop,
+    mem::{ManuallyDrop, MaybeUninit},
 };
 
 use rustix::param::page_size;
+use zeroize::Zeroize;
 
 use crate::internal::util::{
     functional::ApplyExt,
@@ -187,6 +188,11 @@ impl AllocatorSegment {
         assert!(self.unused_len() < page_size());
     }
 
+    fn data_as_bytes(&self) -> &mut [MaybeUninit<u8>] {
+        use std::slice::from_raw_parts_mut;
+        unsafe { from_raw_parts_mut(self.data_ptr().as_ptr().cast(), self.data_len()) }
+    }
+
     fn alloc_ptr(&self) -> std::ptr::NonNull<*mut c_void> {
         match self {
             Self::Mapped(inner) => std::ptr::NonNull::new(inner.raw().alloc_ptr)
@@ -257,6 +263,12 @@ impl AllocatorSegment {
 
     fn unused_len(&self) -> usize {
         self.data_pages_end() - self.data_end()
+    }
+}
+
+impl Drop for AllocatorSegment {
+    fn drop(&mut self) {
+        self.data_as_bytes().zeroize();
     }
 }
 
