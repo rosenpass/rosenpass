@@ -391,12 +391,10 @@ impl SecretMemfdConfig {
         use SecretMemfdConfigValidationError as E;
         let mech = self.mechanism().map_err(E::FailedToDetectSupport)?;
 
-        let mfds_use = matches!(mech, SecretMemfdMechanism::MemfdSecret);
-        let mfds_prot_resize =
-            memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?;
-        let shm_usage = self.usage.shared_memory;
-
-        if mfds_use && shm_usage && !mfds_prot_resize {
+        if matches!(mech, SecretMemfdMechanism::MemfdSecret)
+            && self.usage.shared_memory
+            && !memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?
+        {
             return Err(E::MemfdSecretDoesNotProtectAgainstResizing);
         }
 

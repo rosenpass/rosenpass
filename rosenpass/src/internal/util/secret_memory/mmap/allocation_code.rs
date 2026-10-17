@@ -620,9 +620,12 @@ impl<'fd> AllocationCode<'fd> {
             target_os = "linux" => {
                 use crate::internal::util::secret_memory::fd::memfd_secret_protects_against_resizing;
 
-                let memfd_secret_protects_against_resizing = memfd_secret_protects_against_resizing()
-                    .map_err(MMapError::FailedToDetectMemfdSecretSupport)?;
-                Ok(!self.is_memfd_secret()? || memfd_secret_protects_against_resizing)
+                if !self.is_memfd_secret()? {
+                    return Ok(true);
+                }
+
+                memfd_secret_protects_against_resizing()
+                    .map_err(MMapError::FailedToDetectMemfdSecretSupport)
             },
             _ => Ok(false),
         }
