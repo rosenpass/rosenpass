@@ -489,7 +489,7 @@ impl<'fd> AllocationCode<'fd> {
 
     #[cfg(target_os = "linux")]
     fn check_for_seal_misconfiguration_linux(&mut self) -> Result<(), MMapError> {
-        if !self.resize_protection_enabled()? || self.is_memfd_secret()? {
+        if self.is_memfd_secret()? {
             return Ok(());
         }
 
@@ -518,21 +518,17 @@ impl<'fd> AllocationCode<'fd> {
     /// Linux implementation of [Self::seal_file_descriptor_against_resizing()]
     #[cfg(target_os = "linux")]
     fn seal_file_descriptor_against_resizing_linux(&mut self) -> Result<(), MMapError> {
+        // No active steps needed to protect memfd_secret based file descriptors
+        // against resizing
+        if self.is_memfd_secret()? {
+            return Ok(());
+        }
+
         let Some(fd) = self.fd() else { return Ok(()) };
 
         let mut seal_ctr: usize = usize::MAX;
         let mut prev_seals: Option<SealFlags> = None;
         loop {
-            // Do not protect against resizing if this is disabled
-            if !self.resize_protection_enabled()? {
-                return Ok(());
-
-            // No active steps needed to protect memfd_secret based file descriptors
-            // against resizing
-            } else if self.is_memfd_secret()? {
-                return Ok(());
-            }
-
             // Increment the loop counter
             seal_ctr = seal_ctr.overflowing_add(1).0;
 
@@ -594,23 +590,6 @@ impl<'fd> AllocationCode<'fd> {
 
             // Sealing successful; now aborting
             return Ok(());
-        }
-    }
-
-    /// Whether the configuration requests protection against resizing
-    fn resize_protection_enabled(&mut self) -> Result<bool, MMapError> {
-        cfg_select! {
-            target_os = "linux" => {
-                use crate::internal::util::secret_memory::fd::memfd_secret_protects_against_resizing;
-
-                if !self.is_memfd_secret()? {
-                    return Ok(true);
-                }
-
-                memfd_secret_protects_against_resizing()
-                    .map_err(MMapError::FailedToDetectMemfdSecretSupport)
-            },
-            _ => Ok(false),
         }
     }
 
