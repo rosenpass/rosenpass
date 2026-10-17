@@ -304,16 +304,13 @@ impl<'fd> AllocationCode<'fd> {
     ///   own (via the MappedSegment), so no existing Rust allocation/reference
     ///   is unmapped or replaced.
     fn allocate_data_page(&mut self) -> Result<&mut MappedSegment, MMapError> {
-        use rustix::mm::{Advice, MapFlags};
+        use rustix::mm::MapFlags;
 
         if self.segment.is_data_page() {
             return self.segment.data_page_mut().unwrap().ok();
         }
 
         self.guard_page()?; // Allocate the guard page if necessary (just in case)
-        let segment = ManuallyDrop::new(self.segment.take_segment().unwrap());
-
-        let (ptr, len) = (segment.ptr().cast(), segment.len());
         let flags = self.mmap_flags() | MapFlags::FIXED;
 
         // There is a bug on some linux version where mmap() may return EINVAL
@@ -325,6 +322,9 @@ impl<'fd> AllocationCode<'fd> {
         if bug_detected {
             return Err(MMapError::MMapError(Errno::INVAL));
         }
+
+        let segment = ManuallyDrop::new(self.segment.take_segment().unwrap());
+        let (ptr, len) = (segment.ptr().cast(), segment.len());
 
         // SAFETY: ptr retains the reservation's provenance and is page-aligned.
         // Rounding len up to pages stays inside its exclusively owned middle,
@@ -358,37 +358,20 @@ impl<'fd> AllocationCode<'fd> {
             Err(err) => err, // handled below */
         };
 
-        let data_seg_occupied = match unsafe { rustix::mm::madvise(ptr, len, Advice::Normal) } {
-            Ok(()) => Some(true),
-            Err(E::NOMEM) => Some(false),
-            Err(e) => {
-                log::warn!(
-                    "Tried to use madvise(ptr={ptr:?}, len={len}, MADV_NORMAL) to test if a memory segment is mapped, \
-                    but it returned an unexpected error: {e:?}"
-                );
-                None
-            }
-        };
+        // Only the guards are still known to be ours. Do not probe or unmap the
+        // middle: a failed MAP_FIXED may have freed it for another thread to reuse.
+        let raw = segment.raw();
+        let data_pages_len = raw.alloc_len - 2 * self.pagesize();
+        log::warn!(
+            "Failed to map secret memory ({err}); MAP_FIXED may have released the original data pages. \
+            Leaving the uncertain middle untouched to avoid affecting another thread's allocation. \
+            This may leak up to {data_pages_len} bytes of address space."
+        );
 
-        if data_seg_occupied.unwrap_or(true) {
-            log::warn!(
-                "Tried to allocate a secret memory segment, but we received an unexpected error ({err}) \
-                and there are some pages in place where we tried to add the memory mapping for out data. \
-                Unfortunately, by the mmap specification (POSIX.1-2024) we can not know if mmap(3p) has \
-                left our initial mapping in place or whether mmap(3p) has unmapped our pages. \
-                Therefor, even though we know there are pages mapped in that memory segment, we have no way of knowing \
-                whether these are our pages: this could also be a memory segment by another thread who raced to allocate \
-                some pages in this area. We therefor are forced to leak these pages of memory.\n\
-                This can happen in regular operation, but it should happen rarely. If you see this message often, tell us.\n\
-                  May leak up to: {len} bytes of address space without consuming any real memory."
-            )
-        }
-
-        let head = segment.ptr().cast();
-        let tail = segment
-            .ptr()
-            .wrapping_add(segment.len() - self.pagesize())
-            .cast();
+        let head = raw.alloc_ptr;
+        let tail = raw
+            .alloc_ptr
+            .wrapping_byte_add(raw.alloc_len - self.pagesize());
         let e1 = unsafe { rustix::mm::munmap(head, self.pagesize()) };
         let e2 = unsafe { rustix::mm::munmap(tail, self.pagesize()) };
         let leak = ((e1.is_err() as usize) + (e2.is_err() as usize)) * self.pagesize();
