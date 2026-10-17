@@ -173,7 +173,7 @@ impl AllocatorSegment {
         use std::ptr::slice_from_raw_parts_mut as slice_ptr;
         self.inner
             .raw()
-            .alloc_ptr
+            .ptr
             .cast::<u8>()
             .apply(|ptr| slice_ptr(ptr, self.data_len()))
             .apply(std::ptr::NonNull::new)
