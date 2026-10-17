@@ -177,7 +177,9 @@ impl<'fd> AllocationCode<'fd> {
     ///
     /// Used to issue any validation errors as early as possible
     fn validate_configuration(&mut self) -> Result<(), MMapError> {
-        self.size_policy()?; // MMapError::MissingSizePolicy
+        if self.data_len()? == 0 {
+            return Err(MMapError::ZeroSize);
+        }
         Ok(())
     }
 
@@ -465,10 +467,6 @@ impl<'fd> AllocationCode<'fd> {
     fn appropriately_size_and_seal_fd(&mut self) -> Result<(), MMapError> {
         if self.fd().is_none() {
             return Ok(());
-        }
-
-        if self.data_len()? == 0 {
-            return Err(MMapError::ZeroSize);
         }
 
         self.check_for_seal_misconfiguration()?;
