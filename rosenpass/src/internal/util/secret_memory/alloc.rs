@@ -101,15 +101,12 @@ impl AllocatorSegment {
         assert!(layout.align() <= page_size());
         assert!(layout.align().count_ones() == 1);
 
-        let me = alloc
-            // FD Creation
-            .memfd_config
-            .create()
-            .map_err(log_alloc_err)?
-            // Memory Alloc
+        let mappable = alloc.memfd_config.create().map_err(log_alloc_err)?;
+        let config = mappable.config().resize_on_mmap(layout.size() as u64);
+        let me = mappable
+            .with_config(config)
             .mmap()
             .map_err(log_alloc_err)?
-            // Conversion
             .apply(Self::from_mapped_segment);
 
         me.validate_allocation_layout(layout);
