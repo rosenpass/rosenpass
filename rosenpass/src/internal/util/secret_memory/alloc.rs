@@ -26,7 +26,7 @@ use crate::internal::util::{
 ///    [SecretMemfdConfig::create()] in [SecretMemoryAllocator::new()]
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
-#[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
     /// file descriptor backing the memory allocation. Based on policy,
@@ -35,15 +35,22 @@ pub struct SecretMemoryAllocator {
     pub memfd_config: SecretMemfdConfig,
 }
 
+impl Default for SecretMemoryAllocator {
+    fn default() -> Self {
+        Self {
+            memfd_config: SecretMemfdConfig::new().allow_anonymous_mappings(),
+        }
+    }
+}
+
 impl SecretMemoryAllocator {
     /// Create a new configuration for later allocations
     ///
     /// The [Self::memfd_config] is created using [SecretMemfdConfig::new()]
-    /// with anonymous mappings enabled ([SecretMemfdConfig::allow_anonymous_mappings()])
-    /// and the [Self::mapping_config] is derived using [SecretMemfdConfig::map_fd_config()].
+    /// with anonymous mappings enabled ([SecretMemfdConfig::allow_anonymous_mappings()]).
+    /// This is equivalent to [Self::default()].
     pub fn new() -> Result<Self, SecretMemfdConfigValidationError> {
-        let memfd_config = SecretMemfdConfig::new().allow_anonymous_mappings();
-        Ok(Self { memfd_config })
+        Ok(Self::default())
     }
 
     /// Return a copy with an updated [SecretMemfdConfig]
