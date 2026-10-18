@@ -112,13 +112,8 @@ mod tests {
         serde_json::from_str::<T>(&json).expect("deserialize")
     }
 
-    pub fn test_init_secret_memory_policy() {
-        crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-    }
-
     #[test]
     fn secret_roundtrip_json() {
-        test_init_secret_memory_policy();
         const N: usize = 32;
         let src = [0xABu8; N];
         let original = Secret::<N>::from_slice(&src);
@@ -163,7 +158,6 @@ mod tests {
 
     #[test]
     fn secret_len_mismatch_is_error() {
-        test_init_secret_memory_policy();
         const N_SMALL: usize = 16;
         const N_BIG: usize = 32;
 

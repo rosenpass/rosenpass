@@ -4,7 +4,6 @@
 //! # use rosenpass::internal::ciphers::hash_domain::{HashDomain, HashDomainNamespace, SecretHashDomain, SecretHashDomainNamespace};
 //! use rosenpass::internal::ciphers::KeyedHash;
 //! use rosenpass::internal::secret_memory::Secret;
-//! # rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets();
 //!
 //! const PROTOCOL_IDENTIFIER: &str = "MY_PROTOCOL:IDENTIFIER";
 //! // create use once hash domain for the protocol identifier
@@ -233,8 +232,6 @@ impl SecretHashDomain {
     #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
     #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
     /// use rosenpass::internal::ciphers::{hash_domain::HashDomain, KeyedHash};
-    ///
-    /// rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets();
     ///
     /// let hasher = HashDomain::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(

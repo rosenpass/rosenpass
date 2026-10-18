@@ -6,7 +6,6 @@ use std::hint::black_box;
 
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -82,7 +81,6 @@ fn criterion_benchmark_v03(c: &mut Criterion) {
 }
 
 fn criterion_benchmark(c: &mut Criterion, protocol_version: ProtocolVersion) {
-    secret_policy_try_use_memfd_secrets();
     let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
     c.bench_function("cca_secret_alloc", |bench| {
         bench.iter(|| {

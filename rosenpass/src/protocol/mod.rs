@@ -26,7 +26,6 @@
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
 //! use std::ops::DerefMut;
 //!
-//! use rosenpass::internal::secret_memory::policy::*;
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::ciphers::StaticKem;
 //!
@@ -35,10 +34,7 @@
 //! use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 //!
 //! # fn main() -> anyhow::Result<()> {
-//! // Set security policy for storing secrets
-//!
 //! use rosenpass::protocol::ProtocolVersion;
-//! secret_policy_try_use_memfd_secrets();
 //!
 //! // initialize secret and public key for peer a ...
 //! let (mut peer_a_sk, mut peer_a_pk) = (SSk::zero(), SPk::zero());

@@ -86,7 +86,6 @@ fn handles_incorrect_size_messages_v03() {
 /// i.e. an exchanged key must be produced in both servers.
 fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         const OVERSIZED_MESSAGE: usize = ((MAX_MESSAGE_LEN as f32) * 1.2) as usize;
         type MsgBufPlus = Public<OVERSIZED_MESSAGE>;
@@ -201,7 +200,6 @@ fn test_regular_exchange_v03() {
 /// until it is DRY.
 fn test_regular_exchange(protocol_version: ProtocolVersion) {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
@@ -316,7 +314,6 @@ fn assert_successful_exchange(a: &mut CryptoServer, b: &mut CryptoServer) {
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_regular_exchange_v03_with_wg_key_binding() {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
         let (mut a, mut b) = make_server_pair_with_wg_key_bindings(
@@ -347,7 +344,6 @@ fn test_regular_exchange_v03_with_wg_key_binding() {
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_wg_key_binding_mismatch_v03() {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
@@ -389,7 +385,6 @@ fn test_wg_key_binding_mismatch_v03() {
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
 fn test_wg_key_binding_ignored_v02() {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
         let (mut a, mut b) = make_server_pair_with_wg_key_bindings(
@@ -425,7 +420,6 @@ fn test_regular_init_conf_retransmit_v03() {
 
 fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
@@ -520,7 +514,6 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
     use super::{Lifecycle, MortalExt};
 
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) =
@@ -635,7 +628,6 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load_v03() {
 #[cfg(feature = "experiment_cookie_dos_mitigation")]
 fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version: ProtocolVersion) {
     setup_logging();
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
         let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
@@ -709,8 +701,6 @@ fn init_conf_retransmission_v03() -> Result<()> {
 }
 
 fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-
     fn keypair() -> Result<(SSk, SPk)> {
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());
         StaticKem.keygen(sk.secret_mut(), pk.deref_mut())?;

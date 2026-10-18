@@ -11,7 +11,6 @@ use libcrux_test_utils::tracing::{EventType, Trace as _};
 
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
 use rosenpass::internal::util::trace_bench::RpEvent;
 
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
@@ -97,9 +96,6 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
 
 fn main() {
     let trace = rosenpass::internal::util::trace_bench::trace();
-
-    // Attempt to use memfd_secrets for storing sensitive key material
-    secret_policy_try_use_memfd_secrets();
 
     // Run protocol for V02
     let (mut a_v02, mut b_v02) = make_server_pair(ProtocolVersion::V02).unwrap();

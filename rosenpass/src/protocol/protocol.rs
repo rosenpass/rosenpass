@@ -214,8 +214,6 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 /// use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
 /// use rosenpass::protocol::protocol_context::PeerProtocolContext;
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-///
 /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
 ///
@@ -344,7 +342,6 @@ impl Peer {
     #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::basic_types::{SymKey, SPk};
     /// use rosenpass::protocol::{Peer, ProtocolVersion};
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let p = Peer::zero(ProtocolVersion::V03);
     ///
@@ -551,8 +548,6 @@ pub type KnownResponseHash = Public<16>;
 /// use rosenpass::protocol::KnownResponseHasher;
 /// use rosenpass::msgs::{Envelope, InitConf};
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-///
 /// let h = KnownResponseHasher::new();
 ///
 /// let v1 = Envelope::<InitConf>::new_zeroed();
@@ -714,8 +709,6 @@ pub trait Mortal {
 /// use rosenpass::internal::ciphers::StaticKem;
 /// use rosenpass::protocol::basic_types::{SSk, SPk};
 /// use rosenpass::protocol::{testutils::ServerForTesting, ProtocolVersion};
-///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// let (peer, (_, spkt), mut srv) = ServerForTesting::new(ProtocolVersion::V03)?.tuple();
 ///
@@ -1259,8 +1252,6 @@ impl CryptoServer {
     /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
     ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-    ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
     ///
@@ -1325,8 +1316,6 @@ impl CryptoServer {
     /// use rosenpass::protocol::{CryptoServer, ProtocolVersion};
     /// use rosenpass::internal::ciphers::StaticKem;
     /// use rosenpass::internal::cipher_traits::primitives::Kem;
-    ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
     /// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
@@ -1590,9 +1579,7 @@ impl Peer {
     ///
     #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
     #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
-    /// # use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
     /// # use rosenpass::protocol::{basic_types::SymKey, protocol_context::PeerProtocolContext, ProtocolVersion};
-    /// # secret_policy_try_use_memfd_secrets();
     /// let protocol_version = ProtocolVersion::V02;
     /// let ctx = PeerProtocolContext::from_psk(&SymKey::zero());
     /// ```
@@ -1655,8 +1642,6 @@ impl Session {
     #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
     /// use rosenpass::protocol::{Session, HandshakeRole};
     /// use rosenpass::internal::ciphers::KeyedHash;
-    ///
-    /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     ///
     /// let s = Session::zero(KeyedHash::keyed_shake256());
     /// assert_eq!(s.created_at, 0.0);
@@ -1875,8 +1860,6 @@ impl Mortal for KnownInitConfResponsePtr {
 /// use assert_tv::TestVector;
 /// use rosenpass::protocol::{timing::Timing, Mortal, MortalExt, Lifecycle, CryptoServer, ProtocolVersion};
 /// use rosenpass::protocol::testutils::{ServerForTesting, time_travel_forward};
-///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
 /// const M : Timing = 60.0;
 /// const H : Timing = 60.0 * M;

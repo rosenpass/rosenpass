@@ -2,12 +2,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use rosenpass::internal::secret_memory::alloc::secret_box;
-use rosenpass::internal::secret_memory::policy::*;
-use std::sync::Once;
-
-static ONCE: Once = Once::new();
 
 fuzz_target!(|data: &[u8]| {
-    ONCE.call_once(secret_policy_use_only_memfd_secrets);
     let _ = secret_box(data);
 });

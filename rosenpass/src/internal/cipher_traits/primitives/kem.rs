@@ -20,10 +20,9 @@
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //! use rosenpass::internal::cipher_traits::primitives::Kem;
 //! use rosenpass::internal::oqs::Kyber512;
-//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::Secret;
 //!
 //! type MyKem = Kyber512;
-//! secret_policy_use_only_malloc_secrets();
 //! let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
 //! MyKem::default().keygen(alice_sk.secret_mut(), &mut alice_pk)?;
@@ -88,10 +87,9 @@
 //!         Self{}
 //!     }
 //! }
-//! # use rosenpass::internal::secret_memory::{secret_policy_use_only_malloc_secrets, Secret};
+//! # use rosenpass::internal::secret_memory::Secret;
 //! #
 //! # type MyKem = DummyKem;
-//! # secret_policy_use_only_malloc_secrets();
 //! # let mut alice_sk: Secret<{ MyKem::SK_LEN }> = Secret::zero();
 //! # let mut alice_pk: [u8; MyKem::PK_LEN] = [0; MyKem::PK_LEN];
 //! # MyKem::default().keygen(alice_sk.secret_mut(), &mut alice_pk)?;
