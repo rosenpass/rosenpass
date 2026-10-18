@@ -14,7 +14,7 @@ use crate::internal::util::file::{
 };
 use crate::internal::util::functional::mutating;
 
-use super::alloc::{SecretBox, SecretVec, secret_box};
+use super::alloc::{SecretBox, secret_box};
 use super::file::StoreSecret;
 
 use crate::internal::util::file::{Visibility, fopen_w};
@@ -133,10 +133,7 @@ impl SecretMemoryPool {
     pub fn release<const N: usize>(&mut self, mut sec: ZeroizingSecretBox<[u8; N]>) {
         sec.zeroize();
 
-        // This conversion sequence is weird but at least it guarantees
-        // that the heap allocation is preserved according to the docs
-        let sec: SecretVec<u8> = sec.take().into();
-        let sec: SecretBox<[u8]> = sec.into();
+        let sec: SecretBox<[u8]> = sec.take();
 
         self.pool
             .entry(N)
@@ -161,12 +158,12 @@ impl SecretMemoryPool {
 /// [Secret] stores its memory in a way that makes it difficult for threat actors to access it
 /// without permission. This is achieved through the following mechanisms:
 /// 1. Data in a [Secret] is stored in memory that is allocated and managed by memory allocators
-///    that make it more difficult for threat actors to access the memory. Specifically, the
-///    allocators from [memsec] are supported.
+///    that make it more difficult for threat actors to access the memory, using
+///    [SecretMemoryAllocator](crate::internal::util::secret_memory::alloc::SecretMemoryAllocator).
 /// 2. Memory that is allocated for a [Secret] is zeroized before it is used for anything else.
 ///
-/// Allocation automatically uses memfd-secret when available, falling back to the memsec
-/// malloc backend otherwise. No initialization is required.
+/// Allocation always uses the opportunistic default: prefer memfd-secret when supported,
+/// permitting anonymous mappings otherwise. No initialization is required.
 ///
 /// You can use a [Secret] as follows:
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
@@ -394,20 +391,26 @@ mod test {
     /// Check that a secret can be reborn, freshly initialized with zero.
     #[test]
     fn secret_memory_pool_release() {
-        const N: usize = 1;
-        let mut pool = SecretMemoryPool::new();
-        let mut secret: ZeroizingSecretBox<[u8; N]> = pool.take();
-        let old_secret_ptr = secret.as_ref().as_ptr();
+        fn check<const N: usize>() {
+            let mut pool = SecretMemoryPool::new();
+            let mut secret: ZeroizingSecretBox<[u8; N]> = pool.take();
+            let old_secret_ptr = secret.as_ref().as_ptr();
 
-        secret.as_mut()[0] = 0x13;
-        pool.release(secret);
+            secret.as_mut().fill(0x13);
+            pool.release(secret);
 
-        // now check that we get the same ptr
-        let new_secret: ZeroizingSecretBox<[u8; N]> = pool.take();
-        assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
+            // now check that we get the same ptr
+            let new_secret: ZeroizingSecretBox<[u8; N]> = pool.take();
+            assert_eq!(old_secret_ptr, new_secret.as_ref().as_ptr());
 
-        // and that the secret was zeroized
-        assert_eq!(new_secret.as_ref(), &[0; N]);
+            // and that the secret was zeroized
+            assert_eq!(new_secret.as_ref(), &[0; N]);
+        }
+
+        check::<0>();
+        check::<1>();
+        check::<32>();
+        check::<4097>();
     }
 
     /// Test loading a secret from an example file, and then storing it again in a different file.

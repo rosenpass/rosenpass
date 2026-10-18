@@ -30,6 +30,9 @@ use crate::internal::util::{
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
 ///
+/// Allocation contents are wiped before unmapping, including storage released
+/// during reallocation.
+///
 /// Zero-sized layouts return an aligned dangling pointer without creating a
 /// mapping or guard pages; their deallocation is a no-op. Layouts with
 /// alignments larger than the system page size are unsupported and return [AllocError].

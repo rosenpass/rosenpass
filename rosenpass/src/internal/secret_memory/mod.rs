@@ -3,12 +3,11 @@
 //! This library provides functionality for working with secret data and protecting it in
 //! memory from illegitimate access.
 //!
-//! Specifically, the [alloc] module provides wrappers around the `memsec` and `memfdsec` allocators
-//! from the [memsec] crate that implement the [Allocator](allocator_api2::alloc::Allocator) Trait.
-//! We refer to the documentation of these modules for more details on their appropriate usage.
+//! Specifically, the [alloc] module provides collections backed by
+//! [SecretMemoryAllocator](crate::internal::util::secret_memory::alloc::SecretMemoryAllocator).
 //!
-//! The allocator automatically uses memfd-secret when available, falling back to the memsec
-//! malloc backend otherwise. No initialization is required before using [Secret].
+//! The allocator automatically prefers memfd-secret when supported and permits anonymous
+//! mappings otherwise. No initialization is required before using [Secret].
 //! [Secret] is implemented such that memory is *always*
 //! zeroized before it is released. Because allocations of the protected memory are expensive to do,
 //! [Secret] is build to reuse once allocated memory. A simple use of [Secret] looks as follows:
