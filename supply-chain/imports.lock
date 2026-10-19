@@ -1138,6 +1138,25 @@ delta = "0.29.0 -> 0.30.1"
 notes = "Some new wrappers, support for minor platforms and lots of work around type safety that reduces the unsafe surafce."
 aggregated-from = "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/supply-chain/audits.toml"
 
+[[audits.mozilla.audits.objc2]]
+who = "Andy Leiserson <aleiserson@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "0.6.3"
+notes = """
+Contains substantial unsafe code, as is typical for FFI.
+
+The (non-published) `header-translator` crate that produces generated bindings
+appearing in other `objc2-*` crates was also reviewed, in lieu of a full review
+of the generated bindings.
+"""
+aggregated-from = "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.objc2]]
+who = "Erich Gubler <erichdongubler@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "0.6.3 -> 0.6.5"
+aggregated-from = "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/supply-chain/audits.toml"
+
 [[audits.mozilla.audits.objc2-encode]]
 who = "Andy Leiserson <aleiserson@mozilla.com>"
 criteria = "safe-to-deploy"
