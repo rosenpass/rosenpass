@@ -382,3 +382,38 @@ hash_domain!(
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
     cke_user_rosenpass, ext_wireguard_psk_osk, "wireguard psk");
+
+hash_domain_ns!(
+    /// domain for the protocol context (`ctx`) mixed into the chaining key
+    /// at protocol steps IHI7/IHR7
+    protocol, context, "context");
+hash_domain_ns!(
+    /// domain for the protocol context (without "output")
+    context, protocol_context, "protocol context");
+hash_domain_ns!(
+    /// domain for the protocol context (with "output")
+    protocol_context, protocol_context_output, "output");
+hash_domain_ns!(
+    /// domain for the mutual protocol context token `ctxc`
+    protocol_context, protocol_context_common, "common");
+hash_domain_ns!(
+    /// domain for the initiator's protocol context token `ctxi`
+    protocol_context, protocol_context_initiator, "initiator");
+hash_domain_ns!(
+    /// domain for the responder's protocol context token `ctxr`
+    protocol_context, protocol_context_responder, "responder");
+hash_domain_ns!(
+    /// domain for additional data mixed into the protocol context.
+    context, additional_data, "additional data");
+hash_domain_ns!(
+    /// domain for user-specified additional data
+    additional_data, additional_data_user, "user");
+hash_domain_ns!(
+    /// domain for the mutual user additional data `adc`
+    additional_data_user, additional_data_user_common, "common");
+hash_domain_ns!(
+    /// domain for the initiator's user additional data `adi`
+    additional_data_user, additional_data_user_initiator, "initiator");
+hash_domain_ns!(
+    /// domain for the responder's user additional data `adr`
+    additional_data_user, additional_data_user_responder, "responder");
