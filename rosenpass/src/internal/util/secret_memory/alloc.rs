@@ -295,6 +295,7 @@ impl AllocatorSegment {
         self.data_ptr().addr().get()
     }
 
+    #[allow(unused)]
     fn data_pages_start(&self) -> usize {
         self.data_ptr().addr().get()
     }
