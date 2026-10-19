@@ -4,7 +4,9 @@ This directory is containing publications by the Rosenpass project. You find thi
 
 ## Direct links to the PDF files
 
-[Whitepaper](https://github.com/rosenpass/rosenpass/blob/papers-pdf/whitepaper.pdf)
+- [Whitepaper](https://github.com/rosenpass/rosenpass/blob/papers-pdf/whitepaper.pdf)
+- [Whitepaper (nightly)](https://github.com/rosenpass/rosenpass/blob/papers-pdf-nightly/whitepaper.pdf)
+- [PDFs overview on our website](https://rosenpass.eu/docs/rosenpass-project/)
 
 ## Local build instructions
 
