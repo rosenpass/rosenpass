@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - v0.2.x
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -404,7 +405,7 @@ jobs:
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubicloud-standard-2
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v0.2.x' }}
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -423,7 +424,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: result/
-          publish_branch: papers-pdf
+          # main publishes the nightly version, stable branches publish to `papers-pdf`
+          publish_branch: ${{ github.ref == 'refs/heads/main' && 'papers-pdf-nightly' || 'papers-pdf' }}
           force_orphan: true
       - name: Report runner resources
         uses: ./.github/actions/report-resources

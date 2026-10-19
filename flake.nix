@@ -127,7 +127,6 @@
                 cargo-vet
                 rustfmt
                 prettier
-                nushell # for the .ci/gen-workflow-files.nu script
                 proverif-patched
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
