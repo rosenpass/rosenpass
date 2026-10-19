@@ -90,7 +90,7 @@ impl StatFsExt for rustix::fs::StatFs {
                 const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
                 self.f_type == SECRETMEM_MAGIC
             },
-            _ => Ok(false),
+            _ => false,
         }
     }
 }
