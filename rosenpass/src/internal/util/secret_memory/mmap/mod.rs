@@ -11,7 +11,7 @@ use std::os::fd::AsFd;
 use crate::internal::util::mem::CopyExt;
 
 use crate::internal::util::secret_memory::fd::{
-    SecretMemfdConfig, SecretMemfdConfigValidationError, memfd_secret_protects_against_resizing,
+    SecretMemfdConfig, SecretMemfdConfigValidationError,
 };
 
 mod allocation_code;
