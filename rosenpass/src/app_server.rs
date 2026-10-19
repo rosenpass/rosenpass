@@ -30,6 +30,7 @@ use crate::config::{ProtocolVersion, Verbosity};
 
 use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
+use crate::protocol::protocol_context::WireGuardKeyBinding;
 use crate::protocol::timing::Timing;
 use crate::protocol::{BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr};
 
@@ -1048,15 +1049,24 @@ impl AppServer {
         hostname: Option<String>,
         protocol_version: ProtocolVersion,
         osk_domain_separator: OskDomainSeparator,
+        wg_key_binding: Option<WireGuardKeyBinding>,
     ) -> anyhow::Result<AppPeerPtr> {
         let PeerPtr(pn) = match &mut self.crypto_site {
             ConstructionSite::Void => bail!("Crypto server construction site is void"),
-            ConstructionSite::Builder(builder) => {
-                builder.add_peer(psk, pk, protocol_version, osk_domain_separator)
-            }
-            ConstructionSite::Product(srv) => {
-                srv.add_peer(psk, pk, protocol_version.into(), osk_domain_separator)?
-            }
+            ConstructionSite::Builder(builder) => builder.add_peer(
+                psk,
+                pk,
+                protocol_version,
+                osk_domain_separator,
+                wg_key_binding,
+            ),
+            ConstructionSite::Product(srv) => srv.add_peer(
+                psk,
+                pk,
+                protocol_version.into(),
+                osk_domain_separator,
+                wg_key_binding,
+            )?,
         };
         assert!(pn == self.peers.len());
 

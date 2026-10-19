@@ -156,12 +156,14 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         pkb,
         protocol_version.clone(),
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     b.add_peer(
         Some(psk),
         pka,
         protocol_version,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     Ok((a, b))
 }
@@ -664,12 +666,14 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
             pkb,
             protocol_version.clone(),
             OskDomainSeparator::default(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
         let a_peer = b.add_peer(
             None,
             pka,
             protocol_version.clone(),
             OskDomainSeparator::default(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
 
         // Execute protocol up till the responder confirmation (EmptyData)

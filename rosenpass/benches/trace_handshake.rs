@@ -83,12 +83,14 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
         pkb,
         protocol_version.clone(),
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     b.add_peer(
         Some(psk),
         pka,
         protocol_version,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     Ok((a, b))
 }

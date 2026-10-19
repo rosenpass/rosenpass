@@ -495,6 +495,7 @@ impl CliArgs {
                 cfg_peer.endpoint.clone(),
                 cfg_peer.protocol_version,
                 cfg_peer.osk_domain_separator.try_into()?,
+                None, // TODO: bind to wg pubkeys
             )?;
         }
 

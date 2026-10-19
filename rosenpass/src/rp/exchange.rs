@@ -526,6 +526,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             peer.endpoint.map(|x| x.to_string()),
             peer.protocol_version,
             OskDomainSeparator::for_wireguard_psk(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
 
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
