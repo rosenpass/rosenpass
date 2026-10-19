@@ -1,5 +1,5 @@
 //! This entire module is dedicated to the implementation of
-//! [super::MappableFd::mmap()]; mod.rs contains the interface,
+//! [super::Mappable::mmap()]; mod.rs contains the interface,
 //! while this file handles all the implementation details of
 //! memory allocation.
 //!
@@ -136,7 +136,7 @@ impl SegmentLifecycle {
     }
 }
 
-/// This really just implements [super::MappableFd::mmap()];
+/// This really just implements [super::Mappable::mmap()];
 /// because the implementation is quite complex, we move it here
 /// into this struct
 pub struct AllocationCode<'fd> {
@@ -144,13 +144,12 @@ pub struct AllocationCode<'fd> {
     mappable: Mappable<BorrowedFd<'fd>>,
     /// Whether the file descriptor represents a memfd_secret(2)
     fd_is_memfd_secret: Option<bool>,
-    /// Size of this file descriptor
     /// Ownership state of the mapping being assembled
     segment: SegmentLifecycle,
 }
 
 impl<'fd> AllocationCode<'fd> {
-    /// Entry point implementing [MappableFd::mmap]: set up the state machine
+    /// Entry point implementing [Mappable::mmap]: set up the state machine
     /// and run [Self::mmap_impl].
     pub fn mmap(mappable: Mappable<BorrowedFd<'fd>>) -> Result<MappedSegment, MMapError> {
         let mut me = Self {
@@ -257,12 +256,9 @@ impl<'fd> AllocationCode<'fd> {
     /// mlock(2) the memory region into memory (prevent swapping)
     /// after mapping the page into memory
     ///
-    /// We do not mlock(2) the memory in two cases:
-    ///
-    /// - The backing file descriptor is memfd_secret(2), as the semantics of memfd_secret(2)
-    ///   automatically lock all memfd_secret(2) derived pages into memory
-    /// - The mapping is unreadable, in which case [rustix::mm::mlock] documents
-    ///   that mlock is not supported on unreadable mappings
+    /// We do not mlock(2) the memory when the backing file descriptor is
+    /// memfd_secret(2), as the semantics of memfd_secret(2) automatically lock
+    /// all memfd_secret(2) derived pages into memory.
     ///
     /// SAFETY:
     ///
@@ -272,8 +268,8 @@ impl<'fd> AllocationCode<'fd> {
     /// * POSIX mmap operates on whole pages, so the page-rounded range
     ///   touched by mlock is part of this mapping.
     /// * PROT_READ makes the range readable, satisfying rustix's
-    ///   documented mlock precondition. PROT_READ is set, because we check for
-    ///   `self.config().unreadable` explicitly.
+    ///   documented mlock precondition. PROT_READ is always set by
+    ///   [MappingConfig::mmap_prot()].
     fn mlock(&mut self) -> Result<(), MMapError> {
         if self.is_memfd_secret()? {
             return Ok(());
@@ -436,8 +432,7 @@ impl<'fd> AllocationCode<'fd> {
     /// Resize the file descriptor to the requested size (under
     /// [MMapSizePolicy::Resize]) or verify that it already has the requested
     /// size (under [MMapSizePolicy::Checked]), then seal it against being
-    /// grown or shrunken unless resizing protection is disabled or the file
-    /// descriptor is a memfd_secret(2).
+    /// grown or shrunken unless the file descriptor is a memfd_secret(2).
     ///
     /// Adding seals can race with another party sealing the same file
     /// descriptor, so it is retried a bounded number of times; see
@@ -672,9 +667,9 @@ impl<'fd> AllocationCode<'fd> {
     /// Look up the size of the file represented by the file descriptor we are
     /// mapping into memory.
     ///
-    /// Compared to [Self::try_load_size_now()]/[Self::try_size()], this function panics if we
-    /// are mapping anonymous memory ([Self::fd()] is `None`), whereas [Self::try_load_size_now()]
-    /// panics, whereas [Self::try_load_size_now()]/[Self::try_size()] just return `Ok(None)`.
+    /// Compared to [Self::try_load_size_now()], this function panics if we are
+    /// mapping anonymous memory ([Self::fd()] is `None`), whereas
+    /// [Self::try_load_size_now()] returns `Ok(None)`.
     fn load_size_now(&mut self) -> Result<u64, MMapError> {
         self.try_load_size_now()?
             .expect("\
@@ -709,7 +704,7 @@ impl<'fd> AllocationCode<'fd> {
         self.mappable.fd().map(CopyExt::copy)
     }
 
-    /// A copy of the [MapFdConfig] for the mapping
+    /// A copy of the [MappingConfig] for the mapping
     fn config(&self) -> MappingConfig {
         self.mappable.config()
     }

@@ -199,8 +199,7 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 ] }
 blake2 = "0.10.6"
 shake = "0.1.0"
-# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
-# Only constant-time comparison is used; allocation is handled internally.
+# Constant-time comparison only; secret-memory allocation is handled internally.
 memsec = { version = "0.7.0", default-features = false }
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }

@@ -16,14 +16,14 @@ use crate::internal::util::secret_memory::fd::{
 
 mod allocation_code;
 
-/// Size of the memory mapping for [MappableFd]
+/// Size of the memory mapping for [Mappable]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MMapSizePolicy {
-    /// Size is checked against this particular value; [MappableFd::mmap] will check the
+    /// Size is checked against this particular value; [Mappable::mmap] will check the
     /// size of the underlying data and raise an error if the size of data and this value
     /// do not match
     Checked(u64),
-    /// Size is defined to be this particular value; [MappableFd::mmap] will explicitly resize
+    /// Size is defined to be this particular value; [Mappable::mmap] will explicitly resize
     /// the underlying file descriptor to be this particular size when called.
     Resize(u64),
 }
@@ -38,7 +38,7 @@ impl MMapSizePolicy {
     }
 }
 
-/// Configuration for [MappableFd::mmap]
+/// Configuration for [Mappable::mmap]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MappingConfig {
     /// The memory region is shared-memory; other mappings of the same
@@ -52,16 +52,9 @@ pub struct MappingConfig {
     /// is semantically private; [SecretMemfdConfig::create()] therefore always
     /// sets this flag when memfd_secret(2) is used.
     ///
-    /// Note that when this flag is used together with [Self::no_resizing_protection],
-    /// then the configuration is vulnerable to the attack described in [super::fd::memfd_secret_support()].
-    ///
-    /// This insecure configuration will not be rejected as it may still be useful in some
-    /// scenarios where the other process is trusted.
-    ///
-    /// When using [SecretMemfdConfig::create()], this flag and [Self::no_resizing_protection] are
-    /// automatically configured.
+    /// When using [SecretMemfdConfig::create()], this flag is configured automatically.
     pub shared: bool,
-    /// How [MappableFd::mmap] will determine the size to be used for the mapping
+    /// How [Mappable::mmap] will determine the size to be used for the mapping
     ///
     /// You should usually set this value through [Self::set_size_policy],
     /// [Self::expected_size], or [Self::resize_on_mmap].
@@ -69,9 +62,9 @@ pub struct MappingConfig {
 }
 
 impl MappingConfig {
-    /// New MapFdConfig with all settings turned off
+    /// New MappingConfig with all settings turned off
     ///
-    /// You still must set [Self::size_policy], otherwise [MappableFd::mmap] will raise
+    /// You still must set [Self::size_policy], otherwise [Mappable::mmap] will raise
     /// an error when called
     pub const fn new() -> Self {
         MappingConfig {
@@ -87,7 +80,7 @@ impl MappingConfig {
         cfg.map_fd_config()
     }
 
-    /// New MapFdConfig with shared memory turned on
+    /// New MappingConfig with shared memory turned on
     pub const fn shared_memory() -> Self {
         Self::new().set_shared()
     }
@@ -99,7 +92,7 @@ impl MappingConfig {
         r
     }
 
-    /// Create a [MappableFd] instance with this configuration
+    /// Create a [Mappable] instance with this configuration
     pub fn mappable<Fd: AsFd>(&self, fd: Fd) -> Mappable<Fd> {
         Mappable::new(Some(fd), self.copy())
     }
@@ -137,53 +130,15 @@ impl MappingConfig {
     }
 }
 
-/// Errors for [MappableFd::mmap()] caused by invalid [MapFdConfig] configurations
+/// Errors for [Mappable::mmap()] caused by invalid [MappingConfig] configurations
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MMapInvalidConfigError {
-    /// Mismatch between [MapFdConfig::disable_resizing_protection]
-    /// and [super::fd::memfd_secret_protects_against_resizing()]
-    #[error("\
-        When mapping a memfd_secret(2) into memory, whether protection against \
-        resizing is enabled is fully determined by the system. In this scenario, \
-        the setting in MapFdConfig::no_resizing_protection merely acts as a \
-        safety check to make sure that the developer request matches the system setting. \
-        During the call to MappableFd::mmap, we check whether these settings match. \
-        On this system, protection against resizing is {}, but the developer requested that \
-        the protection be {}. \
-        \n protection_enabled_by_system = {}; \
-        \n protection_requested = {}; \
-        \n memfd_secret_protects_against_resizing() = {}; \
-        \n MapFdConfig::disable_resizing_protection = {};",
-        match protection_enabled_by_system {
-            false => "DISABLED",
-            true => "ENABLED",
-        },
-        match protection_requested {
-            false => "DISABLED",
-            true => "ENABLED",
-        },
-        protection_enabled_by_system,
-        protection_requested,
-        match memfd_secret_protects_against_resizing() {
-            Ok(true) => "true",
-            Ok(false) => "false",
-            Err(_)  => "<ERROR>",
-        },
-        !protection_requested,
-    )]
-    IncorrectResizingProtectionSetting {
-        /// Whether the system protects memfd_secret(2) file descriptors against resizing
-        protection_enabled_by_system: bool,
-        /// Whether protection against resizing was requested
-        /// (the inverse of [MapFdConfig::no_resizing_protection])
-        protection_requested: bool,
-    },
-    /// When memory mapping memfd_secret(2) file descriptors, [MapFdConfig::shared] MUST be used
+    /// When memory mapping memfd_secret(2) file descriptors, [MappingConfig::shared] MUST be used
     /// as MAP_PRIVATE is not supported by the operating system.
     #[error(
         "\
         When mapping a memfd_secret(2) into memory, MAP_PRIVATE can not be used
-        and usage of MAP_SHARED is mandatory. Please always set MapFdConfig::shared
+        and usage of MAP_SHARED is mandatory. Please always set MappingConfig::shared
         when memory mapping memfd_secret(2) based file descriptors, even if the file
         is not actually shared between processes.\
     "
@@ -191,7 +146,7 @@ pub enum MMapInvalidConfigError {
     MapSharedNeededForMemfdSecret,
 }
 
-/// Errors for sealing memfd_create(2) file descriptors against resizing in [MappableFd::mmap()]
+/// Errors for sealing memfd_create(2) file descriptors against resizing in [Mappable::mmap()]
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MemfdCreateSealError {
     /// The file descriptor is already sealed against adding further seals while
@@ -227,7 +182,7 @@ pub enum MemfdCreateSealError {
     RetriesAborted,
 }
 
-/// Error returned by MappableFd::mmap
+/// Error returned by Mappable::mmap
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MMapError {
     /// Invalid mapping configuration; see [MMapInvalidConfigError]
@@ -288,7 +243,7 @@ pub enum MMapError {
     /// mlock(2) system call failed
     ///
     /// mlock(2) counts against the RLIMIT_MEMLOCK resource limit; see
-    /// [MappableFd::mmap] for deployment notes
+    /// [Mappable::mmap] for deployment notes
     #[error("Tried to lock the file-descriptor based allocation into memory, but the mlock(2) system call failed: {}", .0)]
     MLockError(rustix::io::Errno),
     /// Sealing the file descriptor against resizing failed; see [MemfdCreateSealError]
@@ -317,12 +272,12 @@ pub struct Mappable<Fd> {
 }
 
 impl<Fd: AsFd> Mappable<Fd> {
-    /// Create a [MappableFd] using the default configuration ([MapFdConfig])
+    /// Create a [Mappable] using the default configuration ([MappingConfig])
     pub fn from_fd(fd: Fd) -> Self {
         Self::new(Some(fd), MappingConfig::default())
     }
 
-    /// Create a new [MappableFd] for an existing file descriptor or an anonymous mapping
+    /// Create a new [Mappable] for an existing file descriptor or an anonymous mapping
     ///
     /// Note that while it is sometimes useful to use this function with a file descriptor
     /// obtained through some other means than [SecretMemfdConfig], it generally does not make
@@ -333,7 +288,7 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// an anonymous mapping if this is not supported.
     ///
     /// In most cases, for anonymous mappings, its easiest to use
-    /// [crate::internal::util::secret_memory::alloc::allocate()], which
+    /// [crate::internal::util::secret_memory::alloc::SecretMemoryAllocator], which
     /// handles all the steps of creating an anonymous mapping with extra
     /// security features automatically.
     pub fn new(fd: Option<Fd>, config: MappingConfig) -> Self {
@@ -350,17 +305,17 @@ impl<Fd: AsFd> Mappable<Fd> {
         self.fd
     }
 
-    /// Access the [MapFdConfig] associated with Self
+    /// Access the [MappingConfig] associated with Self
     pub fn config(&self) -> MappingConfig {
         self.config
     }
 
-    /// Access the [MapFdConfig] associated with Self
+    /// Access the [MappingConfig] associated with Self
     pub fn config_mut(&mut self) -> &mut MappingConfig {
         &mut self.config
     }
 
-    /// Modify the [MapFdConfig] associated with Self, chainable
+    /// Modify the [MappingConfig] associated with Self, chainable
     pub fn with_config(mut self, config: MappingConfig) -> Self {
         self.config = config;
         self
@@ -370,10 +325,10 @@ impl<Fd: AsFd> Mappable<Fd> {
     ///
     /// # Determining the size of the mapping
     ///
-    /// Before calling this function, [MapFdConfig::size_policy] must be set.
+    /// Before calling this function, [MappingConfig::size_policy] must be set.
     ///
     /// Note that [Self::from_fd] and [Self::new] still allow you to create a [Self] with
-    /// [MapFdConfig::size_policy] set to [None]; the size policy must be configured before
+    /// [MappingConfig::size_policy] set to [None]; the size policy must be configured before
     /// calling this function, otherwise [MMapError::MissingSizePolicy] is raised.
     ///
     /// Auto-detection of the size is deliberately not implemented, as it's crucial to validate
@@ -391,8 +346,8 @@ impl<Fd: AsFd> Mappable<Fd> {
     ///
     /// # Locking pages into memory
     ///
-    /// The mapped pages are locked into memory with mlock(2) unless the mapping is
-    /// unreadable or the file descriptor is a memfd_secret(2). mlock(2) counts against
+    /// The mapped pages are locked into memory with mlock(2) unless the file
+    /// descriptor is a memfd_secret(2). mlock(2) counts against
     /// the RLIMIT_MEMLOCK resource limit; production deployments must configure the
     /// limit, otherwise the mapping fails fatally with [MMapError::MLockError].
     ///

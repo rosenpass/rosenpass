@@ -92,7 +92,7 @@ static MEMFD_SECRET_SUPPORT: OnceLock<Result<MemfdSecretSupport, MemfdSecretUnav
 ///
 /// When memfd_create(2) is used instead of memfd_secret(2), then [SecretMemfdConfig::create()]
 /// will specify the ALLOW_SEALING flag during file descriptor creation. This is later used by
-/// [super::mmap::MappableFd::mmap()] to manually seal the file descriptor against resizing using
+/// [super::mmap::Mappable::mmap()] to manually seal the file descriptor against resizing using
 /// appropriate fcntl(2) calls, defending against the same attack
 pub fn memfd_secret_support()
 -> Result<Result<MemfdSecretSupport, MemfdSecretUnavailabilityReason>, Errno> {
@@ -179,7 +179,7 @@ pub fn memfd_secret_supported_for_shm_applications() -> Result<bool, Errno> {
 pub struct SecretMemfdUsage {
     /// Whether this file descriptor will be used for shared memory
     ///
-    /// Note that setting this does not automatically set [Self::require_fd], because
+    /// Note that setting this does not automatically clear [Self::allow_anonymous], because
     /// there are ways of setting up shared_memory without relying on a file descriptor
     /// (e.g. through fork(2))
     pub shared_memory: bool,
@@ -402,18 +402,16 @@ impl SecretMemfdConfig {
     }
 
     /// Allocates a secret file descriptor based on the configuration and returns the
-    /// file descriptor wrapped into a [super::mmap::MappableFd] for easy mapping into
+    /// file descriptor wrapped into a [super::mmap::Mappable] for easy mapping into
     /// memory.
     ///
-    /// This function returns a [super::mmap::MappableFd] and pre-configures the memory mapping
+    /// This function returns a [super::mmap::Mappable] and pre-configures the memory mapping
     /// configuration as needed:
     ///
-    /// - If [SecretMemfdUsage::shared_memory] is set, then [super::mmap::MapFdConfig::shared] will
+    /// - If [SecretMemfdUsage::shared_memory] is set, then [super::mmap::MappingConfig::shared] will
     ///   be set. The flag is also set unconditionally when memfd_secret(2) is used, because the
     ///   kernel rejects MAP_PRIVATE mappings of memfd_secret(2) file descriptors (see
-    ///   [super::mmap::MapFdConfig::shared])
-    /// - If memfd_secret(2) is used, but [memfd_secret_protects_against_resizing()] is false, then
-    ///   [super::mmap::MapFdConfig::no_resizing_protection] will be set
+    ///   [super::mmap::MappingConfig::shared])
     ///
     /// Note that if all three of the conditions hold, then the configuration is insecure and
     /// [Self::validate_config()] will produce [SecretMemfdConfigValidationError::MemfdSecretDoesNotProtectAgainstResizing], which
@@ -489,11 +487,11 @@ impl SecretMemfdConfig {
             break 'fd fd.some();
         };
 
-        // Wrap into MappableFd with the correct configuration
+        // Wrap into Mappable with the correct configuration
         Mappable::new(fd, self.map_fd_config()?).ok()
     }
 
-    /// Infers the correct [MapFdConfig] for this [SecretMemfdConfig]
+    /// Infers the correct [MappingConfig] for this [SecretMemfdConfig]
     /// on the current operating system.
     ///
     /// This incorporates information such as:
@@ -515,7 +513,7 @@ impl SecretMemfdConfig {
         //
         // The shared flag is also set unconditionally for memfd_secret(2) file descriptors:
         // the kernel rejects MAP_PRIVATE mappings of memfd_secret(2) file descriptors with
-        // EINVAL (see [super::mmap::MapFdConfig::shared]); for a file descriptor no other
+        // EINVAL (see [super::mmap::MappingConfig::shared]); for a file descriptor no other
         // process holds, a shared mapping is semantically private
         let cfg = match self.usage.shared_memory || mfds_use {
             false => cfg,

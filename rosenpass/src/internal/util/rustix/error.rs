@@ -66,7 +66,7 @@ pub fn errno() -> rustix::io::Errno {
 ///
 /// Variant of [errno()] that will return None if there was no system error.
 ///
-/// This reads errno through [std::io::Error::last_os_error], which retrieves
+/// This reads errno through `std::io::Error::last_os_error()`, which retrieves
 /// errno portably on every platform supported by the Rust standard library.
 ///
 /// # Examples

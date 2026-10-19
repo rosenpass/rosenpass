@@ -17,7 +17,7 @@ use crate::internal::util::{
 
 /// Safe creation of shared memory segments
 ///
-/// This is a slightly more convenient API than using [MapFdConfig] directly.
+/// This is a slightly more convenient API than using [MappingConfig] directly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedMemorySegmentBuilder {
     /// Configuration for allocating memory file descriptors and their secrecy level
@@ -29,7 +29,7 @@ pub struct SharedMemorySegmentBuilder {
 impl SharedMemorySegmentBuilder {
     /// Create a new shared memory segment builder.
     ///
-    /// Note that this always sets [MapFdConfig::set_shared()].
+    /// Note that this always sets [MappingConfig::set_shared()].
     ///
     /// The file descriptor is created with [SecretMemfdConfig::used_in_shared_memory()]; on
     /// systems where memfd_secret(2) is not protected against resizing, this makes
@@ -80,7 +80,7 @@ impl SharedMemorySegmentBuilder {
 ///   checked at runtime by the checked size policy; a violation is an error, not undefined
 ///   behavior.)
 /// - The mapping stays valid for the lifetime of the segment: the file descriptor is sealed
-///   against resizing (requested by default; see the "In practice" section below) and no
+///   against resizing (enforced on Linux by default; see the "In practice" section below) and no
 ///   other code may munmap(2) or mprotect(2) the region.
 /// - No Rust references (`&[u8]`/`&mut [u8]`) into the segment's memory are ever created;
 ///   with an untrusted writer on the other end, creating such references is undefined
@@ -96,7 +96,7 @@ impl SharedMemorySegmentBuilder {
 ///
 /// Note that a second *mapping* can still come into existence without
 /// unsafe code — via the safe
-/// [MappableFd](crate::internal::util::secret_memory::mmap::MappableFd) API on the returned
+/// [Mappable](crate::internal::util::secret_memory::mmap::Mappable) API on the returned
 /// file descriptor — but such a mapping cannot be read or written through safe code.
 /// This guarantee covers only programs that never call fork(2): a forked child inherits
 /// the mapping together with the [SharedMemorySegment] value, so the child's safe methods
@@ -211,12 +211,12 @@ impl SharedMemorySegmentBuilder {
 ///
 /// This analysis is premised on the memory staying valid and mapped. That premise is enforced by
 /// the resize protection in
-/// [MappableFd::mmap()](crate::internal::util::secret_memory::mmap::MappableFd::mmap) (see also
+/// [Mappable::mmap()](crate::internal::util::secret_memory::mmap::Mappable::mmap) (see also
 /// [SecretMemfdConfig::validate_config()]): the file descriptor is sealed with
-/// F_SEAL_SHRINK|F_SEAL_GROW (or, for memfd_secret(2), protected by the kernel itself), so an
-/// adversarial peer cannot truncate it — which would otherwise turn accesses into
-/// SIGBUS/SIGSEGV, crashing the program (a denial of service, though not memory-unsafe). With
-/// [MapFdConfig::disable_resizing_protection()], that crash risk is accepted instead.
+/// F_SEAL_SHRINK|F_SEAL_GROW (or, for memfd_secret(2), protected by the kernel itself on
+/// kernels where memfd_secret(2) protects against resizing), so an adversarial peer cannot
+/// truncate it — which would otherwise turn accesses into
+/// SIGBUS/SIGSEGV, crashing the program (a denial of service, though not memory-unsafe).
 ///
 /// Mind that we do not mind garbled values here; we are implementing a shared memory communication
 /// interface, so our application must always assume that the data it receives may be garbled. It
@@ -337,8 +337,8 @@ impl SharedMemorySegment {
 
     /// Create a shared memory segment from a file descriptor
     ///
-    /// Uses the default [MapFdConfig] (shared mapping, checked size, resize protection
-    /// requested); see [Self::from_fd_with_config()] for the failure modes.
+    /// Uses the default [MappingConfig] (shared mapping, checked size, resize protection
+    /// enforced on Linux); see [Self::from_fd_with_config()] for the failure modes.
     ///
     /// # Safety
     ///
@@ -352,10 +352,9 @@ impl SharedMemorySegment {
 
     /// Create a shared memory segment from a file descriptor
     ///
-    /// Unless [MapFdConfig::disable_resizing_protection()] is set in `cfg`, this fails —
-    /// rather than mapping insecurely — for file descriptors that cannot be sealed against
-    /// resizing (e.g. memfds created without MFD_ALLOW_SEALING, or read-only re-opens via
-    /// /proc/self/fd).
+    /// This fails — rather than mapping insecurely — for file descriptors that cannot be
+    /// sealed against resizing (e.g. memfds created without MFD_ALLOW_SEALING, or read-only
+    /// re-opens via /proc/self/fd).
     ///
     /// # Safety
     ///

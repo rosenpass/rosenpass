@@ -36,8 +36,8 @@ use crate::internal::util::{
 /// Zero-sized layouts return an aligned dangling pointer without creating a
 /// mapping or guard pages; their deallocation is a no-op. Layouts with
 /// alignments larger than the system page size are unsupported and return [AllocError].
-/// Unexpected panics during allocation or deallocation abort the process, as
-/// required by the [Allocator] contract; ordinary allocation failures return [AllocError].
+/// Unexpected panics during allocation or deallocation abort the process by design;
+/// ordinary allocation failures return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
@@ -66,11 +66,6 @@ impl SecretMemoryAllocator {
     }
 
     /// Return a copy with an updated [SecretMemfdConfig]
-    ///
-    /// Note that this does not update [Self::mapping_config],
-    /// with the value from [SecretMemfdConfig::map_fd_config()].
-    /// If this behavior is desired, you must update [Self::mapping_config]
-    /// yourself.
     pub fn with_memfd_config(&self, memfd_config: SecretMemfdConfig) -> Self {
         let mut r = self.copy();
         r.memfd_config = memfd_config;
@@ -120,7 +115,7 @@ unsafe impl Allocator for SecretMemoryAllocator {
     memory. This can happen when:\n\
     \n\
     1. There was a buffer overflow (or other forbidden/unsound memory access) somewhere in the application; likely in the code that used the allocation.\n\
-    2. An attacker managed to achieve remote code execution and is now writing into memoy at places where it should not write.\n\
+    2. An attacker managed to achieve remote code execution and is now writing into memory at places where it should not write.\n\
     3. There is a bug in the memory allocator code.")]
 struct SentinelMismatch {
     pub addr: *const u8,
@@ -340,7 +335,8 @@ impl AllocatorSegment {
 impl Drop for AllocatorSegment {
     fn drop(&mut self) {
         self.data_as_bytes().zeroize();
-        unsafe { self.validate_sentinel() }.expect("Could not deallocate secret memory segment");
+        unsafe { self.validate_sentinel() }
+            .expect("Secret memory sentinel validation failed during deallocation");
     }
 }
 
