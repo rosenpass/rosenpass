@@ -386,34 +386,56 @@ hash_domain!(
 hash_domain_ns!(
     /// domain for the protocol context (`ctx`) mixed into the chaining key
     /// at protocol steps IHI7/IHR7
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     protocol, context, "context");
 hash_domain_ns!(
     /// domain for the protocol context (without "output")
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     context, protocol_context, "protocol context");
 hash_domain_ns!(
     /// domain for the protocol context (with "output")
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     protocol_context, protocol_context_output, "output");
 hash_domain_ns!(
     /// domain for the mutual protocol context token `ctxc`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     protocol_context, protocol_context_common, "common");
 hash_domain_ns!(
     /// domain for the initiator's protocol context token `ctxi`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     protocol_context, protocol_context_initiator, "initiator");
 hash_domain_ns!(
     /// domain for the responder's protocol context token `ctxr`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     protocol_context, protocol_context_responder, "responder");
 hash_domain_ns!(
     /// domain for additional data mixed into the protocol context.
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     context, additional_data, "additional data");
 hash_domain_ns!(
     /// domain for user-specified additional data
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     additional_data, additional_data_user, "user");
 hash_domain_ns!(
     /// domain for the mutual user additional data `adc`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     additional_data_user, additional_data_user_common, "common");
 hash_domain_ns!(
     /// domain for the initiator's user additional data `adi`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     additional_data_user, additional_data_user_initiator, "initiator");
 hash_domain_ns!(
     /// domain for the responder's user additional data `adr`
+    ///
+    /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
     additional_data_user, additional_data_user_responder, "responder");

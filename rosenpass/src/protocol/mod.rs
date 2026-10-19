@@ -87,6 +87,7 @@ pub mod constants;
 pub mod cookies;
 pub mod index;
 pub mod osk_domain_separator;
+pub mod protocol_context;
 pub mod test_vector_sets;
 pub mod testutils;
 pub mod timing;
