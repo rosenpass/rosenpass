@@ -13,6 +13,7 @@ use std::{collections::HashSet, fs, io::Write};
 
 use anyhow::{Context, bail, ensure};
 
+use base64ct::{Base64, Encoding};
 use serde::{Deserialize, Serialize};
 
 use crate::internal::util::file::{LoadValue, Visibility, fopen_w};
@@ -249,9 +250,50 @@ pub struct WireGuard {
 /// decode a base64-encoded WireGuard public key (32 bytes) into a [`PublicSymKey`]
 pub fn decode_wg_pubkey_b64(b64_encoded_key: &str) -> anyhow::Result<PublicSymKey> {
     let mut pubkey: PublicSymKey = [0u8; _];
-    crate::internal::util::b64::b64_decode(b64_encoded_key.as_bytes(), &mut pubkey)
-        .context("can not decode base64-encoded WireGuard public key")?;
+
+    let decoded_len = Base64::decode(b64_encoded_key, &mut pubkey)
+        .context("can not decode base64-encoded WireGuard public key")?
+        .len();
+
+    ensure!(
+        decoded_len == pubkey.len(),
+        "invalid WireGuard public key length: expected {} bytes, got {decoded_len} bytes",
+        pubkey.len()
+    );
+
     Ok(pubkey)
+}
+#[cfg(test)]
+mod test_decode_wg_pubkey_b64 {
+    use super::{Base64, Encoding, decode_wg_pubkey_b64};
+
+    // valid WireGuard public key: 32 decoded bytes public X25519 key
+    const VALID: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=";
+    // invalid WireGuard public keys
+    const TOO_SHORT: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTg==";
+    const TOO_LONG: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmoA";
+    // TODO: add more tests
+
+    #[test]
+    fn test_decode_wg_pubkey_b64() {
+        let decoded = decode_wg_pubkey_b64(VALID).unwrap();
+        let mut reencoded: [u8; _] = [0; 44];
+        Base64::encode(&decoded, &mut reencoded).unwrap();
+        let reencoded = String::from_utf8(reencoded.to_vec()).unwrap();
+        assert_eq!(reencoded.as_str(), VALID);
+    }
+
+    #[test]
+    #[should_panic = "can not decode base64-encoded WireGuard public key"]
+    fn test_decode_wg_pubkey_b64_rejects_too_long() {
+        decode_wg_pubkey_b64(TOO_LONG).unwrap();
+    }
+
+    #[test]
+    #[should_panic = "invalid WireGuard public key length: expected 32 bytes, got 31 bytes"]
+    fn test_decode_wg_pubkey_b64_rejects_too_short() {
+        decode_wg_pubkey_b64(TOO_SHORT).unwrap();
+    }
 }
 
 impl Default for Rosenpass {
