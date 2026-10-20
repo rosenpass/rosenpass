@@ -118,32 +118,40 @@ impl PeerProtocolContext {
         let uadr: [&[u8]; 0] = []; // uadr is empty for now – a user might specify it later
 
         // adc
-        let adc = hash_domains::additional_data_user_common(keyed_hash.clone(), ephemeral_kem)?
-            .turn_secret();
-        let adc = if wg.is_some() {
-            adc.mix_many(WG_EXT_LABELS)?
-        } else {
-            adc
+        let adc = {
+            let adc = hash_domains::additional_data_user_common(keyed_hash.clone(), ephemeral_kem)?
+                .turn_secret();
+            let adc = if wg.is_some() {
+                adc.mix_many(WG_EXT_LABELS)?
+            } else {
+                adc
+            };
+            adc.mix_many(uadc)?.into_secret()
         };
-        let adc = adc.mix_many(uadc)?.into_secret();
 
         // adi
-        let adi = hash_domains::additional_data_user_initiator(keyed_hash.clone(), ephemeral_kem)?
-            .turn_secret();
-        let adi = match wg {
-            Some((wg_spki, _)) => adi.mix_many(WG_EXT_LABELS)?.mix(&wg_spki)?,
-            None => adi,
+        let adi = {
+            let adi =
+                hash_domains::additional_data_user_initiator(keyed_hash.clone(), ephemeral_kem)?
+                    .turn_secret();
+            let adi = match wg {
+                Some((wg_spki, _)) => adi.mix_many(WG_EXT_LABELS)?.mix(&wg_spki)?,
+                None => adi,
+            };
+            adi.mix_many(uadi)?.into_secret()
         };
-        let adi = adi.mix_many(uadi)?.into_secret();
 
         // adr
-        let adr = hash_domains::additional_data_user_responder(keyed_hash.clone(), ephemeral_kem)?
-            .turn_secret();
-        let adr = match wg {
-            Some((_, wg_spkr)) => adr.mix_many(WG_EXT_LABELS)?.mix(&wg_spkr)?,
-            None => adr,
+        let adr = {
+            let adr =
+                hash_domains::additional_data_user_responder(keyed_hash.clone(), ephemeral_kem)?
+                    .turn_secret();
+            let adr = match wg {
+                Some((_, wg_spkr)) => adr.mix_many(WG_EXT_LABELS)?.mix(&wg_spkr)?,
+                None => adr,
+            };
+            adr.mix_many(uadr)?.into_secret()
         };
-        let adr = adr.mix_many(uadr)?.into_secret();
 
         // ctxc
         let ctxc = hash_domains::protocol_context_common(keyed_hash.clone(), ephemeral_kem)?
