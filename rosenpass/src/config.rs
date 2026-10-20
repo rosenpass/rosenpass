@@ -247,7 +247,7 @@ pub struct WireGuard {
     pub extra_params: Vec<String>,
 }
 /// decode a base64-encoded WireGuard public key (32 bytes) into a [`PublicSymKey`]
-pub(crate) fn decode_wg_pubkey_b64(b64_encoded_key: &str) -> anyhow::Result<PublicSymKey> {
+pub fn decode_wg_pubkey_b64(b64_encoded_key: &str) -> anyhow::Result<PublicSymKey> {
     let mut pubkey: PublicSymKey = [0u8; _];
     crate::internal::util::b64::b64_decode(b64_encoded_key.as_bytes(), &mut pubkey)
         .context("can not decode base64-encoded WireGuard public key")?;

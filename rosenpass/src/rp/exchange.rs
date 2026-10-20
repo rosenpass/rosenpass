@@ -23,6 +23,7 @@ use rosenpass::{
     protocol::{
         basic_types::{SPk, SSk, SymKey},
         osk_domain_separator::OskDomainSeparator,
+        protocol_context::WireGuardKeyBinding,
     },
 };
 use tokio::task::spawn_blocking;
@@ -450,6 +451,16 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
     device
         .set_private_key_and_listen_addr(&wgsk, options.listen.map(|ip| ip.port() + 1))
         .await?;
+
+    // derive our WireGuard public key from our WireGuard secret key, required since protocol version 3
+    let our_wg_pubkey: [u8; 32] = {
+        let secret = x25519_dalek::StaticSecret::from(*wgsk.secret());
+        let public = x25519_dalek::PublicKey::from(&secret).to_bytes();
+        std::mem::drop(secret);
+        public
+    };
+
+    // drop our WireGuard secret key
     std::mem::drop(wgsk);
 
     // Assign the public IP address for the interface
@@ -518,6 +529,18 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             Box::new(peer_cfg),
         ));
 
+        // bind to WireGuard public keys, required since protocol version 3
+        let wg_key_binding = match peer.protocol_version {
+            ProtocolVersion::V03 => {
+                let peer_wg_pubkey = rosenpass::config::decode_wg_pubkey_b64(wgpk.trim())?;
+                Some(WireGuardKeyBinding {
+                    our_wg_pubkey,
+                    peer_wg_pubkey,
+                })
+            }
+            ProtocolVersion::V02 => None,
+        };
+
         srv.add_peer(
             psk,
             pqpk,
@@ -526,7 +549,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
             peer.endpoint.map(|x| x.to_string()),
             peer.protocol_version,
             OskDomainSeparator::for_wireguard_psk(),
-            None, // TODO: repeat tests with WireGuard protocol extension?
+            wg_key_binding,
         )?;
 
         // Configure routes, equivalent to `ip route replace <allowed_ips> dev <dev>` and set up
