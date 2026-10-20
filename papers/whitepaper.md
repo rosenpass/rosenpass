@@ -31,26 +31,26 @@ abstract: |
 \addtocontents{toc}{\string\setcounter{tocdepth}{\string\sectionnumdepth}}
 \setcounter{secnumdepth}{\sectionnumdepth}
 
-# Security
+# 1. Security
 
 Rosenpass inherits most security properties from Post-Quantum WireGuard (PQWG). The security properties mentioned here are covered by the symbolic analysis in the Rosenpass repository.
 
-## Secrecy
+## 1.1 Secrecy
 Three key encapsulations using the keypairs `sski`/`spki`, `sskr`/`spkr`, and `eski`/`epki` provide secrecy (see Section \ref{variables} for an introduction of the variables). Their respective ciphertexts are called `scti`, `sctr`, and `ectr` and the resulting keys are called `spti`, `sptr`, `epti`. A single secure encapsulation is sufficient to provide secrecy. We use two different KEMs (Key Encapsulation Mechanisms; see Section \ref{skem}): Kyber and Classic McEliece.
 
-## Authenticity
+## 1.2 Authenticity
 
 The key encapsulation using the keypair `sskr`/`spkr` authenticates the responder from the perspective of the initiator. The KEM encapsulation `sski`/`spki` authenticates the initiator from the perspective of the responder. Authenticity is based on the security of Classic McEliece alone.
 
-## Secrecy and Authenticity based on a Pre-Shared Symmetric Key
+## 1.3 Secrecy and Authenticity based on a Pre-Shared Symmetric Key
 
 We allow the use of a pre-shared key (`psk`) as protocol input. Even if all asymmetric security primitives turn out to be insecure, providing a secure `psk` will have Rosenpass authenticate both peers, and output a secure shared key.
 
-## Forward Secrecy
+## 1.4 Forward Secrecy
 
 Forward secrecy refers to secrecy of past sessions in case all static keys are leaked. Imagine an attacker recording the network messages sent between two devices, developing an interest in some particular exchange,  and stealing both computers in an attempt to decrypt that conversation. By stealing the hardware, the attacker gains access to `sski`, `sskr`, and the symmetric secret `psk`. Since the ephemeral keypair `eski`/`epki` is generated on the fly and deleted after the execution of the protocol, it cannot be recovered by stealing the devices, and thus, Rosenpass provides forward secrecy. Forward secrecy relies on the security of Kyber and on proper zeroization, i.e., the implementation must erase all temporary variables.
 
-## Security against State Disruption Attacks {#statedis}
+## 1.5 Security against State Disruption Attacks {#statedis}
 
 Both WG and PQWG are vulnerable to state disruption attacks; they rely on a timestamp to protect against replay of the first protocol message. An attacker who can tamper with the local time of the protocol initiator can inhibit future handshakes [@statedis], rendering the initiator’s static keypair practically useless. Due to the use of the insecure NTP protocol, real-world deployments are vulnerable to this attack [@statedis_cve]. Lacking a reliable way to detect retransmission, we remove the replay protection mechanism and store the responder state in an encrypted cookie called “the biscuit” instead. Since the responder does not store any session-dependent state until the initiator is interactively authenticated, there is no state to disrupt in an attack.
 
@@ -59,14 +59,14 @@ Note that while Rosenpass is secure against state disruption, using it does not 
 \addtocontents{toc}{\string\setcounter{tocdepth}{\string\subsectionnumdepth}}
 \setcounter{secnumdepth}{\subsubsectionnumdepth}
 
-# Protocol Description
+# 2. Protocol Description
 
-## Cryptographic Building Blocks
+## 2.1 Cryptographic Building Blocks
 
 All symmetric keys and hash values used in Rosenpass are 32 bytes long.
 
 
-### Hash {#hash}
+### 2.1.1 Hash {#hash}
 
 A keyed hash function with one 32-byte input, one variable-size input, and one 32-byte output. As keyed hash function we offer two options that can be configured on a peer-basis, with Blake2b being the default:
 
@@ -79,7 +79,7 @@ The use of BLAKE2b is being phased out.
 hash(key, data) -> key
 ```
 
-### AEAD
+### 2.1.2 AEAD
 
 Authenticated encryption with additional data for use with sequential nonces. We use ChaCha20Poly1305 [@rfc_chachapoly] in the implementation.
 
@@ -88,7 +88,7 @@ AEAD::enc(key, nonce, plaintext, additional_data) -> ciphertext
 AEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 ```
 
-### XAEAD
+### 2.1.3 XAEAD
 
 Authenticated encryption with additional data for use with random nonces. We use XChaCha20Poly1305 [@draft_xchachapoly] in the implementation, a construction also used by WireGuard.
 
@@ -98,7 +98,7 @@ XAEAD::enc(key, nonce, plaintext, additional_data) -> ciphertext
 XAEAD::dec(key, nonce, ciphertext, additional_data) -> plaintext
 ```
 
-### SKEM {#skem}
+### 2.1.4 SKEM {#skem}
 
 “Key Encapsulation Mechanism” (KEM) is the name of an interface widely used in post-quantum-secure protocols. KEMs can be seen as asymmetric encryption specifically for symmetric keys. Rosenpass uses two different KEMs. SKEM is the key encapsulation mechanism used with the static keypairs in Rosenpass. The public keys of these keypairs are not transmitted over the wire during the protocol. We use Classic McEliece 460896\footnote{The exact Classic McEliece version is from the NIST-Competition, Round 3: \par https://classic.mceliece.org/nist/mceliece-20201010.tar.gz}[@mceliece] which claims to be as hard to break as 192-bit AES. As one of the oldest post-quantum-secure KEMs, it enjoys wide trust among cryptographers, but it has not been chosen for standardization by NIST. Its ciphertexts and secret keys are small (188 bytes and 13568 bytes), and its public keys are large (524160 bytes). This fits our use case: public keys are exchanged out-of-band, and only the small ciphertexts have to be transmitted during the handshake.
 
@@ -107,7 +107,7 @@ SKEM::enc(public_key) -> (ciphertext, shared_key)
 SKEM::dec(secret_key, ciphertext) -> shared_key
 ```
 
-### EKEM
+### 2.1.5 EKEM
 
 Key encapsulation mechanism used with the ephemeral KEM keypairs in Rosenpass. The public keys of these keypairs need to be transmitted over the wire during the protocol. We use Kyber-512\footnote{The exact Kyber version is from the NIST-Competition, Round 3: \par https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip \par https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf}[@kyber], which has been selected in the NIST post-quantum cryptography competition and claims to be as hard to break as 128-bit AES. Its ciphertexts, public keys, and secret keys are 768, 800, and 1632 bytes long, respectively, providing a good balance for our use case as both a public key and a ciphertext have to be transmitted during the handshake.
 
@@ -120,7 +120,7 @@ Using a combination of two KEMs – Classic McEliece for static keys and Kyber f
 
 Rosenpass uses libsodium [@libsodium] as cryptographic backend for hash, AEAD, and XAEAD, and liboqs [@liboqs] for the post-quantum-secure KEMs.
 
-## Protocol Roles {#roles}
+## 2.2 Protocol Roles {#roles}
 
 The protocol specifies two roles: initiator and responder.
 
@@ -142,7 +142,7 @@ Implementations must account for one ongoing initiator-role key exchange and man
 
 In practice these delays cause participants to take turns acting as initiator and acting as responder, since the ten-second difference is usually enough for the handshake with switched roles to complete before the old initiator's rekey timer goes to zero.
 
-## Packages {#packages}
+## 2.3 Packages {#packages}
 
 The packages, their contents, and their type IDs are graphically represented in Fig. \ref{img:MessageTypes}. Their purposes are:
 
@@ -155,13 +155,13 @@ The packages, their contents, and their type IDs are graphically represented in 
 * \textbf{CookieReply} – Used for proof-of-IP-ownership-based denial-of-service mitigation (see Sec. \ref{dos-mitigation}).
 * \textbf{biscuit} – This is not a stand-alone package; instead, it is an encrypted fragment present in \textbf{RespHello} and \textbf{InitConf}.
 
-## Endianness {#endianess}
+## 2.4 Endianness {#endianess}
 
 Unless otherwise specified, all integer values in the Rosenpass protocol use little-endian encoding.
 
-## Variables and Domain Separators {#variables}
+## 2.5 Variables and Domain Separators {#variables}
 
-### KEM Keypairs and Ciphertexts
+### 2.5.1 KEM Keypairs and Ciphertexts
 
 Rosenpass uses multiple keypairs, ciphertexts, and plaintexts for key encapsulation: a static keypair for each peer, and an ephemeral keypair on the initiator's side. We use a common naming scheme to refer to these variables:
 
@@ -182,7 +182,7 @@ These values use a naming scheme consisting of four lower-case characters. The f
 Besides the initiator and responder roles, we define the roles `mine` and `theirs` (`m`/`t`). These are sometimes used in the code when the assignment to initiator or responder roles is flexible. As an example, our static secret key is `sskm`, and the peer's public key is `spkt`.
 
 
-### IDs {#peer-ids}
+### 2.5.2 IDs {#peer-ids}
 
 Rosenpass uses two types of ID variables. See Figure \ref{img:HashingTree} for how the IDs are calculated.
 
@@ -197,7 +197,7 @@ Rosenpass uses two types of ID variables. See Figure \ref{img:HashingTree} for h
 
 The first lower-case character indicates whether the variable is a session ID (`sid`) or a peer ID (`pid`). The final character indicates the role using the characters `i`, `r`, `m`, or `t`, for `initiator`, `responder`, `mine`, or `theirs` respectively.
 
-### Symmetric Keys {#symmetric-keys}
+### 2.5.3 Symmetric Keys {#symmetric-keys}
 
 Rosenpass uses two main symmetric key variables `psk` and `osk` in its interface, and maintains the entire handshake state in a variable called the chaining key.
 
@@ -209,7 +209,7 @@ We mix all key material (e.g. `psk`) into the chaining key and derive symmetric 
 
 The protocol allows for multiple `osk`s to be generated; each of these keys is labeled with a domain separator to make sure different key usages are always given separate keys. The domain separator for using Rosenpass and WireGuard together is a token generated using the domain separator sequence `["rosenpass.eu", "wireguard psk"]` (see Fig. \ref{img:HashingTree}), as described in \ref{protocol-extension-wireguard-psk}. Third-parties using Rosenpass-keys for other purposes are asked to define their own protocol-extensions. Standard protocol extensions are described in \ref{protocol-extensions}.
 
-#### Symmetric Keys and Nonces for payload data transmission {#payload-keys}
+#### 2.5.3.1 Symmetric Keys and Nonces for payload data transmission {#payload-keys}
 
 Keys generated by the Rosenpass key exchange could be used for encryption of payload data if post-quantum security but not hybrid post-quantum security is a goal. Despite this, we do not generally offer payload transmission in the protocol. Instead, the Rosenpass protocol focuses on providing a key exchange, letting external applications handle data transmission. When used with WireGuard, the default use case, this integration also ensures hybrid security.
 
@@ -246,7 +246,7 @@ There also is a -- now deprecated -- naming scheme:
 
 `ini_enc = txki = rxkr` and `res_enc = txkr = rxki`, but this usage is deprecated. The third name `hs_enc` is for encryption as part of the key exchange itself; this name is still in use.
 
-### Labels
+### 2.5.4 Labels
 
 Fig. \ref{img:HashingTree} specifies multiple domain separators for various uses.
 
@@ -272,7 +272,7 @@ The different labels are:
 * `"handshake encryption"` – Used when encrypting data using a shared key as part of the protocol execution; e.g. used to generate the `auth` (authentication tag) fields in protocol packages.
 * `"initiator handshake encryption"` and `"responder handshake encryption"` – For transmission of data after the key-exchange finishes. See Sec. \ref{symmetric-keys}.
 
-## Hashes
+## 2.6 Hashes
 
 Rosenpass uses a cryptographic hash function for multiple purposes:
 
@@ -329,9 +329,9 @@ hs_enc = hash(hash(hash(0, PROTOCOL), "chaining key extract"), "handshake encryp
        = lhash("chaining key extract", "handshake encryption")
 ```
 
-## Rosenpass Server State
+## 2.7 Rosenpass Server State
 
-### Global
+### 2.7.1 Global
 
 The server needs to store the following variables:
 
@@ -346,7 +346,7 @@ Not mandated per se, but required in practice:
 * `peers` – A lookup table mapping the peer ID to the internal peer structure
 * `index` – A lookup table mapping the session ID to the ongoing initiator handshake or live session
 
-### Peer
+### 2.7.2 Peer
 
 For each peer, the server stores:
 
@@ -355,7 +355,7 @@ For each peer, the server stores:
 * `biscuit_used` – The `biscuit_no` from the last biscuit accepted for the peer as part of InitConf processing
 * `hash_function` – The hash function, SHAKE256 or BLAKE2b, used with the peer.
 
-### Handshake State and Biscuits {#hs-state-and-biscuits}
+### 2.7.3 Handshake State and Biscuits {#hs-state-and-biscuits}
 
 The initiator stores the following local state for each ongoing handshake:
 
@@ -378,7 +378,7 @@ The biscuit is encrypted with the `XAEAD` primitive and a randomly chosen nonce.
 
 The `biscuit_key` used to encrypt biscuits should be rotated frequently. Implementations should keep two biscuit keys in memory at any given time to avoid having to drop packages when `biscuit_key` is rotated. The Rosenpass reference implementation retires biscuits after five minutes and erases them after ten.
 
-### Live Session State {#live-session-state}
+### 2.7.4 Live Session State {#live-session-state}
 
 These variables are used after the handshake terminates for encryption of the \textbf{Data} and \textbf{EmptyData} packages.
 \textbf{EmptyData} is used as an acknowledgement package to terminate package retransmission (see Sec. \ref{packet-loss}).
@@ -392,14 +392,14 @@ These variables are used after the handshake terminates for encryption of the \t
 * `txkt` – Peer's transmission key
 * `txnt` – Peer's transmission nonce
 
-## Protocol Code {#functions}
+## 2.8 Protocol Code {#functions}
 
 The main reference for how messages are processed in the Rosenpass protocol can be found in Fig. \ref{img:HandlingCode}. The figure uses Rust-like pseudo code.
 
 \setupimage{landscape,fullpage,label=img:HandlingCode}
 ![Rosenpass Message Handling Code](graphics/rosenpass-wp-message-handling-code.svg)
 
-## Helper Functions {#functions}
+## 2.9 Helper Functions {#functions}
 
 Given the peer ID, look up the peer and load the peer's variables.
 
@@ -564,7 +564,7 @@ fn setup_osks() {
 }
 ```
 
-## Message Encoding and Decoding
+## 2.10 Message Encoding and Decoding
 
 The steps to actually execute the handshake are given in Figure \ref{img:HandlingCode}. This figure contains the initiator code and the responder code; instructions corresponding to each other are shown side by side. We use the following numbering scheme for instructions:
 
@@ -586,7 +586,7 @@ The responder code handling InitConf needs to deal with the biscuits and package
 
 ICR5 and ICR6 perform biscuit replay protection using the biscuit number. This is not handled in `load_biscuit()` itself because there is the case that `biscuit_no = biscuit_used` which needs to be dealt with for retransmission handling.
 
-### Denial of Service Mitigation and Cookies {#dos-mitigation}
+### 2.10.1 Denial of Service Mitigation and Cookies {#dos-mitigation}
 
 Rosenpass derives its cookie-based DoS mitigation technique for a responder when receiving InitHello messages from WireGuard [@wg].
 
@@ -598,7 +598,7 @@ The sender of the exchange then uses this cookie in order to resend the message 
 
 For an initiator, Rosenpass ignores all messages when under load.
 
-#### Cookie Reply Message
+#### 2.10.1.1 Cookie Reply Message
 
 The cookie reply message is sent by the responder on receiving an InitHello message when under load. It consists of the `sidi` of the initiator, a random 24-byte bitstring `nonce` and encrypting `cookie_value` into a `cookie_encrypted` reply field, which consists of the following:
 
@@ -609,7 +609,7 @@ cookie_encrypted = XAEAD(lhash("cookie-key", spkm), nonce, cookie_value, mac_pee
 
 where `cookie_secret` is a secret variable that changes every two minutes to a random value. Moreover, `lhash` is always instantiated with SHAKE256 when computing `cookie_value` for compatibility reasons.  `initiator_host_info` is used to identify the initiator host, and is implementation-specific for the client. This parameters used to identify the host must be carefully chosen to ensure there is a unique mapping, especially when using IPv4 and IPv6 addresses to identify the host (such as taking care of IPv6 link-local addresses). `cookie_value` is a truncated 16 byte value from the above hash operation. `mac_peer` is the `mac` field of the peer's handshake message to which message is the reply.
 
-#### Envelope `mac` Field {#envelope-mac-field}
+#### 2.10.1.2 Envelope `mac` Field {#envelope-mac-field}
 
 Similar to `mac.1` in WireGuard handshake messages, the `mac` field of a Rosenpass envelope from a handshake packet sender's point of view consists of the following:
 
@@ -621,7 +621,7 @@ where `MAC_WIRE_DATA` represents all bytes of msg prior to `mac` field in the en
 
 If a client receives an invalid `mac` value for any message, it will discard the message.
 
-#### Envelope cookie field
+#### 2.10.1.3 Envelope cookie field
 
 The initiator, on receiving a CookieReply message, decrypts `cookie_encrypted` and stores the `cookie_value` for the session into `peer[sid].cookie_value` for a limited time (120 seconds). This value is then used to set `cookie` field set for subsequent messages and retransmissions to the responder as follows:
 
@@ -639,7 +639,7 @@ Here, `seconds_since_update(peer.cookie_value)` is the amount of time in seconds
 The initiator can use an invalid value for the `cookie` value, when the responder is not under load, and the responder must ignore this value.
 However, when the responder is under load, it may reject InitHello messages with the invalid `cookie` value, and issue a cookie reply message.
 
-### Conditions to trigger DoS Mechanism
+### 2.10.2 Conditions to trigger DoS Mechanism
 
 This whitepaper does not mandate any specific mechanism to detect responder contention (also mentioned as the under load condition) that would trigger use of the cookie mechanism.
 
@@ -654,13 +654,13 @@ MAX_QUEUED_INCOMING_HANDSHAKES_THRESHOLD = 4096
 LAST_UNDER_LOAD_WINDOW = 1 //seconds
 ```
 
-## Dealing with Packet Loss {#packet-loss}
+## 2.11 Dealing with Packet Loss {#packet-loss}
 
 The initiator deals with packet loss by storing the messages it sends to the responder and retransmitting them in randomized, exponentially increasing intervals until they get a response. Receiving RespHello terminates retransmission of InitHello. A Data or EmptyData message serves as acknowledgement of receiving InitConf and terminates its retransmission.
 
 The responder uses less complex form of the same mechanism: The responder never retransmits RespHello, instead the responder generates a new RespHello message if InitHello is retransmitted. Responder confirmation messages of completed handshake (EmptyData) messages are retransmitted by storing the most recent InitConf messages (or their hashes) and caching the associated EmptyData messages. Through this cache, InitConf retransmission is detected and the associated EmptyData message is retransmitted.
 
-### Interaction with cookie reply system
+### 2.11.1 Interaction with cookie reply system
 
 The cookie reply system does not interfere with the retransmission logic discussed above.
 
@@ -670,11 +670,11 @@ When a responder is under load and it receives an InitHello handshake message, t
 
 When the responder is under load and it receives an InitConf message, the message will be directly processed without checking the validity of the cookie field.
 
-## Timers
+## 2.12 Timers
 
 The Rosenpass protocol uses various timer-triggered events during its operation. This section provides a listing of the timers used and gives the values used in the reference implementation. Other implementations may choose different values.
 
-### Rekeying
+### 2.12.1 Rekeying
 
 Period after which the previous responder starts a new handshake in initiator role; period after which the previous initiator starts a new handshake in initiator role again; period after which a peer rejects an existing shared key.
 
@@ -684,7 +684,7 @@ REKEY_AFTER_TIME_INITIATOR = 130s
 REJECT_AFTER_TIME = 180s
 ```
 
-### Biscuits
+### 2.12.2 Biscuits
 
 Period after which the biscuit key is rotated.
 
@@ -692,7 +692,7 @@ Period after which the biscuit key is rotated.
 BISCUIT_EPOCH = 300s
 ```
 
-### Retransmission
+### 2.12.3 Retransmission
 
 Delay after which all retransmission attempts are aborted; exponential backoff factor for retransmission delay; initial (minimum) retransmission delay; final (maximum) retransmission delay; retransmission jitter/variance factor.
 
@@ -704,11 +704,11 @@ RETRANSMIT_DELAY_END    = 10s
 RETRANSMIT_DELAY_JITTER = 0.5
 ```
 
-# Protocol extensions {#protocol-extensions}
+# 3. Protocol extensions {#protocol-extensions}
 
 The main extension point for the Rosenpass protocol is to generate `osk`s (speak output shared keys, see Sec. \ref{symmetric-keys}) for purposes other than using them to secure WireGuard. By default, the Rosenpass application generates keys for the WireGuard PSK (see \ref{protocol-extension-wireguard-psk}). It would not be impossible to use the keys generated for WireGuard in other use cases, but this might lead to attacks[@oraclecloning]. Specifying a custom protocol extension in practice just means settling on alternative domain separators (see Sec. \ref{symmetric-keys}, Fig. \ref{img:HashingTree}).
 
-## Using custom domain separators in the Rosenpass application
+## 3.1 Using custom domain separators in the Rosenpass application
 
 The Rosenpass application supports protocol extensions to change the OSK domain separator without modification of the source code.
 
@@ -730,7 +730,7 @@ osk_organization = "myorg.com"
 osk_label = ["My Custom Messenger app", "Backend VPN Example Subusecase"]
 ```
 
-## Extension: WireGuard PSK {#protocol-extension-wireguard-psk}
+## 3.2 Extension: WireGuard PSK {#protocol-extension-wireguard-psk}
 
 The WireGuard PSK protocol extension is active by default; this is the mode where Rosenpass is used to provide post-quantum security for WireGuard. Hybrid security (i.e. redundant pre-quantum and post-quantum security) is achieved because WireGuard provides pre-quantum security, with or without Rosenpass.
 
@@ -816,9 +816,9 @@ fn on_key_timeout() {
 ![Rosenpass + WireGuard: Hybrid Security](graphics/rosenpass-wireguard-hybrid-security.pdf)
 \end{minipage}
 
-# Errata {#errata}
+# 4. Errata {#errata}
 
-## Incorrect HMAC, Hash Function Choice {#incorrect-hmac}
+## 4.1 Incorrect HMAC, Hash Function Choice {#incorrect-hmac}
 
 Initially, we chose to use `HMAC+BLAKE2s` for our message authentication code, mostly as a form of cargo cult. WireGuard used BLAKE2s, so we should use it too. BLAKE2 supports a directly keyed mode, so there is not much reason to prefer rolling your own using HMAC from a security standpoint.
 
@@ -877,7 +877,7 @@ To ensure compatibility with the existing versions of Rosenpass, you have to rep
 Neither mistake is assumed to cause security issues. BLAKE2b is a secure hash function.
 There is no reason to assume that our incorrect variant of HMAC-BLAKE2b would be insecure; it is, however, non-standard and needlessly complicates the protocol. We are therefore phasing out usage of HMAC-BLAKE2b in favor of us using SHAKE256 as our keyed hash of choice.
 
-# Changelog
+# 5. Changelog
 
 ### 0.3.x
 
