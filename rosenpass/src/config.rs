@@ -149,7 +149,7 @@ pub struct RosenpassPeer {
     pub key_out: Option<PathBuf>,
 
     /// Information for supplying exchanged keys directly to WireGuard
-    #[serde(flatten)]
+    #[serde(flatten, deserialize_with = "WireGuard::deserialize_optional")]
     pub wg: Option<WireGuard>,
 
     #[serde(default)]
@@ -247,6 +247,60 @@ pub struct WireGuard {
     #[serde(default)]
     pub extra_params: Vec<String>,
 }
+
+impl WireGuard {
+    /// deserializes the entirety of the WireGuard protocol extension config
+    /// for one [`RosenpassPeer`]
+    ///
+    /// - If any of the WireGuard extension's config keys are present, this
+    /// returns `Some(WireGuard)`. All of the extension's config keys must
+    /// be absent to return `None`.
+    /// - The deserializer ensures that `device` and `peer` are set if any of
+    /// the other WireGuard extensions config keys are present.
+    ///
+    /// TODO: write tests for this deserialization
+    fn deserialize_optional<'de, D>(deserializer: D) -> Result<Option<Self>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+
+        // A flattened Option<WireGuard> silently discards missing required fields.
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Fields {
+            device: Option<String>,
+            peer: Option<String>,
+            our_wg_pubkey: Option<String>,
+            extra_params: Option<Vec<String>>,
+        }
+
+        let fields = Fields::deserialize(deserializer)?;
+
+        match (
+            fields.device,
+            fields.peer,
+            fields.our_wg_pubkey,
+            fields.extra_params,
+        ) {
+            // if all fields are are None, the WireGuard extension is actually not used
+            (None, None, None, None) => Ok(None),
+
+            // if any field is Some(_), the WireGuard extension seems to be in use
+            (device, peer, our_wg_pubkey, extra_params) => Ok(Some(Self {
+                // `device` and `peer` are required if the WireGuard extension is used
+                device: device.ok_or_else(|| D::Error::missing_field("device"))?,
+                peer: peer.ok_or_else(|| D::Error::missing_field("peer"))?,
+                // `our_wg_pubkey` is optional because it is only required since protocol version 3.
+                // `crate::config::Rosenpass::validate` will catch incosistencies depending on protocol version.
+                our_wg_pubkey,
+                // extra_params is optional and will just default to an empty list
+                extra_params: extra_params.unwrap_or_default(),
+            })),
+        }
+    }
+}
+
 /// decode a base64-encoded WireGuard public key (32 bytes) into a [`PublicSymKey`]
 pub fn decode_wg_pubkey_b64(b64_encoded_key: &str) -> anyhow::Result<PublicSymKey> {
     let mut pubkey: PublicSymKey = [0u8; _];
