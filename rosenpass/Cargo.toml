@@ -1,7 +1,7 @@
 [package]
 name = "rosenpass"
 version = "0.3.0-dev"
-authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+authors = ["Karolin Varner <karo@rosenpass.eu>", "wucke13 <wucke13@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
@@ -168,6 +168,7 @@ rustix = { version = "1.1.4", features = [
   "net",
   "fs",
   "process",
+  "mm",
 ] } # Broker dependencies (might need cleanup or changes)
 uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
   "mio_1xx",
@@ -188,6 +189,9 @@ tokio = { version = "1.46", optional = true, features = [
 ] }
 base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
+bitflags = { version = "2.9.3" }
+tinyvec = { version = "1.10.0" }
+num-traits = { version = "0.2.19" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
   "std",
@@ -202,12 +206,16 @@ wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
 postcard = { version = "1.1.1", default-features = false, features = [
   "alloc",
 ] } # Socket handler only
-libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+libc = { version = "0.2" } # Always required for some features missing in rustix
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
+# Rust bindings for liboqs
 oqs-sys = { version = "0.8", default-features = false, features = [
-  'classic_mceliece',
-  'kyber',
+  'classic_mceliece', # McEliece (NIST round 3), not to be confused with McEliece (NIST round 4 (final round))
+  'kyber',            # Kyber-512 (NIST round 3), not to be confused with ML-KEM (FIPS 203)
 ] }
+# RustCrypto's official pure Rust implementation of ML-KEM (FIPS 203)
+ml-kem = { version = "0.3", default-features = false, features = ["zeroize"] }
+
 # dependencies of `rp`
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
@@ -231,11 +239,6 @@ test_bin = "0.6"
 stacker = "0.1.21"
 serial_test = "4.0"
 tempfile = "3"
-rustix = { version = "1.1.4", features = [
-  "net",
-  "fs",
-  "process",
-] } # Broker dependencies (might need cleanup or changes)
 serde_json = { version = "1.0.140" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 rand = "0.10"
@@ -251,7 +254,6 @@ experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:libc",                           # From `rosenpass-wireguard-broker`
   "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
   "experiment_file_descriptor_passing",
 ]
@@ -271,7 +273,6 @@ rp = [
   "dep:netlink-packet-core",
   "dep:netlink-packet-generic",
   "dep:netlink-packet-wireguard",
-  "dep:libc",
 ]
 # features of `rosenpass_util`:
 experiment_file_descriptor_passing = ["dep:uds"]

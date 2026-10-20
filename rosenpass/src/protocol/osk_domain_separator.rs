@@ -22,6 +22,7 @@ use crate::internal::util::result::OkExt;
 use crate::hash_domains;
 
 use super::basic_types::PublicSymKey;
+use crate::internal::ciphers::EphemeralKemChoice;
 
 /// The OSK (output shared key) domain separator to use for a specific peer
 ///
@@ -85,11 +86,17 @@ impl OskDomainSeparator {
     /// at program startup and cached.
     ///
     /// This function generates this fixed-length hash.
-    pub fn compress_with(&self, hash_choice: KeyedHash) -> anyhow::Result<PublicSymKey> {
+    pub fn compress_with(
+        &self,
+        hash_choice: KeyedHash,
+        ekem_choice: EphemeralKemChoice,
+    ) -> anyhow::Result<PublicSymKey> {
         use OskDomainSeparator as O;
         match &self {
-            O::ExtensionWireguardPsk => hash_domains::ext_wireguard_psk_osk(hash_choice),
-            O::Custom { namespace, labels } => hash_domains::cke_user(hash_choice)?
+            O::ExtensionWireguardPsk => {
+                hash_domains::ext_wireguard_psk_osk(hash_choice, ekem_choice)
+            }
+            O::Custom { namespace, labels } => hash_domains::cke_user(hash_choice, ekem_choice)?
                 .mix(namespace)?
                 .mix_many(labels)?
                 .into_value()

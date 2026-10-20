@@ -35,6 +35,16 @@ impl KeyedHash {
     pub fn incorrect_hmac_blake2b() -> Self {
         Self::IncorrectHmacBlake2b(Default::default())
     }
+
+    /// identifier used in the protocol's hash domain separation strings
+    ///
+    /// used by [`crate::hash_domains::protocol`]
+    pub const fn protocol_string_hash_id(&self) -> &'static str {
+        match self {
+            KeyedHash::IncorrectHmacBlake2b(_) => "BLAKE2s",
+            KeyedHash::KeyedShake256(_) => "SHAKE256",
+        }
+    }
 }
 
 impl KeyedHashInstance<KEY_LEN, HASH_LEN> for KeyedHash {

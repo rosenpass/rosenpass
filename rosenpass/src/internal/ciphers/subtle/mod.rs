@@ -2,12 +2,17 @@
 //!
 //! Ciphers and other cryptographic primitives used by rosenpass.
 //!
-//! This is an internal library; not guarantee is made about its API at this point in time.
-
-pub mod keyed_hash;
-
-pub use custom::incorrect_hmac_blake2b;
-pub use rust_crypto::{blake2b, keyed_shake256};
+//! This is an internal library; no guarantee is made about its API at this point in time.
 
 pub mod custom;
+pub mod ephemeral_kem_choice;
+pub mod keyed_hash;
 pub mod rust_crypto;
+
+// The re-export are used by other crates, e.g. `rosenpass-fuzzing`
+#[allow(unused_imports)]
+pub use custom::incorrect_hmac_blake2b;
+#[allow(unused_imports)]
+pub use ephemeral_kem_choice::EphemeralKemChoice;
+#[allow(unused_imports)]
+pub use rust_crypto::{blake2b, keyed_shake256};

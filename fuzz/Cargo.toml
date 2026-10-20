@@ -16,6 +16,7 @@ rosenpass-to = { path = "../to" }
 arbitrary = { version = "1.4.1", features = ["derive"] }
 libfuzzer-sys = "0.4"
 stacker = "0.1.21"
+ml-kem = { version = "0.3", default-features = false }
 
 [[bin]]
 name = "fuzz_handle_msg"
@@ -44,6 +45,12 @@ doc = false
 [[bin]]
 name = "fuzz_kyber_encaps"
 path = "fuzz_targets/kyber_encaps.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mlkem_roundtrip"
+path = "fuzz_targets/mlkem_roundtrip.rs"
 test = false
 doc = false
 

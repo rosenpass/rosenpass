@@ -202,6 +202,7 @@ pub struct MissingKeypair;
 pub struct BuildCryptoServer {
     /// The key pair (secret/public key) identifying the crypto server instance.
     pub keypair: Option<Keypair>,
+
     /// A list of network peers that should be registered when launching the server.
     pub peers: Vec<PeerParams>,
 }
@@ -285,7 +286,8 @@ impl BuildCryptoServer {
     /// Replaces all parameters with their default values, which allows extracting them
     /// while leaving the builder in a reusable state.
     pub fn take_parts(&mut self) -> (Option<Keypair>, Vec<PeerParams>) {
-        (self.keypair.take(), self.peers.swap_with_default())
+        let return_value = (self.keypair.take(), self.peers.swap_with_default());
+        return_value
     }
 
     /// Deconstructs the builder instance, yielding the assigned key pair and peer list.

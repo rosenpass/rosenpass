@@ -9,7 +9,7 @@
 
 This repository contains
 
-1. A description of the [Rosenpass protocol](https://github.com/rosenpass/rosenpass/raw/papers-pdf/whitepaper.pdf)
+1. A description of the [Rosenpass protocol](https://rosenpass.eu/docs/rosenpass-project/whitepaper/)
 2. The reference implementation of the protocol – the [rosenpass tool](./rosenpass)
 3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rp)
 4. [Security analysis](./analysis) of the protocol using proverif

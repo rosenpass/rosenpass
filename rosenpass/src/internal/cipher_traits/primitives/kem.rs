@@ -213,4 +213,8 @@ pub enum Error {
     InvalidArgument,
     #[error("internal error")]
     InternalError,
+    #[error("can not deserialize decapsulation key")]
+    CanNotDeserializeDecapsulationKey,
+    #[error("can not deserialize encapsulation key")]
+    CanNotDeserializeEncapsulationKey,
 }

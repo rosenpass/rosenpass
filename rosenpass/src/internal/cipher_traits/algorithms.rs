@@ -86,7 +86,9 @@ pub mod kem_kyber512 {
     use crate::internal::cipher_traits::primitives::kem::*;
 
     // page 39 of https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
-    // (which is ml-kem instead of kyber, but it's the same)
+    //
+    // Note: The document describes ML-KEM (FIPS 203, later standardized version of Kyber)
+    // but sizes are the same.
 
     /// The secret key length used in [`KemKyber512`].
     pub const SK_LEN: usize = 1632;
@@ -102,6 +104,30 @@ pub mod kem_kyber512 {
 
     /// A [`Kem`] that is Kyber512.
     pub trait KemKyber512: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> {}
+}
+
+/// Constants and trait for the ML-KEM-512 (FIPS 203) KEM
+pub mod kem_ml_kem512 {
+    use crate::internal::cipher_traits::primitives::kem::*;
+
+    // page 39 of https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
+    //
+    // Note: The sizes are the same as for Kyber512 (round 3).
+
+    /// The secret key length used in [`KemMlKem512`].
+    pub const SK_LEN: usize = 1632;
+
+    /// The public key length used in [`KemMlKem512`].
+    pub const PK_LEN: usize = 800;
+
+    /// The ciphertext length used in [`KemMlKem512`].
+    pub const CT_LEN: usize = 768;
+
+    /// The shared key length used in [`KemMlKem512`].
+    pub const SHK_LEN: usize = 32;
+
+    /// A [`Kem`] that is ML-KEM-512.
+    pub trait KemMlKem512: Kem<SK_LEN, PK_LEN, CT_LEN, SHK_LEN> {}
 }
 
 /// Constants and trait for the Classic McEliece 460896 KEM
@@ -143,6 +169,7 @@ pub use aead_xchacha20poly1305::AeadXChaCha20Poly1305;
 
 pub use kem_classic_mceliece460896::KemClassicMceliece460896;
 pub use kem_kyber512::KemKyber512;
+pub use kem_ml_kem512::KemMlKem512;
 
 pub use keyed_hash_blake2b::KeyedHashBlake2b;
 pub use keyed_hash_incorrect_hmac_blake2b::KeyedHashIncorrectHmacBlake2b;

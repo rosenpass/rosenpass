@@ -394,21 +394,23 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
 
         assert_eq!(PeerPtr(0).cv().lifecycle(&a), Lifecycle::Young);
 
-        let expected_cookie_value =
-            crate::hash_domains::cookie_value(protocol_version.keyed_hash())
+        let expected_cookie_value = crate::hash_domains::cookie_value(
+            protocol_version.keyed_hash(),
+            protocol_version.ephemeral_kem(),
+        )
+        .unwrap()
+        .mix(
+            b.active_or_retired_cookie_secrets()[0]
                 .unwrap()
-                .mix(
-                    b.active_or_retired_cookie_secrets()[0]
-                        .unwrap()
-                        .get(&b)
-                        .value
-                        .secret(),
-                )
-                .unwrap()
-                .mix(ip_addr_port_a.encode())
-                .unwrap()
-                .into_value()[..16]
-                .to_vec();
+                .get(&b)
+                .value
+                .secret(),
+        )
+        .unwrap()
+        .mix(ip_addr_port_a.encode())
+        .unwrap()
+        .into_value()[..16]
+            .to_vec();
 
         assert_eq!(
             PeerPtr(0).cv().get(&a).map(|x| &x.value.secret()[..]),
@@ -638,7 +640,8 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
             let res = srv.handle_init_conf(
                 &ic.payload,
                 &mut discard_resp_conf,
-                protocol_version.clone().keyed_hash(),
+                protocol_version.keyed_hash(),
+                protocol_version.ephemeral_kem(),
             );
             assert!(res.is_err());
 
