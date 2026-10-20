@@ -216,22 +216,57 @@ impl From<crate::config::ProtocolVersion> for ProtocolVersion {
 ///
 /// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
 ///
+/// let (mut sskm, mut spkm) = (SSk::zero(), SPk::zero());
+/// StaticKem.keygen(sskm.secret_mut(), spkm.deref_mut())?;
+///
 /// let (mut sskt, mut spkt) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskt.secret_mut(), spkt.deref_mut())?;
 ///
 /// let (mut sskt2, mut spkt2) = (SSk::zero(), SPk::zero());
 /// StaticKem.keygen(sskt2.secret_mut(), spkt2.deref_mut())?;
 ///
+/// let protocol_version = ProtocolVersion::V03;
+///
 /// let psk = SymKey::random();
 ///
 /// // Creation with a PSK
-/// let peer_psk = Peer::new(PeerProtocolContext::from_psk(&psk), spkt.clone(), ProtocolVersion::V03, OskDomainSeparator::default());
+/// let ctx = PeerProtocolContext::derive(
+///     &psk,
+///     &spkm,
+///     &spkt,
+///     None, // No WireGuard key binding in this example.
+///     protocol_version.keyed_hash(),
+///     protocol_version.ephemeral_kem(),
+/// )?;
+/// let peer_psk = Peer::new(ctx, spkt.clone(), protocol_version, OskDomainSeparator::default());
 ///
 /// // Creation without a PSK
-/// let peer_nopsk = Peer::new(PeerProtocolContext::from_psk(&SymKey::zero()), spkt, ProtocolVersion::V03, OskDomainSeparator::default());
+/// let ctx = PeerProtocolContext::derive(
+///     &SymKey::zero(),
+///     &spkm,
+///     &spkt,
+///     None,
+///     protocol_version.keyed_hash(),
+///     protocol_version.ephemeral_kem(),
+/// )?;
+/// let peer_nopsk = Peer::new(ctx, spkt, protocol_version, OskDomainSeparator::default());
 ///
 /// // Create a second peer
-/// let peer_psk_2 = Peer::new(PeerProtocolContext::from_psk(&SymKey::zero()), spkt2, ProtocolVersion::V03, OskDomainSeparator::default());
+/// let ctx = PeerProtocolContext::derive(
+///     &SymKey::zero(),
+///     &spkm,
+///     &spkt2,
+///     None,
+///     protocol_version.keyed_hash(),
+///     protocol_version.ephemeral_kem(),
+/// )?;
+/// let peer_psk_2 = Peer::new(ctx, spkt2, protocol_version, OskDomainSeparator::default());
+///
+/// // Both protocol version 3 role contexts are derived, even when no PSK is configured:
+/// assert_ne!(peer_psk.ctx.as_initiator.secret(), psk.secret());
+/// assert_ne!(peer_psk.ctx.as_responder.secret(), psk.secret());
+/// assert_ne!(peer_nopsk.ctx.as_initiator.secret(), SymKey::zero().secret());
+/// assert_ne!(peer_nopsk.ctx.as_responder.secret(), SymKey::zero().secret());
 ///
 /// // Peer ID does not depend on PSK, but it does depend on the public key
 /// assert_eq!(peer_psk.pidt()?, peer_nopsk.pidt()?);
@@ -317,6 +352,8 @@ impl Peer {
     /// assert_eq!(p.spkt, SPk::zero());
     /// // etc.
     /// ```
+    ///
+    /// NOTE: remember to set meaningful values to all zeroed items, e.g. `ctx` and `spkt`.
     pub fn zero(protocol_version: ProtocolVersion) -> Self {
         Self {
             ctx: PeerProtocolContext::zero(),
@@ -1543,17 +1580,34 @@ impl CryptoServer {
 }
 
 impl Peer {
-    /// Create a new peer from the peers keys.
+    /// create a new peer from protocol context and their public key
     ///
-    /// If no peer PSK is set, protocol context `ctx` should be initialized to
-    #[cfg_attr(
-        feature = "expose_internal_modules",
-        doc = "[PeerProtocolContext::zero]."
-    )]
-    #[cfg_attr(
-        not(feature = "expose_internal_modules"),
-        doc = "`PeerProtocolContext::zero`."
-    )]
+    /// ## If no peer PSK is set
+    ///
+    /// initialize the `ctx` to:
+    ///
+    /// ### protocol version 2
+    ///
+    #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
+    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
+    /// # use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
+    /// # use rosenpass::protocol::{basic_types::SymKey, protocol_context::PeerProtocolContext, ProtocolVersion};
+    /// # secret_policy_try_use_memfd_secrets();
+    /// let protocol_version = ProtocolVersion::V02;
+    /// let ctx = PeerProtocolContext::from_psk(&SymKey::zero());
+    /// ```
+    /// ### protocol version 3
+    /// ```rust, ignore
+    /// let protocol_version = ProtocolVersion::V03;
+    /// let ctx = PeerProtocolContext::derive(
+    ///     psk,
+    ///     spkm,
+    ///     spkt,
+    ///     wg,
+    ///     protocol_version.keyed_hash(),
+    ///     protocol_version.ephemeral_kem(),
+    /// );
+    /// ```
     ///
     /// # Examples
     ///

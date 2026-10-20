@@ -38,7 +38,9 @@ pub struct PeerProtocolContext {
 }
 
 impl PeerProtocolContext {
-    /// zero-initialized context (used by [`crate::protocol::protocol::Peer::zero`])
+    /// zero-initialized context (exclusively used by [`crate::protocol::protocol::Peer::zero`])
+    ///
+    /// NOTE: This is a dirty placeholder. You almost certainly do not want to use it.
     pub fn zero() -> Self {
         Self {
             as_initiator: SymKey::zero(),
@@ -48,6 +50,8 @@ impl PeerProtocolContext {
 
     /// [`PeerProtocolContext`] for older protocol versions (v02) is simply the
     /// PSK set by the user
+    ///
+    /// DO NOT USE in protocol version 3 and higher.
     pub fn from_psk(psk: &SymKey) -> Self {
         Self {
             as_initiator: psk.clone(),
@@ -56,6 +60,8 @@ impl PeerProtocolContext {
     }
 
     /// derive [`PeerProtocolContext`] (protocol v03 and newer)
+    ///
+    /// If no PSK is set, pass `&SymKey::zero()` as `psk`.
     pub fn derive(
         psk: &SymKey,
         spkm: &SPk,
