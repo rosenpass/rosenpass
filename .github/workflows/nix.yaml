@@ -375,6 +375,8 @@ jobs:
         with:
           name: rosenpass
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Git add git sha and commit
+        run: cd papers && ./tex/gitinfo2.sh && git add gitHeadInfo.gin
       - name: Build
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
       - name: Report runner resources
