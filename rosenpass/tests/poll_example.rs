@@ -437,12 +437,14 @@ impl RosenpassSimulator {
             peer_b_pk,
             protocol_version.clone(),
             osk_domain_separator.clone(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
         let peer_b = srv_b.add_peer(
             Some(psk),
             peer_a_pk,
             protocol_version.clone(),
             osk_domain_separator.clone(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
 
         // Set up the individual server data structures

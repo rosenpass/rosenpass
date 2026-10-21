@@ -1,5 +1,8 @@
 #! /bin/bash
 
+# TODO: document this test
+# https://github.com/rosenpass/rosenpass/issues/1173
+
 set -e -o pipefail
 
 enquote() {
@@ -88,6 +91,8 @@ exc_eval_with_ctx() {
   exc_with_ctx "eval:${ctx}" "$*"
 } 
 
+# TODO: function name is misleading – it suggest a regular user but uses a sudo user
+# https://github.com/rosenpass/rosenpass/issues/1173
 exc_as_user() {
   exc sudo -u "${SUDO_USER}" "$@"
 }
@@ -126,6 +131,8 @@ main() {
   SCRIPT="$0"
   CFG_TEMPLATE_DIR="$(abs_dir "$(dirname "${SCRIPT}")")"
   REPO="$(abs_dir "${CFG_TEMPLATE_DIR}/../..")"
+  # TODO: variable name is misleading – suggests plural, is singular
+  # https://github.com/rosenpass/rosenpass/issues/1173
   BINS="${REPO}/target/debug"
 
   # Create temp dir
@@ -150,6 +157,7 @@ main() {
   fi
   exc sudo setcap CAP_NET_ADMIN=+eip "${BINS}/rosenpass-wireguard-broker-privileged"
 
+  # generate WireGuard keys and mention them in the config files
   exc cd "${CFG_DIR}"
   exc_eval_as_user "wg genkey > peer_a.wg.sk"
   exc_eval_as_user "wg pubkey < peer_a.wg.sk > peer_a.wg.pk"
@@ -159,6 +167,8 @@ main() {
   exc_eval_as_user "wg genpsk > peer_b_invalid.psk"
   exc_eval_as_user "echo $(enquote "peer = \"$(cat peer_b.wg.pk)\"") >> peer_a.rp.config"
   exc_eval_as_user "echo $(enquote "peer = \"$(cat peer_a.wg.pk)\"") >> peer_b.rp.config"
+  exc_eval_as_user "echo $(enquote "our_wg_pubkey = \"$(cat peer_a.wg.pk)\"") >> peer_a.rp.config"
+  exc_eval_as_user "echo $(enquote "our_wg_pubkey = \"$(cat peer_b.wg.pk)\"") >> peer_b.rp.config"
   exc_as_user "${BINS}"/rosenpass gen-keys peer_a.rp.config
   exc_as_user "${BINS}"/rosenpass gen-keys peer_b.rp.config
 

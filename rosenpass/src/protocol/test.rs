@@ -10,6 +10,8 @@ use crate::internal::secret_memory::Public;
 use crate::internal::util::mem::DiscardResultExt;
 
 use crate::msgs::{EmptyData, Envelope, InitConf, InitHello, MAX_MESSAGE_LEN, MsgType, RespHello};
+use crate::protocol::basic_types::PublicSymKey;
+use crate::protocol::protocol_context::WireGuardKeyBinding;
 
 use super::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use super::constants::REKEY_AFTER_TIME_RESPONDER;
@@ -91,7 +93,7 @@ fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
 
         const PEER0: PeerPtr = PeerPtr(0);
 
-        let (mut me, mut they) = make_server_pair(protocol_version).unwrap();
+        let (mut me, mut they) = make_server_pair_without_key_bindings(protocol_version).unwrap();
         let (mut msgbuf, mut resbuf) = (MsgBufPlus::zero(), MsgBufPlus::zero());
 
         // Process the entire handshake
@@ -143,7 +145,17 @@ fn keygen() -> Result<(SSk, SPk)> {
     Ok((sk, pk))
 }
 
-fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, CryptoServer)> {
+fn make_server_pair_without_key_bindings(
+    protocol_version: ProtocolVersion,
+) -> Result<(CryptoServer, CryptoServer)> {
+    make_server_pair_with_wg_key_bindings(protocol_version, None, None)
+}
+
+fn make_server_pair_with_wg_key_bindings(
+    protocol_version: ProtocolVersion,
+    peer_a_wg_binding: Option<WireGuardKeyBinding>,
+    peer_b_wg_binding: Option<WireGuardKeyBinding>,
+) -> Result<(CryptoServer, CryptoServer)> {
     // TODO: Copied from the benchmark; deduplicate
     let psk = SymKey::random();
     let ((ska, pka), (skb, pkb)) = (keygen()?, keygen()?);
@@ -154,19 +166,22 @@ fn make_server_pair(protocol_version: ProtocolVersion) -> Result<(CryptoServer, 
     a.add_peer(
         Some(psk.clone()),
         pkb,
-        protocol_version.clone(),
+        protocol_version,
         OskDomainSeparator::default(),
+        peer_a_wg_binding, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     b.add_peer(
         Some(psk),
         pka,
         protocol_version,
         OskDomainSeparator::default(),
+        peer_b_wg_binding, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     Ok((a, b))
 }
 
 // ====================== test_regular_exchange ======================
+// These tests do _not_ use the WireGuard extension and thus doe not need the WG key bindings.
 #[test]
 #[serial]
 #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
@@ -181,12 +196,15 @@ fn test_regular_exchange_v03() {
     test_regular_exchange(ProtocolVersion::V03)
 }
 
+/// TODO: This function is almost the same as `assert_successful_exchange`
+/// which is already called by other tests. We should deduplicate this code
+/// until it is DRY.
 fn test_regular_exchange(protocol_version: ProtocolVersion) {
     setup_logging();
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -197,12 +215,13 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
 
         let _ip_b: SocketAddrV4 = "127.0.0.1:8081".parse().unwrap();
 
+        // A sends InitHello
         let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
 
         let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
         assert_eq!(init_msg_type, MsgType::InitHello);
 
-        //B handles InitHello, sends RespHello
+        // B handles InitHello, sends RespHello
         let HandleMsgResult { resp, .. } = b
             .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
             .unwrap();
@@ -225,7 +244,7 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
         assert_eq!(exchanged_with, Some(PeerPtr(0)));
         assert_eq!(init_conf_msg_type, MsgType::InitConf);
 
-        //B handles InitConf, sends EmptyData
+        // B handles InitConf, sends EmptyData
         let HandleMsgResult {
             resp: _,
             exchanged_with,
@@ -237,6 +256,155 @@ fn test_regular_exchange(protocol_version: ProtocolVersion) {
 
         assert_eq!(exchanged_with, Some(PeerPtr(0)));
         assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+    });
+}
+
+// ====================== test_wg_key_binding ======================
+
+/// helper function for tests which expect a successful exchange
+///
+/// Run a complete handshake between `a` (initiator) and `b` (responder),
+/// similar to `test_regular_exchange`.
+fn assert_successful_exchange(a: &mut CryptoServer, b: &mut CryptoServer) {
+    type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+    let mut a_to_b_buf = MsgBufPlus::zero();
+    let mut b_to_a_buf = MsgBufPlus::zero();
+
+    // A sends InitHello
+    let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+    let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+    assert_eq!(init_msg_type, MsgType::InitHello);
+
+    // B handles InitHello, sends RespHello
+    let HandleMsgResult { resp, .. } = b
+        .handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf)
+        .unwrap();
+    let resp_hello_len = resp.unwrap();
+    let resp_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+    assert_eq!(resp_msg_type, MsgType::RespHello);
+
+    // A handles RespHello, sends InitConf, exchanges keys
+    let HandleMsgResult {
+        resp,
+        exchanged_with,
+    } = a
+        .handle_msg(&b_to_a_buf[..resp_hello_len], &mut *a_to_b_buf)
+        .unwrap();
+    let init_conf_len = resp.unwrap();
+    let init_conf_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+    assert_eq!(exchanged_with, Some(PeerPtr(0)));
+    assert_eq!(init_conf_msg_type, MsgType::InitConf);
+
+    // B handles InitConf, sends EmptyData
+    let HandleMsgResult { exchanged_with, .. } = b
+        .handle_msg(&a_to_b_buf.as_slice()[..init_conf_len], &mut *b_to_a_buf)
+        .unwrap();
+    let empty_data_msg_type: MsgType = b_to_a_buf.value[0].try_into().unwrap();
+    assert_eq!(exchanged_with, Some(PeerPtr(0)));
+    assert_eq!(empty_data_msg_type, MsgType::EmptyData);
+
+    // Both sides derived the same OSK
+    assert_eq!(
+        a.osk(PeerPtr(0)).unwrap().secret(),
+        b.osk(PeerPtr(0)).unwrap().secret()
+    );
+}
+
+/// handshake in protocol version 3 with WireGuard extension must succeed
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_regular_exchange_v03_with_wg_key_binding() {
+    setup_logging();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    stacker::grow(8 * 1024 * 1024, || {
+        let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
+        let (mut a, mut b) = make_server_pair_with_wg_key_bindings(
+            ProtocolVersion::V03,
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: wg_pubkey_a,
+                peer_wg_pubkey: wg_pubkey_b,
+            }),
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: wg_pubkey_b,
+                peer_wg_pubkey: wg_pubkey_a,
+            }),
+        )
+        .unwrap();
+        assert_successful_exchange(&mut a, &mut b);
+    });
+}
+
+/// handshake in protocol version 3 with WireGuard extension must fail if the
+/// WG pubkeys do not match
+///
+/// The responder must reject the InitHello at IHR8. See the whitepaper for more information:
+/// https://rosenpass.eu/docs/whitepaper/
+///
+/// TODO: implement more variations of this test.
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_wg_key_binding_mismatch_v03() {
+    setup_logging();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    stacker::grow(8 * 1024 * 1024, || {
+        type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
+        let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
+        let (mut a, mut b) = make_server_pair_with_wg_key_bindings(
+            ProtocolVersion::V03,
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: wg_pubkey_a,
+                peer_wg_pubkey: wg_pubkey_b,
+            }),
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: [3u8; 32],
+                peer_wg_pubkey: wg_pubkey_a,
+            }),
+        )
+        .unwrap();
+
+        let mut a_to_b_buf = MsgBufPlus::zero();
+        let mut b_to_a_buf = MsgBufPlus::zero();
+
+        let init_hello_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b_buf).unwrap();
+        let init_msg_type: MsgType = a_to_b_buf.value[0].try_into().unwrap();
+        assert_eq!(init_msg_type, MsgType::InitHello);
+
+        // The responder rejects the message (AEAD authentication at IHR8 fails)
+        let res = b.handle_msg(&a_to_b_buf.as_slice()[..init_hello_len], &mut *b_to_a_buf);
+        assert!(res.is_err());
+    });
+}
+
+/// handshake in protocol version 2 with WireGuard extension must still succeed
+/// even if the WG pubkeys do not match
+///
+/// Binding to the WG pubkeys is introduced in protocol version 3.
+///
+/// TODO: implement more variations of this test
+/// TODO: some duplicate code from [`test_wg_key_binding_mismatch_v03`]
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+fn test_wg_key_binding_ignored_v02() {
+    setup_logging();
+    crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
+    stacker::grow(8 * 1024 * 1024, || {
+        let (wg_pubkey_a, wg_pubkey_b): (PublicSymKey, PublicSymKey) = ([1u8; 32], [2u8; 32]);
+        let (mut a, mut b) = make_server_pair_with_wg_key_bindings(
+            ProtocolVersion::V02,
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: wg_pubkey_a,
+                peer_wg_pubkey: wg_pubkey_b,
+            }),
+            Some(WireGuardKeyBinding {
+                our_wg_pubkey: [3u8; 32],
+                peer_wg_pubkey: wg_pubkey_a,
+            }),
+        )
+        .unwrap();
+        assert_successful_exchange(&mut a, &mut b);
     });
 }
 
@@ -260,7 +428,7 @@ fn test_regular_init_conf_retransmit(protocol_version: ProtocolVersion) {
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -355,7 +523,8 @@ fn cookie_reply_mechanism_responder_under_load(protocol_version: ProtocolVersion
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version.clone()).unwrap();
+        let (mut a, mut b) =
+            make_server_pair_without_key_bindings(protocol_version.clone()).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -469,7 +638,7 @@ fn cookie_reply_mechanism_initiator_bails_on_message_under_load(protocol_version
     crate::internal::secret_memory::secret_policy_try_use_memfd_secrets();
     stacker::grow(8 * 1024 * 1024, || {
         type MsgBufPlus = Public<MAX_MESSAGE_LEN>;
-        let (mut a, mut b) = make_server_pair(protocol_version).unwrap();
+        let (mut a, mut b) = make_server_pair_without_key_bindings(protocol_version).unwrap();
 
         let mut a_to_b_buf = MsgBufPlus::zero();
         let mut b_to_a_buf = MsgBufPlus::zero();
@@ -664,12 +833,14 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
             pkb,
             protocol_version.clone(),
             OskDomainSeparator::default(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
         let a_peer = b.add_peer(
             None,
             pka,
             protocol_version.clone(),
             OskDomainSeparator::default(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
 
         // Execute protocol up till the responder confirmation (EmptyData)
