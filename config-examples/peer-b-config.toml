@@ -1,12 +1,29 @@
 public_key = "peer-b-public-key"
 secret_key = "peer-b-secret-key"
 listen = ["[::]:10002"]
-verbosity = "Quiet"
+verbosity = "Quiet"              # options: "Quiet", "Verbose"
 
 [[peers]]
 public_key = "peer-a-public-key"
 endpoint = "localhost:10001"
+
+# Choose to store the key in a file via `key_out` or pass it to WireGuard.
+# You can also choose to do both.
+
+# ========== outfile option ==========
+# You can save the key from the handshake to a file.
 key_out = "peer-b-rp-out-key"
+
+# ========== options for the WireGuard extension ==========
+# Using the WireGuard extension is optional.
+# See the whitepaper section 3.2 for more information.
+# https://rosenpass.eu/docs/whitepaper
+
+# device = "wg0" # WireGuard interface
+# peer = "<base64 of the peer's `wg pubkey`>" # WireGuard public key of the peer, required since protocol version 3
+# our_wg_pubkey = "<base64 of our own `wg pubkey`>" # our WireGuard public key, required since protocol version 3
+# extra_params = [] # passed to WireGuard `wg set`
+
 # exchange_command = [
 #     "wg",
 #     "set",

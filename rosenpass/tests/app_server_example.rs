@@ -68,6 +68,7 @@ fn key_exchange_with_app_server(protocol_version: ProtocolVersion) -> anyhow::Re
                     hostname,
                     protocol_version,
                     OskDomainSeparator::default(),
+                    None, // TODO: repeat tests with WireGuard protocol extension?
                 )?;
 
                 srv.app_srv.event_loop()

@@ -117,12 +117,14 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
         peer_b_pk,
         ProtocolVersion::V03,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     b.add_peer(
         Some(psk),
         peer_a_pk,
         ProtocolVersion::V03,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
 
     // declare buffers for message exchange
