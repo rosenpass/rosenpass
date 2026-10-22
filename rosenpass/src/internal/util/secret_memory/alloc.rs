@@ -267,11 +267,9 @@ impl AllocatorSegment {
         unsafe { self.sentinel_as_bytes().assume_init_mut() }
     }
 
-    fn alloc_ptr(&self) -> std::ptr::NonNull<*mut c_void> {
+    fn alloc_ptr(&self) -> std::ptr::NonNull<c_void> {
         match self {
-            Self::Mapped(inner) => std::ptr::NonNull::new(inner.raw().alloc_ptr)
-                .unwrap()
-                .cast(),
+            Self::Mapped(inner) => std::ptr::NonNull::new(inner.raw().alloc_ptr).unwrap(),
             Self::ZeroSized(ptr) => ptr.cast(),
         }
     }
