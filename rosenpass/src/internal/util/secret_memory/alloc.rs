@@ -26,7 +26,7 @@ use crate::internal::util::{
 /// The allocation proceeds in roughly two phases:
 ///
 /// 1. Creating a [crate::internal::util::secret_memory::mmap::Mappable] using
-///    [SecretMemfdConfig::create()] in [SecretMemoryAllocator::new()]
+///    [SecretMemfdConfig::create()] lazily inside [SecretMemoryAllocator::allocate()]
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
 ///
