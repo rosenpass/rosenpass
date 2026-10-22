@@ -41,9 +41,10 @@ use crate::internal::util::{
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
     /// Secret memory governance mechanism. This is used to set up the
-    /// file descriptor backing the memory allocation. Based on policy,
-    /// different mechanisms such as memfd_secret(2), memfd_create(2), or
-    /// anonymous allocations (no file descriptor) are used
+    /// file descriptor backing the memory allocation. Depending on the configured
+    /// usage and detected kernel support, different mechanisms such as
+    /// memfd_secret(2), memfd_create(2), or anonymous allocations (no file
+    /// descriptor) are used
     pub memfd_config: SecretMemfdConfig,
 }
 
