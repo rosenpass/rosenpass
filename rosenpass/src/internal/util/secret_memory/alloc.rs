@@ -347,7 +347,7 @@ impl Drop for AllocatorSegment {
 }
 
 fn log_alloc_err<E: std::fmt::Display>(e: E) -> std::alloc::AllocError {
-    log::warn!("Could not allocate secret memory: {e}");
+    log::error!("Could not allocate secret memory: {e}");
     std::alloc::AllocError
 }
 
