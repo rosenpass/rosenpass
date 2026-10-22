@@ -3,10 +3,10 @@
 use super::*;
 use crate::config::{
     parse_from_toml::errors::{ParseIssue, ParseWarning},
-    validation::Error as ValidationError,
-    validation::Issue as ValidationIssue,
-    validation::ValidationRecipe,
-    validation::Warning as ValidationWarning,
+    validate::{
+        Error as ValidationError, Issue as ValidationIssue, ValidationRecipe,
+        Warning as ValidationWarning,
+    },
 };
 use anyhow::anyhow;
 use std::{

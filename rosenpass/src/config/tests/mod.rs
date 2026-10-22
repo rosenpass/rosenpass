@@ -1,10 +1,11 @@
+#![doc = include_str!("README.md")]
 #![cfg(test)]
 
 pub mod harness;
 
 use std::path::Path;
 
-use crate::config::validation::ValidationRecipe;
+use crate::config::validate::ValidationRecipe;
 
 use super::*;
 use harness::{assert_validation_succeeded, parse, prepare_config_file, validate};
@@ -24,7 +25,7 @@ use serial_test::serial;
 #[test]
 #[serial] // run in serial so that no race-conditions around "tmp.toml" file can be avoided
 fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    #[rustfmt::max_width = 120]
+    #[rustfmt::skip]
     let (config, working_dir) = prepare_config_file(
         Path::new("full-raw.toml"),
         Path::new("tmp.toml"),
@@ -35,6 +36,7 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
             ("peers.0.preshared-key.file", "../alice-bob.psk".into()),
             ("peers.0.wireguard.our-wireguard-keypair.secret-key-file", "../keys/alice-wg-secret/wqsk".into()),
             ("peers.0.wireguard.our-wireguard-keypair.public-key-file", "../keys/alice-wg-public/wgpk".into()),
+            ("peers.0.wireguard.our-wireguard-keypair.public-key", "TODO".into()),
         ],
         vec![
             ("peers.0.their-keypair.public-key-directory"),
@@ -48,3 +50,29 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[test]
+#[serial]
+fn read_old_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
+    let (config, working_dir) = prepare_config_file(
+        Path::new("rosenpass-0.2.3-generated-raw.toml"),
+        Path::new("tmp.toml"),
+        vec![
+            ("public_key", "../keys/alice-0.2-public/pqpk".into()),
+            ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
+            ("peers.0.public_key", "../keys/bob-0.2-public/pqpk".into()),
+        ],
+        vec![],
+        vec![],
+    )?;
+    let (config, _parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
+    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+
+    Ok(())
+}
+
+// TODO: test that additional keys are rejected
+
+// TODO: test that peer secret key is rejected
+
+// TODO: `rosenpass-0.2.3-full-raw.toml`

@@ -194,6 +194,8 @@ pub struct RosenpassPeerOskDomainSeparator {
     /// osk_namespace = "myorg.com"
     /// osk_label = ["My Custom Messenger app"]
     /// ```
+    ///
+    /// TODO: flatten `Option<Vec<_>>` to `Vec<_>`
     pub osk_label: Option<Vec<String>>,
 }
 
@@ -1116,10 +1118,7 @@ pub mod util {
     /// let resolved_path = resolve_relative_path_with_tilde(&path, &working_directory);
     /// assert!(resolved_path == working_directory.join(path));
     /// ```
-    pub fn resolve_relative_path_with_tilde(
-        path: &Path,
-        working_directory: &Path,
-    ) -> PathBuf {
+    pub fn resolve_relative_path_with_tilde(path: &Path, working_directory: &Path) -> PathBuf {
         let mut path = path.to_owned();
         resolve_path_with_tilde(&mut path);
         if !path.is_relative() {

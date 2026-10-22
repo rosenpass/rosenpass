@@ -46,7 +46,7 @@ impl<K: ParseIssueKind> ParseIssueInner<K> {
         ParseIssueInner::<K> {
             line: location.map(|l| l.0).unwrap_or(1),
             column: location.map(|l| l.1).unwrap_or(1),
-            message: message,
+            message,
             _kind: Default::default(),
         }
     }

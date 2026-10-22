@@ -1,0 +1,20 @@
+# This config file contains all features of Rosenpass 0.2.3.
+
+public_key = "rp-public-key"
+secret_key = "rp-secret-key"
+listen = []
+verbosity = "Quiet"
+
+[[peers]]
+public_key = "rp-peer-public-key"
+endpoint = "my-peer.test:9999"
+key_out = "rp-key-out"
+exchange_command = [
+  "wg",
+  "set",
+  "wg0",
+  "peer",
+  "<PEER_ID>",
+  "preshared-key",
+  "/dev/stdin",
+]

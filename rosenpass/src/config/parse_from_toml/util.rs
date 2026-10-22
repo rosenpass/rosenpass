@@ -1,17 +1,18 @@
-use super::super::{FlatDeviceManagedByChoice};
 use super::errors::ParseError;
-use crate::protocol::ProtocolVersion;
+use crate::{
+    config::{KeyFromDisk, PresharedKeySource},
+    oldconfig::RosenpassPeerOskDomainSeparator,
+    protocol::ProtocolVersion,
+};
 use log::LevelFilter;
-use serde::Deserialize;
-use serde::de::value::Error as SerdeError;
-use serde::de::value::StrDeserializer;
 use std::str::FromStr;
-
+use tokio::sync::broadcast::error::RecvError::Lagged;
+use toml_edit::InlineTable;
 /// an be used on the output of `get_as_*()` if `let mut errors: Parse<Error> = Vec::new();` has been defined
 macro_rules! process_result {
     ($errors: expr, $result: expr) => {
         $result.map(|v| Some(v)).unwrap_or_else(|err| {
-            $errors.push(err);
+            $errors.extend_from_slice(&err);
             None
         })
     };
@@ -33,16 +34,11 @@ fn get_item<'a, T: toml_edit::TableLike>(
     key: &str,
 ) -> Result<&'a toml_edit::Item, ParseError> {
     table.get(key).ok_or_else(|| {
-        let location = table_span
-            .as_ref()
-            .map(|span| resolve_span(raw, span))
-            .flatten();
-        ParseError {
-            line: location.map(|l| l.0).unwrap_or(1),
-            column: location.map(|l| l.1).unwrap_or(1),
-            message: format!("require key \"{key}\""),
-            _kind: Default::default(),
-        }
+        ParseError::new(
+            raw,
+            table_span.map(|span| span.clone()),
+            format!("require key \"{key}\""),
+        )
     })
 }
 macro_rules! getter_to_typename {
@@ -61,7 +57,7 @@ macro_rules! getter_to_typename {
     (as_inline_table) => {
         "inline table"
     };
-    ($getter:ident) => {
+    ($getter: ident) => {
         compile_error!(concat!("unexpected getter: ", stringify!($getter)))
     };
 }
@@ -74,24 +70,19 @@ macro_rules! get_as_type_generator {
             table: &'a T,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
-        ) -> Result<$type_, ParseError> {
-            let item = get_item(raw, table, table_span.as_ref(), key)?;
+        ) -> Result<$type_, Vec<ParseError>> {
+            let item = get_item(raw, table, table_span.as_ref(), key).map_err(|err| vec![err])?;
             let item_span = item.span();
             item.$getter()
                 .ok_or_else(|| {
-                    let location = item_span
-                        .as_ref()
-                        .map(|item_span| resolve_span(raw, item_span))
-                        .flatten();
-                    ParseError {
-                        line: location.map(|l| l.0).unwrap_or(1),
-                        column: location.map(|l| l.1).unwrap_or(1),
-                        message: format!(
+                    vec![ParseError::new(
+                        raw,
+                        item_span,
+                        format!(
                             "item \"{key}\" has wrong data type, expected {}",
                             getter_to_typename!($getter)
                         ),
-                        _kind: Default::default(),
-                    }
+                    )]
                 })
                 .map(|v| $mapper(raw, item, v))?
         }
@@ -101,32 +92,27 @@ macro_rules! get_as_type_generator {
             table: &'a T,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
-        ) -> Result<Option<$type_>, ParseError> {
-            Ok(match get_item(raw, table, table_span.as_ref(), key) {
+        ) -> Result<Option<$type_>, Vec<ParseError>> {
+            match get_item(raw, table, table_span.as_ref(), key) {
                 Ok(item) => {
                     let item_span = item.span();
-                    Some(
+                    Ok(Some(
                         item.$getter()
                             .ok_or_else(|| {
-                                let location = item_span
-                                    .as_ref()
-                                    .map(|item_span| resolve_span(raw, item_span))
-                                    .flatten();
-                                ParseError {
-                                    line: location.map(|l| l.0).unwrap_or(1),
-                                    column: location.map(|l| l.1).unwrap_or(1),
-                                    message: format!(
+                                vec![ParseError::new(
+                                    raw,
+                                    item_span,
+                                    format!(
                                         "item \"{key}\" has wrong data type, expected {}",
                                         getter_to_typename!($getter)
                                     ),
-                                    _kind: Default::default(),
-                                }
+                                )]
                             })
                             .map(|v| $mapper(raw, item, v))??,
-                    )
+                    ))
                 }
-                Err(_) => None,
-            })
+                Err(_) => Ok(None),
+            }
         }
     };
 }
@@ -135,14 +121,14 @@ get_as_type_generator!(
     get_as_opt_string,
     String,
     as_str,
-    |_: &str, _: &toml_edit::Item, s: &str| { Ok(s.to_string()) }
+    |_: &str, _: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> { Ok(s.to_string()) }
 );
 get_as_type_generator!(
     get_as_integer,
     get_as_opt_integer,
     i64,
     as_integer,
-    |_: &str, _: &toml_edit::Item, i| { Ok(i64::from(i)) }
+    |_: &str, _: &toml_edit::Item, i| -> Result<_, Vec<ParseError>> { Ok(i64::from(i)) }
 );
 get_as_type_generator!(
     get_as_unsigned_integer,
@@ -150,16 +136,42 @@ get_as_type_generator!(
     u64,
     as_integer,
     |raw: &str, item: &toml_edit::Item, i| {
-        if i < 0 {
-            let location = item.span().map(|span| resolve_span(raw, &span)).flatten();
-            Err(ParseError {
-                line: location.map(|l| l.0).unwrap_or(1),
-                column: location.map(|l| l.1).unwrap_or(1),
-                message: format!("expected non-negative integer value"),
-                _kind: Default::default(),
-            })
+        if i < u64::MIN as _ {
+            Err(vec![ParseError::new(
+                raw,
+                item.span(),
+                format!("expected non-negative integer value"),
+            )])
         } else {
             Ok(i64::from(i) as u64)
+        }
+    }
+);
+get_as_type_generator!(
+    get_as_u16,
+    get_as_opt_u16,
+    u16,
+    as_integer,
+    |raw: &str, item: &toml_edit::Item, i| {
+        let mut errors = Vec::new();
+        if i < u16::MIN as _ {
+            errors.push(ParseError::new(
+                raw,
+                item.span(),
+                format!("expected non-negative integer value"),
+            ));
+        }
+        if i > u16::MAX as _ {
+            errors.push(ParseError::new(
+                raw,
+                item.span(),
+                format!("expected integer value not larger than {}", u16::MAX),
+            ));
+        }
+        if errors.is_empty() {
+            Ok(u16::try_from(i).expect("unreachable") as u16)
+        } else {
+            Err(errors)
         }
     }
 );
@@ -179,7 +191,7 @@ get_as_type_generator!(
     get_as_opt_bool,
     bool,
     as_bool,
-    |_: &str, _: &toml_edit::Item, b| { Ok(b) }
+    |_: &str, _: &toml_edit::Item, b| -> Result<_, Vec<ParseError>> { Ok(b) }
 );
 get_as_type_generator!(
     get_as_log_level,
@@ -192,11 +204,11 @@ get_as_type_generator!(
         }
         // TODO: implement more
         else {
-            Err(ParseError::new(
+            Err(vec![ParseError::new(
                 raw,
                 item.span(),
                 format!("invalid value for logging level, possible values: TODO"),
-            ))
+            )])
         }
     }
 );
@@ -207,44 +219,22 @@ get_as_type_generator!(
     as_str,
     |raw: &str, item: &toml_edit::Item, s: &str| {
         std::path::PathBuf::from_str(s)
-            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
+            .map_err(|err| vec![ParseError::new(raw, item.span(), err.to_string())])
     }
 );
-get_as_type_generator!(
-    get_as_flat_device_managed_by_choice,
-    get_as_opt_flat_device_managed_by_choice,
-    FlatDeviceManagedByChoice,
-    as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
-        if s == "rosenpass" {
-            Ok(FlatDeviceManagedByChoice::Rosenpass)
-        } else if s == "wireguard" {
-            Ok(FlatDeviceManagedByChoice::Wireguard)
-        } else {
-            Err(ParseError::new(
-                raw,
-                item.span(),
-                format!(
-                    "invalid value for device's managed-by, possible values are \"rosenpass\" or \"wireguard\""
-                ),
-            ))
-        }
-    }
-);
-
 get_as_type_generator!(
     get_as_array,
     get_as_opt_array,
     &'a toml_edit::Array,
     as_array,
-    |_, _, list: &'a toml_edit::Array| Ok(list)
+    |_, _, list: &'a toml_edit::Array| -> Result<_, Vec<ParseError>> { Ok(list) }
 );
 get_as_type_generator!(
     get_as_inline_table,
     get_as_opt_inline_table,
     &'a toml_edit::InlineTable,
     as_inline_table,
-    |_, _, tab: &'a toml_edit::InlineTable| Ok(tab)
+    |_, _, tab: &'a toml_edit::InlineTable| -> Result<_, Vec<ParseError>> { Ok(tab) }
 );
 get_as_type_generator!(
     get_as_vec_string,
@@ -252,14 +242,26 @@ get_as_type_generator!(
     Vec<String>,
     as_array,
     |raw: &'a str, item: &'a toml_edit::Item, array: &'a toml_edit::Array| {
-        array
+        let array = array
             .iter()
             .map(|item| -> Result<String, ParseError> {
                 item.as_str().map(|s| s.to_string()).ok_or_else(|| {
                     ParseError::new(raw, item.span(), "expected array of strings".to_string())
                 })
             })
-            .collect::<Result<_, _>>()
+            .collect::<Vec<_>>();
+
+        if array.iter().find(|x| x.is_err()).is_some() {
+            Err(array
+                .into_iter()
+                .filter_map(|x| x.err())
+                .collect::<Vec<_>>())
+        } else {
+            Ok(array
+                .into_iter()
+                .map(|x| x.expect("unreachable"))
+                .collect::<Vec<_>>())
+        }
     }
 );
 get_as_type_generator!(
@@ -275,11 +277,11 @@ get_as_type_generator!(
             Ok(ProtocolVersion::V03)
         } else {
             // TODO: proper list of supported values
-            Err(ParseError::new(
+            Err(vec![ParseError::new(
                 raw,
                 item.span(),
                 format!("invalid protocol version, supported values: v02, v03"),
-            ))
+            )])
         }
     }
 );
@@ -290,6 +292,255 @@ get_as_type_generator!(
     as_str,
     |raw: &str, item: &toml_edit::Item, s: &str| {
         std::net::SocketAddr::from_str(s)
-            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
+            .map_err(|err| vec![ParseError::new(raw, item.span(), err.to_string())])
     }
 );
+
+get_as_type_generator!(
+    get_as_osk_domain_separator,
+    get_as_opt_osk_domain_separator,
+    RosenpassPeerOskDomainSeparator,
+    as_inline_table,
+    |raw: &str, item: &toml_edit::Item, inline_table: &InlineTable| {
+        let mut errors = Vec::new();
+        const ORG: &str = "organization";
+        const LABELS: &str = "labels";
+
+        // read "organization"
+        let organization = process_result!(
+            errors,
+            get_as_string(raw, inline_table, inline_table.span(), ORG)
+        );
+
+        // read "labels"
+        let osk_labels = process_result!(
+            errors,
+            get_as_vec_string(raw, inline_table, inline_table.span(), LABELS)
+        );
+
+        deny_illegal_keys(raw, inline_table, vec![ORG, LABELS]);
+
+        // return
+        errors
+            .is_empty()
+            .then(|| {
+                Ok(RosenpassPeerOskDomainSeparator {
+                    osk_organization: organization,
+                    osk_label: osk_labels,
+                })
+            })
+            .unwrap_or_else(|| Err(errors))
+    }
+);
+
+pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
+    raw: &str,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+) -> Result<RosenpassPeerOskDomainSeparator, Vec<ParseError>> {
+    let mut errors = Vec::new();
+    const LEGACY_ORG: &str = "osk_organization";
+    const LEGACY_LABELS: &str = "osk_label";
+    const TABLE: &str = "osk-domain-separator";
+
+    let legacy_org = process_result!(
+        errors,
+        get_as_opt_string(raw, table, table_span.clone(), LEGACY_ORG)
+    )
+    .flatten();
+
+    let legacy_labels = process_result!(
+        errors,
+        get_as_opt_vec_string(raw, table, table_span.clone(), LEGACY_LABELS)
+    )
+    .flatten();
+
+    let osk_table = process_result!(
+        errors,
+        get_as_opt_inline_table(raw, table, table_span.clone(), TABLE)
+    )
+    .flatten();
+
+    let osk_domain_separator = match (legacy_org, legacy_labels, osk_table) {
+        // none specified
+        (None, None, None) => Some(RosenpassPeerOskDomainSeparator {
+            osk_organization: None,
+            osk_label: None,
+        }),
+        // legacy specified
+        (Some(org), Some(labels), None) => Some(RosenpassPeerOskDomainSeparator {
+            osk_organization: Some(org),
+            osk_label: Some(labels),
+        }),
+        // partial legacy option
+        (Some(_), None, None) => {
+            errors.push(ParseError::new(
+                raw,
+                table_span.clone(),
+                format!(
+                    "expected key \"{LEGACY_LABELS}\" because you also specified \"{LEGACY_ORG}\""
+                ),
+            ));
+            None
+        }
+        (None, Some(_), None) => {
+            errors.push(ParseError::new(
+                raw,
+                table_span.clone(),
+                format!(
+                    "expected key \"{LEGACY_ORG}\" because you also specified \"{LEGACY_LABELS}\""
+                ),
+            ));
+            None
+        }
+        // exclusive options
+        (Some(_), None, Some(_)) => {
+            errors.push(ParseError::new(raw, table_span.clone(),
+                format!("keys \"{LEGACY_ORG}\" and \"{TABLE}\" exclude each other and \"{LEGACY_ORG}\" is deprecated"))
+            );
+            None
+        }
+        (None, Some(_), Some(_)) => {
+            errors.push(ParseError::new(raw, table_span.clone(),
+                format!("keys \"{LEGACY_LABELS}\" and \"{TABLE}\" exclude each other and \"{LEGACY_LABELS}\" is deprecated"))
+            );
+            None
+        }
+        (Some(_), Some(_), Some(_)) => {
+            errors.push(ParseError::new(raw, table_span.clone(),
+                format!("keys \"{LEGACY_ORG}\" and \"{LEGACY_LABELS}\" (deprecated OSK definition) can not be used together with \"{TABLE}\""))
+            );
+            None
+        }
+        // new specified
+        (None, None, Some(osk_table)) => {
+            const ORG: &str = "organization";
+            const LABELS: &str = "labels";
+            let org = process_result!(errors, get_as_string(raw, osk_table, osk_table.span(), ORG));
+            let labels = process_result!(
+                errors,
+                get_as_vec_string(raw, osk_table, osk_table.span(), LABELS)
+            );
+            process_result!(errors, deny_illegal_keys(raw, osk_table, vec![ORG, LABELS]));
+            match (org, labels) {
+                (Some(org), Some(labels)) => Some(RosenpassPeerOskDomainSeparator {
+                    osk_organization: Some(org),
+                    osk_label: Some(labels),
+                }),
+                _ => None, // errors are already saved by above calls to `process_result`
+            }
+        }
+    };
+
+    // return
+    if errors.is_empty() {
+        Ok(osk_domain_separator.expect("unreachable"))
+    } else {
+        Err(errors)
+    }
+}
+
+get_as_type_generator!(
+    get_as_psk_source,
+    get_as_opt_psk_source,
+    PresharedKeySource,
+    as_inline_table,
+    |raw: &str, item: &toml_edit::Item, inline_table: &InlineTable| {
+        const FILE: &str = "file";
+        const DIR: &str = "directory";
+        let mut errors = Vec::new();
+
+        let file = process_result!(
+            errors,
+            get_as_opt_path_buf(raw, inline_table, inline_table.span(), "file")
+        )
+        .flatten();
+        let dir = process_result!(
+            errors,
+            get_as_opt_path_buf(raw, inline_table, inline_table.span(), "directory")
+        )
+        .flatten();
+
+        // check that `inline_table` has no further keys (e.g. no plaintext PSK)
+        process_result!(
+            errors,
+            deny_illegal_keys(raw, inline_table, vec![FILE, DIR])
+        );
+
+        let psk_source = match (file, dir) {
+            (None, None) => {
+                errors.push(ParseError::new(
+                    raw,
+                    inline_table.span(),
+                    format!("expected key \"{FILE}\" or \"{DIR}\""),
+                ));
+                None
+            }
+            (Some(_), Some(_)) => {
+                errors.push(ParseError::new(
+                    raw,
+                    inline_table.span(),
+                    format!("keys \"{FILE}\" and \"{DIR}\" exclude each other"),
+                ));
+                None
+            }
+            (Some(file), None) => Some(PresharedKeySource::ReadFromFile(file)),
+            (None, Some(dir)) => Some(PresharedKeySource::ReadFromDirectory(dir)),
+        };
+
+        if errors.is_empty() {
+            Ok(psk_source.expect("unreachable"))
+        } else {
+            Err(errors)
+        }
+    }
+);
+
+// get_as_type_generator!(
+//     get_as_public_key_from_disk,
+//     get_as_opt_public_key_from_disk,
+//     KeyFromDisk,
+//     |raw: &str, item: &toml_edit::Item, inline_table: &InlineTable| {
+//         let mut errors = Vec::new();
+//         inline_
+//     }
+// );
+
+// // secret key
+// process_result!(
+//     errors,
+//     get_as_path_buf(raw, inline_table, inline_table.span(), "secret-key-file")
+// );
+// // public key file
+// // public key directory
+// // public key
+
+pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
+    raw: &str,
+    table: &T,
+    allowed_keys: Vec<&str>,
+) -> Result<(), Vec<ParseError>> {
+    let mut errors = Vec::new();
+    let illegal_keys = table
+        .iter()
+        .filter_map(|(key, value)| {
+            if allowed_keys.iter().find(|k| **k == key).is_none() {
+                Some((key, value.span()))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    for illegal_key in illegal_keys.iter() {
+        errors.push(ParseError::new(
+            raw,
+            illegal_key.1.clone(),
+            format!("illegal key {}", illegal_key.0),
+        ));
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
