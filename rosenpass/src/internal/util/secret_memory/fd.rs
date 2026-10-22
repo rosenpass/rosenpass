@@ -339,9 +339,8 @@ impl SecretMemfdConfig {
         Ok(())
     }
 
-    /// Allocates a secret file descriptor based on the configuration and returns the
-    /// file descriptor wrapped into a [super::mmap::Mappable] for easy mapping into
-    /// memory.
+    /// Allocates secret memory based on the configuration and returns it wrapped into
+    /// a [super::mmap::Mappable] for easy mapping into memory.
     ///
     /// This function returns a [super::mmap::Mappable] and pre-configures the memory mapping
     /// configuration as needed:
