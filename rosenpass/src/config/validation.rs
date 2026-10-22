@@ -534,7 +534,6 @@ impl super::RosenpassConfig {
 
         // ============================== [rosenpass] ==============================
         // check our key files
-        #[cfg(not(feature = "experiment_crypto_agility"))]
         {
             validate_keypair!(
                 self.our_keys.secret_key, self.our_keys.public_key,
@@ -548,25 +547,6 @@ impl super::RosenpassConfig {
                 OurPublicKeyFileCanNotBeRead,
                 OurPublicKeyFileHasInvalidContent,
             );
-        }
-        #[cfg(feature = "experiment_crypto_agility")]
-        for keyconfig in self.our_keys.iter() {
-            validate_keypair!(
-                keyconfig.secret_key_file, keyconfig.public_key_file,
-                warnings, errors, recipe,
-                keyconfig.cipher,
-                OurSecretKeyFileDoesNotExist,
-                OurSecretKeyFileCanNotBeRead,
-                OurSecretKeyFileHasInvalidContent,
-                OurSecretKeyFileIsGloballyReadable,
-                OurPublicKeyFileDoesNotExist,
-                OurPublicKeyFileCanNotBeRead,
-                OurPublicKeyFileHasInvalidContent,
-            );
-            if recipe.check_inconsistencies {
-                // #[cfg(feature = "experiment_api")]
-                // TODO: check for NeitherOurKeypairNorApiConnections
-            }
         }
         // TODO: check algorithm choices
         // ============================== [[device]] ==============================

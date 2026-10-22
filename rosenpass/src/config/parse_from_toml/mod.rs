@@ -2,15 +2,12 @@ use crate::oldconfig::util::ResolvePathWithTilde;
 use log::LevelFilter;
 use std::str::FromStr;
 use toml_edit::Table;
-#[cfg(feature = "experiment_crypto_agility")]
-use util::get_as_asymmetric_cipher_type;
 use util::{
     get_as_array, get_as_crypto_algorithm_choice, get_as_flat_device_managed_by_choice,
     get_as_opt_log_level, get_as_opt_path_buf, get_as_opt_vec_string, get_as_path_buf,
     get_as_protocol_version, get_as_socket_addr, get_as_string, process_result,
 };
 
-#[cfg(not(feature = "experiment_crypto_agility"))]
 use crate::config::parse_from_toml::util::get_as_inline_table;
 use crate::{
     config::parse_from_toml::util::{get_as_opt_inline_table, get_as_opt_string},
@@ -58,9 +55,6 @@ impl RosenpassConfig {
         let mut our_listen_adresses = Vec::new();
         let mut log_level: Option<LevelFilter> = None;
         let mut logging_output_file = None;
-        #[cfg(feature = "experiment_crypto_agility")]
-        let mut our_keys: Vec<OurKeyConfig> = Vec::new();
-        #[cfg(not(feature = "experiment_crypto_agility"))]
         let mut our_keys: Option<Keypair> = None;
         let mut our_algorithm: Option<CryptoAlgorithmsChoice> = None;
         {
@@ -117,7 +111,6 @@ impl RosenpassConfig {
                 .map(|p| p.resolve_relative_with_tilde(working_directory));
 
                 // our_keys
-                #[cfg(not(feature = "experiment_crypto_agility"))]
                 if let Some(inline_table) = process_result!(
                     errors,
                     get_as_inline_table(raw, table, table.span(), "keys")
@@ -142,69 +135,8 @@ impl RosenpassConfig {
                         });
                     }
                 }
-                #[cfg(feature = "experiment_crypto_agility")]
-                if let Some(keys_list) =
-                    process_result!(errors, get_as_array(raw, table, table.span(), "keys"))
-                {
-                    if keys_list.is_empty() {
-                        errors.push(ParseError::new(
-                            raw,
-                            keys_list.span(),
-                            format!("keys list is empty, require at least one keypair"),
-                        ));
-                    }
-                    for key_item in keys_list.iter() {
-                        let key_item =
-                            process_result!(errors,key_item.as_inline_table().ok_or_else(|| {
-                                ParseError::new(
-                                    raw,
-                                    key_item.span(),
-                                    format!(
-                                        "expected an array of inline tables but array contains {}",
-                                        key_item.type_name()
-                                    ),
-                                )
-                            }));
-                        let mut key_item_errors = if let Some(key_item) = key_item {
-                            let mut errors: Vec<ParseError> = Vec::new();
-                            let cipher = process_result!(
-                                errors,
-                                get_as_asymmetric_cipher_type(
-                                    raw,
-                                    key_item,
-                                    key_item.span(),
-                                    "cipher"
-                                )
-                            );
-                            let secret_key_file = process_result!(
-                                errors,
-                                get_as_path_buf(raw, key_item, key_item.span(), "secret-key-file")
-                            )
-                            .map(|p| p.resolve_relative_with_tilde(working_directory));
-                            let public_key_file = process_result!(
-                                errors,
-                                get_as_path_buf(raw, key_item, key_item.span(), "public-key-file")
-                            )
-                            .map(|p| p.resolve_relative_with_tilde(working_directory));
-                            if !errors.is_empty() {
-                                errors
-                            } else {
-                                our_keys.push(OurKeyConfig {
-                                    cipher: cipher.expect("unreachable"),
-                                    secret_key_file: secret_key_file.expect("unreachable"),
-                                    public_key_file: public_key_file.expect("unreachable"),
-                                });
-                                vec![]
-                            }
-                        } else {
-                            vec![]
-                        };
-                        errors.append(&mut key_item_errors);
-                    }
-                }
 
                 // our_algorithm
-                #[cfg(not(feature = "experiment_crypto_agility"))]
                 {
                     eprintln!(
                         "algorithm type: {}",
@@ -326,11 +258,6 @@ impl RosenpassConfig {
                     let mut errors = Vec::new();
                     let name =
                         process_result!(errors, get_as_string(raw, table, table.span(), "name"));
-                    #[cfg(feature = "experiment_crypto_agility")]
-                    let algorithm = process_result!(
-                        errors,
-                        get_as_crypto_algorithm_choice(raw, table, table.span(), "algorithm")
-                    );
                     let public_key_file = process_result!(
                         errors,
                         get_as_path_buf(raw, table, table.span(), "public-key-file")
@@ -389,8 +316,6 @@ impl RosenpassConfig {
                     if errors.is_empty() {
                         peers.push(PeerConfig {
                             name: name.expect("unreachable"),
-                            #[cfg(feature = "experiment_crypto_agility")]
-                            algorithm: algorithm.expect("unreachable"),
                             public_key_file: public_key_file.expect("unreachable"),
                             protocol_version: protocol_version.expect("unreachable"),
                             endpoint: endpoint.expect("unreachable"),
@@ -415,11 +340,7 @@ impl RosenpassConfig {
             Ok((
                 RosenpassConfig {
                     our_listen_addresses: our_listen_adresses,
-                    #[cfg(not(feature = "experiment_crypto_agility"))]
                     our_keys: our_keys.expect("unreachable"),
-                    #[cfg(feature = "experiment_crypto_agility")]
-                    our_keys: our_keys,
-                    #[cfg(not(feature = "experiment_crypto_agility"))]
                     algorithm: our_algorithm.expect("unreachable"),
                     log_level: log_level.unwrap_or(LevelFilter::Info),
                     logging_output_file: logging_output_file,
