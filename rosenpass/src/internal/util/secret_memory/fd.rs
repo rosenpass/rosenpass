@@ -339,8 +339,8 @@ impl SecretMemfdConfig {
         Ok(())
     }
 
-    /// Allocates secret memory based on the configuration and returns it wrapped into
-    /// a [super::mmap::Mappable] for easy mapping into memory.
+    /// Sets up the secret memory allocation described by the configuration and returns a
+    /// [super::mmap::Mappable] for easy mapping into memory.
     ///
     /// This function returns a [super::mmap::Mappable] and pre-configures the memory mapping
     /// configuration as needed:
