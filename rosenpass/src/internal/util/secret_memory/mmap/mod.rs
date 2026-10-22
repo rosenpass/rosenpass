@@ -432,6 +432,20 @@ impl MappedSegment {
         me.raw()
     }
 
+    /// Reconstruct a [MappedSegment] from its raw parts
+    ///
+    /// # Safety
+    ///
+    /// `raw` must describe a live mapping owned by this allocator, as produced
+    /// by [MappedSegment::into_raw] (the safe producer of such values):
+    /// `alloc_ptr`/`alloc_len` must designate the entire guard-paged region
+    /// exactly as originally mapped, and `ptr`/`len` the data segment within
+    /// it. Ownership of the mapping transfers to the returned
+    /// [MappedSegment], which unmaps `alloc_ptr`/`alloc_len` with munmap(2)
+    /// on drop (panicking if that fails). The raw value must not be reused,
+    /// copied out, or passed to `from_raw` again — doing so would create a
+    /// second owner and lead to a double-unmap. Zeroed or null raw values
+    /// (e.g. [RawMappedSegment::zero]) are invalid.
     pub unsafe fn from_raw(raw: RawMappedSegment) -> Self {
         Self { inner: raw }
     }
