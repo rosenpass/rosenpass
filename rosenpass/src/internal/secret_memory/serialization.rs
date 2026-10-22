@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_roundtrip_json() {
         const N: usize = 32;
         let src = [0xABu8; N];
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_len_mismatch_is_error() {
         const N_SMALL: usize = 16;
         const N_BIG: usize = 32;

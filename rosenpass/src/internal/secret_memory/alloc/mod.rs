@@ -93,7 +93,7 @@ mod test {
     use crate::internal::secret_memory::Secret;
 
     #[test]
-    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_collections_need_no_policy() {
         assert_eq!(*secret_box(()), ());
         assert_eq!(*secret_box_try([42u8; 32]).unwrap(), [42; 32]);
@@ -109,7 +109,7 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_collections_use_default_allocator() {
         let boxed: Box<[u8; 32], SecretMemoryAllocator> = secret_box([42; 32]);
         assert_eq!(Box::allocator(&boxed), &SecretMemoryAllocator::default());
