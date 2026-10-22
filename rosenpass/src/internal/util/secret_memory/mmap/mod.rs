@@ -375,10 +375,6 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// supplied file descriptor is not protected against hostile resizing by
     /// another party holding it, and the pages are not protected against
     /// being inherited on fork(2) or included in memory dumps.
-    ///
-    /// # Safety
-    ///
-    /// If there exist any Rust references referring to the memory region, or if you subsequently create a Rust reference referring to the resulting region, it is your responsibility to ensure that the Rust reference invariants are preserved, including ensuring that the memory is not mutated in a way that a Rust reference would not expect.
     pub fn mmap(&self) -> Result<MappedSegment, MMapError> {
         let fd = self.fd.as_ref().map(AsFd::as_fd);
         let me = Mappable::new(fd, self.config());
