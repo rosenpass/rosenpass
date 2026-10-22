@@ -371,6 +371,7 @@ mod test {
 
     /// Check that we can alloc using the magic pool.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_memory_pool_take() {
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
@@ -380,6 +381,7 @@ mod test {
 
     /// Check that a secret lives, even if its [SecretMemoryPool] is deleted.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_memory_pool_drop() {
         const N: usize = 0x100;
         let mut pool = SecretMemoryPool::new();
@@ -390,6 +392,7 @@ mod test {
 
     /// Check that a secret can be reborn, freshly initialized with zero.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn secret_memory_pool_release() {
         fn check<const N: usize>() {
             let mut pool = SecretMemoryPool::new();
@@ -415,6 +418,7 @@ mod test {
 
     /// Test loading a secret from an example file, and then storing it again in a different file.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_secret_load_store() {
         const N: usize = 100;
 
@@ -451,6 +455,7 @@ mod test {
     /// Test loading a base64 encoded secret from an example file, and then storing it again in
     /// a different file.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_secret_load_store_base64() {
         const N: usize = 100;
         // Generate original random bytes
@@ -505,6 +510,7 @@ mod test {
     /// Test the creation of a [ZeroizingSecretBox] using its [new](ZeroizingSecretBox::new)
     /// function.
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_zeroizing_secret_box_new() {
         struct DummyZeroizing {
             inner_dummy: [u8; 32],
@@ -524,6 +530,7 @@ mod test {
 
     /// Test the debug print of [Secret].
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_debug_secret() {
         let my_secret: Secret<32> = Secret::zero();
         assert_eq!(format!("{:?}", my_secret), "<SECRET>");
