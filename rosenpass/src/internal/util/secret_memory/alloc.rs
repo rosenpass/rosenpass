@@ -40,8 +40,8 @@ use crate::internal::util::{
 /// ordinary allocation failures return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SecretMemoryAllocator {
-    /// Secret memory governance mechanism. This is used to set up the
-    /// file descriptor backing the memory allocation. Depending on the configured
+    /// Secret memory governance mechanism, used to configure how the
+    /// memory allocation is backed. Depending on the configured
     /// usage and detected kernel support, different mechanisms such as
     /// memfd_secret(2), memfd_create(2), or anonymous allocations (no file
     /// descriptor) are used
