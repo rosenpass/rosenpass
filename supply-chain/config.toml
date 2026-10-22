@@ -28,9 +28,6 @@ url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 [imports.zcash]
 url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/audits.toml"
 
-[policy.memsec]
-audit-as-crates-io = true
-
 [policy.rosenpass]
 audit-as-crates-io = false
 
@@ -495,10 +492,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.memoffset]]
 version = "0.9.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.memsec]]
-version = "0.7.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.minimal-lexical]]
