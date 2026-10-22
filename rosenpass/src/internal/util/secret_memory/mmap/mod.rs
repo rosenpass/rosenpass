@@ -24,7 +24,7 @@ pub enum MMapSizePolicy {
     /// do not match
     Checked(u64),
     /// Size is defined to be this particular value; [Mappable::mmap] will explicitly resize
-    /// the underlying file descriptor to be this particular size when called.
+    /// the underlying file descriptor (if any) to be this particular size when called.
     Resize(u64),
 }
 
@@ -217,12 +217,12 @@ pub enum MMapError {
     /// Tried to map a file descriptor into memory, but the size policy was never set. Developer
     /// error.
     #[error(
-        "Tried to map a file descriptor into memory, but the size policy was never set. This is a developer error."
+        "Tried to map memory, but the size policy was never set. This is a developer error."
     )]
     MissingSizePolicy,
     /// Zero-length memory mappings are not supported
     #[error(
-        "Tried to map file descriptor into memory with a size of zero; the kernel rejects zero-length mappings with EINVAL"
+        "Tried to map memory with a size of zero; the kernel rejects zero-length mappings with EINVAL"
     )]
     ZeroSize,
     /// fstat(2)/fstatfs(2) system call failed
@@ -252,7 +252,7 @@ pub enum MMapError {
     #[error("Tried to resize the underlying file descriptor, but failed: {}", .0)]
     ResizeError(rustix::io::Errno),
     /// mmap(2) system call failed
-    #[error("Tried to map file descriptor into memory, but mmap(2) system call failed: {}", .0)]
+    #[error("Tried to map memory, but the mmap(2) system call failed: {}", .0)]
     MapFailed(rustix::io::Errno),
     /// mlock(2) system call failed
     ///
