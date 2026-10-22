@@ -81,6 +81,10 @@ pub trait StatFsExt {
     /// Determine whether the underlying file descriptor that generated this [rustix::fs::StatFs]
     /// is a memfd_secret(2) file descriptor
     fn is_memfd_secret(&self) -> bool;
+
+    /// Determine whether the underlying file descriptor that generated this
+    /// [rustix::fs::StatFs] is backed by hugetlbfs
+    fn is_hugetlbfs(&self) -> bool;
 }
 
 impl StatFsExt for rustix::fs::StatFs {
@@ -89,6 +93,16 @@ impl StatFsExt for rustix::fs::StatFs {
             target_os = "linux" => {
                 const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
                 self.f_type == SECRETMEM_MAGIC
+            },
+            _ => false,
+        }
+    }
+
+    fn is_hugetlbfs(&self) -> bool {
+        cfg_select! {
+            target_os = "linux" => {
+                const HUGETLBFS_MAGIC: rustix::fs::FsWord = 0x9584_58f6;
+                self.f_type == HUGETLBFS_MAGIC
             },
             _ => false,
         }
@@ -105,6 +119,12 @@ pub trait TryStatFsExt {
     /// memfd_secret(2) only exists on Linux; on other operating systems this
     /// always returns `Ok(false)` without querying the kernel
     fn is_memfd_secret(&self) -> Result<bool, Self::Error>;
+
+    /// Determine whether the underlying file descriptor is backed by hugetlbfs
+    ///
+    /// hugetlbfs only exists on Linux; on other operating systems this
+    /// always returns `Ok(false)` without querying the kernel
+    fn is_hugetlbfs(&self) -> Result<bool, Self::Error>;
 }
 
 impl<T> TryStatFsExt for T
@@ -116,6 +136,13 @@ where
     fn is_memfd_secret(&self) -> Result<bool, Self::Error> {
         cfg_select! {
             target_os = "linux" => rustix::fs::fstatfs(self)?.is_memfd_secret().ok(),
+            _ => Ok(false),
+        }
+    }
+
+    fn is_hugetlbfs(&self) -> Result<bool, Self::Error> {
+        cfg_select! {
+            target_os = "linux" => rustix::fs::fstatfs(self)?.is_hugetlbfs().ok(),
             _ => Ok(false),
         }
     }

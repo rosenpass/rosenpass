@@ -144,6 +144,19 @@ pub enum MMapInvalidConfigError {
     "
     )]
     MapSharedNeededForMemfdSecret,
+    /// Hugetlbfs-backed file descriptors are not supported: the kernel aligns
+    /// the length of a MAP_FIXED mapping up to the hugepage size (see the
+    /// mmap(2) NOTES), so replacing the reserved region would consume the
+    /// guard pages and overwrite memory beyond the reservation
+    #[error(
+        "\
+        Tried to map a hugetlbfs-backed file descriptor into memory, but hugetlb mappings \
+        are not supported: the kernel rounds the length of a MAP_FIXED mapping up to the \
+        hugepage size, so the mapping would extend beyond the reserved region and overwrite \
+        adjacent memory.\
+    "
+    )]
+    HugetlbNotSupported,
 }
 
 /// Errors for sealing memfd_create(2) file descriptors against resizing in [Mappable::mmap()]
@@ -360,6 +373,14 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// SIGKILL depending on the fault path). mlock(2) is skipped for
     /// memfd_secret(2) file descriptors: secretmem pages are never swapped by
     /// design, so locking them is unnecessary.
+    ///
+    /// # Unsupported file descriptors
+    ///
+    /// Hugetlbfs-backed file descriptors are rejected with
+    /// [MMapInvalidConfigError::HugetlbNotSupported]: the kernel rounds the
+    /// length of a MAP_FIXED mapping up to the hugepage size, so such a
+    /// mapping would extend beyond the reserved region and overwrite adjacent
+    /// memory.
     ///
     /// # fork(2)
     ///

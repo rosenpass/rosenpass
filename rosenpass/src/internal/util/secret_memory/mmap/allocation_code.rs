@@ -144,6 +144,8 @@ pub struct AllocationCode<'fd> {
     mappable: Mappable<BorrowedFd<'fd>>,
     /// Whether the file descriptor represents a memfd_secret(2)
     fd_is_memfd_secret: Option<bool>,
+    /// Whether the file descriptor is backed by hugetlbfs
+    fd_is_hugetlbfs: Option<bool>,
     /// Ownership state of the mapping being assembled
     segment: SegmentLifecycle,
 }
@@ -155,6 +157,7 @@ impl<'fd> AllocationCode<'fd> {
         let mut me = Self {
             mappable,
             fd_is_memfd_secret: None,
+            fd_is_hugetlbfs: None,
             segment: SegmentLifecycle::None,
         };
         me.mmap_impl()
@@ -187,6 +190,7 @@ impl<'fd> AllocationCode<'fd> {
     fn prefetch_file_descriptor_info(&mut self) -> Result<(), MMapError> {
         self.try_load_size_now()?.discard_result(); // The fstat(2) system call
         self.is_memfd_secret()?; // The fstatfs(2) system call
+        self.is_hugetlbfs()?; // The fstatfs(2) system call
 
         Ok(())
     }
@@ -204,6 +208,15 @@ impl<'fd> AllocationCode<'fd> {
         // memfd_secret(2) does not support MAP_PRIVATE in mmap(2)
         if self.is_memfd_secret()? && !self.config().shared {
             Err(MMapInvalidConfigError::MapSharedNeededForMemfdSecret)?;
+        }
+
+        // Hugetlb-backed file descriptors are rejected before any MAP_FIXED
+        // replacement: the kernel aligns the mapping length up to the
+        // hugepage size even without MAP_HUGETLB (documented behavior, see
+        // the mmap(2) NOTES), so the replacement would consume the trailing
+        // guard page and overwrite memory beyond the reservation
+        if self.is_hugetlbfs()? {
+            Err(MMapInvalidConfigError::HugetlbNotSupported)?;
         }
 
         self.appropriately_size_and_seal_fd()?;
@@ -656,6 +669,24 @@ impl<'fd> AllocationCode<'fd> {
             .is_memfd_secret()
             .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
         self.fd_is_memfd_secret.insert(val).discard_result();
+
+        Ok(val)
+    }
+
+    /// Check if the file descriptor of this allocation is backed by hugetlbfs
+    fn is_hugetlbfs(&mut self) -> Result<bool, MMapError> {
+        if let Some(val) = self.fd_is_hugetlbfs {
+            return Ok(val);
+        }
+
+        let Some(fd) = self.fd() else {
+            return Ok(false);
+        };
+
+        let val = fd
+            .is_hugetlbfs()
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
+        self.fd_is_hugetlbfs.insert(val).discard_result();
 
         Ok(val)
     }
