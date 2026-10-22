@@ -172,7 +172,7 @@ pub fn memfd_secret_supported_for_shm_applications() -> Result<bool, Errno> {
 
 /// Indicates how the file descriptor generated here will be used
 ///
-/// This is important in some cases; [SecretMemfdMechanism::decide_with_policy]
+/// This is important in some cases; [SecretMemfdMechanism::select_mechanism]
 /// for instance uses this information to disable memfd_secret(2) usage on some hosts
 /// where memfd_secret(2) file descriptors are not protected against resizing.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -198,38 +198,6 @@ impl SecretMemfdUsage {
     }
 }
 
-/// How secure memory file descriptors should be allocated
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Default)]
-pub enum SecretMemfdPolicy {
-    /// Use memfd_secret(2) if available, otherwise fall back to less
-    /// secure options
-    #[default]
-    Opportunistic,
-    /// Enforce the use of memfd_secret(2)
-    UseMemfdSecret,
-    /// Never use memfd_secret(2)
-    DisableMemfdSecret,
-}
-
-impl SecretMemfdPolicy {
-    /// Create a SecretMemfdPolicy with the default policy
-    ///
-    /// Currently [Self::Opportunistic]
-    pub const fn default_const() -> Self {
-        Self::Opportunistic
-    }
-
-    /// Enforce the use of the highest security configuration available
-    ///
-    /// This might not work on some systems, which is why this is not used
-    /// by default.
-    ///
-    /// Currently [Self::UseMemfdSecret]
-    pub const fn enforce_high_security() -> Self {
-        Self::UseMemfdSecret
-    }
-}
-
 /// Which mechanism to use when allocating secret memory file descriptors
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum SecretMemfdMechanism {
@@ -243,29 +211,12 @@ pub enum SecretMemfdMechanism {
 
 impl SecretMemfdMechanism {
     /// Decide which mechanism to use, based on the given [SecretMemfdUsage],
-    /// the given [SecretMemfdPolicy], and [memfd_secret_support()].
+    /// and [memfd_secret_support()].
     ///
     /// The `usage` selects which support level is consulted: shared-memory usage
     /// additionally requires memfd_secret(2) resizing protection.
-    ///
-    /// If [SecretMemfdPolicy::UseMemfdSecret] is used, then [SecretMemfdMechanism::MemfdSecret]
-    /// will be returned, regardless of whether it is supported.
-    ///
-    /// Likewise, if [SecretMemfdPolicy::DisableMemfdSecret] is used, then
-    /// [SecretMemfdMechanism::MemfdCreate] will be used unconditionally.
-    pub fn decide_with_policy(
-        usage: SecretMemfdUsage,
-        policy: SecretMemfdPolicy,
-    ) -> Result<Self, Errno> {
+    pub fn select_mechanism(usage: SecretMemfdUsage) -> Result<Self, Errno> {
         use SecretMemfdMechanism as M;
-        use SecretMemfdPolicy as P;
-
-        match (policy, usage.allow_anonymous) {
-            (P::UseMemfdSecret, _) => return Ok(M::MemfdSecret),
-            (P::DisableMemfdSecret, false) => return Ok(M::MemfdCreate),
-            (P::DisableMemfdSecret, true) => return Ok(M::Anonymous),
-            (P::Opportunistic, _) => {}
-        };
 
         let memfd_secret_supported_for_usage = match usage.shared_memory {
             false => memfd_secret_supported_for_local_applications()?,
@@ -330,15 +281,10 @@ pub enum SecretMemfdWithConfigError {
 ///
 /// The close-on-exec file descriptor flag (FD_CLOEXEC) is always set on
 /// the file descriptors produced by [Self::create()].
-///
-/// The default configuration ([Self::new()], [Self::default()]) uses the
-/// default ([SecretMemfdPolicy::Opportunistic]) policy.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub struct SecretMemfdConfig {
     /// How this file descriptor will be used
     pub usage: SecretMemfdUsage,
-    /// Security mechanism to use
-    pub policy: SecretMemfdPolicy,
 }
 
 impl Default for SecretMemfdConfig {
@@ -350,13 +296,12 @@ impl Default for SecretMemfdConfig {
 impl SecretMemfdConfig {
     /// Create a new, default [Self]
     ///
-    /// Uses the default ([SecretMemfdPolicy::Opportunistic]) policy. The
+    /// The
     /// close-on-exec file descriptor flag is always set on the produced
     /// file descriptor; see the struct-level documentation.
     pub const fn new() -> Self {
         let usage = SecretMemfdUsage::default_const();
-        let policy = SecretMemfdPolicy::default_const();
-        Self { usage, policy }
+        Self { usage }
     }
 
     /// Indicates that the created memory mapping will be used in shared memory applications
@@ -374,16 +319,9 @@ impl SecretMemfdConfig {
         r
     }
 
-    /// Set `self.policy = SecretMemfdPolicy::UseMemfdSecret`
-    pub const fn enforce_high_security(&self) -> Self {
-        let mut r = *self;
-        r.policy = SecretMemfdPolicy::enforce_high_security();
-        r
-    }
-
     /// Whether memfd_secret will be used by [Self::create()]
     pub fn mechanism(&self) -> Result<SecretMemfdMechanism, Errno> {
-        SecretMemfdMechanism::decide_with_policy(self.usage, self.policy)
+        SecretMemfdMechanism::select_mechanism(self.usage)
     }
 
     /// Ensure that this configuration is valid and usable
@@ -524,7 +462,7 @@ impl SecretMemfdConfig {
     }
 }
 
-/// Create a secret memory file descriptor using the default policy
+/// Create a secret memory file descriptor using the default configuration
 ///
 /// Shorthand for
 /// [`SecretMemfdConfig::new()`] followed by [`SecretMemfdConfig::create()`]

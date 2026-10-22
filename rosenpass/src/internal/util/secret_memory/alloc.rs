@@ -71,19 +71,6 @@ impl SecretMemoryAllocator {
         r.memfd_config = memfd_config;
         r
     }
-
-    /// Return a copy requiring memfd_secret(2) backed allocations even on systems
-    /// where this is not supported.
-    ///
-    /// Delegates to [SecretMemfdConfig::enforce_high_security()].
-    ///
-    /// If this is set and memfd_secret(2) based allocations are not enabled on the system,
-    /// then [Self::allocate()] will return an error instead of falling back to less secure
-    /// configurations.
-    pub fn enforce_high_security(&self) -> Self {
-        let cfg = self.memfd_config.enforce_high_security();
-        self.with_memfd_config(cfg)
-    }
 }
 
 unsafe impl Allocator for SecretMemoryAllocator {
