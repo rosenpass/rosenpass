@@ -16,12 +16,13 @@ AmbientCapabilities=CAP_NET_ADMIN
 CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE CAP_BLOCK_SUSPEND CAP_BPF CAP_CHOWN CAP_FSETID CAP_SETFCAP CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_IPC_OWNER CAP_IPC_LOCK CAP_KILL CAP_LEASE CAP_LINUX_IMMUTABLE CAP_MAC_ADMIN CAP_MAC_OVERRIDE CAP_MKNOD CAP_NET_BIND_SERVICE CAP_NET_BROADCAST CAP_NET_RAW CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_SYS_ADMIN CAP_SYS_BOOT CAP_SYS_CHROOT CAP_SYSLOG CAP_SYS_MODULE CAP_SYS_NICE CAP_SYS_RESOURCE CAP_SYS_PACCT CAP_SYS_PTRACE CAP_SYS_RAWIO CAP_SYS_TIME CAP_SYS_TTY_CONFIG CAP_WAKE_ALARM
 DynamicUser=true
 # Rosenpass keeps its cryptographic secrets in memory that must never be
-# swapped out: every non-zero-sized secret allocation is a separate
-# mlock(2)ed mapping, and memfd_secret(2) mappings are charged against
-# RLIMIT_MEMLOCK by the kernel as well. The secret-memory constructors are
-# infallible, so exhausting the limit aborts the process. Raise the limit
-# here; systemd applies rlimits at exec, so this also works with
-# DynamicUser=true and without CAP_IPC_LOCK (same as wg-quick).
+# swapped out: every non-zero-sized secret allocation gets its own locked
+# mapping: mlock(2)ed on the memfd_create(2)/anonymous paths or locked by
+# the kernel for memfd_secret(2), which is charged against RLIMIT_MEMLOCK
+# as well. Exhausting the limit aborts the process at allocation time on
+# the mlock(2) path, or kills it at first access (SIGBUS/SIGKILL) on the
+# memfd_secret(2) path. Raise the limit here; systemd applies rlimits at
+# exec, so this also works with DynamicUser=true and without CAP_IPC_LOCK.
 # Non-systemd users (containers, manual runs) must raise the limit
 # themselves, e.g. `ulimit -l unlimited` or the container runtime's
 # equivalent.
