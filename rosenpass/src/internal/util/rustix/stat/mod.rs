@@ -101,12 +101,12 @@ pub fn fstatfs<Fd: AsFd>(_fd: Fd) -> Result<StatFs, Errno> {
 ///
 /// This extension uses Linux's filesystem type identifier for secretmem.
 pub trait StatFsExt {
-    /// Determine whether the underlying file descriptor that generated this [rustix::fs::StatFs]
+    /// Determine whether the underlying file descriptor that generated this [StatFs]
     /// is a memfd_secret(2) file descriptor
     fn is_memfd_secret(&self) -> bool;
 
     /// Determine whether the underlying file descriptor that generated this
-    /// [rustix::fs::StatFs] is backed by hugetlbfs
+    /// [StatFs] is backed by hugetlbfs
     fn is_hugetlbfs(&self) -> bool;
 }
 
@@ -138,7 +138,7 @@ impl StatFsExt for StatFs {
     }
 }
 
-/// Helpers for accessing stat(2) information on an open file descriptor
+/// Helpers for accessing statfs(2) information on an open file descriptor
 pub trait TryStatFsExt {
     /// Error type returned by operations
     type Error;
