@@ -28,9 +28,9 @@ bitflags! {
 /// Create an anonymous file
 /// using the memfd_create(2) syscall
 ///
-/// Just forwards to [rustix::fs::memfd_create]
+/// On Linux, forwards to [rustix::fs::memfd_create]
 ///
-/// Returns ENOSYS on platforms without this Linux backend
+/// On all other platforms, returns ENOSYS without calling the kernel
 pub fn memfd_create<P: Path>(name: P, flags: MemfdFlags) -> rustix::io::Result<OwnedFd> {
     cfg_select! {
         target_os = "linux" => rustix::fs::memfd_create(name, flags),
