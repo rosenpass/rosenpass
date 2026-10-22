@@ -1,3 +1,11 @@
 [toolchain]
 channel = "beta-2026-10-14"
-components = ["llvm-tools-preview", "rust-src", "rust-analyzer"]
+components = [
+  "llvm-tools-preview",
+  "rust-src",
+  "rust-analyzer",
+  # Formatting/linting must use the pinned toolchain (see treefmt.nix and
+  # the CI clippy job)
+  "rustfmt",
+  "clippy",
+]
