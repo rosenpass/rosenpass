@@ -34,8 +34,8 @@ use crate::internal::util::{
 /// during reallocation.
 ///
 /// Zero-sized layouts return an aligned dangling pointer without creating a
-/// mapping or guard pages; their deallocation is a no-op. Layouts with
-/// alignments larger than the system page size are unsupported and return [AllocError].
+/// mapping or guard pages; their deallocation is a no-op. Non-zero-sized layouts
+/// with alignments larger than the system page size are unsupported and return [AllocError].
 /// Unexpected panics during allocation or deallocation abort the process by design;
 /// ordinary allocation failures return [AllocError].
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
