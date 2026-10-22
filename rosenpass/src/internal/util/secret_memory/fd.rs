@@ -350,15 +350,6 @@ impl SecretMemfdConfig {
     ///   kernel rejects MAP_PRIVATE mappings of memfd_secret(2) file descriptors (see
     ///   [super::mmap::MappingConfig::shared])
     ///
-    /// Note that if all three of the conditions hold, then the configuration is insecure and
-    /// [Self::validate_config()] will produce [SecretMemfdConfigValidationError::MemfdSecretDoesNotProtectAgainstResizing], which
-    /// will be returned wrapped in [SecretMemfdWithConfigError::InvalidConfig]. The three
-    /// conditions are:
-    ///
-    /// - memfd_secret(2) is being used
-    /// - [SecretMemfdUsage::shared_memory] is true
-    /// - [memfd_secret_protects_against_resizing()] is false
-    ///
     /// The close-on-exec (CLOEXEC) file descriptor flag is always set on the
     /// produced file descriptor.
     ///
