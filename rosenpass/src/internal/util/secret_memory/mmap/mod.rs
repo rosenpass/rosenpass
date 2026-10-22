@@ -214,11 +214,8 @@ pub enum MMapError {
         /// Maximum supported size
         max_supported_len: u64,
     },
-    /// Tried to map a file descriptor into memory, but the size policy was never set. Developer
-    /// error.
-    #[error(
-        "Tried to map memory, but the size policy was never set. This is a developer error."
-    )]
+    /// Tried to map memory, but the size policy was never set. This is a developer error.
+    #[error("Tried to map memory, but the size policy was never set. This is a developer error.")]
     MissingSizePolicy,
     /// Zero-length memory mappings are not supported
     #[error(
