@@ -92,10 +92,11 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+      # Plain `cargo clippy` on the pinned toolchain (rust-toolchain.toml);
+      # replaces the archived actions-rs/clippy-check action (C-43). Like the
+      # old action, this fails the job when clippy exits non-zero.
+      - name: Run clippy
+        run: cargo clippy --workspace --all-features
       - name: Report runner resources
         uses: ./.github/actions/report-resources
         if: ${{ always() }}
