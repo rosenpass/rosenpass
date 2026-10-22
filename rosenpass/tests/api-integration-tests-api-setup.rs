@@ -161,7 +161,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             // This was `wg: None` previously, introduced in a huge commit b1a7d942954ce6a41decc5a9f93c95cffafde801 .
             // We need to clean up and document this test.
             // https://github.com/rosenpass/rosenpass/issues/1172
-            wg: use_wg_key_binding.then(|| config::WireGuard {
+            wg: use_wg_key_binding.then(|| oldconfig::WireGuard {
                 device: peer_b_wg_device.to_string(),
                 peer: format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>()),
                 our_wg_pubkey: Some(format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>())),

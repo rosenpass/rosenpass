@@ -532,7 +532,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         // bind to WireGuard public keys, required since protocol version 3
         let wg_key_binding = match peer.protocol_version {
             ProtocolVersion::V03 => {
-                let peer_wg_pubkey = rosenpass::config::decode_wg_pubkey_b64(wgpk.trim())?;
+                let peer_wg_pubkey = rosenpass::oldconfig::decode_wg_pubkey_b64(wgpk.trim())?;
                 Some(WireGuardKeyBinding {
                     our_wg_pubkey,
                     peer_wg_pubkey,

@@ -21,12 +21,7 @@ pub struct RosenpassConfig {
     /// - `[::1]:1234` – Listen on IPv6 localhost, port 1234
     /// - `[::]:4476` – Listen on any IPv4 or IPv6 interface, port 4476
     pub our_listen_addresses: Vec<SocketAddr>,
-
-    #[cfg(feature = "experiment_crypto_agility")]
-    pub our_keys: Vec<OurKeyConfig>,
-    #[cfg(not(feature = "experiment_crypto_agility"))]
     pub our_keys: Keypair,
-    #[cfg(not(feature = "experiment_crypto_agility"))]
     pub algorithm: CryptoAlgorithmsChoice,
 
     /// TODO: also support [crate::oldconfig::Verbosity]
@@ -79,8 +74,6 @@ pub enum FlatDeviceManagedByChoice {
 #[derive(Debug)]
 pub struct PeerConfig {
     pub name: String,
-    #[cfg(feature = "experiment_crypto_agility")]
-    pub algorithm: CryptoAlgorithmsChoice,
     pub public_key_file: PathBuf,
     pub protocol_version: ProtocolVersion,
     pub endpoint: SocketAddr,
