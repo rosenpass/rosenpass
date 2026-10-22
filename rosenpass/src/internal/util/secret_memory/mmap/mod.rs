@@ -381,8 +381,8 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// # fork(2)
     ///
     /// The pages allocated here must not be accessed after the process has been forked.
-    /// On Linux, MADV_DONTFORK is used to deliberately free pages on fork as a
-    /// precaution; this advice is not available on other operating systems.
+    /// On Linux, MADV_DONTFORK is used so that child processes created by fork(2)
+    /// do not inherit these pages as a precaution; this advice is not available on other operating systems.
     ///
     /// # Portability
     ///
