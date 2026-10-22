@@ -18,13 +18,7 @@ use rustix::io::Errno;
 use super::MemfdCreateSealError;
 
 use crate::internal::util::{
-    convert::TryIntoTypeExt,
-    int::u64uint::MAX_U64_IN_USIZE,
-    mem::{CopyExt, DiscardResultExt},
-    option::SomeExt,
-    result::OkExt,
-    rustix::{TryStatExt, TryStatFsExt},
-    secret_memory::mmap::{
+    convert::TryIntoTypeExt, int::u64uint::MAX_U64_IN_USIZE, mem::{CopyExt, DiscardResultExt}, option::SomeExt, result::OkExt, rustix::{HUGETLBFS_AVAILABLE_ON_PLATFORM, MEMFD_SECRET_AVAILABLE_ON_PLATFORM, StatFsExt, TryStatExt, TryStatFsExt}, secret_memory::mmap::{
         MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment, MappingConfig,
         RawMappedSegment,
     },
@@ -142,10 +136,8 @@ impl SegmentLifecycle {
 pub struct AllocationCode<'fd> {
     /// The file descriptor to map and the configuration for the mapping
     mappable: Mappable<BorrowedFd<'fd>>,
-    /// Whether the file descriptor represents a memfd_secret(2)
-    fd_is_memfd_secret: Option<bool>,
-    /// Whether the file descriptor is backed by hugetlbfs
-    fd_is_hugetlbfs: Option<bool>,
+    /// Used to determine what type of file descriptor we are dealing with
+    fd_statfs: Option<rustix::fs::StatFs>,
     /// Ownership state of the mapping being assembled
     segment: SegmentLifecycle,
 }
@@ -156,8 +148,7 @@ impl<'fd> AllocationCode<'fd> {
     pub fn mmap(mappable: Mappable<BorrowedFd<'fd>>) -> Result<MappedSegment, MMapError> {
         let mut me = Self {
             mappable,
-            fd_is_memfd_secret: None,
-            fd_is_hugetlbfs: None,
+            fd_statfs: None,
             segment: SegmentLifecycle::None,
         };
         me.mmap_impl()
@@ -249,7 +240,7 @@ impl<'fd> AllocationCode<'fd> {
     /// Platform-specific implementation of [Self::madvise()]
     #[cfg(target_os = "linux")]
     fn madvise_linux(&mut self) -> Result<(), MMapError> {
-        use rustix::mm::{Advice, madvise};
+        use rustix::mm::{madvise, Advice};
 
         use Advice::{LinuxDontDump as ADump, LinuxDontFork as AFork};
         use MMapError::{
@@ -414,7 +405,7 @@ impl<'fd> AllocationCode<'fd> {
     ///   mapping was just created by us and no other handle refers to it, so it
     ///   is exclusively owned.
     fn allocate_guard_page(&mut self) -> Result<&mut MappedSegment, MMapError> {
-        use rustix::mm::{MapFlags, ProtFlags, mmap_anonymous};
+        use rustix::mm::{mmap_anonymous, MapFlags, ProtFlags};
 
         if self.segment.segment_mut().is_some() {
             return Ok(self.segment.segment_mut().unwrap());
@@ -657,38 +648,43 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Check if this allocation is for a memfd_secret(2) FD
     fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
-        if let Some(val) = self.fd_is_memfd_secret {
-            return Ok(val);
+        if !MEMFD_SECRET_AVAILABLE_ON_PLATFORM {
+            return Ok(false);
         }
 
-        let Some(fd) = self.fd() else {
-            return Ok(false);
-        };
-
-        let val = fd
-            .is_memfd_secret()
-            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
-        self.fd_is_memfd_secret.insert(val).discard_result();
-
-        Ok(val)
+        self.statfs()?
+            .map(|stat| stat.is_memfd_secret())
+            .unwrap_or(false)
+            .ok()
     }
 
     /// Check if the file descriptor of this allocation is backed by hugetlbfs
     fn is_hugetlbfs(&mut self) -> Result<bool, MMapError> {
-        if let Some(val) = self.fd_is_hugetlbfs {
-            return Ok(val);
+        if !HUGETLBFS_AVAILABLE_ON_PLATFORM {
+            return Ok(false);
+        }
+
+        self.statfs()?
+            .map(|stat| stat.is_hugetlbfs())
+            .unwrap_or(false)
+            .ok()
+    }
+
+    /// Retrieve meta information about the file using fstatfs(2)
+    fn statfs(&mut self) -> Result<Option<rustix::fs::StatFs>, MMapError> {
+        if let Some(val) = self.fd_statfs {
+            return Ok(Some(val));
         }
 
         let Some(fd) = self.fd() else {
-            return Ok(false);
+            return Ok(None);
         };
 
-        let val = fd
-            .is_hugetlbfs()
-            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
-        self.fd_is_hugetlbfs.insert(val).discard_result();
+        let stat =
+            rustix::fs::fstatfs(fd).map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
+        self.fd_statfs.insert(stat).discard_result();
 
-        Ok(val)
+        Ok(Some(stat))
     }
 
     /// Look up the size of the file represented by the file descriptor we are

@@ -74,6 +74,22 @@ where
     }
 }
 
+/// Check whether memfd_secret(2) is available on the platform in the first place
+///
+/// This can be used to elide calls to [StatFsExt::is_memfd_secret()]
+pub const MEMFD_SECRET_AVAILABLE_ON_PLATFORM: bool = cfg_select! {
+    target_os = "linux" => true,
+    _ => false,
+};
+
+/// Check whether hugetlbfs is available on the platform in the first place
+///
+/// This can be used to elide calls to [StatFsExt::is_hugetlbfs()]
+pub const HUGETLBFS_AVAILABLE_ON_PLATFORM: bool = cfg_select! {
+    target_os = "linux" => true,
+    _ => false,
+};
+
 /// Helpers for accessing statfs(2) information
 ///
 /// This extension uses Linux's filesystem type identifier for secretmem.
@@ -101,8 +117,7 @@ impl StatFsExt for rustix::fs::StatFs {
     fn is_hugetlbfs(&self) -> bool {
         cfg_select! {
             target_os = "linux" => {
-                const HUGETLBFS_MAGIC: rustix::fs::FsWord = 0x9584_58f6;
-                self.f_type == HUGETLBFS_MAGIC
+                self.f_type == libc::HUGETLBFS_MAGIC as rustix::fs::FsWord
             },
             _ => false,
         }
@@ -134,17 +149,11 @@ where
     type Error = rustix::io::Errno;
 
     fn is_memfd_secret(&self) -> Result<bool, Self::Error> {
-        cfg_select! {
-            target_os = "linux" => rustix::fs::fstatfs(self)?.is_memfd_secret().ok(),
-            _ => Ok(false),
-        }
+        Ok(MEMFD_SECRET_AVAILABLE_ON_PLATFORM && rustix::fs::fstatfs(self)?.is_memfd_secret())
     }
 
     fn is_hugetlbfs(&self) -> Result<bool, Self::Error> {
-        cfg_select! {
-            target_os = "linux" => rustix::fs::fstatfs(self)?.is_hugetlbfs().ok(),
-            _ => Ok(false),
-        }
+        Ok(HUGETLBFS_AVAILABLE_ON_PLATFORM && rustix::fs::fstatfs(self)?.is_hugetlbfs())
     }
 }
 
