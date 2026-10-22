@@ -233,7 +233,7 @@ impl<'fd> AllocationCode<'fd> {
     /// * The pointer came directly from mmap, so it is valid and owned exclusively
     ///   by us and retains provenance.
     /// * The length is the mapping's exact length; madvise operates on
-    ///   whole pages and rounds to the page's length.
+    ///   whole pages and rounds the length up to a multiple of the page size.
     /// * MADV_DONTFORK and MADV_DONTDUMP only manipulate virtual memory flags; they
     ///   do not change the underlying fd or data in memory.
     fn madvise(&mut self) -> Result<(), MMapError> {
