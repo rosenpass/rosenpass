@@ -56,7 +56,7 @@ bitflags! {
 pub enum MemfdSecretUnavailabilityReason {
     /// memfd_secret(2) is not supported by the kernel or was disabled at boot
     #[error(
-        "memfd_secret(2) is not supported on your system or was blocked at boot by using the kernel command line `secretmem.enable=0`"
+        "memfd_secret(2) is not supported on your system or, on Linux, was blocked at boot by using the kernel command line `secretmem.enable=0`"
     )]
     NotSupported,
     /// memfd_secret(2) is blocked by a security policy (seccomp/LSM) on this system
