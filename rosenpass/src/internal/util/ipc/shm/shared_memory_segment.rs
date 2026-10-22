@@ -29,12 +29,12 @@ pub struct SharedMemorySegmentBuilder {
 impl SharedMemorySegmentBuilder {
     /// Create a new shared memory segment builder.
     ///
-    /// Note that this always sets [MappingConfig::set_shared()].
+    /// Note that this always sets [MappingConfig::set_shared()], but you can overwrite this
+    /// behavior by assigning to the public [Self::map_fd_cfg] field directly.
     ///
-    /// The file descriptor is created with [SecretMemfdConfig::used_in_shared_memory()]; on
-    /// systems where memfd_secret(2) is not protected against resizing, this makes
-    /// [SecretMemfdConfig::validate_config()] reject configurations that would use
-    /// memfd_secret(2) for shared memory, instead of proceeding insecurely.
+    /// The configuration is built with [SecretMemfdConfig::used_in_shared_memory()], so on
+    /// systems where memfd_secret(2) is not protected against resizing, the memfd_create(2)
+    /// backend is used instead.
     pub fn new(len: usize) -> anyhow::Result<Self> {
         let secret_memfd_cfg = SecretMemfdConfig::new().used_in_shared_memory();
         let map_fd_cfg = secret_memfd_cfg
@@ -52,8 +52,10 @@ impl SharedMemorySegmentBuilder {
     /// The freshly created segment is zero-filled (fresh memfd pages are zero-filled by the
     /// kernel).
     ///
-    /// This will always return a file descriptor, unless [crate::internal::util::secret_memory::fd::SecretMemfdUsage]
-    /// inside [SecretMemfdConfig::usage] is set, in which case None will be return.
+    /// Returns a file descriptor unless
+    /// [crate::internal::util::secret_memory::fd::SecretMemfdUsage::allow_anonymous] is set and
+    /// memfd_secret(2) is unavailable for the configured usage, in which case the file
+    /// descriptor is None.
     pub fn create_segment(&self) -> anyhow::Result<(Option<OwnedFd>, SharedMemorySegment)> {
         let fd = self.secret_memfd_cfg.create()?;
 
@@ -338,7 +340,8 @@ impl SharedMemorySegment {
     /// Create a shared memory segment from a file descriptor
     ///
     /// Uses the default [MappingConfig] (shared mapping, checked size, resize protection
-    /// enforced on Linux); see [Self::from_fd_with_config()] for the failure modes.
+    /// enforced on Linux for sealable file descriptors); see [Self::from_fd_with_config()]
+    /// for the failure modes.
     ///
     /// # Safety
     ///
@@ -354,7 +357,8 @@ impl SharedMemorySegment {
     ///
     /// This fails — rather than mapping insecurely — for file descriptors that cannot be
     /// sealed against resizing (e.g. memfds created without MFD_ALLOW_SEALING, or read-only
-    /// re-opens via /proc/self/fd).
+    /// re-opens via /proc/self/fd); memfd_secret(2) descriptors are exempt from user-space
+    /// sealing and are accepted, relying on the kernel for resize protection where it provides it.
     ///
     /// # Safety
     ///
