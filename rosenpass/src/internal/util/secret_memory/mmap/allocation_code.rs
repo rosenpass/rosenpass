@@ -387,8 +387,8 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Allocate guard pages and prepare the memory region for the actual allocation.
     /// Note that we make sure the guard-page gets deallocated even if the later mmap(2)
-    /// call fails by immediately constructing the MappedSegment, which has an appropriate
-    /// destructor.
+    /// call fails: on the MAP_FIXED failure path this is done explicitly, otherwise by
+    /// the MappedSegment destructor.
     ///
     /// SAFETY:
     ///
