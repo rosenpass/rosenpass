@@ -22,7 +22,6 @@ pub struct RosenpassConfig {
     /// - `[::]:4476` – Listen on any IPv4 or IPv6 interface, port 4476
     pub our_listen_addresses: Vec<SocketAddr>,
     pub our_keys: Keypair,
-    pub algorithm: CryptoAlgorithmsChoice,
 
     /// TODO: also support [crate::oldconfig::Verbosity]
     /// TODO: implement default
@@ -39,7 +38,6 @@ pub struct RosenpassConfig {
 // ============================== [rosenpass] ==============================
 #[derive(Debug)]
 pub struct OurKeyConfig {
-    pub cipher: StaticKemChoice,
     /// TODO: use [crate::oldconfig::Keypair] instead?
     pub secret_key_file: PathBuf,
     pub public_key_file: PathBuf,
@@ -84,47 +82,6 @@ pub struct PeerConfig {
 
     pub output_to_file: Option<OutputToFileConfig>,
     pub wireguard: Option<WireguardConfig>,
-}
-#[derive(Debug)]
-pub struct CryptoAlgorithmsChoice {
-    pub static_kem_choice: StaticKemChoice,
-    pub ephemeral_kem_choice: EphemeralKemChoice,
-    pub symmetric_cipher: SymmetricCipherChoice,
-    pub hash: HashAlgorithmChoice,
-}
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum StaticKemChoice {
-    #[serde(rename = "mceliece460896round4")]
-    McEliece460896Round4,
-    #[serde(rename = "mceliece460896round2")]
-    McEliece460896Round2,
-}
-impl Display for StaticKemChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            serde_plain::to_string(&self)
-                .expect("can not serialize AsymmetricCipherType – should be unreachable")
-        )
-    }
-}
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum EphemeralKemChoice {
-    #[serde(rename = "kyber512")]
-    Kyber512,
-}
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum SymmetricCipherChoice {
-    #[serde(rename = "chachapoly1305")]
-    ChaChaPoly1305,
-}
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum HashAlgorithmChoice {
-    #[serde(rename = "blake2s")]
-    Blake2s,
-    #[serde(rename = "blake2b")]
-    Blake2b,
 }
 
 #[derive(Debug)]

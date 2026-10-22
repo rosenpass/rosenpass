@@ -1,7 +1,7 @@
 //! TODO: document validation
 //!
 
-use super::{FlatDeviceManagedByChoice, StaticKemChoice};
+use super::{FlatDeviceManagedByChoice};
 use crate::internal::util::file::LoadValue;
 use crate::protocol::basic_types::{SPk, SSk};
 use std::path::PathBuf;
@@ -16,18 +16,18 @@ pub enum Error {
     #[error("can not read secret key file \"{0}\": {1}")]
     OurSecretKeyFileCanNotBeRead(PathBuf, std::io::Error),
     #[error(
-        "secret key file has invalid content, expected secret key for cipher {1} in file \"{0}\""
+        "secret key file has invalid content, expected secret key in file \"{0}\""
     )]
-    OurSecretKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
+    OurSecretKeyFileHasInvalidContent(PathBuf),
 
     #[error("can not read public key file \"{0}\": file does not exist")]
     OurPublicKeyFileDoesNotExist(PathBuf),
     #[error("can not read public key file \"{0}\": {1}")]
     OurPublicKeyFileCanNotBeRead(PathBuf, std::io::Error),
     #[error(
-        "public key file has invalid content, expected public key for cipher {1} in file \"{0}\""
+        "public key file has invalid content, expected public key in file \"{0}\""
     )]
-    OurPublicKeyFileHasInvalidContent(PathBuf, StaticKemChoice),
+    OurPublicKeyFileHasInvalidContent(PathBuf),
 
     // ============================== [[device]] ==============================
     #[error("device \"{0}\" is managed by rosenpass but has no wireguard secret key specified")]
@@ -46,9 +46,9 @@ pub enum Error {
     )]
     DeviceIsManagedByRosenpassButSecretKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error(
-        "device \"{0}\" is managed by rosenpass but can not read wireguard secret key file \"{1}\": {2}"
+        "device \"{0}\" is managed by rosenpass but wireguard secret key file \"{1}\" has invalid content"
     )]
-    DeviceIsManagedByRosenpassButSecretKeyFileHasInvalidContent(String, PathBuf, StaticKemChoice),
+    DeviceIsManagedByRosenpassButSecretKeyFileHasInvalidContent(String, PathBuf),
     #[error(
         "device \"{0}\" is managed by rosenpass but can not read wireguard public key file \"{1}\": file does not exist"
     )]
@@ -58,9 +58,9 @@ pub enum Error {
     )]
     DeviceIsManagedByRosenpassButPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error(
-        "device \"{0}\" is managed by rosenpass but can not read wireguard public key file \"{1}\": {2}"
+        "device \"{0}\" is managed by rosenpass but wireguard public key file \"{1}\" has invalid content"
     )]
-    DeviceIsManagedByRosenpassButPublicKeyFileHasInvalidContent(String, PathBuf, StaticKemChoice),
+    DeviceIsManagedByRosenpassButPublicKeyFileHasInvalidContent(String, PathBuf),
 
     #[error(
         "a custom wg binary has been specified for device \"{0}\" but the binary file does not exist: \"{1}\""
@@ -81,7 +81,7 @@ pub enum Error {
     #[error("can not read public key file of peer \"{0}\" from \"{1}\": {2}")]
     PeerPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
     #[error("TODO")]
-    PeerPublicKeyFileHasInvalidContent(String, PathBuf, StaticKemChoice),
+    PeerPublicKeyFileHasInvalidContent(String, PathBuf),
     #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": file does not exist")]
     PeerPskFileDoesNotExist(String, PathBuf),
     #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": {2}")]
@@ -165,10 +165,10 @@ pub enum Warning {
     )]
     DisabledPeerUsesUndefinedDevice(String, String),
 
-    #[error("can not check the validity of {1} secret key (not implemented): \"{0}\"")]
-    CanNotCheckValidityOfStaticKemSecretKey(PathBuf, StaticKemChoice),
-    #[error("can not check the validity of {1} public key (not implemented): \"{0}\"")]
-    CanNotCheckValidityOfStaticKemPublicKey(PathBuf, StaticKemChoice),
+    #[error("can not check the validity of secret key (not implemented): \"{0}\"")]
+    CanNotCheckValidityOfStaticKemSecretKey(PathBuf),
+    #[error("can not check the validity of public key (not implemented): \"{0}\"")]
+    CanNotCheckValidityOfStaticKemPublicKey(PathBuf),
 }
 #[derive(Debug, Error)]
 pub enum Issue {
@@ -399,7 +399,7 @@ mod util {
 pub use util::AttemptRead;
 
 macro_rules! validate_keypair {
-    ($secret_path: expr, $public_path: expr, $warnings: ident, $errors: ident, $recipe: ident, $static_kem_choice: expr,
+    ($secret_path: expr, $public_path: expr, $warnings: ident, $errors: ident, $recipe: ident,
         $context: expr,
         $SecretKeyFileDoesNotExist: ident, $SecretKeyFileCanNotBeRead: ident, $SecretKeyFileHasInvalidContent: ident, $SecretKeyFileIsGloballyReadable: ident,
         $PublicKeyFileDoesNotExist: ident, $PublicKeyFileCanNotBeRead: ident, $PublicKeyFileHasInvalidContent: ident,
@@ -420,16 +420,8 @@ macro_rules! validate_keypair {
                     $warnings.push(Warning::$SecretKeyFileIsGloballyReadable($context, $secret_path.clone()));
                 }
                 if $recipe.check_key_file_contents {
-                    match $static_kem_choice {
-                        StaticKemChoice::McEliece460896Round2 => {
-                            $warnings.push(Warning::CanNotCheckValidityOfStaticKemSecretKey($secret_path.clone(), $static_kem_choice))
-                            // $errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 secret key files".to_string()));
-                        }
-                        StaticKemChoice::McEliece460896Round4 => {
-                            if let Err(_err) = SSk::load(&$secret_path) {
-                                $errors.push(Error::$SecretKeyFileHasInvalidContent($context, $secret_path.clone(), $static_kem_choice));
-                            }
-                        }
+                    if let Err(_err) = SSk::load(&$secret_path) {
+                        $errors.push(Error::$SecretKeyFileHasInvalidContent($context, $secret_path.clone()));
                     }
                 }
             }
@@ -447,22 +439,14 @@ macro_rules! validate_keypair {
             }
             else { // our public key file exists and is readable
                 if $recipe.check_key_file_contents {
-                    match $static_kem_choice {
-                        StaticKemChoice::McEliece460896Round2 => {
-                            $warnings.push(Warning::CanNotCheckValidityOfStaticKemPublicKey($public_path.clone(), $static_kem_choice))
-                            // $errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 public key files".to_string()));
-                        }
-                        StaticKemChoice::McEliece460896Round4 => {
-                            if let Err(_err) = SPk::load(&$public_path) {
-                                $errors.push(Error::$PublicKeyFileHasInvalidContent($context, $public_path.clone(), $static_kem_choice));
-                            }
-                        }
+                    if let Err(_err) = SPk::load(&$public_path) {
+                        $errors.push(Error::$PublicKeyFileHasInvalidContent($context, $public_path.clone()));
                     }
                 }
             }
         }
     };
-    ($secret_path: expr, $public_path: expr, $warnings: ident, $errors: ident, $recipe: ident, $static_kem_choice: expr,
+    ($secret_path: expr, $public_path: expr, $warnings: ident, $errors: ident, $recipe: ident,
         $SecretKeyFileDoesNotExist: ident, $SecretKeyFileCanNotBeRead: ident, $SecretKeyFileHasInvalidContent: ident, $SecretKeyFileIsGloballyReadable: ident,
         $PublicKeyFileDoesNotExist: ident, $PublicKeyFileCanNotBeRead: ident, $PublicKeyFileHasInvalidContent: ident,
     ) => {
@@ -482,16 +466,8 @@ macro_rules! validate_keypair {
                     $warnings.push(Warning::$SecretKeyFileIsGloballyReadable($secret_path.clone()));
                 }
                 if $recipe.check_key_file_contents {
-                    match $static_kem_choice {
-                        StaticKemChoice::McEliece460896Round2 => {
-                            $warnings.push(Warning::CanNotCheckValidityOfStaticKemSecretKey($secret_path.clone(), $static_kem_choice))
-                            // $errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 secret key files".to_string()));
-                        }
-                        StaticKemChoice::McEliece460896Round4 => {
-                            if let Err(_err) = SSk::load(&$secret_path) {
-                                $errors.push(Error::$SecretKeyFileHasInvalidContent($secret_path.clone(), $static_kem_choice));
-                            }
-                        }
+                    if let Err(_err) = SSk::load(&$secret_path) {
+                        $errors.push(Error::$SecretKeyFileHasInvalidContent($secret_path.clone()));
                     }
                 }
             }
@@ -509,16 +485,8 @@ macro_rules! validate_keypair {
             }
             else { // our public key file exists and is readable
                 if $recipe.check_key_file_contents {
-                    match $static_kem_choice {
-                        StaticKemChoice::McEliece460896Round2 => {
-                            $warnings.push(Warning::CanNotCheckValidityOfStaticKemPublicKey($public_path.clone(), $static_kem_choice))
-                            // $errors.push(Error::UnimplementedFeature("checking the validity of McEliece460896Round2 public key files".to_string()));
-                        }
-                        StaticKemChoice::McEliece460896Round4 => {
-                            if let Err(_err) = SPk::load(&$public_path) {
-                                $errors.push(Error::$PublicKeyFileHasInvalidContent($public_path.clone(), $static_kem_choice));
-                            }
-                        }
+                    if let Err(_err) = SPk::load(&$public_path) {
+                        $errors.push(Error::$PublicKeyFileHasInvalidContent($public_path.clone()));
                     }
                 }
             }
@@ -538,7 +506,6 @@ impl super::RosenpassConfig {
             validate_keypair!(
                 self.our_keys.secret_key, self.our_keys.public_key,
                 warnings, errors, recipe,
-                self.algorithm.static_kem_choice,
                 OurSecretKeyFileDoesNotExist,
                 OurSecretKeyFileCanNotBeRead,
                 OurSecretKeyFileHasInvalidContent,
@@ -574,7 +541,6 @@ impl super::RosenpassConfig {
                         validate_keypair!(
                             wireguard_keypair.secret_key, wireguard_keypair.public_key,
                             warnings, errors, recipe,
-                            self.algorithm.static_kem_choice,
                             device.name.clone(),
                             DeviceIsManagedByRosenpassButSecretKeyFileDoesNotExist,
                             DeviceIsManagedByRosenpassButSecretKeyFileCanNotBeRead,

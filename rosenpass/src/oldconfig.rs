@@ -1078,7 +1078,7 @@ mod test {
 }
 
 pub mod util {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     /// takes a path that can potentially start with a `~` and resolves that `~` to the user's home directory
     ///
     /// ## Example
@@ -1117,10 +1117,10 @@ pub mod util {
     /// assert!(resolved_path == working_directory.join(path));
     /// ```
     pub fn resolve_relative_path_with_tilde(
-        path: &PathBuf,
-        working_directory: &PathBuf,
+        path: &Path,
+        working_directory: &Path,
     ) -> PathBuf {
-        let mut path = path.clone();
+        let mut path = path.to_owned();
         resolve_path_with_tilde(&mut path);
         if !path.is_relative() {
             path
@@ -1129,12 +1129,27 @@ pub mod util {
         }
     }
 
-    pub trait ResolvePathWithTilde {
-        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf;
+    pub trait ResolvePathWithTilde<WDT> {
+        fn resolve_relative_with_tilde(&self, working_directory: WDT) -> PathBuf;
     }
-    impl ResolvePathWithTilde for PathBuf {
-        fn resolve_relative_with_tilde(&self, working_directory: &PathBuf) -> PathBuf {
-            resolve_relative_path_with_tilde(&self, &working_directory)
+    impl ResolvePathWithTilde<&Path> for PathBuf {
+        fn resolve_relative_with_tilde(&self, working_directory: &Path) -> PathBuf {
+            resolve_relative_path_with_tilde(self, working_directory)
+        }
+    }
+    impl ResolvePathWithTilde<PathBuf> for PathBuf {
+        fn resolve_relative_with_tilde(&self, working_directory: PathBuf) -> PathBuf {
+            resolve_relative_path_with_tilde(self, &working_directory)
+        }
+    }
+    impl ResolvePathWithTilde<&Path> for &Path {
+        fn resolve_relative_with_tilde(&self, working_directory: &Path) -> PathBuf {
+            resolve_relative_path_with_tilde(self, working_directory)
+        }
+    }
+    impl ResolvePathWithTilde<PathBuf> for &Path {
+        fn resolve_relative_with_tilde(&self, working_directory: PathBuf) -> PathBuf {
+            resolve_relative_path_with_tilde(self, &working_directory)
         }
     }
 

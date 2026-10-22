@@ -1,6 +1,5 @@
-use super::super::{CryptoAlgorithmsChoice, FlatDeviceManagedByChoice, StaticKemChoice};
+use super::super::{FlatDeviceManagedByChoice};
 use super::errors::ParseError;
-use crate::config::{EphemeralKemChoice, HashAlgorithmChoice, SymmetricCipherChoice};
 use crate::protocol::ProtocolVersion;
 use log::LevelFilter;
 use serde::Deserialize;
@@ -202,18 +201,6 @@ get_as_type_generator!(
     }
 );
 get_as_type_generator!(
-    get_as_asymmetric_cipher_type,
-    get_as_opt_asymmetric_cipher_type,
-    StaticKemChoice,
-    as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
-        // let deserializer = serde::de::value::StrDeserializer::new(s);
-        // AsymmetricCipherType::deserialize(deserializer)
-        <StaticKemChoice as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(s))
-            .map_err(|err| ParseError::new(raw, item.span(), err.to_string()))
-    }
-);
-get_as_type_generator!(
     get_as_path_buf,
     get_as_opt_path_buf,
     std::path::PathBuf,
@@ -242,45 +229,6 @@ get_as_type_generator!(
                 ),
             ))
         }
-    }
-);
-get_as_type_generator!(
-    get_as_crypto_algorithm_choice,
-    get_as_opt_crypto_algorithm_choice,
-    CryptoAlgorithmsChoice,
-    as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| -> Result<CryptoAlgorithmsChoice, ParseError> {
-        let error_message =
-            "invalid cryptographic algorithm choice, see <TODO> for valid options".to_string();
-        let error = ParseError::new(raw, item.span(), error_message);
-        let s = s.to_lowercase();
-        let parts = s.split("-").collect::<Vec<_>>();
-        if parts.len() != 4 {
-            return Err(error);
-        }
-        let static_kem_choice =
-            <StaticKemChoice as Deserialize>::deserialize(StrDeserializer::<SerdeError>::new(
-                parts[0],
-            ))
-            .map_err(|err| error.clone())?;
-        let ephemeral_kem_choice = <EphemeralKemChoice as Deserialize>::deserialize(
-            StrDeserializer::<SerdeError>::new(parts[1]),
-        )
-        .map_err(|err| error.clone())?;
-        let symmetric_cipher = <SymmetricCipherChoice as Deserialize>::deserialize(
-            StrDeserializer::<SerdeError>::new(parts[2]),
-        )
-        .map_err(|err| error.clone())?;
-        let hash = <HashAlgorithmChoice as Deserialize>::deserialize(
-            StrDeserializer::<SerdeError>::new(parts[3]),
-        )
-        .map_err(|err| error.clone())?;
-        Ok(CryptoAlgorithmsChoice {
-            static_kem_choice,
-            ephemeral_kem_choice,
-            symmetric_cipher,
-            hash,
-        })
     }
 );
 

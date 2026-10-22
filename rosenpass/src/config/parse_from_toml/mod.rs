@@ -1,9 +1,10 @@
 use crate::oldconfig::util::ResolvePathWithTilde;
 use log::LevelFilter;
+use std::path::Path;
 use std::str::FromStr;
 use toml_edit::Table;
 use util::{
-    get_as_array, get_as_crypto_algorithm_choice, get_as_flat_device_managed_by_choice,
+    get_as_array, get_as_flat_device_managed_by_choice,
     get_as_opt_log_level, get_as_opt_path_buf, get_as_opt_vec_string, get_as_path_buf,
     get_as_protocol_version, get_as_socket_addr, get_as_string, process_result,
 };
@@ -24,7 +25,7 @@ impl RosenpassConfig {
     /// if failing, returns a list of errors and warnings
     pub fn parse_from_toml(
         document: toml_edit::Document<String>,
-        working_directory: &std::path::PathBuf,
+        working_directory: &Path,
     ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
         let mut warnings: Vec<ParseWarning> = Vec::new();
         let mut errors: Vec<ParseError> = Vec::new();
@@ -56,7 +57,6 @@ impl RosenpassConfig {
         let mut log_level: Option<LevelFilter> = None;
         let mut logging_output_file = None;
         let mut our_keys: Option<Keypair> = None;
-        let mut our_algorithm: Option<CryptoAlgorithmsChoice> = None;
         {
             let mut process_rosenpass_table = |table: &Table| {
                 // our_listen_addresses
@@ -135,18 +135,6 @@ impl RosenpassConfig {
                         });
                     }
                 }
-
-                // our_algorithm
-                {
-                    eprintln!(
-                        "algorithm type: {}",
-                        table.get("algorithm").unwrap().type_name()
-                    );
-                    our_algorithm = process_result!(
-                        errors,
-                        get_as_crypto_algorithm_choice(raw, table, table.span(), "algorithm")
-                    );
-                }
             };
             if let Some(rosenpass_table) = document.get("rosenpass").map(|v| v.as_table()).flatten()
             {
@@ -157,7 +145,7 @@ impl RosenpassConfig {
         }
         // ============================== [[device]] ==============================
         let mut devices: Vec<DeviceConfig> = Vec::new();
-        if let Some(device_tables) = process_result!(errors, get_array_of_tables("device")) {
+        if let Some(device_tables) = process_result!(errors, get_array_of_tables("wireguard-devices")) {
             for table in device_tables {
                 // TODO: remove unwrap()s
                 let mut device_errors = {
@@ -252,7 +240,7 @@ impl RosenpassConfig {
         }
         // ============================== [[peer]] ==============================
         let mut peers = Vec::new();
-        if let Some(peer_tables) = process_result!(errors, get_array_of_tables("peer")) {
+        if let Some(peer_tables) = process_result!(errors, get_array_of_tables("peers")) {
             for table in peer_tables {
                 let mut peer_errors = {
                     let mut errors = Vec::new();
@@ -341,7 +329,6 @@ impl RosenpassConfig {
                 RosenpassConfig {
                     our_listen_addresses: our_listen_adresses,
                     our_keys: our_keys.expect("unreachable"),
-                    algorithm: our_algorithm.expect("unreachable"),
                     log_level: log_level.unwrap_or(LevelFilter::Info),
                     logging_output_file: logging_output_file,
                     #[cfg(feature = "experiment_api")]
