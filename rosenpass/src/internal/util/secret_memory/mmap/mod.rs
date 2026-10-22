@@ -254,9 +254,17 @@ pub enum MMapError {
     /// mlock(2) system call failed
     ///
     /// mlock(2) counts against the RLIMIT_MEMLOCK resource limit; see
-    /// [Mappable::mmap] for deployment notes
+    /// [Mappable::mmap] for deployment notes. Failures that are known to be
+    /// caused by that limit are reported as [MMapError::MemlockLimitExceeded]
+    /// instead
     #[error("Tried to lock the allocated memory region into memory, but the mlock(2) system call failed: {}", .0)]
     MLockError(rustix::io::Errno),
+    /// The locked-memory limit (RLIMIT_MEMLOCK) was reached
+    #[error(
+        "Locked-memory limit (RLIMIT_MEMLOCK) reached while allocating secret memory: {0}. \
+         Raise the limit, e.g. via systemd's LimitMEMLOCK= (the shipped units use `infinity`) or `ulimit -l`"
+    )]
+    MemlockLimitExceeded(rustix::io::Errno),
     /// Sealing the file descriptor against resizing failed; see [MemfdCreateSealError]
     #[error(
         "Tried to seal file descriptor against being grown/shrunken before mapping into memory: {0}"

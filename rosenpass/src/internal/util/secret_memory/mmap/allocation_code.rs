@@ -286,7 +286,12 @@ impl<'fd> AllocationCode<'fd> {
         }
 
         let seg = self.data_page()?;
-        unsafe { rustix::mm::mlock(seg.ptr().cast(), seg.len()).map_err(MMapError::MLockError)? };
+        unsafe { rustix::mm::mlock(seg.ptr().cast(), seg.len()) }.map_err(|e| match e {
+            // ENOMEM: the RLIMIT_MEMLOCK soft limit is exceeded; EPERM: the caller
+            // is unprivileged and the hard limit is zero (see mlock(2))
+            e if e == Errno::NOMEM || e == Errno::PERM => MMapError::MemlockLimitExceeded(e),
+            e => MMapError::MLockError(e),
+        })?;
 
         Ok(())
     }
@@ -380,6 +385,14 @@ impl<'fd> AllocationCode<'fd> {
                   Error from unmapping the head guard page: {e1:?}
                   Error from unmapping the tail guard page: {e2:?}
                   May leak up to: {leak} bytes of address space without consuming any real memory.")
+        }
+
+        // mmap(2) fails with EAGAIN when the kernel refuses to lock the
+        // mapping; for memfd_secret(2) file descriptors, that happens when
+        // charging the mapping against RLIMIT_MEMLOCK fails
+        // (secretmem_mmap() → mlock_future_ok() in mm/secretmem.c)
+        if err == Errno::AGAIN {
+            return Err(MMapError::MemlockLimitExceeded(err));
         }
 
         Err(MMapError::MapFailed(err))
