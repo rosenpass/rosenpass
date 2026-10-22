@@ -130,7 +130,7 @@ impl MappingConfig {
     }
 }
 
-/// Errors for [Mappable::mmap()] caused by invalid [MappingConfig] configurations
+/// Errors for [Mappable::mmap()] caused by invalid [MappingConfig] configurations or unsupported file descriptors
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MMapInvalidConfigError {
     /// When memory mapping memfd_secret(2) file descriptors, [MappingConfig::shared] MUST be used
@@ -198,7 +198,7 @@ pub enum MemfdCreateSealError {
 /// Error returned by Mappable::mmap
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MMapError {
-    /// Invalid mapping configuration; see [MMapInvalidConfigError]
+    /// Invalid mapping configuration or unsupported file descriptor; see [MMapInvalidConfigError]
     #[error("Could not map file descriptor into memory: {0}")]
     InvalidConfig(#[from] MMapInvalidConfigError),
     /// Allocation requested is too big
