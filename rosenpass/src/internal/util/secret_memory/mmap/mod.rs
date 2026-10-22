@@ -271,10 +271,6 @@ pub enum MMapError {
     /// `madvise(…, MADV_DONTDUMP)` failed
     #[error("Tried to protect the allocated memory region against memory dumps using madvise(2) with MADV_DONTDUMP, but got following error instead: {}", .0)]
     CouldNotProtectAgainstMemoryDumps(rustix::io::Errno),
-    /// Some other (system) error occurred that prevented us from determining whether
-    /// memfd_secret(2) is supported.
-    #[error("Failed to determine whether memfd_secret(2) is supported due to an underlying system error: {}", .0)]
-    FailedToDetectMemfdSecretSupport(rustix::io::Errno),
 }
 
 /// Handle mapping a file descriptor into memory or creating anonymous memory allocations
