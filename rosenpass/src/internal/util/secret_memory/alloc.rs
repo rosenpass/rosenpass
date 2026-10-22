@@ -101,7 +101,9 @@ unsafe impl Allocator for SecretMemoryAllocator {
 
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
         std::panic::catch_unwind(|| {
-            std::mem::drop(AllocatorSegment::from_alloc_ptr_and_layout(ptr, layout))
+            // SAFETY: It follows from the [Allocator] safety requirements, that the
+            // [AllocatorSegment::from_alloc_ptr_and_layout] safety requirements must hold
+            std::mem::drop(unsafe { AllocatorSegment::from_alloc_ptr_and_layout(ptr, layout) })
         })
         .unwrap_or_else(|_| std::process::abort())
     }
@@ -158,7 +160,26 @@ impl AllocatorSegment {
         me
     }
 
-    fn from_alloc_ptr_and_layout(ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) -> Self {
+    /// Reconstructs the owning segment for an allocation handed out through
+    /// [SecretMemoryAllocator::allocate()].
+    ///
+    /// The reconstructed segment is validated against the reconstructed memory
+    /// layout and against `layout` as a runtime backstop.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must have been returned by [SecretMemoryAllocator::allocate()]
+    ///   (via [Self::into_alloc_ptr()]) and must not have been deallocated yet
+    /// - `layout` must be exactly the layout passed to that allocation call;
+    ///   it is used to reconstruct the mapping boundaries that are unmapped
+    ///   on drop
+    /// - The caller must hold exclusive ownership of the memory region: no
+    ///   live references into the region may exist, because the returned
+    ///   segment zeroizes and unmaps the region on drop
+    unsafe fn from_alloc_ptr_and_layout(
+        ptr: std::ptr::NonNull<u8>,
+        layout: std::alloc::Layout,
+    ) -> Self {
         if layout.size() == 0 {
             return Self::ZeroSized(ptr);
         }
