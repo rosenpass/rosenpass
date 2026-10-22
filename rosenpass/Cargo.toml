@@ -200,6 +200,8 @@ blake2 = "0.10.6"
 shake = "0.1.0"
 # dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
 memsec = { version = "0.7.0", features = ["alloc_ext"] }
+# dependencies of `rosenpass-constant-time`, now `rosenpass::internal::constant_time`
+subtle = { version = "2.6", default-features = false, features = ["core_hint_black_box"] }
 allocator-api2 = "0.3"
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }

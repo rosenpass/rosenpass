@@ -1,6 +1,12 @@
 //! memcmp
 
-/// compares two sclices of memory content and returns whether they are equal
+use subtle::ConstantTimeEq;
+
+/// compares two slices of memory content and returns whether they are equal
+///
+/// The comparison is [subtle::ConstantTimeEq::ct_eq] on the two slices: every byte is visited
+/// and the result is accumulated behind an optimization barrier, so the execution time does not
+/// depend on where or whether the slices differ.
 ///
 /// ## Leaks
 /// If the two slices have differents lengths, the function will return immediately. This
@@ -24,7 +30,29 @@
 /// ```
 #[inline]
 pub fn memcmp(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len() && unsafe { memsec::memeq(a.as_ptr(), b.as_ptr(), a.len()) }
+    a.len() == b.len() && bool::from(a.ct_eq(b))
+}
+
+#[cfg(test)]
+mod functional_tests {
+    use super::memcmp;
+
+    #[test]
+    fn memcmp_compares_contents() {
+        assert!(memcmp(&[], &[]));
+        assert!(memcmp(&[0, 0, 0, 0], &[0, 0, 0, 0]));
+        assert!(memcmp(&[1, 2, 3, 4], &[1, 2, 3, 4]));
+
+        // every position matters
+        assert!(!memcmp(&[1, 2, 3, 4], &[0, 2, 3, 4]));
+        assert!(!memcmp(&[1, 2, 3, 4], &[1, 2, 0, 4]));
+        assert!(!memcmp(&[1, 2, 3, 4], &[1, 2, 3, 0]));
+
+        // a prefix is not equal
+        assert!(!memcmp(&[0, 0, 0, 0], &[0, 0, 0]));
+        assert!(!memcmp(&[0, 0, 0], &[0, 0, 0, 0]));
+        assert!(!memcmp(&[], &[0]));
+    }
 }
 
 /// [tests::memcmp_runs_in_constant_time] runs a stasticial test that the equality of the two
