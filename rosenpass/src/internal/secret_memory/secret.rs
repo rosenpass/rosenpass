@@ -114,7 +114,6 @@ impl<T: Zeroize + ?Sized> DerefMut for ZeroizingSecretBox<T> {
 /// Allocation of secret memory is expensive. Thus, this struct provides a
 /// pool of secret memory, readily available to yield protected, slices of
 /// memory.
-#[derive(Debug)] // TODO check on Debug derive, is that clever
 struct SecretMemoryPool {
     /// A pool to reuse secret memory
     pool: HashMap<usize, Vec<ZeroizingSecretBox<[u8]>>>,
