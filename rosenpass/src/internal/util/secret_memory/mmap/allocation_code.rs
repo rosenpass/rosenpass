@@ -364,13 +364,16 @@ impl<'fd> AllocationCode<'fd> {
         };
 
         // Only the guards are still known to be ours. Do not probe or unmap the
-        // middle: a failed MAP_FIXED may have freed it for another thread to reuse.
+        // middle: a failed MAP_FIXED may have freed it for another thread to
+        // reuse, and we cannot distinguish our untouched reservation from a
+        // foreign mapping, so reclaiming the middle is not safely possible.
         let raw = segment.raw();
         let data_pages_len = raw.alloc_len - 2 * self.pagesize();
         log::warn!(
             "Failed to map secret memory ({err}); MAP_FIXED may have released the original data pages. \
             Leaving the uncertain middle untouched to avoid affecting another thread's allocation. \
-            This may leak up to {data_pages_len} bytes of address space."
+            This leaks up to {data_pages_len} bytes of address space (virtual address space only; \
+            no physical memory is leaked)."
         );
 
         let head = raw.alloc_ptr;
