@@ -426,7 +426,6 @@ impl SecretMemfdConfig {
     ///
     /// - Is the [SecretMemfdUsage::shared_memory] flag set?
     /// - Are memfd_create(2) or memfd_secret(2) used?
-    /// - Does memfd_secret(2) support resizing protection?
     pub fn map_fd_config(&self) -> Result<MappingConfig, SecretMemfdConfigValidationError> {
         use SecretMemfdConfigValidationError as E;
 
