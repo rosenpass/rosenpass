@@ -134,10 +134,12 @@ impl AllocatorSegment {
         alloc: &SecretMemoryAllocator,
         layout: std::alloc::Layout,
     ) -> Result<Self, AllocError> {
-        if layout.align() > page_size() {
-            return Err(AllocError);
-        } else if layout.size() == 0 {
+        // Zero-sized allocations never need a mapping, so they succeed even
+        // for alignments larger than the page size
+        if layout.size() == 0 {
             return Ok(Self::ZeroSized(layout.dangling_ptr()));
+        } else if layout.align() > page_size() {
+            return Err(AllocError);
         }
 
         let mappable = alloc.memfd_config.create().map_err(log_alloc_err)?;
