@@ -441,7 +441,7 @@ impl<Err, F: FnMut(usize, &[u8]) -> Result<(), Err>> SentinelGenerator<Err, F> {
         let template = TEMPLATES
             .iter()
             .copied()
-            .find(|t| t.len() >= self.free_space())
+            .find(|t| t.len() <= self.free_space())
             .or(TEMPLATES.last().copied())
             .unwrap();
 
@@ -451,7 +451,7 @@ impl<Err, F: FnMut(usize, &[u8]) -> Result<(), Err>> SentinelGenerator<Err, F> {
         let sep0 = SEP0_TEMPLATES
             .iter()
             .copied()
-            .find(|t| t.len() >= self.free_space())
+            .find(|sep| sep.len() + template.len() <= self.free_space())
             .or(SEP0_TEMPLATES.last().copied())
             .unwrap();
 
