@@ -23,10 +23,7 @@ use crate::internal::util::{
     mem::{CopyExt, DiscardResultExt},
     option::SomeExt,
     result::OkExt,
-    rustix::{
-        HUGETLBFS_AVAILABLE_ON_PLATFORM, MEMFD_SECRET_AVAILABLE_ON_PLATFORM, StatFsExt, TryStatExt,
-        TryStatFsExt,
-    },
+    rustix::{StatFs, StatFsExt, TryStatExt, fstatfs},
     secret_memory::mmap::{
         MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment, MappingConfig,
         RawMappedSegment,
@@ -146,7 +143,7 @@ pub struct AllocationCode<'fd> {
     /// The file descriptor to map and the configuration for the mapping
     mappable: Mappable<BorrowedFd<'fd>>,
     /// Used to determine what type of file descriptor we are dealing with
-    fd_statfs: Option<rustix::fs::StatFs>,
+    fd_statfs: Option<StatFs>,
     /// Ownership state of the mapping being assembled
     segment: SegmentLifecycle,
 }
@@ -660,10 +657,6 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Check if this allocation is for a memfd_secret(2) FD
     fn is_memfd_secret(&mut self) -> Result<bool, MMapError> {
-        if !MEMFD_SECRET_AVAILABLE_ON_PLATFORM {
-            return Ok(false);
-        }
-
         self.statfs()?
             .map(|stat| stat.is_memfd_secret())
             .unwrap_or(false)
@@ -672,10 +665,6 @@ impl<'fd> AllocationCode<'fd> {
 
     /// Check if the file descriptor of this allocation is backed by hugetlbfs
     fn is_hugetlbfs(&mut self) -> Result<bool, MMapError> {
-        if !HUGETLBFS_AVAILABLE_ON_PLATFORM {
-            return Ok(false);
-        }
-
         self.statfs()?
             .map(|stat| stat.is_hugetlbfs())
             .unwrap_or(false)
@@ -683,7 +672,7 @@ impl<'fd> AllocationCode<'fd> {
     }
 
     /// Retrieve meta information about the file using fstatfs(2)
-    fn statfs(&mut self) -> Result<Option<rustix::fs::StatFs>, MMapError> {
+    fn statfs(&mut self) -> Result<Option<StatFs>, MMapError> {
         if let Some(val) = self.fd_statfs {
             return Ok(Some(val));
         }
@@ -692,8 +681,7 @@ impl<'fd> AllocationCode<'fd> {
             return Ok(None);
         };
 
-        let stat =
-            rustix::fs::fstatfs(fd).map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
+        let stat = fstatfs(fd).map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?;
         self.fd_statfs.insert(stat).discard_result();
 
         Ok(Some(stat))

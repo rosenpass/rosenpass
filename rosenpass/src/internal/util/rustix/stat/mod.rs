@@ -6,6 +6,7 @@ use crate::internal::util::result::OkExt;
 mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::*;
+use rustix::io::Errno;
 
 /// Helpers for accessing stat(2) information
 pub trait StatExt {
@@ -74,21 +75,27 @@ where
     }
 }
 
-/// Check whether memfd_secret(2) is available on the platform in the first place
-///
-/// This can be used to elide calls to [StatFsExt::is_memfd_secret()]
-pub const MEMFD_SECRET_AVAILABLE_ON_PLATFORM: bool = cfg_select! {
-    target_os = "linux" => true,
-    _ => false,
-};
+/// Return value of [fstatfs]
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug)]
+pub struct StatFs {
+    inner: cfg_select! {
+        target_os = "linux" => rustix::fs::StatFs,
+        _ => (),
+    },
+}
 
-/// Check whether hugetlbfs is available on the platform in the first place
+/// A portable variant of [rustix::fs::fstatfs].
 ///
-/// This can be used to elide calls to [StatFsExt::is_hugetlbfs()]
-pub const HUGETLBFS_AVAILABLE_ON_PLATFORM: bool = cfg_select! {
-    target_os = "linux" => true,
-    _ => false,
-};
+/// The returned object is suitable for the operations of [StatFsExt].
+pub fn fstatfs<Fd: AsFd>(_fd: Fd) -> Result<StatFs, Errno> {
+    let inner = cfg_select! {
+        target_os = "linux" => rustix::fs::fstatfs(_fd)?,
+        _ => (),
+    };
+
+    Ok(StatFs { inner })
+}
 
 /// Helpers for accessing statfs(2) information
 ///
@@ -103,22 +110,29 @@ pub trait StatFsExt {
     fn is_hugetlbfs(&self) -> bool;
 }
 
+#[cfg(target_os = "linux")]
 impl StatFsExt for rustix::fs::StatFs {
     fn is_memfd_secret(&self) -> bool {
+        const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
+        self.f_type == SECRETMEM_MAGIC
+    }
+
+    fn is_hugetlbfs(&self) -> bool {
+        self.f_type == libc::HUGETLBFS_MAGIC as rustix::fs::FsWord
+    }
+}
+
+impl StatFsExt for StatFs {
+    fn is_memfd_secret(&self) -> bool {
         cfg_select! {
-            target_os = "linux" => {
-                const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
-                self.f_type == SECRETMEM_MAGIC
-            },
+            target_os = "linux" => self.inner.is_memfd_secret(),
             _ => false,
         }
     }
 
     fn is_hugetlbfs(&self) -> bool {
         cfg_select! {
-            target_os = "linux" => {
-                self.f_type == libc::HUGETLBFS_MAGIC as rustix::fs::FsWord
-            },
+            target_os = "linux" => self.inner.is_hugetlbfs(),
             _ => false,
         }
     }
@@ -149,11 +163,11 @@ where
     type Error = rustix::io::Errno;
 
     fn is_memfd_secret(&self) -> Result<bool, Self::Error> {
-        Ok(MEMFD_SECRET_AVAILABLE_ON_PLATFORM && rustix::fs::fstatfs(self)?.is_memfd_secret())
+        fstatfs(self)?.is_memfd_secret().ok()
     }
 
     fn is_hugetlbfs(&self) -> Result<bool, Self::Error> {
-        Ok(HUGETLBFS_AVAILABLE_ON_PLATFORM && rustix::fs::fstatfs(self)?.is_hugetlbfs())
+        fstatfs(self)?.is_hugetlbfs().ok()
     }
 }
 
