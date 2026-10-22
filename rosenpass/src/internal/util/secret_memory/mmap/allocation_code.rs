@@ -319,16 +319,6 @@ impl<'fd> AllocationCode<'fd> {
         self.guard_page()?; // Allocate the guard page if necessary (just in case)
         let flags = self.mmap_flags() | MapFlags::FIXED;
 
-        // There is a bug on some linux version where mmap() may return EINVAL
-        // while also deallocating the pages we are replacing with MAP_FIXED.
-        // This breaks the POSIX.1-2024 compliance
-        let bug_detected = flags.contains(MapFlags::PRIVATE)
-            && !flags.contains(MapFlags::SHARED)
-            && self.is_memfd_secret()?;
-        if bug_detected {
-            return Err(MMapError::MapFailed(Errno::INVAL));
-        }
-
         let segment = ManuallyDrop::new(self.segment.take_segment().unwrap());
         let (ptr, len) = (segment.ptr().cast(), segment.len());
 
