@@ -232,17 +232,17 @@ impl AllocatorSegment {
         })
     }
 
-    fn data_as_bytes(&self) -> &mut [MaybeUninit<u8>] {
+    fn data_as_bytes(&mut self) -> &mut [MaybeUninit<u8>] {
         use std::slice::from_raw_parts_mut;
         unsafe { from_raw_parts_mut(self.data_ptr().as_ptr().cast(), self.data_len()) }
     }
 
-    fn sentinel_as_bytes(&self) -> &mut [MaybeUninit<u8>] {
+    fn sentinel_as_bytes(&mut self) -> &mut [MaybeUninit<u8>] {
         use std::slice::from_raw_parts_mut;
         unsafe { from_raw_parts_mut(self.sentinel_ptr().as_ptr().cast(), self.sentinel_len()) }
     }
 
-    unsafe fn sentinel_as_init_bytes(&self) -> &mut [u8] {
+    unsafe fn sentinel_as_init_bytes(&mut self) -> &mut [u8] {
         unsafe { self.sentinel_as_bytes().assume_init_mut() }
     }
 
