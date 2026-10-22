@@ -461,12 +461,3 @@ impl SecretMemfdConfig {
         Ok(cfg)
     }
 }
-
-/// Create a secret memory file descriptor using the default configuration
-///
-/// Shorthand for
-/// [`SecretMemfdConfig::new()`] followed by [`SecretMemfdConfig::create()`]
-pub fn memfd_for_secrets_with_default_policy()
--> Result<Mappable<OwnedFd>, SecretMemfdWithConfigError> {
-    SecretMemfdConfig::new().create()
-}

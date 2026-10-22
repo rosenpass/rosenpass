@@ -1,5 +1,5 @@
 //! This module takes care of allocating memory segments for
-//! file descriptors created with [super::fd::memfd_for_secrets_with_default_policy]
+//! file descriptors created with [super::fd::SecretMemfdConfig]
 //! and anonymous memory segments
 
 #![deny(unsafe_op_in_unsafe_fn)]
