@@ -9,38 +9,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-supply-chain:
-    name: Supply Chain Report
-    runs-on: ubicloud-standard-2
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cache/cargo-supply-chain/
-          key: cargo-supply-chain-cache
-      - name: Install nightly toolchain
-        run: |
-          rustup toolchain install nightly
-          rustup override set nightly
-      - uses: actions/cache@v6
-        with:
-          path: ${{ runner.tool_cache }}/cargo-supply-chain
-          key: cargo-supply-chain-bin
-      - name: Add the tool cache directory to the search path
-        run: echo "${{ runner.tool_cache }}/cargo-supply-chain/bin" >> $GITHUB_PATH
-      - name: Ensure that the tool cache is populated with the cargo-supply-chain binary
-        run: cargo install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
-      - name: Update data for cargo-supply-chain
-        run: cargo supply-chain update
-      - name: Generate cargo-supply-chain report about publishers
-        run: cargo supply-chain publishers
-      - name: Generate cargo-supply-chain report about crates
-        run: cargo supply-chain crates
-    # The setup for cargo-vet follows the recommendations in the cargo-vet documentation: https://mozilla.github.io/cargo-vet/configuring-ci.html
+  # Commented out by Ilka on 2026-10-13 because of an upstream bug causing the job to fail.
+  # Not sure why we had this job in the first place...
+  # cargo-supply-chain:
+  #   name: Supply Chain Report
+  #   runs-on: ubicloud-standard-2
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: actions/cache@v6
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin/
+  #           ~/.cargo/registry/index/
+  #           ~/.cargo/registry/cache/
+  #           ~/.cache/cargo-supply-chain/
+  #         key: cargo-supply-chain-cache
+  #     - name: Install nightly toolchain
+  #       run: |
+  #         rustup toolchain install nightly
+  #         rustup override set nightly
+  #     - uses: actions/cache@v6
+  #       with:
+  #         path: ${{ runner.tool_cache }}/cargo-supply-chain
+  #         key: cargo-supply-chain-bin
+  #     - name: Add the tool cache directory to the search path
+  #       run: echo "${{ runner.tool_cache }}/cargo-supply-chain/bin" >> $GITHUB_PATH
+  #     - name: Ensure that the tool cache is populated with the cargo-supply-chain binary
+  #       run: cargo install --root ${{ runner.tool_cache }}/cargo-supply-chain cargo-supply-chain
+  #     - name: Update data for cargo-supply-chain
+  #       run: cargo supply-chain update
+  #     - name: Generate cargo-supply-chain report about publishers
+  #       run: cargo supply-chain publishers
+  #     - name: Generate cargo-supply-chain report about crates
+  #       run: cargo supply-chain crates
+  #     - name: Report runner resources
+  #       uses: ./.github/actions/report-resources
+  #       if: ${{ always() }}
+
+  # The setup for cargo-vet follows the recommendations in the cargo-vet documentation: https://mozilla.github.io/cargo-vet/configuring-ci.html
   cargo-vet:
     name: Vet Dependencies
     runs-on: ubicloud-standard-2
@@ -169,3 +175,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_BOT_PAT }}
       - name: Invoke cargo-vet
         run: cargo vet --locked
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

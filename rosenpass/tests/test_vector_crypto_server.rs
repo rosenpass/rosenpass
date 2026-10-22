@@ -18,7 +18,6 @@
 use assert_tv::{TestValue, TestVector, TestVectorActive, TestVectorSet, test_vec_case};
 use rosenpass::internal::cipher_traits::primitives::Kem;
 use rosenpass::internal::ciphers::StaticKem;
-use rosenpass::internal::secret_memory::policy::*;
 use rosenpass::internal::secret_memory::{PublicBox, Secret};
 use rosenpass::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
 use rosenpass::protocol::osk_domain_separator::OskDomainSeparator;
@@ -87,9 +86,6 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
     type TV = TestVectorActive;
     let test_values: TestCaseValues = TV::initialize_values();
 
-    // Set security policy for storing secrets
-    secret_policy_try_use_memfd_secrets();
-
     // initialize secret and public key for peer a ...
     let (mut peer_a_sk, mut peer_a_pk) = gen_keypair::<TV>();
 
@@ -117,12 +113,14 @@ fn crypto_server_test_vector_1() -> anyhow::Result<()> {
         peer_b_pk,
         ProtocolVersion::V03,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
     b.add_peer(
         Some(psk),
         peer_a_pk,
         ProtocolVersion::V03,
         OskDomainSeparator::default(),
+        None, // TODO: repeat tests with WireGuard protocol extension?
     )?;
 
     // declare buffers for message exchange

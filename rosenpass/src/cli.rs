@@ -10,6 +10,7 @@ use crate::internal::util::file::{LoadValue, LoadValueB64, StoreValue};
 use crate::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
 };
+use crate::protocol::protocol_context::WireGuardKeyBinding;
 use anyhow::{Context, bail, ensure};
 use clap::{Parser, Subcommand};
 use std::ops::DerefMut;
@@ -468,19 +469,34 @@ impl CliArgs {
         }
 
         for cfg_peer in config.peers {
-            let broker_peer = if let Some(wg) = &cfg_peer.wg {
-                let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
-                    .peer_id_b64(&wg.peer)?
-                    .interface(wg.device.clone())
-                    .extra_params_ser(&wg.extra_params)?
-                    .build()
-                    .map_err(cfg_err_map)?;
+            let (broker_peer, wg_key_binding) = match &cfg_peer.wg {
+                Some(wg) => {
+                    let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
+                        .peer_id_b64(&wg.peer)?
+                        .interface(wg.device.clone())
+                        .extra_params_ser(&wg.extra_params)?
+                        .build()
+                        .map_err(cfg_err_map)?;
+                    let broker_peer = BrokerPeer::new(broker_store_ptr.clone(), Box::new(peer_cfg));
 
-                let broker_peer = BrokerPeer::new(broker_store_ptr.clone(), Box::new(peer_cfg));
+                    let wg_key_binding = match (cfg_peer.protocol_version, &wg.our_wg_pubkey) {
+                        (config::ProtocolVersion::V03, Some(our_wg_pubkey)) => {
+                            Some(WireGuardKeyBinding {
+                                our_wg_pubkey: config::decode_wg_pubkey_b64(our_wg_pubkey)?,
+                                peer_wg_pubkey: config::decode_wg_pubkey_b64(&wg.peer)?,
+                            })
+                        }
+                        (config::ProtocolVersion::V03, None) => {
+                            unreachable!(
+                                "protocol version 03 but our_wg_pubkey is None – this should be unreachable because config::validate should have caught this case"
+                            );
+                        }
+                        _ => None,
+                    };
 
-                Some(broker_peer)
-            } else {
-                None
+                    (Some(broker_peer), wg_key_binding)
+                }
+                None => (None, None),
             };
 
             srv.add_peer(
@@ -495,6 +511,7 @@ impl CliArgs {
                 cfg_peer.endpoint.clone(),
                 cfg_peer.protocol_version,
                 cfg_peer.osk_domain_separator.try_into()?,
+                wg_key_binding,
             )?;
         }
 

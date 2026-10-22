@@ -1,14 +1,14 @@
 [package]
 name = "rosenpass"
 version = "0.3.0-dev"
-authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+authors = ["Karolin Varner <karo@rosenpass.eu>", "wucke13 <wucke13@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
 repository = "https://github.com/rosenpass/rosenpass"
 readme = "readme.md"
-rust-version = "1.93.1"
+rust-version = "1.100.0"
 
 # ============================== targets ==============================
 [lib]
@@ -168,6 +168,8 @@ rustix = { version = "1.1.4", features = [
   "net",
   "fs",
   "process",
+  "mm",
+  "param",
 ] } # Broker dependencies (might need cleanup or changes)
 uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
   "mio_1xx",
@@ -188,6 +190,9 @@ tokio = { version = "1.46", optional = true, features = [
 ] }
 base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
+bitflags = { version = "2.9.3" }
+tinyvec = { version = "1.10.0" }
+num-traits = { version = "0.2.19" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
   "std",
@@ -196,20 +201,25 @@ blake2 = "0.10.6"
 shake = "0.1.0"
 # dependencies of `rosenpass-constant-time`, now `rosenpass::internal::constant_time`
 cmov = "0.5.4" # 0.5.4 is the first release in which `CmovEq` is correct on aarch64, see GHSA-3rjw-m598-pq24
-# dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
-memsec = { version = "0.7.0", features = ["alloc_ext"] }
-allocator-api2 = "0.3"
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
-wireguard-uapi = { version = "3.0.0", features = ["xplatform"] }
+# Only used by the netlink broker (brokers/netlink.rs), which is built only with
+# `experiment_api` on Linux, hence optional.
+wireguard-uapi = { version = "3.0.0", features = [
+  "xplatform",
+], optional = true }
 postcard = { version = "1.1.1", default-features = false, features = [
   "alloc",
 ] } # Socket handler only
-libc = { version = "0.2", optional = true } # Problem in CI, unknown reasons: dependency (libc) specified without providing a local path, Git repository, version, or workspace dependency to use # Maybe something about the combination of features and optional crates?
+libc = { version = "0.2" } # Always required for some features missing in rustix
 # dependencies of `rosenpass-oqs`, now moved to `rosenpass::internal::oqs`:
+# Rust bindings for liboqs
 oqs-sys = { version = "0.8", default-features = false, features = [
-  'classic_mceliece',
-  'kyber',
+  'classic_mceliece', # McEliece (NIST round 3), not to be confused with McEliece (NIST round 4 (final round))
+  'kyber',            # Kyber-512 (NIST round 3), not to be confused with ML-KEM (FIPS 203)
 ] }
+# RustCrypto's official pure Rust implementation of ML-KEM (FIPS 203)
+ml-kem = { version = "0.3", default-features = false, features = ["zeroize"] }
+
 # dependencies of `rp`
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
@@ -224,37 +234,26 @@ netlink-packet-generic = { version = "0.5", optional = true }
 netlink-packet-wireguard = { version = "0.5", optional = true }
 
 
-[build-dependencies]
-anyhow = { version = "1.0", features = ["backtrace", "std"] }
-
 [dev-dependencies]
 criterion = "0.8.2"
 test_bin = "0.6"
 stacker = "0.1.21"
 serial_test = "4.0"
 tempfile = "3"
-rustix = { version = "1.1.4", features = [
-  "net",
-  "fs",
-  "process",
-] } # Broker dependencies (might need cleanup or changes)
 serde_json = { version = "1.0.140" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 rand = "0.10"
 # dependencies of `rosenpass-secret-memory`, now `rosenpass::internal::secret_memory`
-allocator-api2-tests = "0.3"
 base64ct = { version = "1.6.0", default-features = false }
-procspawn = { version = "1.0.1", features = ["test-support"] }
 
 [features]
 experiment_cookie_dos_mitigation = []
-experiment_memfd_secret = []
 experiment_api = [
   "dep:hex-literal",
   "dep:uds",
   "dep:command-fds",
-  "dep:libc",                           # From `rosenpass-wireguard-broker`
   "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
+  "dep:wireguard-uapi",                 # Netlink broker (Linux only)
   "experiment_file_descriptor_passing",
 ]
 internal_testing = []
@@ -273,7 +272,6 @@ rp = [
   "dep:netlink-packet-core",
   "dep:netlink-packet-generic",
   "dep:netlink-packet-wireguard",
-  "dep:libc",
 ]
 # features of `rosenpass_util`:
 experiment_file_descriptor_passing = ["dep:uds"]

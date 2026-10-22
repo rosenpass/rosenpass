@@ -1,124 +1,22 @@
-//! This module provides a [SecretAllocator](SecretAlloc) that allocates memory with extra
-//! protections that make it more difficult for threat actors to access secrets that they aren't
-//! authorized to access. At the moment the `memsec` and `memfdsec` allocators from the
-//! [memsec] crate are supported for this purpose.
+//! Collections backed by the opportunistic [SecretMemoryAllocator].
 //!
-//! [SecretAlloc] implements the [Allocator] trait and can thus be used as a drop in replacement
-//! wherever this trait is required.
+//! [SecretBox] and [SecretVec] use the standard library's allocator-aware collections.
+//! Their constructors always use [SecretMemoryAllocator::default()], which prefers
+//! memfd-secret when supported and permits anonymous mappings otherwise.
 //!
-//! The module also provides the [SecretVec] and [SecretBox] types.
-pub mod memsec;
+//! Storage is wiped when deallocated, but removing individual elements does not
+//! zeroize retained storage. [super::Secret] also zeroizes byte arrays before
+//! returning their allocations to its reuse pool.
 
-use std::sync::OnceLock;
+use std::alloc::{AllocError, Allocator, Layout};
 
-use allocator_api2::alloc::{AllocError, Allocator};
-use memsec::malloc::MallocAllocator;
+use crate::internal::util::secret_memory::alloc::SecretMemoryAllocator;
 
-#[cfg(target_os = "linux")]
-use memsec::memfdsec::MemfdSecAllocator;
+/// A [Box] backed by the default [SecretMemoryAllocator].
+pub type SecretBox<T> = Box<T, SecretMemoryAllocator>;
 
-/// Globally configures which [SecretAllocType] to use as default for
-/// [SecretAllocators](SecretAlloc).
-static ALLOC_TYPE: OnceLock<SecretAllocType> = OnceLock::new();
-
-/// Sets the secret allocation type to use by default for [SecretAllocators](SecretAlloc).
-/// It is intended that this function is called at startup before a secret allocation
-/// takes place.
-///
-/// # Example
-#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
-/// # use std::alloc::Layout;
-/// # use allocator_api2::alloc::Allocator;
-/// # use rosenpass::internal::secret_memory::alloc::{set_secret_alloc_type, SecretAlloc, SecretAllocType};
-/// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
-/// let secret_alloc = SecretAlloc::default();
-/// unsafe {
-///     let memory = secret_alloc.allocate(Layout::from_size_align_unchecked(128, 32))?;
-/// }
-/// # Ok::<(), anyhow::Error>(())
-/// ```
-pub fn set_secret_alloc_type(alloc_type: SecretAllocType) {
-    ALLOC_TYPE.set(alloc_type).unwrap();
-}
-
-/// Initializes type of allocator to be sued with `alloc_type` if it is not initialized yet. Returns
-/// the current [SecretAllocType] afterward.
-///
-/// # Example
-#[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
-#[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
-/// # use std::alloc::Layout;
-/// # use allocator_api2::alloc::Allocator;
-/// # use rosenpass::internal::secret_memory::alloc::{get_or_init_secret_alloc_type, set_secret_alloc_type,
-/// # SecretAlloc, SecretAllocType};
-/// set_secret_alloc_type(SecretAllocType::MemsecMalloc);
-/// #[cfg(target_os = "linux")] {
-///     let alloc_typpe = get_or_init_secret_alloc_type(SecretAllocType::MemsecMemfdSec);
-///     assert_eq!(alloc_typpe, SecretAllocType::MemsecMalloc);
-/// }
-/// #[cfg(not(target_os = "linux"))] {
-///     let alloc_typpe = get_or_init_secret_alloc_type(SecretAllocType::MemsecMalloc);
-///     assert_eq!(alloc_typpe, SecretAllocType::MemsecMalloc);
-/// }
-///```
-pub fn get_or_init_secret_alloc_type(alloc_type: SecretAllocType) -> SecretAllocType {
-    *ALLOC_TYPE.get_or_init(|| alloc_type)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SecretAllocType {
-    MemsecMalloc,
-    #[cfg(target_os = "linux")]
-    MemsecMemfdSec,
-}
-
-/// An [Allocator] that uses a [SecretAllocType] for allocation.
-pub struct SecretAlloc {
-    alloc_type: SecretAllocType,
-}
-
-impl Default for SecretAlloc {
-    fn default() -> Self {
-        Self {
-            alloc_type: *ALLOC_TYPE.get().expect(
-                "Secret security policy not specified. \
-                Run the specifying policy function in \
-                 crate::internal::secret_memory::policy or set a \
-                 custom policy by initializing \
-                 crate::internal::secret_memory::alloc::ALLOC_TYPE \
-                 before using secrets",
-            ),
-        }
-    }
-}
-
-unsafe impl Allocator for SecretAlloc {
-    fn allocate(
-        &self,
-        layout: std::alloc::Layout,
-    ) -> Result<std::ptr::NonNull<[u8]>, allocator_api2::alloc::AllocError> {
-        match self.alloc_type {
-            SecretAllocType::MemsecMalloc => MallocAllocator::default().allocate(layout),
-            #[cfg(target_os = "linux")]
-            SecretAllocType::MemsecMemfdSec => MemfdSecAllocator::default().allocate(layout),
-        }
-    }
-
-    unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
-        match self.alloc_type {
-            SecretAllocType::MemsecMalloc => MallocAllocator::default().deallocate(ptr, layout),
-            #[cfg(target_os = "linux")]
-            SecretAllocType::MemsecMemfdSec => MemfdSecAllocator::default().deallocate(ptr, layout),
-        }
-    }
-}
-
-/// A [allocator_api2::boxed::Box] that is backed by [SecretAlloc].
-pub type SecretBox<T> = allocator_api2::boxed::Box<T, SecretAlloc>;
-
-/// A [allocator_api2::vec::Vec] that is backed by [SecretAlloc].
-pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
+/// A [Vec] backed by the default [SecretMemoryAllocator].
+pub type SecretVec<T> = Vec<T, SecretMemoryAllocator>;
 
 /// Try to allocate a [SecretBox] for the type `T`. If `T` is zero-sized the allocation
 /// still works. It returns an error if the allocation fails.
@@ -127,16 +25,24 @@ pub type SecretVec<T> = allocator_api2::vec::Vec<T, SecretAlloc>;
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_box_try, SecretBox};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
-/// set_secret_alloc_type(MemsecMalloc);
 /// let data: u8 = 42;
 /// let secret_box: SecretBox<u8> = secret_box_try(data)?;
 /// # assert_eq!(*secret_box, 42u8);
 /// # Ok::<(), anyhow::Error>(())
 /// ```
 pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
-    SecretBox::<T>::try_new_in(x, SecretAlloc::default())
+    let alloc = SecretMemoryAllocator::default();
+    let ptr = if std::mem::size_of::<T>() == 0 {
+        std::ptr::NonNull::<T>::dangling()
+    } else {
+        alloc.allocate(Layout::new::<T>())?.cast::<T>()
+    };
+    // SAFETY: The allocation fits T and is initialized before ownership is
+    // transferred to a Box using the same allocator.
+    unsafe {
+        ptr.as_ptr().write(x);
+        Ok(Box::from_raw_in(ptr.as_ptr(), alloc))
+    }
 }
 
 /// Allocates a [SecretBox] for the type `T`. If `T` is zero-sized the allocation
@@ -146,15 +52,12 @@ pub fn secret_box_try<T>(x: T) -> Result<SecretBox<T>, AllocError> {
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_box, SecretBox};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
-/// set_secret_alloc_type(MemsecMalloc);
 /// let data: u8 = 42;
 /// let secret_box: SecretBox<u8> = secret_box(data);
 /// # assert_eq!(*secret_box, 42u8);
 /// ```
 pub fn secret_box<T>(x: T) -> SecretBox<T> {
-    SecretBox::<T>::new_in(x, SecretAlloc::default())
+    SecretBox::<T>::new_in(x, SecretMemoryAllocator::default())
 }
 
 /// Allocate a [SecretVec] for the type `T`. No memory will be actually allocated
@@ -164,9 +67,6 @@ pub fn secret_box<T>(x: T) -> SecretBox<T> {
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 /// # use rosenpass::internal::secret_memory::alloc::{secret_vec, SecretVec};
-/// # use rosenpass::internal::secret_memory::alloc::SecretAllocType::MemsecMalloc;
-/// # use rosenpass::internal::secret_memory::alloc::set_secret_alloc_type;
-/// set_secret_alloc_type(MemsecMalloc);
 /// let mut secret_vec: SecretVec<u8> = secret_vec();
 /// secret_vec.push(0u8);
 /// secret_vec.push(1u8);
@@ -184,5 +84,65 @@ pub fn secret_box<T>(x: T) -> SecretBox<T> {
 /// # assert!(element.is_none());
 /// ```
 pub fn secret_vec<T>() -> SecretVec<T> {
-    SecretVec::<T>::new_in(SecretAlloc::default())
+    SecretVec::<T>::new_in(SecretMemoryAllocator::default())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::internal::secret_memory::Secret;
+
+    #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
+    fn secret_collections_need_no_policy() {
+        assert_eq!(*secret_box(()), ());
+        assert_eq!(*secret_box_try([42u8; 32]).unwrap(), [42; 32]);
+
+        let mut bytes = secret_vec();
+        bytes.extend(0..=255u8);
+        bytes.resize(4097, 42);
+        assert_eq!(&bytes[..256], &(0..=255u8).collect::<Vec<_>>());
+        assert_eq!(&bytes[256..], &[42; 3841]);
+
+        assert_eq!(Secret::<0>::zero().secret(), &[0u8; 0]);
+        assert_eq!(Secret::<32>::zero().secret(), &[0; 32]);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)] // Miri does not support the memfd_secret(2) syscall nor mmap with protections other than PROT_READ|PROT_WRITE
+    fn secret_collections_use_default_allocator() {
+        let boxed: Box<[u8; 32], SecretMemoryAllocator> = secret_box([42; 32]);
+        assert_eq!(Box::allocator(&boxed), &SecretMemoryAllocator::default());
+
+        let mut bytes: Vec<u8, SecretMemoryAllocator> = secret_vec();
+        bytes.extend_from_slice(boxed.as_slice());
+        bytes.resize(4097, 7);
+        assert_eq!(&bytes[..32], &[42; 32]);
+        assert_eq!(&bytes[32..], &[7; 4065]);
+
+        bytes.truncate(32);
+        let boxed = bytes.into_boxed_slice();
+        assert_eq!(boxed.as_ref(), &[42; 32]);
+        assert_eq!(Box::allocator(&boxed), &SecretMemoryAllocator::default());
+    }
+
+    #[test]
+    fn secret_box_try_supports_overaligned_zero_sized_values() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static DROPS: AtomicUsize = AtomicUsize::new(0);
+        #[repr(align(131072))]
+        struct Aligned;
+        impl Drop for Aligned {
+            fn drop(&mut self) {
+                DROPS.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let boxed = secret_box_try(Aligned).expect("zero-sized values need no allocation");
+        assert_eq!(std::ptr::from_ref(&*boxed).addr() % 131072, 0);
+        assert_eq!(DROPS.load(Ordering::SeqCst), 0);
+        drop(boxed);
+        assert_eq!(DROPS.load(Ordering::SeqCst), 1);
+    }
 }

@@ -8,6 +8,11 @@ FROM ${CHEF_IMAGE} AS chef
 RUN cargo install cargo-chef
 # install software required for liboqs-rust
 RUN apt-get update && apt-get install -y clang cmake && rm -rf /var/lib/apt/lists/*
+# Pre-install the Rust toolchain pinned in rust-toolchain.toml (including
+# its components), so it is downloaded exactly once and the planner and
+# cacher stages inherit it.
+COPY rust-toolchain.toml rust-toolchain.toml
+RUN rustup toolchain install
 
 # Stage 2: Prepare the cargo-chef recipe
 FROM chef AS planner
@@ -18,6 +23,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage 3: Cache dependencies using the recipe
 FROM chef AS cacher
 WORKDIR /app
+# rustup must select the pinned toolchain (already installed in the chef
+# stage) before cargo-chef cooks dependencies.
+COPY rust-toolchain.toml rust-toolchain.toml
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --features rp --recipe-path recipe.json
 

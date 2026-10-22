@@ -33,54 +33,82 @@ let
   peerBConfigFileVersion = getConfigFileVersion pkgs.rosenpass-peer-b;
   peerCConfigFileVersion = if multiPeer then getConfigFileVersion pkgs.rosenpass-peer-c else null;
 
+  # The following functions render the TOML configuration of each peer in
+  # the configuration file format version supported by the rosenpass package
+  # of that peer.
+  #
+  # Currently all rosenpass packages use config file format version "1".
+  # When a new config file format version is introduced, these functions
+  # should emit the old format for old `configFileVersion` values, so that
+  # the backwards-compatibility tests keep exercising the old config file
+  # format.
+  peerAConfigToml =
+    configFileVersion:
+    ''
+      public_key = "${rosenpassKeyFolder}/self.pk"
+      secret_key = "${rosenpassKeyFolder}/self.sk"
+      listen = ["[::]:${builtins.toString rpPort}"]
+      verbosity = "Verbose"
+
+      [[peers]]
+      public_key = "${rosenpassKeyFolder}/peer-b.pk"
+      endpoint = "peerbkeyexchanger:${builtins.toString rpPort}"
+      key_out = "${keyExchangePathAB}"
+    ''
+    + (lib.optionalString multiPeer ''
+      [[peers]]
+      public_key = "${rosenpassKeyFolder}/peer-c.pk"
+      endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+      key_out = "${keyExchangePathAC}"
+    '');
+
+  peerBConfigToml =
+    configFileVersion:
+    ''
+      public_key = "${rosenpassKeyFolder}/self.pk"
+      secret_key = "${rosenpassKeyFolder}/self.sk"
+      listen = ["[::]:${builtins.toString rpPort}"]
+      verbosity = "Verbose"
+
+      [[peers]]
+      public_key = "${rosenpassKeyFolder}/peer-a.pk"
+      endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
+      key_out = "${keyExchangePathBA}"
+    ''
+    + (lib.optionalString multiPeer ''
+      [[peers]]
+      public_key = "${rosenpassKeyFolder}/peer-c.pk"
+      endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+      key_out = "${keyExchangePathBC}"
+    '');
+
+  peerCConfigToml = configFileVersion: ''
+    public_key = "${rosenpassKeyFolder}/self.pk"
+    secret_key = "${rosenpassKeyFolder}/self.sk"
+    listen = ["[::]:${builtins.toString rpPort}"]
+    verbosity = "Verbose"
+    [[peers]]
+    public_key = "${rosenpassKeyFolder}/peer-a.pk"
+    endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
+    key_out = "${keyExchangePathCA}"
+    [[peers]]
+    public_key = "${rosenpassKeyFolder}/peer-b.pk"
+    endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
+    key_out = "${keyExchangePathCB}"
+  '';
+
   staticConfig = {
     peerA = {
       innerIp = "10.100.0.1";
       wgPrivateKeyFile = "${wireguardKeyFolder}/peerA.sk";
       wgPublicKeyFile = "${wireguardKeyFolder}/peerA.pk";
-      rosenpassConfig = builtins.toFile "peer-a.toml" (
-        ''
-          public_key = "${rosenpassKeyFolder}/self.pk"
-          secret_key = "${rosenpassKeyFolder}/self.sk"
-          listen = ["[::]:${builtins.toString rpPort}"]
-          verbosity = "Verbose"
-
-          [[peers]]
-          public_key = "${rosenpassKeyFolder}/peer-b.pk"
-          endpoint = "peerbkeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathAB}"
-        ''
-        + (lib.optionalString multiPeer ''
-          [[peers]]
-          public_key = "${rosenpassKeyFolder}/peer-c.pk"
-          endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathAC}"
-        '')
-      );
+      rosenpassConfig = builtins.toFile "peer-a.toml" (peerAConfigToml peerAConfigFileVersion);
     };
     peerB = {
       innerIp = "10.100.0.2";
       wgPrivateKeyFile = "${wireguardKeyFolder}/peerB.sk";
       wgPublicKeyFile = "${wireguardKeyFolder}/peerB.pk";
-      rosenpassConfig = builtins.toFile "peer-b.toml" (
-        ''
-          public_key = "${rosenpassKeyFolder}/self.pk"
-          secret_key = "${rosenpassKeyFolder}/self.sk"
-          listen = ["[::]:${builtins.toString rpPort}"]
-          verbosity = "Verbose"
-
-          [[peers]]
-          public_key = "${rosenpassKeyFolder}/peer-a.pk"
-          endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathBA}"
-        ''
-        + (lib.optionalString multiPeer ''
-          [[peers]]
-          public_key = "${rosenpassKeyFolder}/peer-c.pk"
-          endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-          key_out = "${keyExchangePathBC}"
-        '')
-      );
+      rosenpassConfig = builtins.toFile "peer-b.toml" (peerBConfigToml peerBConfigFileVersion);
     };
   }
   // lib.optionalAttrs multiPeer {
@@ -89,20 +117,7 @@ let
       innerIp = "10.100.0.3";
       wgPrivateKeyFile = "${wireguardKeyFolder}/peerC.sk";
       wgPublicKeyFile = "${wireguardKeyFolder}/peerC.pk";
-      rosenpassConfig = builtins.toFile "peer-c.toml" ''
-        public_key = "${rosenpassKeyFolder}/self.pk"
-        secret_key = "${rosenpassKeyFolder}/self.sk"
-        listen = ["[::]:${builtins.toString rpPort}"]
-        verbosity = "Verbose"
-        [[peers]]
-        public_key = "${rosenpassKeyFolder}/peer-a.pk"
-        endpoint = "peerakeyexchanger:${builtins.toString rpPort}"
-        key_out = "${keyExchangePathCA}"
-        [[peers]]
-        public_key = "${rosenpassKeyFolder}/peer-b.pk"
-        endpoint = "peerckeyexchanger:${builtins.toString rpPort}"
-        key_out = "${keyExchangePathCB}"
-      '';
+      rosenpassConfig = builtins.toFile "peer-c.toml" (peerCConfigToml peerCConfigFileVersion);
     };
   };
 

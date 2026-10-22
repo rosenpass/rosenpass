@@ -32,6 +32,7 @@ impl ServerForTesting {
             spkt.clone(),
             protocol_version,
             OskDomainSeparator::default(),
+            None, // TODO: repeat tests with WireGuard protocol extension?
         )?;
 
         let peer_keys = (sskt, spkt);

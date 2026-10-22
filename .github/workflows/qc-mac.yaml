@@ -17,6 +17,10 @@ permissions:
 jobs:
   cargo-test-mac:
     runs-on: warp-macos-26-arm64-6x
+    env:
+      # Avoid using disk space unnecessarily
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/cache@v6
@@ -27,8 +31,11 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
         # liboqs requires quite a lot of stack memory, thus we adjust
         # the default stack size picked for new threads (which is used
         # by `cargo test`) to be _big enough_. Setting it to 8 MiB
       - run: RUST_MIN_STACK=8388608 cargo test --workspace --features rp,internal_testing
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

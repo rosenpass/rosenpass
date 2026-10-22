@@ -1,3 +1,11 @@
+//! TODO: write documentation
+//! https://github.com/rosenpass/rosenpass/issues/1172
+//!
+//!
+//! This integration test uses the wireguard extension.
+//! See the whitepaper section 3.2 for more information.
+//! https://rosenpass.eu/docs/whitepaper
+
 use std::{
     borrow::Borrow,
     io::{BufRead, BufReader, Write},
@@ -58,9 +66,8 @@ fn api_integration_api_setup_v03() -> anyhow::Result<()> {
     api_integration_api_setup(ProtocolVersion::V03)
 }
 
+/// see module documentation
 fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
-    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
-
     let dir = TempDir::with_prefix("rosenpass-api-integration-test")?;
 
     macro_rules! tempfile {
@@ -71,11 +78,20 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         }}
     }
 
+    // peer a config
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
     let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    // peer a's own WireGuard public key, required since protocol version 3
+    let peer_a_wg_peer_id = hex!(
+        "
+        60 4b 1c f1 a2 48 a0 77  03 3c e8 54 95 f4 30 4c
+        24 3d 5e a8 20 6d 4b 74  77 9f 4a 27 e6 37 61 89
+    "
+    );
 
+    // peer b config
     let peer_b_osk = tempfile!("b.osk");
     let peer_b_wg_device = "mock_device";
     let peer_b_wg_peer_id = hex!(
@@ -84,6 +100,12 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         7d 77 4a 6a 0f 6c eb 1a  dd 6e 5b c4 1b 92 cd 99
     "
     );
+
+    // whether or not to pass the wireguard pubkeys, required since protocol version 3
+    let use_wg_key_binding = match protocol_version {
+        ProtocolVersion::V02 => false,
+        ProtocolVersion::V03 => true,
+    };
 
     use rosenpass::config;
     let peer_a = config::Rosenpass {
@@ -103,10 +125,17 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             pre_shared_key: None,
             wg: Some(config::WireGuard {
                 device: peer_b_wg_device.to_string(),
+                // TODO:
+                // 1. why 8129? That magic number needs explanation.
+                // 2. Was this supposed to be 8192? In that case, please correct.
+                // 3. In any case, it is way too long and could be much shorter(?)
+                // 4. Also fix another occurence further below.
                 peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
+                our_wg_pubkey: use_wg_key_binding
+                    .then(|| format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>())),
                 extra_params: vec![],
             }),
-            protocol_version: protocol_version,
+            protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
@@ -127,8 +156,16 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),
             pre_shared_key: None,
-            wg: None,
-            protocol_version: protocol_version,
+            // This was `wg: None` previously, introduced in a huge commit b1a7d942954ce6a41decc5a9f93c95cffafde801 .
+            // We need to clean up and document this test.
+            // https://github.com/rosenpass/rosenpass/issues/1172
+            wg: use_wg_key_binding.then(|| config::WireGuard {
+                device: peer_b_wg_device.to_string(),
+                peer: format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>()),
+                our_wg_pubkey: Some(format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>())),
+                extra_params: vec![],
+            }),
+            protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
@@ -240,31 +277,13 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         ));
     }
 
-    // Send SupplyKeypairRequest
-    {
-        use rustix::fs::{Mode, OFlags, open};
-        let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
-        let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
-
-        let mut fds = vec![&sk, &pk].into();
-        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
-        LengthPrefixEncoder::from_message(api::SupplyKeypairRequest::new().as_bytes())
-            .write_all_to_stdio(&mut api)?;
-        assert!(fds.is_empty(), "Failed to write all file descriptors");
-    }
-
-    // Read response
-    {
-        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
-        let res = decoder.read_all_from_stdio(&api)?;
-        let res = res.zk_parse::<api::SupplyKeypairResponse>()?;
-        assert_eq!(
-            *res,
-            api::SupplyKeypairResponse::new(supply_keypair_response_status::OK)
-        );
-    }
-
-    // Send AddPskBroker request
+    // Send `AddPskBrokerRequest`
+    //
+    // This must happen before `SupplyKeypair`: without a keypair, peer a
+    // cannot complete any key exchange, so the broker is guaranteed to be
+    // replaced before the first SetPsk message is sent through it. Otherwise
+    // an exchange that completes early would deliver the first key through
+    // the startup (native unix) broker and it would be lost to this test.
     {
         let mut fds = vec![psk_broker_server_sock.as_fd()].into();
         let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
@@ -281,6 +300,31 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         assert_eq!(
             *res,
             api::AddPskBrokerResponse::new(add_psk_broker_response_status::OK)
+        );
+    }
+
+    // Send `SupplyKeyPairRequest`
+    {
+        use rustix::fs::{Mode, OFlags, open};
+        let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
+        let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
+
+        let mut fds = vec![&sk, &pk].into();
+
+        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        LengthPrefixEncoder::from_message(api::SupplyKeypairRequest::new().as_bytes())
+            .write_all_to_stdio(&mut api)?;
+        assert!(fds.is_empty(), "Failed to write all file descriptors");
+    }
+
+    // Read response
+    {
+        let mut decoder = LengthPrefixDecoder::new([0u8; api::MAX_RESPONSE_LEN]);
+        let res = decoder.read_all_from_stdio(&api)?;
+        let res = res.zk_parse::<api::SupplyKeypairResponse>()?;
+        assert_eq!(
+            *res,
+            api::SupplyKeypairResponse::new(supply_keypair_response_status::OK)
         );
     }
 

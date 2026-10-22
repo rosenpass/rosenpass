@@ -11,13 +11,14 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSoc
 use std::path::{Path, PathBuf};
 use std::{collections::HashSet, fs, io::Write};
 
-use anyhow::{bail, ensure};
+use anyhow::{Context, bail, ensure};
 
+use base64ct::{Base64, Encoding};
 use serde::{Deserialize, Serialize};
 
 use crate::internal::util::file::{LoadValue, Visibility, fopen_w};
 
-use crate::protocol::basic_types::{SPk, SSk};
+use crate::protocol::basic_types::{PublicSymKey, SPk, SSk};
 use crate::protocol::osk_domain_separator::OskDomainSeparator;
 
 use crate::app_server::AppServer;
@@ -148,7 +149,7 @@ pub struct RosenpassPeer {
     pub key_out: Option<PathBuf>,
 
     /// Information for supplying exchanged keys directly to WireGuard
-    #[serde(flatten)]
+    #[serde(flatten, deserialize_with = "WireGuard::deserialize_optional")]
     pub wg: Option<WireGuard>,
 
     #[serde(default)]
@@ -238,9 +239,115 @@ pub struct WireGuard {
     /// WireGuard public key of the peer to supply with pre-shared keys
     pub peer: String,
 
+    /// our WireGuard public key – required since protocol version 3
+    #[serde(default)]
+    pub our_wg_pubkey: Option<String>,
+
     /// Extra parameters passed to the `wg` command
     #[serde(default)]
     pub extra_params: Vec<String>,
+}
+
+impl WireGuard {
+    /// deserializes the entirety of the WireGuard protocol extension config
+    /// for one [`RosenpassPeer`]
+    ///
+    /// - If any of the WireGuard extension's config keys are present, this
+    /// returns `Some(WireGuard)`. All of the extension's config keys must
+    /// be absent to return `None`.
+    /// - The deserializer ensures that `device` and `peer` are set if any of
+    /// the other WireGuard extensions config keys are present.
+    ///
+    /// TODO: write tests for this deserialization
+    fn deserialize_optional<'de, D>(deserializer: D) -> Result<Option<Self>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+
+        // A flattened Option<WireGuard> silently discards missing required fields.
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Fields {
+            device: Option<String>,
+            peer: Option<String>,
+            our_wg_pubkey: Option<String>,
+            extra_params: Option<Vec<String>>,
+        }
+
+        let fields = Fields::deserialize(deserializer)?;
+
+        match (
+            fields.device,
+            fields.peer,
+            fields.our_wg_pubkey,
+            fields.extra_params,
+        ) {
+            // if all fields are are None, the WireGuard extension is actually not used
+            (None, None, None, None) => Ok(None),
+
+            // if any field is Some(_), the WireGuard extension seems to be in use
+            (device, peer, our_wg_pubkey, extra_params) => Ok(Some(Self {
+                // `device` and `peer` are required if the WireGuard extension is used
+                device: device.ok_or_else(|| D::Error::missing_field("device"))?,
+                peer: peer.ok_or_else(|| D::Error::missing_field("peer"))?,
+                // `our_wg_pubkey` is optional because it is only required since protocol version 3.
+                // `crate::config::Rosenpass::validate` will catch incosistencies depending on protocol version.
+                our_wg_pubkey,
+                // extra_params is optional and will just default to an empty list
+                extra_params: extra_params.unwrap_or_default(),
+            })),
+        }
+    }
+}
+
+/// decode a base64-encoded WireGuard public key (32 bytes) into a [`PublicSymKey`]
+pub fn decode_wg_pubkey_b64(b64_encoded_key: &str) -> anyhow::Result<PublicSymKey> {
+    let mut pubkey: PublicSymKey = [0u8; _];
+
+    let decoded_len = Base64::decode(b64_encoded_key, &mut pubkey)
+        .context("can not decode base64-encoded WireGuard public key")?
+        .len();
+
+    ensure!(
+        decoded_len == pubkey.len(),
+        "invalid WireGuard public key length: expected {} bytes, got {decoded_len} bytes",
+        pubkey.len()
+    );
+
+    Ok(pubkey)
+}
+#[cfg(test)]
+mod test_decode_wg_pubkey_b64 {
+    use super::{Base64, Encoding, decode_wg_pubkey_b64};
+
+    // valid WireGuard public key: 32 decoded bytes public X25519 key
+    const VALID: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo=";
+    // invalid WireGuard public keys
+    const TOO_SHORT: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTg==";
+    const TOO_LONG: &str = "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmoA";
+    // TODO: add more tests
+
+    #[test]
+    fn test_decode_wg_pubkey_b64() {
+        let decoded = decode_wg_pubkey_b64(VALID).unwrap();
+        let mut reencoded: [u8; _] = [0; 44];
+        Base64::encode(&decoded, &mut reencoded).unwrap();
+        let reencoded = String::from_utf8(reencoded.to_vec()).unwrap();
+        assert_eq!(reencoded.as_str(), VALID);
+    }
+
+    #[test]
+    #[should_panic = "can not decode base64-encoded WireGuard public key"]
+    fn test_decode_wg_pubkey_b64_rejects_too_long() {
+        decode_wg_pubkey_b64(TOO_LONG).unwrap();
+    }
+
+    #[test]
+    #[should_panic = "invalid WireGuard public key length: expected 32 bytes, got 31 bytes"]
+    fn test_decode_wg_pubkey_b64_rejects_too_short() {
+        decode_wg_pubkey_b64(TOO_SHORT).unwrap();
+    }
 }
 
 impl Default for Rosenpass {
@@ -398,18 +505,30 @@ impl Rosenpass {
             }
 
             // check if `key_out` or `device` and `peer` are defined
+            // TODO: this check is a bit messy, first introduced in b9e873e53475a7024a9608af7ceec6d53773153d
             if peer.key_out.is_none() {
                 if let Some(wg) = &peer.wg {
                     if wg.device.is_empty() || wg.peer.is_empty() {
-                        ensure!(
-                            false,
-                            "peer {i} has neither `key_out` nor valid wireguard config defined"
-                        );
+                        bail!("peer {i} has neither `key_out` nor valid wireguard config defined");
                     }
                 } else {
+                    bail!("peer {i} has neither `key_out` nor valid wireguard config defined");
+                }
+            }
+
+            // check the WireGuard key binding configuration
+            if let Some(wg) = &peer.wg {
+                if peer.protocol_version == ProtocolVersion::V03 {
                     ensure!(
-                        false,
-                        "peer {i} has neither `key_out` nor valid wireguard config defined"
+                        wg.our_wg_pubkey.is_some(),
+                        "peer {i} uses protocol version V03 and has a wireguard config, but no \
+                         `our_wg_pubkey` is set"
+                    );
+                }
+                if let Some(our_wg_pubkey) = &wg.our_wg_pubkey {
+                    ensure!(
+                        decode_wg_pubkey_b64(our_wg_pubkey).is_ok(),
+                        "peer {i} has an invalid `our_wg_pubkey` (expected a base64-encoded 32-byte key)"
                     );
                 }
             }
@@ -730,8 +849,8 @@ impl Default for Verbosity {
 /// Example configuration generated by the command `rosenpass gen-config <TOML-FILE>`.
 pub static EXAMPLE_CONFIG: &str = r###"public_key = "/path/to/rp-public-key"
 secret_key = "/path/to/rp-secret-key"
-listen = []
-verbosity = "Verbose"
+listen = [] # socket address to listen on (e.g. "[::]:10002")
+verbosity = "Verbose" # options: "Quiet", "Verbose"
 
 [[peers]]
 # Commented out fields are optional
@@ -739,11 +858,21 @@ public_key = "/path/to/rp-peer-public-key"
 endpoint = "127.0.0.1:9998"
 # pre_shared_key = "/path/to/preshared-key"
 
-# Choose to store the key in a file via `key_out` or pass it to WireGuard by
-# defining `device` and `peer`. You may choose to do both.
+# Choose to store the key in a file via `key_out` or pass it to WireGuard.
+# You can also choose to do both.
+
+# ========== outfile option ==========
+# You can save the key from the handshake to a file.
 key_out = "/path/to/rp-key-out.txt" # path to store the key
+
+# ========== options for the WireGuard extension ==========
+# Using the WireGuard extension is optional.
+# See the whitepaper section 3.2 for more information.
+# https://rosenpass.eu/docs/whitepaper
+
 # device = "wg0" # WireGuard interface
-#peer = "RULdRAtUw7SFfVfGD..." # WireGuard public key
+# peer = "RULdRAtUw7SFfVfGD..." # WireGuard public key
+# our_wg_pubkey = "LDn3YQZ3+4V..." # our WireGuard public key, required since protocol version 3
 # extra_params = [] # passed to WireGuard `wg set`
 "###;
 

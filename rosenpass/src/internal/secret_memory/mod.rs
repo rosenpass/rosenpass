@@ -3,23 +3,19 @@
 //! This library provides functionality for working with secret data and protecting it in
 //! memory from illegitimate access.
 //!
-//! Specifically, the [alloc] module provides wrappers around the `memsec` and `memfdsec` allocators
-//! from the [memsec] crate that implement the [Allocator](allocator_api2::alloc::Allocator) Trait.
-//! We refer to the documentation of these modules for more details on their appropriate usage.
+//! Specifically, the [alloc] module provides collections backed by
+//! [SecretMemoryAllocator](crate::internal::util::secret_memory::alloc::SecretMemoryAllocator).
 //!
-//! The [policy] module then provides functionality for specifying which of the allocators from
-//! the [alloc] module should be used.
-//!
-//! Once this configuration is made [Secret] can be used to store sensitive data in memory
-//! allocated by the configured allocator. [Secret] is implemented such that memory is *aloways*
+//! The allocator automatically prefers memfd-secret when supported and permits anonymous
+//! mappings otherwise. No initialization is required before using [Secret].
+//! [Secret] is implemented such that memory is *always*
 //! zeroized before it is released. Because allocations of the protected memory are expensive to do,
 //! [Secret] is build to reuse once allocated memory. A simple use of [Secret] looks as follows:
 //! ## Example
 #![cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #![cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
 //! use zeroize::Zeroize;
-//! use rosenpass::internal::secret_memory::{secret_policy_try_use_memfd_secrets, Secret};
-//! secret_policy_try_use_memfd_secrets();
+//! use rosenpass::internal::secret_memory::Secret;
 //! let mut my_secret: Secret<32> = Secret::random();
 //! my_secret.zeroize();
 //! ```
@@ -51,12 +47,4 @@ pub use public::PublicBox;
 mod secret;
 pub use secret::Secret;
 
-pub mod policy;
 mod serialization;
-
-pub use policy::*;
-
-#[allow(unused_imports)]
-pub(crate) use policy::test::test_spawn_process_provided_policies;
-#[allow(unused_imports)]
-pub(crate) use policy::test::test_spawn_process_with_policies;

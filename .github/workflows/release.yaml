@@ -24,6 +24,10 @@ jobs:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: result/*
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-darwin---release:
     name: Build release artifacts for x86_64-darwin
     runs-on: macos-13
@@ -42,6 +46,10 @@ jobs:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: result/*
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---release:
     name: Build release artifacts for x86_64-linux
     runs-on: ubicloud-standard-2
@@ -62,6 +70,10 @@ jobs:
           draft: ${{ contains(github.ref_name, 'rc') }}
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: result/*
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   linux-packages:
     name: Build and upload DEB and RPM packages
     runs-on: ubicloud-standard-2
@@ -83,3 +95,6 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           files: |
             packages/*
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

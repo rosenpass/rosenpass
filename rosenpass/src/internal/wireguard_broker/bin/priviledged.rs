@@ -49,14 +49,6 @@ pub mod linux {
     }
 
     pub fn main() -> Result<(), BrokerAppError> {
-        {
-            use rosenpass::internal::secret_memory as SM;
-            #[cfg(feature = "experiment_memfd_secret")]
-            SM::secret_policy_try_use_memfd_secrets();
-            #[cfg(not(feature = "experiment_memfd_secret"))]
-            SM::secret_policy_use_only_malloc_secrets();
-        }
-
         let mut broker = BrokerServer::new(wg::NetlinkWireGuardBroker::new()?);
 
         let mut stdin = stdin().lock();

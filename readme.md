@@ -3,13 +3,13 @@
 [![GitHub Release](https://badges.islabtech.com/shields-io/github/v/release/rosenpass/rosenpass?sort=semver&color=blue)](https://github.com/rosenpass/rosenpass/releases/latest)
 [![crates.io](https://badges.islabtech.com/shields-io/crates/v/rosenpass.svg?sort=semver&color=blue)](https://crates.io/crates/rosenpass)
 [![License](https://badges.islabtech.com/shields-io/github/license/rosenpass/rosenpass)](https://github.com/rosenpass/rosenpass)
-![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml)
-![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml)
+![Nix](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/nix.yaml?label=Nix)
+![QC](https://badges.islabtech.com/shields-io/github/actions/workflow/status/rosenpass/rosenpass/qc.yaml?label=QC)
 [![docs.rs](https://badges.islabtech.com/shields-io/docsrs/rosenpass/latest)](https://docs.rs/rosenpass)
 
 This repository contains
 
-1. A description of the [Rosenpass protocol](https://github.com/rosenpass/rosenpass/raw/papers-pdf/whitepaper.pdf)
+1. A description of the [Rosenpass protocol](https://rosenpass.eu/docs/rosenpass-project/whitepaper/)
 2. The reference implementation of the protocol – the [rosenpass tool](./rosenpass)
 3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rp)
 4. [Security analysis](./analysis) of the protocol using proverif

@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - v0.2.x
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,6 +29,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.i686-linux.default --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   i686-linux---rosenpass:
     name: Build i686-linux.rosenpass
     runs-on: ubicloud-standard-4
@@ -43,6 +48,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.i686-linux.rosenpass --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   i686-linux---rosenpass-oci-image:
     name: Build i686-linux.rosenpass-oci-image
     runs-on: ubicloud-standard-4
@@ -59,6 +68,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.i686-linux.rosenpass-oci-image --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   i686-linux---check:
     # use --max-jobs 1 for the nix command to debug this
     name: Run Nix checks on i686-linux
@@ -77,6 +89,9 @@ jobs:
       - name: Check
         run: |
           nix flake check . --print-build-logs --option min-free 10G
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---default:
     name: Build x86_64-linux.default
     runs-on: ubicloud-standard-4
@@ -93,6 +108,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.default --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---proof-proverif:
     name: Build x86_64-linux.proof-proverif
     runs-on: ubicloud-standard-2
@@ -109,6 +127,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.proof-proverif --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---proverif-patched:
     name: Build x86_64-linux.proverif-patched
     runs-on: ubicloud-standard-2
@@ -124,6 +145,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.proverif-patched --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---release-package:
     name: Build x86_64-linux.release-package
     runs-on: ubicloud-standard-2
@@ -142,6 +166,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.release-package --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   # aarch64-linux---release-package:
   #   name: Build aarch64-linux.release-package
   #   runs-on: ubicloud-standard-2-arm
@@ -165,6 +192,9 @@ jobs:
   #         authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
   #     - name: Build
   #       run: nix build .#packages.aarch64-linux.release-package --print-build-logs
+  #     - uses: ./.github/actions/report-resources
+  #       if: ${{ always() }}
+
   x86_64-linux---rosenpass:
     name: Build x86_64-linux.rosenpass
     runs-on: ubicloud-standard-4
@@ -180,6 +210,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-linux---rosenpass:
     name: Build aarch64-linux.rosenpass
     runs-on: ubicloud-standard-4-arm
@@ -200,6 +233,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-linux.rosenpass --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-linux---rp:
     name: Build aarch64-linux.rp
     runs-on: ubicloud-standard-4-arm
@@ -220,6 +256,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-linux.rp --print-build-logs
+      - uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---rosenpass-oci-image:
     name: Build x86_64-linux.rosenpass-oci-image
     runs-on: ubicloud-standard-2
@@ -236,6 +275,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-oci-image --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   aarch64-linux---rosenpass-oci-image:
     name: Build aarch64-linux.rosenpass-oci-image
     runs-on: ubicloud-standard-2-arm
@@ -257,6 +300,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.aarch64-linux.rosenpass-oci-image --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---rosenpass-static:
     name: Build x86_64-linux.rosenpass-static
     runs-on: ubicloud-standard-4
@@ -272,6 +319,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-static --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---rp-static:
     name: Build x86_64-linux.rp-static
     runs-on: ubicloud-standard-4
@@ -287,6 +338,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rp-static --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---rosenpass-static-oci-image:
     name: Build x86_64-linux.rosenpass-static-oci-image
     runs-on: ubicloud-standard-2
@@ -303,6 +358,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.rosenpass-static-oci-image --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---whitepaper:
     name: Build x86_64-linux.whitepaper
     runs-on: ubicloud-standard-2
@@ -318,6 +377,10 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build
         run: nix build .#packages.x86_64-linux.whitepaper --print-build-logs
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---check:
     # use --max-jobs 1 for the nix command to debug this
     name: Run Nix checks on x86_64-linux
@@ -335,10 +398,14 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check
         run: nix flake check . --print-build-logs --option min-free 10G
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
+
   x86_64-linux---whitepaper-upload:
     name: Upload whitepaper x86_64-linux
     runs-on: ubicloud-standard-2
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v0.2.x' }}
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
@@ -357,5 +424,9 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: result/
-          publish_branch: papers-pdf
+          # main publishes the nightly version, stable branches publish to `papers-pdf`
+          publish_branch: ${{ github.ref == 'refs/heads/main' && 'papers-pdf-nightly' || 'papers-pdf' }}
           force_orphan: true
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

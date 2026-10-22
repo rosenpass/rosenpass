@@ -19,8 +19,6 @@ macro_rules! oqs_kem {
             #[doc = "use rosenpass::internal::oqs::" $name:camel " as MyKem;"]
             #[doc = "use rosenpass::internal::secret_memory::{Secret, Public};"]
             #[doc = ""]
-            #[doc = "rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();"]
-            #[doc = ""]
             #[doc = "// Recipient generates secret key, transfers pk to sender"]
             #[doc = "let mut sk = Secret::<{ MyKem::SK_LEN }>::zero();"]
             #[doc = "let mut pk = Public::<{ MyKem::PK_LEN }>::zero();"]

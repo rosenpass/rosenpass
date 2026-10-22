@@ -17,19 +17,9 @@ use std::io::Write;
 
 const BIN: &str = "rosenpass";
 
-fn setup_tests() {
-    use rosenpass::internal::secret_memory as SM;
-    #[cfg(feature = "experiment_memfd_secret")]
-    SM::secret_policy_try_use_memfd_secrets();
-    #[cfg(not(feature = "experiment_memfd_secret"))]
-    SM::secret_policy_use_only_malloc_secrets();
-}
-
 // check that we can generate keys
 #[test]
 fn generate_keys() {
-    setup_tests();
-
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("keygen");
     fs::create_dir_all(&tmpdir).unwrap();
 
@@ -144,7 +134,6 @@ fn run_server_client_exchange(
 // verify that EXAMPLE_CONFIG is correct
 #[test]
 fn check_example_config() {
-    setup_tests();
     setup_logging();
 
     let tmp_dir = tempdir().unwrap();
@@ -189,7 +178,6 @@ fn check_example_config() {
 #[serial]
 #[cfg_attr(miri, ignore)] // TODO investigate why this panicks in miri
 fn check_exchange_under_normal() {
-    setup_tests();
     setup_logging();
 
     let tmpdir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("exchange");
@@ -263,7 +251,6 @@ fn check_exchange_under_normal() {
 #[serial]
 #[cfg_attr(miri, ignore)] // integer-to-pointer cast
 fn check_exchange_under_dos() {
-    setup_tests();
     setup_logging();
 
     //Generate binary with responder with feature integration_test

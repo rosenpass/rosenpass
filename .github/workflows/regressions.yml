@@ -24,6 +24,9 @@ jobs:
           path: target/release/rosenpass
           if-no-files-found: error
           retention-days: 1
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   multi-peer:
     runs-on: ubicloud-standard-2
@@ -40,6 +43,9 @@ jobs:
       - run: .ci/run-regression.sh 100 20
       - run: |
           [ $(ls -1 output/ate/out | wc -l) -eq 100 ]
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}
 
   boot-race:
     runs-on: ubicloud-standard-2
@@ -57,3 +63,6 @@ jobs:
       - run: .ci/boot_race/run.sh 5 2 .ci/boot_race/a.toml .ci/boot_race/b.toml
       - run: .ci/boot_race/run.sh 5 1 .ci/boot_race/a.toml .ci/boot_race/b.toml
       - run: .ci/boot_race/run.sh 5 0 .ci/boot_race/a.toml .ci/boot_race/b.toml
+      - name: Report runner resources
+        uses: ./.github/actions/report-resources
+        if: ${{ always() }}

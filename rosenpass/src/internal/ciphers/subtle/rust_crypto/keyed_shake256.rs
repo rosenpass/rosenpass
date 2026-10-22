@@ -105,7 +105,7 @@ pub type SHAKE256<const KEY_LEN: usize, const HASH_LEN: usize> =
 ///
 #[cfg_attr(feature = "expose_internal_modules", doc = "```rust")]
 #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```rust,ignore")]
-/// # use rosenpass::internal::ciphers::subtle::keyed_shake256::{SHAKE256_32};
+/// # use rosenpass::internal::ciphers::subtle::rust_crypto::keyed_shake256::{SHAKE256_32};
 /// use rosenpass::internal::cipher_traits::primitives::KeyedHashInstance;
 /// const KEY_LEN: usize = 32;
 /// const HASH_LEN: usize = 32;
