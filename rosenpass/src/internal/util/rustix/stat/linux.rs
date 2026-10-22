@@ -4,93 +4,12 @@ use std::os::fd::AsFd;
 
 use anyhow::bail;
 
-use super::IntoStdioErr;
+use super::GetSocketType;
 
 use crate::internal::util::result::OkExt;
-
-/// Helpers for accessing stat(2) information
-pub trait StatExt {
-    /// Check if the file is a socket
-    ///
-    /// # Examples
-    ///
-    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
-    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
-    /// use rosenpass::internal::util::rustix::StatExt;
-    /// assert!(rustix::fs::stat("/")?.is_socket() == false);
-    /// Ok::<(), rustix::io::Errno>(())
-    /// ````
-    fn is_socket(&self) -> bool;
-}
-
-impl StatExt for rustix::fs::Stat {
-    fn is_socket(&self) -> bool {
-        use rustix::fs::FileType;
-        let ft = FileType::from_raw_mode(self.st_mode);
-        matches!(ft, FileType::Socket)
-    }
-}
-
-/// Helpers for accessing stat(2) information on an open file descriptor
-pub trait TryStatExt {
-    /// Error type returned by operations
-    type Error;
-
-    /// Check if the file is a socket
-    ///
-    /// # Examples
-    ///
-    #[cfg_attr(feature = "expose_internal_modules", doc = "```")]
-    #[cfg_attr(not(feature = "expose_internal_modules"), doc = "```ignore")]
-    /// use rosenpass::internal::util::rustix::TryStatExt;
-    /// let fd = rustix::fs::open("/", rustix::fs::OFlags::empty(), rustix::fs::Mode::empty())?;
-    /// assert!(matches!(fd.is_socket(), Ok(false)));
-    /// Ok::<(), rustix::io::Errno>(())
-    /// ````
-    fn is_socket(&self) -> Result<bool, Self::Error>;
-}
-
-impl<T> TryStatExt for T
-where
-    T: AsFd,
-{
-    type Error = rustix::io::Errno;
-
-    fn is_socket(&self) -> Result<bool, Self::Error> {
-        rustix::fs::fstat(self)?.is_socket().ok()
-    }
-}
-
-/// Determine the type of socket a file descriptor represents
-pub trait GetSocketType {
-    /// Error type returned by operations in this trait
-    type Error;
-    /// Look up the socket; see `rustix::net::sockopt::getsockopt(fd, SOL_SOCKET, SO_TYPE)`
-    fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error>;
-    /// Checks if the socket is a datagram socket
-    fn is_datagram_socket(&self) -> Result<bool, Self::Error> {
-        use rustix::net::SocketType;
-        matches!(self.socket_type()?, SocketType::DGRAM).ok()
-    }
-    /// Checks if the socket is a stream socket
-    fn is_stream_socket(&self) -> Result<bool, Self::Error> {
-        Ok(self.socket_type()? == rustix::net::SocketType::STREAM)
-    }
-}
-
-impl<T> GetSocketType for T
-where
-    T: AsFd,
-{
-    type Error = rustix::io::Errno;
-
-    fn socket_type(&self) -> Result<rustix::net::SocketType, Self::Error> {
-        rustix::net::sockopt::socket_type(self)
-    }
-}
+use crate::internal::util::rustix::IntoStdioErr;
 
 /// Distinguish different socket address families; e.g. IP and unix sockets
-#[cfg(target_os = "linux")]
 pub trait GetSocketDomain {
     /// Error type returned by operations in this trait
     type Error;
@@ -106,7 +25,6 @@ pub trait GetSocketDomain {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl<T> GetSocketDomain for T
 where
     T: AsFd,
@@ -119,7 +37,6 @@ where
 }
 
 /// Distinguish different types of unix sockets
-#[cfg(target_os = "linux")]
 pub trait GetUnixSocketType {
     /// Error type returned by operations in this trait
     type Error;
@@ -191,7 +108,6 @@ pub trait GetUnixSocketType {
     fn demand_unix_stream_socket(&self) -> anyhow::Result<()>;
 }
 
-#[cfg(target_os = "linux")]
 impl<T> GetUnixSocketType for T
 where
     T: GetSocketType + GetSocketDomain<Error = <T as GetSocketType>::Error>,
@@ -214,7 +130,6 @@ where
     }
 }
 
-#[cfg(target_os = "linux")]
 /// Distinguish between different network socket protocols (e.g. tcp, udp)
 pub trait GetSocketProtocol {
     /// Retrieves the socket's protocol.
@@ -291,7 +206,6 @@ pub trait GetSocketProtocol {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl<T> GetSocketProtocol for T
 where
     T: AsFd,

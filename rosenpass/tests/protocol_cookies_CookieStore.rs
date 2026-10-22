@@ -3,8 +3,6 @@ fn cookie_store_demo() {
     use rosenpass::internal::util::time::Timebase;
     use rosenpass::protocol::{basic_types::SymKey, cookies::CookieStore, timing::BCE};
 
-    rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-
     let fixed_secret = SymKey::random();
     let timebase = Timebase::default();
 

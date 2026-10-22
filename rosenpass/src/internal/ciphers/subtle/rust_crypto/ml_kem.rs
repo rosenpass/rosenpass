@@ -26,8 +26,6 @@ use ml_kem::ExpandedKeyEncoding;
 /// use rosenpass::internal::secret_memory::{Secret, Public};
 /// use rosenpass::internal::constant_time::compare;
 ///
-/// rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets();
-///
 /// // Recipient generates secret key, transfers pk to sender
 /// let mut sk = Secret::<{ MyKem::SK_LEN }>::zero();
 /// let mut pk = Public::<{ MyKem::PK_LEN }>::zero();

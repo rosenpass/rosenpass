@@ -2,22 +2,43 @@
 
 use std::os::fd::OwnedFd;
 
-use rustix::fs::MemfdFlags;
 use rustix::io::Errno;
 use rustix::path::Arg as Path;
 
 use bitflags::bitflags;
 
-use crate::internal::util::convert::IntoTypeExt;
+#[cfg(target_os = "linux")]
+pub use rustix::fs::MemfdFlags;
 
-use super::SyscallResult;
+#[cfg(not(target_os = "linux"))]
+bitflags! {
+    /// Linux memfd_create(2) flags accepted by the unsupported-platform stub.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MemfdFlags: std::ffi::c_uint {
+        /// Close the file descriptor on exec.
+        const CLOEXEC = 0x0001;
+        /// Allow adding file seals.
+        const ALLOW_SEALING = 0x0002;
+        /// Seal the file descriptor against execution.
+        const NOEXEC_SEAL = 0x0008;
+    }
+}
 
 /// Create an anonymous file
 /// using the memfd_create(2) syscall
 ///
-/// Just forwards to [rustix::fs::memfd_create]
+/// On Linux, forwards to [rustix::fs::memfd_create]
+///
+/// On all other platforms, returns ENOSYS without calling the kernel
 pub fn memfd_create<P: Path>(name: P, flags: MemfdFlags) -> rustix::io::Result<OwnedFd> {
-    rustix::fs::memfd_create(name, flags)
+    cfg_select! {
+        target_os = "linux" => rustix::fs::memfd_create(name, flags),
+        _ => {
+            let _ = (name, flags);
+            Err(Errno::NOSYS)?
+        }
+    }
 }
 
 bitflags! {
@@ -35,7 +56,7 @@ bitflags! {
 pub enum MemfdSecretUnavailabilityReason {
     /// memfd_secret(2) is not supported by the kernel or was disabled at boot
     #[error(
-        "memfd_secret(2) is not supported on your system or was blocked at boot by using the kernel command line `secretmem.enable=0`"
+        "memfd_secret(2) is not supported on your system or, on Linux, was blocked at boot by using the kernel command line `secretmem.enable=0`"
     )]
     NotSupported,
     /// memfd_secret(2) is blocked by a security policy (seccomp/LSM) on this system
@@ -92,30 +113,24 @@ impl From<Errno> for MemfdSecretError {
 /// Ok::<(), anyhow::Error>(())
 /// ```
 pub fn memfd_secret(flags: MemfdSecretFlags) -> Result<rustix::fd::OwnedFd, MemfdSecretError> {
-    let res = unsafe {
-        use libc::{SYS_memfd_secret, syscall};
-        syscall(SYS_memfd_secret, flags)
-            .into_type::<SyscallResult>()
-            .claim_fd()
-    };
+    cfg_select! {
+        target_os = "linux" => {
+            use crate::internal::util::convert::IntoTypeExt;
+            use super::SyscallResult;
 
-    res.map_err(MemfdSecretError::from)
-}
+            let res = unsafe {
+                use libc::{SYS_memfd_secret, syscall};
+                syscall(SYS_memfd_secret, flags)
+                    .into_type::<SyscallResult>()
+                    .claim_fd()
+            };
 
-/// Extension trait for [rustix::fs::StatFs] to determine whether
-/// a file descriptor is a memfd_secret(2)
-#[cfg(target_os = "linux")]
-pub trait IsMemfdSecretExt {
-    /// Determine whether the underlying file descriptor that generated this [rustix::fs::StatFs]
-    /// is a memfd_secret(2) file descriptor
-    fn is_memfd_secret(&self) -> bool;
-}
-
-#[cfg(target_os = "linux")]
-impl IsMemfdSecretExt for rustix::fs::StatFs {
-    fn is_memfd_secret(&self) -> bool {
-        const SECRETMEM_MAGIC: rustix::fs::FsWord = 0x5345_434d;
-        self.f_type == SECRETMEM_MAGIC
+            res.map_err(MemfdSecretError::from)
+        },
+        _ => {
+            let _ = flags;
+            Err(Errno::NOSYS)?
+        }
     }
 }
 

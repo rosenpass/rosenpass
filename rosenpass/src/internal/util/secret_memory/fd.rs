@@ -5,13 +5,15 @@
 use std::{os::fd::OwnedFd, sync::OnceLock};
 
 use rustix::fs::ftruncate;
-use rustix::{fs::MemfdFlags, io::Errno};
+use rustix::io::Errno;
 
+use crate::internal::util::option::SomeExt;
 use crate::internal::util::result::OkExt;
 use crate::internal::util::rustix::{
-    MemfdSecretError, MemfdSecretFlags, MemfdSecretUnavailabilityReason, memfd_create, memfd_secret,
+    MemfdFlags, MemfdSecretError, MemfdSecretFlags, MemfdSecretUnavailabilityReason, memfd_create,
+    memfd_secret,
 };
-use crate::internal::util::secret_memory::mmap::{MapFdConfig, MappableFd};
+use crate::internal::util::secret_memory::mmap::{Mappable, MappingConfig};
 
 /// Type indicating the level of support for memfd_secret(2), returned by
 /// [memfd_secret_support()]
@@ -90,7 +92,7 @@ static MEMFD_SECRET_SUPPORT: OnceLock<Result<MemfdSecretSupport, MemfdSecretUnav
 ///
 /// When memfd_create(2) is used instead of memfd_secret(2), then [SecretMemfdConfig::create()]
 /// will specify the ALLOW_SEALING flag during file descriptor creation. This is later used by
-/// [super::mmap::MappableFd::mmap()] to manually seal the file descriptor against resizing using
+/// [super::mmap::Mappable::mmap()] to manually seal the file descriptor against resizing using
 /// appropriate fcntl(2) calls, defending against the same attack
 pub fn memfd_secret_support()
 -> Result<Result<MemfdSecretSupport, MemfdSecretUnavailabilityReason>, Errno> {
@@ -170,58 +172,37 @@ pub fn memfd_secret_supported_for_shm_applications() -> Result<bool, Errno> {
 
 /// Indicates how the file descriptor generated here will be used
 ///
-/// This is important in some cases; [SecretMemfdMechanism::decide_with_policy]
+/// This is important in some cases; [SecretMemfdMechanism::select_mechanism]
 /// for instance uses this information to disable memfd_secret(2) usage on some hosts
 /// where memfd_secret(2) file descriptors are not protected against resizing.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SecretMemfdUsage {
     /// Whether this file descriptor will be used for shared memory
+    ///
+    /// Note that setting this does not automatically clear [Self::allow_anonymous], because
+    /// there are ways of setting up shared_memory without relying on a file descriptor
+    /// (e.g. through fork(2))
     pub shared_memory: bool,
+    /// Whether a file descriptor is required or whether anonymous mappings are permitted
+    pub allow_anonymous: bool,
 }
 
 impl SecretMemfdUsage {
     /// New [SecretMemfdUsage] with the default settings (no particular usage indicated)
     pub const fn default_const() -> Self {
-        let shared_memory = false;
-        Self { shared_memory }
-    }
-}
-
-/// How secure memory file descriptors should be allocated
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Default)]
-pub enum SecretMemfdPolicy {
-    /// Use memfd_secret(2) if available, otherwise fall back to less
-    /// secure options
-    #[default]
-    Opportunistic,
-    /// Enforce the use of memfd_secret(2)
-    UseMemfdSecret,
-    /// Never use memfd_secret(2)
-    DisableMemfdSecret,
-}
-
-impl SecretMemfdPolicy {
-    /// Create a SecretMemfdPolicy with the default policy
-    ///
-    /// Currently [Self::Opportunistic]
-    pub const fn default_const() -> Self {
-        Self::Opportunistic
-    }
-
-    /// Enforce the use of the highest security configuration available
-    ///
-    /// This might not work on some systems, which is why this is not used
-    /// by default.
-    ///
-    /// Currently [Self::UseMemfdSecret]
-    pub const fn enforce_high_security() -> Self {
-        Self::UseMemfdSecret
+        let (shared_memory, allow_anonymous) = (false, false);
+        Self {
+            shared_memory,
+            allow_anonymous,
+        }
     }
 }
 
 /// Which mechanism to use when allocating secret memory file descriptors
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum SecretMemfdMechanism {
+    /// An anonymous mapping without file descriptor will be used
+    Anonymous,
     /// The less secure memfd_create(2) will be used
     MemfdCreate,
     /// The more secure memfd_secret(2) will be used
@@ -230,37 +211,22 @@ pub enum SecretMemfdMechanism {
 
 impl SecretMemfdMechanism {
     /// Decide which mechanism to use, based on the given [SecretMemfdUsage],
-    /// the given [SecretMemfdPolicy], and [memfd_secret_support()].
+    /// and [memfd_secret_support()].
     ///
     /// The `usage` selects which support level is consulted: shared-memory usage
     /// additionally requires memfd_secret(2) resizing protection.
-    ///
-    /// If [SecretMemfdPolicy::UseMemfdSecret] is used, then [SecretMemfdMechanism::MemfdSecret]
-    /// will be returned, regardless of whether it is supported.
-    ///
-    /// Likewise, if [SecretMemfdPolicy::DisableMemfdSecret] is used, then
-    /// [SecretMemfdMechanism::MemfdCreate] will be used unconditionally.
-    pub fn decide_with_policy(
-        usage: SecretMemfdUsage,
-        policy: SecretMemfdPolicy,
-    ) -> Result<Self, Errno> {
+    pub fn select_mechanism(usage: SecretMemfdUsage) -> Result<Self, Errno> {
         use SecretMemfdMechanism as M;
-        use SecretMemfdPolicy as P;
-
-        match policy {
-            P::UseMemfdSecret => return Ok(M::MemfdSecret),
-            P::DisableMemfdSecret => return Ok(M::MemfdCreate),
-            P::Opportunistic => {}
-        };
 
         let memfd_secret_supported_for_usage = match usage.shared_memory {
             false => memfd_secret_supported_for_local_applications()?,
             true => memfd_secret_supported_for_shm_applications()?,
         };
 
-        match memfd_secret_supported_for_usage {
-            true => Ok(M::MemfdSecret),
-            false => Ok(M::MemfdCreate),
+        match (memfd_secret_supported_for_usage, usage.allow_anonymous) {
+            (true, _) => Ok(M::MemfdSecret),
+            (false, false) => Ok(M::MemfdCreate),
+            (false, true) => Ok(M::Anonymous),
         }
     }
 }
@@ -315,15 +281,10 @@ pub enum SecretMemfdWithConfigError {
 ///
 /// The close-on-exec file descriptor flag (FD_CLOEXEC) is always set on
 /// the file descriptors produced by [Self::create()].
-///
-/// The default configuration ([Self::new()], [Self::default()]) uses the
-/// default ([SecretMemfdPolicy::Opportunistic]) policy.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub struct SecretMemfdConfig {
     /// How this file descriptor will be used
     pub usage: SecretMemfdUsage,
-    /// Security mechanism to use
-    pub policy: SecretMemfdPolicy,
 }
 
 impl Default for SecretMemfdConfig {
@@ -335,32 +296,32 @@ impl Default for SecretMemfdConfig {
 impl SecretMemfdConfig {
     /// Create a new, default [Self]
     ///
-    /// Uses the default ([SecretMemfdPolicy::Opportunistic]) policy. The
+    /// The
     /// close-on-exec file descriptor flag is always set on the produced
     /// file descriptor; see the struct-level documentation.
     pub const fn new() -> Self {
         let usage = SecretMemfdUsage::default_const();
-        let policy = SecretMemfdPolicy::default_const();
-        Self { usage, policy }
+        Self { usage }
     }
 
-    /// Indicates that the created file descriptor will be used in shared memory applications
+    /// Indicates that the created memory mapping will be used in shared memory applications
     pub const fn used_in_shared_memory(&self) -> Self {
         let mut r = *self;
         r.usage.shared_memory = true;
         r
     }
 
-    /// Set `self.policy = SecretMemfdPolicy::UseMemfdSecret`
-    pub const fn enforce_high_security(&self) -> Self {
+    /// Indicates that the mapping is allowed to be an anonymous memory mapping
+    /// (i.e. one without a file descriptor)
+    pub const fn allow_anonymous_mappings(&self) -> Self {
         let mut r = *self;
-        r.policy = SecretMemfdPolicy::enforce_high_security();
+        r.usage.allow_anonymous = true;
         r
     }
 
     /// Whether memfd_secret will be used by [Self::create()]
     pub fn mechanism(&self) -> Result<SecretMemfdMechanism, Errno> {
-        SecretMemfdMechanism::decide_with_policy(self.usage, self.policy)
+        SecretMemfdMechanism::select_mechanism(self.usage)
     }
 
     /// Ensure that this configuration is valid and usable
@@ -368,40 +329,26 @@ impl SecretMemfdConfig {
         use SecretMemfdConfigValidationError as E;
         let mech = self.mechanism().map_err(E::FailedToDetectSupport)?;
 
-        let mfds_use = matches!(mech, SecretMemfdMechanism::MemfdSecret);
-        let mfds_prot_resize =
-            memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?;
-        let shm_usage = self.usage.shared_memory;
-
-        if mfds_use && shm_usage && !mfds_prot_resize {
+        if matches!(mech, SecretMemfdMechanism::MemfdSecret)
+            && self.usage.shared_memory
+            && !memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?
+        {
             return Err(E::MemfdSecretDoesNotProtectAgainstResizing);
         }
 
         Ok(())
     }
 
-    /// Allocates a secret file descriptor based on the configuration and returns the
-    /// file descriptor wrapped into a [super::mmap::MappableFd] for easy mapping into
-    /// memory.
+    /// Sets up the secret memory allocation described by the configuration and returns a
+    /// [super::mmap::Mappable] for easy mapping into memory.
     ///
-    /// This function returns a [super::mmap::MappableFd] and pre-configures the memory mapping
+    /// This function returns a [super::mmap::Mappable] and pre-configures the memory mapping
     /// configuration as needed:
     ///
-    /// - If [SecretMemfdUsage::shared_memory] is set, then [super::mmap::MapFdConfig::shared] will
+    /// - If [SecretMemfdUsage::shared_memory] is set, then [super::mmap::MappingConfig::shared] will
     ///   be set. The flag is also set unconditionally when memfd_secret(2) is used, because the
     ///   kernel rejects MAP_PRIVATE mappings of memfd_secret(2) file descriptors (see
-    ///   [super::mmap::MapFdConfig::shared])
-    /// - If memfd_secret(2) is used, but [memfd_secret_protects_against_resizing()] is false, then
-    ///   [super::mmap::MapFdConfig::no_resizing_protection] will be set
-    ///
-    /// Note that if all three of the conditions hold, then the configuration is insecure and
-    /// [Self::validate_config()] will produce [SecretMemfdConfigValidationError::MemfdSecretDoesNotProtectAgainstResizing], which
-    /// will be returned wrapped in [SecretMemfdWithConfigError::InvalidConfig]. The three
-    /// conditions are:
-    ///
-    /// - memfd_secret(2) is being used
-    /// - [SecretMemfdUsage::shared_memory] is true
-    /// - [memfd_secret_protects_against_resizing()] is false
+    ///   [super::mmap::MappingConfig::shared])
     ///
     /// The close-on-exec (CLOEXEC) file descriptor flag is always set on the
     /// produced file descriptor.
@@ -410,7 +357,7 @@ impl SecretMemfdConfig {
     /// created with ALLOW_SEALING so it can later be protected against resizing
     /// and it is also sealed non-executable (MFD_NOEXEC_SEAL) where the kernel
     /// supports it (Linux >= 6.3).
-    pub fn create(&self) -> Result<MappableFd<OwnedFd>, SecretMemfdWithConfigError> {
+    pub fn create(&self) -> Result<Mappable<OwnedFd>, SecretMemfdWithConfigError> {
         use SecretMemfdConfigValidationError as VE;
         use SecretMemfdMechanism as M;
         use SecretMemfdWithConfigError as E;
@@ -422,11 +369,16 @@ impl SecretMemfdConfig {
             match mech {
                 // We have to use MemfdCreate; this is the harder case handled below
                 M::MemfdCreate => (),
+                // Anonymous mapping
+                M::Anonymous => {
+                    break 'fd None;
+                }
                 // The kernel accepts no memfd_secret(2) flag other than O_CLOEXEC
                 // Since this is the easy case, we handle it here
                 M::MemfdSecret => {
                     break 'fd memfd_secret(MemfdSecretFlags::CLOEXEC)
-                        .map_err(E::MemfdSecretError)?;
+                        .map_err(E::MemfdSecretError)?
+                        .some();
                 }
             };
 
@@ -439,7 +391,7 @@ impl SecretMemfdConfig {
                 // Invalid call; probably means that NOEXEC_SEAL is not supported on this kernel
                 Err(Errno::INVAL) => (),
                 // Valid result, immediately return
-                res => break 'fd res.map_err(E::MemfdCreateError)?,
+                res => break 'fd res.map_err(E::MemfdCreateError)?.some(),
             }
 
             // NOEXEC_SEAL appears to be unsupported for memfd_create(2); fall back to not using it
@@ -460,27 +412,26 @@ impl SecretMemfdConfig {
             // fchmod(2) call if the executable bit is already set to the right value.
 
             // We are finished!
-            break 'fd fd;
+            break 'fd fd.some();
         };
 
-        // Wrap into MappableFd with the correct configuration
-        MappableFd::new(fd, self.map_fd_config()?).ok()
+        // Wrap into Mappable with the correct configuration
+        Mappable::new(fd, self.map_fd_config()?).ok()
     }
 
-    /// Infers the correct [MapFdConfig] for this [SecretMemfdConfig]
+    /// Infers the correct [MappingConfig] for this [SecretMemfdConfig]
     /// on the current operating system.
     ///
     /// This incorporates information such as:
     ///
     /// - Is the [SecretMemfdUsage::shared_memory] flag set?
     /// - Are memfd_create(2) or memfd_secret(2) used?
-    /// - Does memfd_secret(2) support resizing protection?
-    pub fn map_fd_config(&self) -> Result<MapFdConfig, SecretMemfdConfigValidationError> {
+    pub fn map_fd_config(&self) -> Result<MappingConfig, SecretMemfdConfigValidationError> {
         use SecretMemfdConfigValidationError as E;
 
         self.validate_config()?;
 
-        let cfg = MapFdConfig::new();
+        let cfg = MappingConfig::new();
 
         let mech = self.mechanism().map_err(E::FailedToDetectSupport)?;
         let mfds_use = matches!(mech, SecretMemfdMechanism::MemfdSecret);
@@ -489,30 +440,13 @@ impl SecretMemfdConfig {
         //
         // The shared flag is also set unconditionally for memfd_secret(2) file descriptors:
         // the kernel rejects MAP_PRIVATE mappings of memfd_secret(2) file descriptors with
-        // EINVAL (see [super::mmap::MapFdConfig::shared]); for a file descriptor no other
+        // EINVAL (see [super::mmap::MappingConfig::shared]); for a file descriptor no other
         // process holds, a shared mapping is semantically private
         let cfg = match self.usage.shared_memory || mfds_use {
             false => cfg,
             true => cfg.set_shared(),
         };
 
-        // If necessary, disable protection against resizing (if not supported)
-        let mfds_prot_resize =
-            memfd_secret_protects_against_resizing().map_err(E::FailedToDetectSupport)?;
-        let cfg = match mfds_use && !mfds_prot_resize {
-            false => cfg,
-            true => cfg.disable_resizing_protection(),
-        };
-
         Ok(cfg)
     }
-}
-
-/// Create a secret memory file descriptor using the default policy
-///
-/// Shorthand for
-/// [`SecretMemfdConfig::new()`] followed by [`SecretMemfdConfig::create()`]
-pub fn memfd_for_secrets_with_default_policy()
--> Result<MappableFd<OwnedFd>, SecretMemfdWithConfigError> {
-    SecretMemfdConfig::new().create()
 }

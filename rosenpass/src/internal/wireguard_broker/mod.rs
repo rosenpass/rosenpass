@@ -19,7 +19,6 @@
 //! # use std::error::Error;
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! # rosenpass::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
 //! # let interface = "wg0";
 //! # let peer_id = Public::<WG_PEER_LEN>::zero();
 //! # let psk = Secret::<WG_KEY_LEN>::zero();

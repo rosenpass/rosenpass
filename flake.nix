@@ -36,9 +36,28 @@
     nixpkgs.lib.foldl (a: b: nixpkgs.lib.recursiveUpdate a b) { } [
 
       #
-      ### Export the overlay.nix from this flake ###
+      ### Export the packages with the pinned project toolchain ###
       #
-      { overlays.default = import ./overlay.nix; }
+      {
+        overlays.default = nixpkgs.lib.composeManyExtensions [
+          rust-overlay.overlays.default
+          (import ./overlay.nix)
+          (
+            final: prev:
+            let
+              rustPlatform = final.makeRustPlatform {
+                cargo = final.buildPackages.rosenpass-rust-toolchain;
+                rustc = final.buildPackages.rosenpass-rust-toolchain;
+              };
+            in
+            {
+              rosenpass-rust-toolchain = final.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+              rosenpass = prev.rosenpass.override { inherit rustPlatform; };
+              rp = prev.rp.override { inherit rustPlatform; };
+            }
+          )
+        ];
+      }
 
       #
       ### Actual Rosenpass Package and Docker Container Images ###
@@ -109,9 +128,6 @@
                 self.overlays.default
 
                 nix-vm-test.overlays.default
-
-                # apply rust-overlay to get specific versions of the rust toolchain for a MSRV check
-                (import rust-overlay)
               ];
             };
 
@@ -125,12 +141,10 @@
                 cargo-nextest
                 cargo-release
                 cargo-vet
-                rustfmt
                 prettier
                 proverif-patched
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
-                pkgs.rust-bin.stable.latest.complete
               ];
             };
             treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
@@ -166,18 +180,16 @@
                 nativeBuildInputs = [
                   pkgs.cargo-llvm-cov
                   pkgs.grcov
-                  pkgs.rustc.llvmPackages.llvm
                 ];
                 env = {
-                  inherit (pkgs.cargo-llvm-cov) LLVM_COV LLVM_PROFDATA;
+                  LLVM_COV = "${pkgs.rosenpass-rust-toolchain}/lib/rustlib/${pkgs.stdenv.buildPlatform.rust.rustcTarget}/bin/llvm-cov";
+                  LLVM_PROFDATA = "${pkgs.rosenpass-rust-toolchain}/lib/rustlib/${pkgs.stdenv.buildPlatform.rust.rustcTarget}/bin/llvm-profdata";
                 };
               };
               benchmarks = pkgs.mkShell {
                 inputsFrom = [ pkgs.rosenpass ];
                 nativeBuildInputs = with pkgs; [
                   cargo-release
-                  clippy
-                  rustfmt
                 ];
               };
               # a devshell to hunt unsafe `unsafe` in the code
@@ -222,11 +234,19 @@
                 systemd-rosenpass = pkgs.testers.runNixOSTest ./tests/systemd/rosenpass.nix;
                 systemd-rp = pkgs.testers.runNixOSTest ./tests/systemd/rp.nix;
                 formatting = treefmtEval.config.build.check self;
+                # PLACEHOLDER: until stable Rust 1.100.0 is released
+                # (expected 2026-11-12), the fallback below resolves to the
+                # pinned beta toolchain, so this check builds the normal
+                # beta package and provides no MSRV signal.
                 rosenpass-msrv-check =
                   let
                     rosenpassCargoToml = pkgs.lib.trivial.importTOML ./rosenpass/Cargo.toml;
 
-                    rustToolchain = pkgs.rust-bin.stable.${rosenpassCargoToml.package.rust-version}.default;
+                    msrv = rosenpassCargoToml.package.rust-version;
+                    # Use the matching beta until this MSRV is released on stable.
+                    rustToolchain =
+                      pkgs.rust-bin.stable.${msrv}.default
+                        or (builtins.warn "rosenpass-msrv-check: no stable Rust ${msrv} exists yet; falling back to the pinned project toolchain (${pkgs.rosenpass-rust-toolchain.version}), so this check is a placeholder with no MSRV signal" pkgs.rosenpass-rust-toolchain);
                     rustPlatform = pkgs.makeRustPlatform {
                       cargo = rustToolchain;
                       rustc = rustToolchain;

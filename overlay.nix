@@ -1,8 +1,12 @@
-final: prev: {
+final: prev:
 
-  #
-  ### Actual rosenpass software ###
-  #
+#
+### Actual rosenpass software ###
+#
+# This overlay only declares the packages. Consumers must supply a `rustPlatform`
+# meeting `rosenpass/Cargo.toml`'s `rust-version`; this flake's `overlays.default`
+# composes this file with rust-overlay and the pinned project toolchain.
+{
   rosenpass = final.callPackage ./pkgs/rosenpass.nix { };
   rosenpass-oci-image = final.callPackage ./pkgs/rosenpass-oci-image.nix { };
   rp = final.callPackage ./pkgs/rosenpass.nix { package = "rp"; };

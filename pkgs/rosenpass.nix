@@ -1,5 +1,6 @@
 {
   lib,
+  buildPackages,
   stdenv,
   rustPlatform,
   cmake,
@@ -97,7 +98,7 @@ rustPlatform.buildRustPackage {
     cmake # for oqs build in the oqs-sys crate
     mandoc # for the built-in manual
     removeReferencesTo
-    rustPlatform.bindgenHook # for C-bindings in the crypto libs
+    buildPackages.rustPlatform.bindgenHook # for C-bindings in the crypto libs
   ];
   buildInputs = [ bash ];
 

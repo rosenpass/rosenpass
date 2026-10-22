@@ -2,19 +2,12 @@ use std::{fs, process::exit};
 
 use rosenpass::internal::util::tokio::janitor::ensure_janitor;
 
-use rosenpass::internal::secret_memory::policy;
-
 use crate::cli::{Cli, Command};
 use crate::exchange::{ExchangeOptions, exchange};
 use crate::key::{genkey, pubkey};
 
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
-    #[cfg(feature = "experiment_memfd_secret")]
-    policy::secret_policy_try_use_memfd_secrets();
-    #[cfg(not(feature = "experiment_memfd_secret"))]
-    policy::secret_policy_use_only_malloc_secrets();
-
     ensure_janitor(async move { main_impl().await }).await
 }
 

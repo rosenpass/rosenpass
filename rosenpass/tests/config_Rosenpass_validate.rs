@@ -5,8 +5,6 @@ use rosenpass::{cli::generate_and_save_keypair, config::Rosenpass};
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn example_config_rosenpass_validate() -> anyhow::Result<()> {
-    rosenpass::internal::secret_memory::policy::secret_policy_use_only_malloc_secrets();
-
     let tmpdir = tempfile::tempdir()?;
 
     // Empty validates OK

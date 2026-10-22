@@ -119,7 +119,6 @@ mod tests {
     use std::fs;
 
     use rosenpass::internal::secret_memory::Secret;
-    use rosenpass::internal::secret_memory::secret_policy_try_use_memfd_secrets;
     use rosenpass::internal::util::file::LoadValue;
     use rosenpass::internal::util::file::LoadValueB64;
     use rosenpass::protocol::basic_types::{SPk, SSk};
@@ -130,7 +129,6 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)] // Miri does not support calls to mmap with protections other than PROT_READ|PROT_WRITE
     fn test_key_loopback() {
-        secret_policy_try_use_memfd_secrets();
         let private_keys_dir = tempdir().unwrap();
         fs::remove_dir(private_keys_dir.path()).unwrap();
 

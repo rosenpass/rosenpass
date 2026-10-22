@@ -12,8 +12,6 @@
 //! use rosenpass::internal::secret_memory::{Public, Secret};
 //! use rosenpass::internal::wireguard_broker::{WireGuardBroker, SerializedBrokerConfig, WG_KEY_LEN, WG_PEER_LEN};
 //! use rosenpass::internal::wireguard_broker::brokers::netlink::NetlinkWireGuardBroker;
-//! # use rosenpass::internal::secret_memory::secret_policy_use_only_malloc_secrets;
-//! # secret_policy_use_only_malloc_secrets();
 //!
 //! let mut broker = NetlinkWireGuardBroker::new()?;
 //!
@@ -195,10 +193,9 @@ impl WireGuardBroker for NetlinkWireGuardBroker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::internal::secret_memory::{Public, Secret, secret_policy_try_use_memfd_secrets};
+    use crate::internal::secret_memory::{Public, Secret};
     #[test]
     fn smoke_test() -> Result<(), Box<dyn std::error::Error>> {
-        secret_policy_try_use_memfd_secrets();
         let result = NetlinkWireGuardBroker::new();
         assert!(result.is_ok());
         let mut broker = result.unwrap();
