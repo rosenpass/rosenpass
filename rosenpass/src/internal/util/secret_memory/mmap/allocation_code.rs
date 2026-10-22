@@ -18,7 +18,16 @@ use rustix::io::Errno;
 use super::MemfdCreateSealError;
 
 use crate::internal::util::{
-    convert::TryIntoTypeExt, int::u64uint::MAX_U64_IN_USIZE, mem::{CopyExt, DiscardResultExt}, option::SomeExt, result::OkExt, rustix::{HUGETLBFS_AVAILABLE_ON_PLATFORM, MEMFD_SECRET_AVAILABLE_ON_PLATFORM, StatFsExt, TryStatExt, TryStatFsExt}, secret_memory::mmap::{
+    convert::TryIntoTypeExt,
+    int::u64uint::MAX_U64_IN_USIZE,
+    mem::{CopyExt, DiscardResultExt},
+    option::SomeExt,
+    result::OkExt,
+    rustix::{
+        HUGETLBFS_AVAILABLE_ON_PLATFORM, MEMFD_SECRET_AVAILABLE_ON_PLATFORM, StatFsExt, TryStatExt,
+        TryStatFsExt,
+    },
+    secret_memory::mmap::{
         MMapError, MMapInvalidConfigError, MMapSizePolicy, Mappable, MappedSegment, MappingConfig,
         RawMappedSegment,
     },
@@ -240,7 +249,7 @@ impl<'fd> AllocationCode<'fd> {
     /// Platform-specific implementation of [Self::madvise()]
     #[cfg(target_os = "linux")]
     fn madvise_linux(&mut self) -> Result<(), MMapError> {
-        use rustix::mm::{madvise, Advice};
+        use rustix::mm::{Advice, madvise};
 
         use Advice::{LinuxDontDump as ADump, LinuxDontFork as AFork};
         use MMapError::{
@@ -405,7 +414,7 @@ impl<'fd> AllocationCode<'fd> {
     ///   mapping was just created by us and no other handle refers to it, so it
     ///   is exclusively owned.
     fn allocate_guard_page(&mut self) -> Result<&mut MappedSegment, MMapError> {
-        use rustix::mm::{mmap_anonymous, MapFlags, ProtFlags};
+        use rustix::mm::{MapFlags, ProtFlags, mmap_anonymous};
 
         if self.segment.segment_mut().is_some() {
             return Ok(self.segment.segment_mut().unwrap());
