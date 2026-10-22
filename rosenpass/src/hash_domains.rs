@@ -123,7 +123,7 @@ hash_domain_ns!(
     ///
     /// # Examples
     ///
-    /// See the source of [crate::msgs::Envelope::seal] and [crate::msgs::Envelope::check_seal] 
+    /// See the source of [crate::msgs::Envelope::seal] and [crate::msgs::Envelope::check_seal]
     /// to figure out how this is concretely used.
     ///
     /// See the [module](self) documentation on how to use the hash domains in general.
@@ -131,7 +131,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, mac, "mac");
+    protocol,
+    mac,
+    "mac"
+);
 hash_domain_ns!(
     /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
     ///
@@ -147,7 +150,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, cookie, "cookie");
+    protocol,
+    cookie,
+    "cookie"
+);
 hash_domain_ns!(
     /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
     ///
@@ -163,7 +169,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, cookie_value, "cookie-value");
+    protocol,
+    cookie_value,
+    "cookie-value"
+);
 hash_domain_ns!(
     /// Hash domain based on [protocol] involved in calculating [crate::msgs::Envelope::cookie].
     ///
@@ -179,7 +188,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, cookie_key, "cookie-key");
+    protocol,
+    cookie_key,
+    "cookie-key"
+);
 hash_domain_ns!(
     /// Hash domain based on [protocol] for calculating the peer id as transmitted (encrypted)
     /// in [crate::msgs::InitHello::pidi_ct].
@@ -195,7 +207,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, peerid, "peer id");
+    protocol,
+    peerid,
+    "peer id"
+);
 hash_domain_ns!(
     /// Hash domain based on [protocol] for calculating the additional data
     /// during [crate::msgs::Biscuit] encryption, storing the biscuit into
@@ -212,10 +227,13 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, biscuit_ad, "biscuit additional data");
+    protocol,
+    biscuit_ad,
+    "biscuit additional data"
+);
 hash_domain_ns!(
     /// This hash domain begins our actual handshake procedure, initializing the
-    /// chaining key [crate::protocol::HandshakeState::ck]. 
+    /// chaining key [crate::protocol::HandshakeState::ck].
     ///
     /// # Examples
     ///
@@ -228,7 +246,10 @@ hash_domain_ns!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, ckinit, "chaining key init");
+    protocol,
+    ckinit,
+    "chaining key init"
+);
 hash_domain_ns!(
     /// Namespace for chaining key usage domain separators.
     ///
@@ -251,7 +272,10 @@ hash_domain_ns!(
     /// # Parameters
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    protocol, _ckextract, "chaining key extract");
+    protocol,
+    _ckextract,
+    "chaining key extract"
+);
 
 hash_domain!(
     /// Used to mix in further values into the chaining key during the handshake.
@@ -269,7 +293,10 @@ hash_domain!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    _ckextract, mix, "mix");
+    _ckextract,
+    mix,
+    "mix"
+);
 hash_domain!(
     /// Chaining key domain separator for generating encryption keys that can
     /// encrypt parts of the handshake.
@@ -292,7 +319,10 @@ hash_domain!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    _ckextract, hs_enc, "handshake encryption");
+    _ckextract,
+    hs_enc,
+    "handshake encryption"
+);
 hash_domain!(
     /// Chaining key domain separator for live data encryption.
     /// Live data encryption is only used to send confirmation of handshake
@@ -313,7 +343,10 @@ hash_domain!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    _ckextract, ini_enc, "initiator handshake encryption");
+    _ckextract,
+    ini_enc,
+    "initiator handshake encryption"
+);
 hash_domain!(
     /// Chaining key domain separator for live data encryption.
     /// Live data encryption is only used to send confirmation of handshake
@@ -335,7 +368,10 @@ hash_domain!(
     /// Parameters:
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    _ckextract, res_enc, "responder handshake encryption");
+    _ckextract,
+    res_enc,
+    "responder handshake encryption"
+);
 
 hash_domain_ns!(
     /// Chaining key domain separator for any usage specific purposes.
@@ -352,7 +388,10 @@ hash_domain_ns!(
     /// # Parameters
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    _ckextract, cke_user, "user");
+    _ckextract,
+    cke_user,
+    "user"
+);
 hash_domain_ns!(
     /// Chaining key domain separator for any rosenpass specific purposes.
     ///
@@ -365,7 +404,10 @@ hash_domain_ns!(
     /// # Parameters
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    cke_user, cke_user_rosenpass, "rosenpass.eu");
+    cke_user,
+    cke_user_rosenpass,
+    "rosenpass.eu"
+);
 hash_domain!(
     /// Chaining key domain separator for deriving the key sent to WireGuard.
     ///
@@ -381,61 +423,97 @@ hash_domain!(
     /// # Parameters
     /// - `hash_choice`: the hash function chosen for the protocol, see type `KeyedHash` for valid values
     /// - `ekem_choice`: the ephemeral KEM chosen for the protocol, see type `EphemeralKem` for valid values"
-    cke_user_rosenpass, ext_wireguard_psk_osk, "wireguard psk");
+    cke_user_rosenpass,
+    ext_wireguard_psk_osk,
+    "wireguard psk"
+);
 
 hash_domain_ns!(
     /// domain for the protocol context (`ctx`) mixed into the chaining key
     /// at protocol steps IHI7/IHR7
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    protocol, context, "context");
+    protocol,
+    context,
+    "context"
+);
 hash_domain_ns!(
     /// domain for the protocol context (without "output")
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    context, protocol_context, "protocol context");
+    context,
+    protocol_context,
+    "protocol context"
+);
 hash_domain_ns!(
     /// domain for the protocol context (with "output")
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    protocol_context, protocol_context_output, "output");
+    protocol_context,
+    protocol_context_output,
+    "output"
+);
 hash_domain_ns!(
     /// domain for the mutual protocol context token `ctxc`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    protocol_context, protocol_context_common, "common");
+    protocol_context,
+    protocol_context_common,
+    "common"
+);
 hash_domain_ns!(
     /// domain for the initiator's protocol context token `ctxi`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    protocol_context, protocol_context_initiator, "initiator");
+    protocol_context,
+    protocol_context_initiator,
+    "initiator"
+);
 hash_domain_ns!(
     /// domain for the responder's protocol context token `ctxr`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    protocol_context, protocol_context_responder, "responder");
+    protocol_context,
+    protocol_context_responder,
+    "responder"
+);
 hash_domain_ns!(
     /// domain for additional data mixed into the protocol context.
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    context, additional_data, "additional data");
+    context,
+    additional_data,
+    "additional data"
+);
 hash_domain_ns!(
     /// domain for user-specified additional data
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    additional_data, additional_data_user, "user");
+    additional_data,
+    additional_data_user,
+    "user"
+);
 hash_domain_ns!(
     /// domain for the mutual user additional data `adc`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    additional_data_user, additional_data_user_common, "common");
+    additional_data_user,
+    additional_data_user_common,
+    "common"
+);
 hash_domain_ns!(
     /// domain for the initiator's user additional data `adi`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    additional_data_user, additional_data_user_initiator, "initiator");
+    additional_data_user,
+    additional_data_user_initiator,
+    "initiator"
+);
 hash_domain_ns!(
     /// domain for the responder's user additional data `adr`
     ///
     /// used in [`crate::protocol::protocol_context::PeerProtocolContext`]
-    additional_data_user, additional_data_user_responder, "responder");
+    additional_data_user,
+    additional_data_user_responder,
+    "responder"
+);

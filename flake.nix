@@ -245,11 +245,8 @@
                     msrv = rosenpassCargoToml.package.rust-version;
                     # Use the matching beta until this MSRV is released on stable.
                     rustToolchain =
-                      pkgs.rust-bin.stable.${msrv}.default or (
-                        builtins.warn
-                          "rosenpass-msrv-check: no stable Rust ${msrv} exists yet; falling back to the pinned project toolchain (${pkgs.rosenpass-rust-toolchain.version}), so this check is a placeholder with no MSRV signal"
-                          pkgs.rosenpass-rust-toolchain
-                      );
+                      pkgs.rust-bin.stable.${msrv}.default
+                        or (builtins.warn "rosenpass-msrv-check: no stable Rust ${msrv} exists yet; falling back to the pinned project toolchain (${pkgs.rosenpass-rust-toolchain.version}), so this check is a placeholder with no MSRV signal" pkgs.rosenpass-rust-toolchain);
                     rustPlatform = pkgs.makeRustPlatform {
                       cargo = rustToolchain;
                       rustc = rustToolchain;
