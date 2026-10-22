@@ -146,18 +146,18 @@ impl AllocatorSegment {
             .with_config(config)
             .mmap()
             .map_err(log_alloc_err)?
-            .apply(Self::from_mapped_segment);
+            .apply(Self::Mapped)
+            // Must not read the sentinel data for verification in the destructor
+            // before it has been initialized by [Self::write_sentinel()].
+            // Also: The allocation validation asserts below are defense in depth;
+            // if they would actually cause a panic, we should assume there is something
+            // seriously wrong with the allocation and probably not try to free it.
+            .apply(ManuallyDrop::new);
 
         me.validate_allocation_layout(layout);
         me.write_sentinel();
 
-        Ok(me)
-    }
-
-    fn from_mapped_segment(mapped_segment: MappedSegment) -> Self {
-        let me = Self::Mapped(mapped_segment);
-        me.validate_memory_layout();
-        me
+        Ok(ManuallyDrop::into_inner(me))
     }
 
     /// Reconstructs the owning segment for an allocation handed out through
@@ -196,11 +196,11 @@ impl AllocatorSegment {
             len,
         };
         let seg = unsafe { MappedSegment::from_raw(seg) };
-        let seg = Self::from_mapped_segment(seg);
+        let seg = ManuallyDrop::new(Self::Mapped(seg));
 
         seg.validate_allocation_layout(layout);
 
-        seg
+        ManuallyDrop::into_inner(seg)
     }
 
     fn into_alloc_ptr(self) -> std::ptr::NonNull<[u8]> {
@@ -209,12 +209,6 @@ impl AllocatorSegment {
     }
 
     fn validate_allocation_layout(&self, layout: std::alloc::Layout) {
-        assert!(matches!(self, Self::Mapped(_)) && self.data_start().is_multiple_of(page_size()));
-        assert_eq!(self.data_len(), layout.size());
-        assert!(self.data_start().is_multiple_of(layout.align()));
-    }
-
-    fn validate_memory_layout(&self) {
         let guard_len = match self {
             Self::Mapped(_) => page_size(),
             Self::ZeroSized(_) => 0,
@@ -222,6 +216,9 @@ impl AllocatorSegment {
         assert_eq!(self.front_guard_len(), guard_len);
         assert_eq!(self.back_guard_len(), guard_len);
         assert!(self.sentinel_len() < page_size());
+        assert!(matches!(self, Self::Mapped(_)) && self.data_start().is_multiple_of(page_size()));
+        assert_eq!(self.data_len(), layout.size());
+        assert!(self.data_start().is_multiple_of(layout.align()));
     }
 
     fn write_sentinel(&mut self) {
