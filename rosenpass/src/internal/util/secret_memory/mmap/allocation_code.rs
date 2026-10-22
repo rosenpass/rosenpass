@@ -316,7 +316,7 @@ impl<'fd> AllocationCode<'fd> {
             && !flags.contains(MapFlags::SHARED)
             && self.is_memfd_secret()?;
         if bug_detected {
-            return Err(MMapError::MMapError(Errno::INVAL));
+            return Err(MMapError::MapFailed(Errno::INVAL));
         }
 
         let segment = ManuallyDrop::new(self.segment.take_segment().unwrap());
@@ -345,7 +345,7 @@ impl<'fd> AllocationCode<'fd> {
             Err(err @ (E::BADF | E::INVAL | E::NOTSUP)) => {
                 self.segment
                     .insert_guard_page(ManuallyDrop::into_inner(segment));
-                return Err(MMapError::MMapError(err));
+                return Err(MMapError::MapFailed(err));
             }
 
             // So on a different error, we do not know whether the pages are present or where
@@ -383,7 +383,7 @@ impl<'fd> AllocationCode<'fd> {
                   May leak up to: {leak} bytes of address space without consuming any real memory.")
         }
 
-        Err(MMapError::MMapError(err))
+        Err(MMapError::MapFailed(err))
     }
 
     /// Allocate guard pages and prepare the memory region for the actual allocation.
@@ -415,7 +415,7 @@ impl<'fd> AllocationCode<'fd> {
             // PROT_NONE, MAP_PRIVATE
             let (prot, flags) = (ProtFlags::empty(), MapFlags::PRIVATE);
             let ptr = mmap_anonymous(null_mut(), self.alloc_len()?, prot, flags)
-                .map_err(MMapError::MMapError)?;
+                .map_err(MMapError::MapFailed)?;
             MappedSegment {
                 inner: RawMappedSegment {
                     alloc_ptr: ptr,

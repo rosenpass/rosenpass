@@ -152,7 +152,7 @@ pub enum MemfdCreateSealError {
     /// The file descriptor is already sealed against adding further seals while
     /// still missing seals we need to add
     #[error(
-        "Tried to seal the underlying file descriptor against being grown/shrunken, but the file descriptor already carried FSEAL_SEAL, so the seals could not be added."
+        "Tried to seal the underlying file descriptor against being grown/shrunken, but the file descriptor already carried F_SEAL_SEAL, so the seals could not be added."
     )]
     PresealedWithMissingSeals,
     /// The file descriptor was resized while it was being sealed against resizing
@@ -190,9 +190,10 @@ pub enum MMapError {
     InvalidConfig(#[from] MMapInvalidConfigError),
     /// Allocation requested is too big
     #[error("Requested memory map of size {requested_len} but maximum supported size is {max_supported_len}. \
-        This is a low level error that usually arises on architectures where the integer type usize ({} bytes) can not \
-        represent all values in u64 ({} bytes). Are you possibly on a 32-bit CPU architecture requesting a buffer bigger than 4 GB?",
-        (usize::BITS as f64)/8f64, (u64::BITS as f64)/8f64
+        This is a low level error that arises when the requested size, including guard pages, can not be \
+        represented by the platform's usize type ({} bytes wide here; sizes are configured as u64, {} bytes wide). \
+        The request exceeds what this platform can address.",
+        usize::BITS / 8, u64::BITS / 8
     )]
     OutOfBounds {
         /// The size of the memory map requested
@@ -235,16 +236,16 @@ pub enum MMapError {
         size: i64,
     },
     /// ftruncate(2) system call failed
-    #[error("Tried to resize the underlying file descriptor, but failed: {:?}", .0)]
+    #[error("Tried to resize the underlying file descriptor, but failed: {}", .0)]
     ResizeError(rustix::io::Errno),
     /// mmap(2) system call failed
-    #[error("Tried to map file descriptor into memory, but mmap(2) system call failed: {:?}", .0)]
-    MMapError(rustix::io::Errno),
+    #[error("Tried to map file descriptor into memory, but mmap(2) system call failed: {}", .0)]
+    MapFailed(rustix::io::Errno),
     /// mlock(2) system call failed
     ///
     /// mlock(2) counts against the RLIMIT_MEMLOCK resource limit; see
     /// [Mappable::mmap] for deployment notes
-    #[error("Tried to lock the file-descriptor based allocation into memory, but the mlock(2) system call failed: {}", .0)]
+    #[error("Tried to lock the allocated memory region into memory, but the mlock(2) system call failed: {}", .0)]
     MLockError(rustix::io::Errno),
     /// Sealing the file descriptor against resizing failed; see [MemfdCreateSealError]
     #[error(
