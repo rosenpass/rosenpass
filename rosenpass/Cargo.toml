@@ -204,7 +204,9 @@ memsec = { version = "0.7.0", default-features = false }
 # dependencies of `rosenpass-wireguard-broker`, now moved to `rosenpass::internal::wireguard_broker`
 # Only used by the netlink broker (brokers/netlink.rs), which is built only with
 # `experiment_api` on Linux, hence optional.
-wireguard-uapi = { version = "3.0.0", features = ["xplatform"], optional = true }
+wireguard-uapi = { version = "3.0.0", features = [
+  "xplatform",
+], optional = true }
 postcard = { version = "1.1.1", default-features = false, features = [
   "alloc",
 ] } # Socket handler only
