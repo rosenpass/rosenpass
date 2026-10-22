@@ -327,7 +327,6 @@ impl<'fd> AllocationCode<'fd> {
         // excluding both guards. No Rust references to this middle exist yet.
         let res = unsafe { mmap_maybe_anon(ptr, len, self.mmap_prot(), flags, self.fd(), 0) };
 
-        use Errno as E;
         let err = match res {
             // Everything good. Store the segment, now a data segment and return a reference to it.
             Ok(_) => {
@@ -336,22 +335,19 @@ impl<'fd> AllocationCode<'fd> {
                     .insert_data_page(ManuallyDrop::into_inner(segment));
                 return Ok(seg);
             }
-            // mmap(3p) (POSIX.1-2024) specifies that mmap is allowed to unmap the pages
-            // we are overwriting, but only on errnos other than these three, so for these
-            // three it is safe to just reuse the guard page
-            // Restoring Drop relies on the implementation honoring this preservation
-            // rule. The local check excludes the known private-secretmem EINVAL bug,
-            // but does not establish preservation for arbitrary file mmap callbacks.
-            Err(err @ (E::BADF | E::INVAL | E::NOTSUP)) => {
-                self.segment
-                    .insert_guard_page(ManuallyDrop::into_inner(segment));
-                return Err(MMapError::MapFailed(err));
-            }
 
-            // So on a different error, we do not know whether the pages are present or where
-            // unmapped; this requires some complicated logic because we have to handle different
-            // parts of the allocation in different ways.
-            Err(err) => err, // handled below */
+            // Every MAP_FIXED failure takes the conservative path below; the
+            // reservation is never re-inserted on any error.
+            //
+            // mmap(3p) (POSIX.1-2024) specifies that mmap is allowed to unmap
+            // the pages being replaced only on errnos other than EBADF,
+            // EINVAL and ENOTSUP; on those three the target is supposed to be
+            // preserved, which would nominally make it safe to keep using the
+            // reservation as a guard page.
+            //
+            // In practice, linux appears to violate this guarantee so we can
+            // not trust it.
+            Err(err) => err, // handled below
         };
 
         // Only the guards are still known to be ours. Do not probe or unmap the
