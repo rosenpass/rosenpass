@@ -147,7 +147,7 @@ pub struct CryptoServer {
 }
 
 /// Specifies the protocol version used by a peer.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProtocolVersion {
     V02,
     V03,

@@ -1154,8 +1154,6 @@ pub mod util {
 
     #[cfg(test)]
     mod test {
-        use std::str::FromStr;
-
         use super::*;
         #[test]
         fn test_resolve_path_with_tilde() {

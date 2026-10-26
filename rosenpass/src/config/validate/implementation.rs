@@ -1,7 +1,5 @@
 //! contains the implementation of [`RosenpassConfig::validate`]
 
-use crate::config::FlatDeviceManagedByChoice;
-
 use super::{
     RosenpassConfig, ValidationRecipe,
     error::{Error, Issue, Warning},
@@ -36,16 +34,6 @@ impl RosenpassConfig {
         // TODO: check algorithm choices
         // ============================== [[device]] ==============================
         for device in self.wireguard_devices.iter() {
-            // wg binary
-            if let Some(wg_path) = device.path_to_wg_binary.as_ref() {
-                if recipe.check_whether_files_exist && !wg_path.is_file() {
-                    errors.push(Error::DevicesWireguardBinaryDoesNotExist(device.name.clone(), wg_path.clone()));
-                }
-                // TODO: check whether executable
-                else if recipe.check_whether_external_binaries_behave && !wg_path.behaves_like_wg_binary() {
-                    errors.push(Error::DevicesWireguardBinaryMisbehaves(device.name.clone(), wg_path.clone()));
-                }
-            }
             // managed by rosenpass
             match &device.wireguard_keypair_if_managed_by_rosenpass {
                 None => {
@@ -137,19 +125,6 @@ impl RosenpassConfig {
                     }
                     else {
                         warnings.push(Warning::DisabledPeerUsesUndefinedDevice(peer.name.clone(), wireguard.device_name.clone()));
-                    }
-                }
-                // wg binary
-                if let Some(wg_binary) = wireguard.wg_binary_path.as_ref()  {
-                    if recipe.check_whether_files_exist && !wg_binary.is_file() {
-                            errors.push(Error::PeersWireguardBinaryDoesNotExist(peer.name.clone(), wg_binary.clone()))
-                    }
-                    // TODO:
-                    // else if recipe.check_file_permissions && !wg_binary.is_executable() {
-                    //     errors.push(Error::PeersWireguardBinaryIsNotExecutable(peer.name, wg_binary.clone()));
-                    // }
-                    else if recipe.check_whether_external_binaries_behave && !wg_binary.behaves_like_wg_binary() {
-                        errors.push(Error::PeersWireguardBinaryMisbehaves(peer.name.clone(), wg_binary.clone()));
                     }
                 }
                 // TODO: if managed by rosenpass

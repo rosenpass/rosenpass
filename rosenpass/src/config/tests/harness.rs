@@ -23,8 +23,9 @@ use toml_edit::DocumentMut;
 /// - initializes secret memory policy
 /// - prints the current working directory to output (for debugging if test fails)
 fn init() -> Result<(), anyhow::Error> {
-    println!("initializing secret memory allocator...");
-    crate::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
+    // TODO: initialize secret memory?
+    // println!("initializing secret memory allocator...");
+    // crate::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
 
     let cwd = current_dir()?;
     println!("current working directory: {cwd:?}");
@@ -78,10 +79,10 @@ pub fn read_toml_mut(path: &Path) -> Result<(toml_edit::DocumentMut, PathBuf), a
 /// - returns the result from [`RosenpassConfig::parse_from_toml`] verbatim
 pub fn parse(
     document: toml_edit::Document<String>,
-    working_directory: &Path,
+    file_path: &Path,
 ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
     println!("parsing `RosenpassConfig` from `toml_edit::Document`...");
-    let data = RosenpassConfig::parse_from_toml(document, working_directory);
+    let data = RosenpassConfig::parse_from_toml(document, file_path);
     match &data {
         Ok(ok) => {
             println!("successfully parsed this config:");

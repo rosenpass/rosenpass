@@ -165,6 +165,9 @@ zeroize = "1.9"
 hex-literal = { version = "1.1.0", optional = true }
 hex = { version = "0.4.3", optional = true }
 heck = { version = "0.5.0", optional = true }
+toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
+tstr = "0.3.2"
+
 command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
 rustix = { version = "1.1.4", features = [
   "net",
@@ -226,7 +229,6 @@ ml-kem = { version = "0.3", default-features = false, features = ["zeroize"] }
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", optional = true }
-toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies] # from `rp`
 ctrlc = { version = "3.2", optional = true }

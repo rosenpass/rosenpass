@@ -44,7 +44,8 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         ],
         vec![],
     )?;
-    let (config, parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
+    let (config, parse_warnings) =
+        parse(config, &working_dir.join("tmp.toml")).expect("parser returned errors");
     assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
     assert!(parse_warnings.is_empty(), "parser returned warnings");
 
@@ -65,7 +66,8 @@ fn read_old_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         vec![],
         vec![],
     )?;
-    let (config, _parse_warnings) = parse(config, &working_dir).expect("parser returned errors");
+    let (config, _parse_warnings) =
+        parse(config, &working_dir.join("tmp.toml")).expect("parser returned errors");
     assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
 
     Ok(())
