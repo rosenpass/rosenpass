@@ -7,6 +7,8 @@ use crate::protocol::ProtocolVersion;
 use std::str::FromStr;
 use std::{collections::HashSet, path::Path};
 use toml_edit::Table;
+#[cfg(feature = "experiment_api")]
+use util::get_as_opt_api_config;
 use util::{
     get_as_array, get_as_bool, get_as_opt_bool, get_as_opt_inline_table, get_as_opt_path_buf,
     get_as_opt_psk_source, get_as_opt_socket_addr, get_as_opt_u16, get_as_opt_verbosity_level,
@@ -67,6 +69,8 @@ impl RosenpassConfig {
             our_keypair: PqKeypairSource,
             supported_protocol_versions: HashSet<ProtocolVersion>,
             config_file_version: TomlConfigFileVersion,
+            #[cfg(feature = "experiment_api")]
+            api: ApiConfig,
         }
         let rosenpass_table = {
             let mut process_rosenpass_table =
@@ -123,7 +127,8 @@ impl RosenpassConfig {
                         errors,
                         get_as_opt_verbosity_level(raw, table, table.span(), "logging-level")
                     )
-                    .flatten();
+                    .flatten()
+                    .unwrap_or_default();
 
                     // our_keys
                     let our_keypair = process_results!(
@@ -151,16 +156,27 @@ impl RosenpassConfig {
                     .flatten()
                     .unwrap_or_default();
 
+                    // api config
+                    #[cfg(feature = "experiment_api")]
+                    let api_config = {
+                        get_as_opt_api_config(raw, table, table.span(), "api")
+                            .process_parse_result(&mut errors)
+                            .flatten()
+                            .unwrap_or_default()
+                    };
+
                     if !errors.is_empty() {
                         return Err(errors);
                     }
                     Ok(RosenpassTable {
                         our_listen_adresses: our_listen_address.expect("unreachable"),
-                        verbosity: verbosity.expect("unreachable"),
+                        verbosity,
                         our_keypair: our_keypair.expect("unreachable"),
                         supported_protocol_versions: supported_protocol_version
                             .expect("unreachable"),
                         config_file_version,
+                        #[cfg(feature = "experiment_api")]
+                        api: api_config,
                     })
                 };
             if let Some(rosenpass_table) = document.get("rosenpass").and_then(|v| v.as_table()) {
@@ -217,12 +233,12 @@ impl RosenpassConfig {
 
                                     // return
                                     errors.extend_from_slice(&inline_errors);
-                                    inline_errors.is_empty().then(|| {
+                                    inline_errors.is_empty().then_some(
                                         WgDeviceCreateOptions::Create {
                                             wg_listen_port,
                                             wg_fwmark,
-                                        }
-                                    })
+                                        },
+                                    )
                                 }
                             })
                             .flatten();
@@ -441,7 +457,7 @@ impl RosenpassConfig {
                     supported_protocol_versions: rosenpass_table.supported_protocol_versions,
 
                     #[cfg(feature = "experiment_api")]
-                    api: todo!(),
+                    api: rosenpass_table.api,
                     wireguard_devices,
                     peers,
 

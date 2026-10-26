@@ -1,4 +1,6 @@
 use super::errors::ParseError;
+#[cfg(feature = "experiment_api")]
+use crate::config::ApiConfig;
 use crate::{
     config::{
         KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, PresharedKeySource,
@@ -9,7 +11,7 @@ use crate::{
 };
 use log::LevelFilter;
 use serde::{Deserialize, de::value::StrDeserializer};
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, fmt::Display, path::PathBuf, str::FromStr};
 use toml_edit::InlineTable;
 use tstr::IsTStr;
 
@@ -62,9 +64,9 @@ impl<T> ProcessParseResult for Vec<Result<T, Vec<ParseError>>> {
     fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
         let errors = self
             .iter()
-            .filter_map(|x| x.as_ref().err().clone())
-            .map(|x| x.clone())
+            .filter_map(|x| x.as_ref().err())
             .flatten()
+            .cloned()
             .collect::<Vec<ParseError>>();
         error_list.extend_from_slice(&errors);
         if errors.is_empty() {
@@ -79,8 +81,8 @@ impl<T> ProcessParseResult for Vec<Result<T, ParseError>> {
     fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
         let errors = self
             .iter()
-            .filter_map(|x| x.as_ref().err().clone())
-            .map(|x| x.clone())
+            .filter_map(|x| x.as_ref().err())
+            .cloned()
             .collect::<Vec<ParseError>>();
         error_list.extend_from_slice(&errors);
         if errors.is_empty() {
@@ -123,8 +125,8 @@ pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
 
 /// converts a span from `toml_edit` into a line number and column number
 pub(crate) fn resolve_span(raw: &str, span: &std::ops::Range<usize>) -> Option<(usize, usize)> {
-    let foo = raw.get(0..span.start)?.split("\n").collect::<Vec<_>>();
-    Some((foo.len(), foo.last().unwrap().len() + 1))
+    let lines = raw.get(0..span.start)?.split("\n").collect::<Vec<_>>();
+    Some((lines.len(), lines.last().unwrap().len() + 1))
 }
 /// gets the value in `table` associated with `key` or returns an [`Err`] if the key does not exist within the table
 ///
@@ -136,13 +138,9 @@ fn get_item<'a, T: toml_edit::TableLike>(
     table_span: Option<&std::ops::Range<usize>>,
     key: &str,
 ) -> Result<&'a toml_edit::Item, ParseError> {
-    table.get(key).ok_or_else(|| {
-        ParseError::new(
-            raw,
-            table_span.map(|span| span.clone()),
-            format!("require key \"{key}\""),
-        )
-    })
+    table
+        .get(key)
+        .ok_or_else(|| ParseError::new(raw, table_span.cloned(), format!("require key \"{key}\"")))
 }
 macro_rules! getter_to_typename {
     (as_str) => {
@@ -230,6 +228,36 @@ get_as_type_generator!(
     |_: &str, _: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> { Ok(s.to_string()) }
 );
 
+fn i64_to_int<T: num_traits::PrimInt + Display>(
+    raw: &str,
+    span: Option<std::ops::Range<usize>>,
+    value: i64,
+) -> Result<T, Vec<ParseError>> {
+    if i128::from(value)
+        < T::min_value()
+            .to_i128()
+            .expect("can not transform integer to i128")
+    {
+        Err(vec![ParseError::new(
+            raw,
+            span,
+            format!("value out of bounds (minimum is {})", T::min_value()),
+        )])
+    } else if i128::from(value)
+        > T::max_value()
+            .to_i128()
+            .expect("can not transform integer to i128")
+    {
+        Err(vec![ParseError::new(
+            raw,
+            span,
+            format!("value out of bounds (maximum is {})", T::max_value()),
+        )])
+    } else {
+        Ok(T::from(value).expect("can not transform integer"))
+    }
+}
+
 // i64
 get_as_type_generator!(
     get_as_integer,
@@ -237,7 +265,7 @@ get_as_type_generator!(
     [],
     i64,
     as_integer,
-    |_: &str, _: &toml_edit::Item, i| -> Result<_, Vec<ParseError>> { Ok(i64::from(i)) }
+    |_: &str, _: &toml_edit::Item, i| -> Result<_, Vec<ParseError>> { Ok(i) }
 );
 
 // u64
@@ -247,16 +275,46 @@ get_as_type_generator!(
     [],
     u64,
     as_integer,
-    |raw: &str, item: &toml_edit::Item, i| {
-        if i < u64::MIN as _ {
-            Err(vec![ParseError::new(
-                raw,
-                item.span(),
-                format!("expected non-negative integer value"),
-            )])
-        } else {
-            Ok(i64::from(i) as u64)
+    |raw: &str, item: &toml_edit::Item, i| { i64_to_int(raw, item.span(), i) }
+);
+
+// Vec<i32>
+get_as_type_generator!(
+    get_as_vec_i32,
+    get_as_opt_vec_i32,
+    [],
+    Vec<i32>,
+    as_array,
+    |raw: &str, _item: &toml_edit::Item, array: &toml_edit::Array| {
+        let mut errors = Vec::new();
+        let array = array
+            .iter()
+            .map(|item| match item.as_integer() {
+                Some(integer) => Ok((integer, item.span())),
+                None => Err(ParseError::new(
+                    raw,
+                    item.span(),
+                    format!(
+                        "item has wrong data type, expected {}",
+                        getter_to_typename!(as_integer)
+                    ),
+                )),
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+        if !errors.is_empty() {
+            return Err(errors);
         }
+        let array = array
+            .unwrap()
+            .iter()
+            .map(|(integer, span)| i64_to_int(raw, span.clone(), *integer))
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(array.expect("unreachable"))
     }
 );
 
@@ -267,28 +325,7 @@ get_as_type_generator!(
     [],
     u16,
     as_integer,
-    |raw: &str, item: &toml_edit::Item, i| {
-        let mut errors = Vec::new();
-        if i < u16::MIN as _ {
-            errors.push(ParseError::new(
-                raw,
-                item.span(),
-                format!("expected non-negative integer value"),
-            ));
-        }
-        if i > u16::MAX as _ {
-            errors.push(ParseError::new(
-                raw,
-                item.span(),
-                format!("expected integer value not larger than {}", u16::MAX),
-            ));
-        }
-        if errors.is_empty() {
-            Ok(u16::try_from(i).expect("unreachable") as u16)
-        } else {
-            Err(errors)
-        }
-    }
+    |raw: &str, item: &toml_edit::Item, i| { i64_to_int(raw, item.span(), i) }
 );
 
 // bool
@@ -309,7 +346,8 @@ get_as_type_generator!(
     LevelFilter,
     as_str,
     |raw: &str, item: &toml_edit::Item, s: &str| {
-        if s == "info" {
+        const INFO: &str = "info";
+        if s == INFO {
             Ok(LevelFilter::Info)
         }
         // TODO: implement more
@@ -317,7 +355,7 @@ get_as_type_generator!(
             Err(vec![ParseError::new(
                 raw,
                 item.span(),
-                format!("invalid value for logging level, possible values: TODO"),
+                format!("invalid value for logging level, possible values: \"{INFO}\""),
             )])
         }
     }
@@ -341,10 +379,46 @@ get_as_type_generator!(
     get_as_path_buf,
     get_as_opt_path_buf,
     [],
-    std::path::PathBuf,
+    PathBuf,
     as_str,
     |_raw: &str, _item: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> {
-        Ok(std::path::PathBuf::from(s))
+        Ok(PathBuf::from(s))
+    }
+);
+
+// Vec<PathBuf>
+get_as_type_generator!(
+    get_as_vec_path_buf,
+    get_as_opt_vec_path_buf,
+    [],
+    Vec<PathBuf>,
+    as_array,
+    |raw: &str, _item: &toml_edit::Item, array: &toml_edit::Array| {
+        let mut errors = Vec::new();
+        let array = array
+            .iter()
+            .map(|x| {
+                x.as_str().ok_or_else(|| {
+                    ParseError::new(
+                        raw,
+                        x.span(),
+                        format!(
+                            "item has wrong data type, expected {}",
+                            getter_to_typename!(as_str)
+                        ),
+                    )
+                })
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(array
+            .unwrap()
+            .into_iter()
+            .map(PathBuf::from)
+            .collect::<Vec<_>>())
     }
 );
 
@@ -468,7 +542,7 @@ get_as_type_generator!(
             return Err(vec![ParseError::new(
                 raw,
                 item.span(),
-                format!("duplicate values in set of protocol versions"),
+                "duplicate values in set of protocol versions".to_string(),
             )]);
         }
 
@@ -510,18 +584,16 @@ get_as_type_generator!(
         let osk_labels = get_as_vec_string(raw, inline_table, inline_table.span(), LABELS)
             .process_parse_result(&mut errors);
 
-        deny_illegal_keys(raw, inline_table, vec![ORG, LABELS]);
+        deny_illegal_keys(raw, inline_table, vec![ORG, LABELS]).process_parse_result(&mut errors);
 
         // return
-        errors
-            .is_empty()
-            .then(|| {
-                Ok(RosenpassPeerOskDomainSeparator {
-                    osk_organization: organization,
-                    osk_label: osk_labels,
-                })
-            })
-            .unwrap_or_else(|| Err(errors))
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(RosenpassPeerOskDomainSeparator {
+            osk_organization: organization,
+            osk_label: osk_labels,
+        })
     }
 );
 
@@ -905,5 +977,40 @@ get_as_type_generator!(
                 format!("invalid config file version; supported values are \"{V1}\""),
             )])
         }
+    }
+);
+
+#[cfg(feature = "experiment_api")]
+get_as_type_generator!(
+    get_as_api_config,
+    get_as_opt_api_config,
+    [],
+    ApiConfig,
+    as_inline_table,
+    |raw: &str, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+
+        const LISTEN_PATH: &str = "listen-path";
+        const LISTEN_FD: &str = "listen-fd";
+        const STREAM_FD: &str = "stream-fd";
+
+        let listen_path = get_as_vec_path_buf(raw, table, table.span(), LISTEN_PATH)
+            .process_parse_result(&mut errors);
+        let listen_fd =
+            get_as_vec_i32(raw, table, table.span(), LISTEN_FD).process_parse_result(&mut errors);
+        let stream_fd =
+            get_as_vec_i32(raw, table, table.span(), LISTEN_FD).process_parse_result(&mut errors);
+
+        deny_illegal_keys(raw, table, vec![LISTEN_PATH, LISTEN_FD, STREAM_FD])
+            .process_parse_result(&mut errors);
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(ApiConfig {
+            listen_path: listen_path.expect("unreachable"),
+            listen_fd: listen_fd.expect("unreachable"),
+            stream_fd: stream_fd.expect("unreachable"),
+        })
     }
 );

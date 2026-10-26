@@ -1,4 +1,6 @@
 use super::parse_from_toml::ParseWarning as TomlParseWarning;
+#[cfg(feature = "experiment_api")]
+pub use crate::api::config::ApiConfig;
 use crate::{
     oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
     protocol::ProtocolVersion,
@@ -36,7 +38,7 @@ pub struct RosenpassConfig {
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
-    pub api: crate::api::config::ApiConfig,
+    pub api: ApiConfig,
 
     pub wireguard_devices: Vec<WgDeviceConfig>,
     pub peers: Vec<PeerConfig>,

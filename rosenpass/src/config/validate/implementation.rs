@@ -6,8 +6,8 @@ use super::{
     util::{AttemptRead, validate_keypair},
 };
 
-use crate::internal::util::file::LoadValue;
 use crate::protocol::basic_types::{SPk, SSk};
+use crate::{config::WgDeviceCreateOptions, internal::util::file::LoadValue};
 
 impl RosenpassConfig {
     /// TODO: write documentation
@@ -19,90 +19,98 @@ impl RosenpassConfig {
         // ============================== [rosenpass] ==============================
         // check our key files
         {
-            validate_keypair!(
-                self.our_keypair.secret_key, self.our_keypair.public_key,
-                warnings, errors, recipe,
-                OurSecretKeyFileDoesNotExist,
-                OurSecretKeyFileCanNotBeRead,
-                OurSecretKeyFileHasInvalidContent,
-                OurSecretKeyFileIsGloballyReadable,
-                OurPublicKeyFileDoesNotExist,
-                OurPublicKeyFileCanNotBeRead,
-                OurPublicKeyFileHasInvalidContent,
-            );
+            // TODO
+            // validate_keypair!(
+            //     self.our_keypair.secret_key_source, self.our_keypair.public_key_source,
+            //     warnings, errors, recipe,
+            //     OurSecretKeyFileDoesNotExist,
+            //     OurSecretKeyFileCanNotBeRead,
+            //     OurSecretKeyFileHasInvalidContent,
+            //     OurSecretKeyFileIsGloballyReadable,
+            //     OurPublicKeyFileDoesNotExist,
+            //     OurPublicKeyFileCanNotBeRead,
+            //     OurPublicKeyFileHasInvalidContent,
+            // );
         }
         // TODO: check algorithm choices
         // ============================== [[device]] ==============================
         for device in self.wireguard_devices.iter() {
             // managed by rosenpass
-            match &device.wireguard_keypair_if_managed_by_rosenpass {
-                None => {
-                    if recipe.check_inconsistencies && device.managed_by == FlatDeviceManagedByChoice::Rosenpass {
-                        errors.push(Error::DeviceIsManagedByRosenpassButMissesWireguardKeypair(device.name.clone()));
-                    }
-                },
-                Some(wireguard_keypair) => {
-                    // if the device is managed by rosenpass, these errors are thrown
-                    if device.managed_by == FlatDeviceManagedByChoice::Rosenpass {
-                        validate_keypair!(
-                            wireguard_keypair.secret_key, wireguard_keypair.public_key,
-                            warnings, errors, recipe,
-                            device.name.clone(),
-                            DeviceIsManagedByRosenpassButSecretKeyFileDoesNotExist,
-                            DeviceIsManagedByRosenpassButSecretKeyFileCanNotBeRead,
-                            DeviceIsManagedByRosenpassButSecretKeyFileHasInvalidContent,
-                            DeviceIsManagedByRosenpassButSecretKeyFileIsGloballyReadable,
-                            DeviceIsManagedByRosenpassButPublicKeyFileDoesNotExist,
-                            DeviceIsManagedByRosenpassButPublicKeyFileCanNotBeRead,
-                            DeviceIsManagedByRosenpassButPublicKeyFileHasInvalidContent,
-                        );
-                    }
-                    // TODO: if the device is not managed by rosenpass, throw warnings similar to above errors
+            match &device.created_by {
+                WgDeviceCreateOptions::DoNotCreate => {}
+                // TODO:
+                // {
+                //     if recipe.check_inconsistencies && device.managed_by == FlatDeviceManagedByChoice::Rosenpass {
+                //         errors.push(Error::DeviceIsManagedByRosenpassButMissesWireguardKeypair(device.name.clone()));
+                //     }
+                // },
+                WgDeviceCreateOptions::Create{wg_listen_port, wg_fwmark} => {
+                    // TODO: check wg_listen_port
+
+                    // TODO: check wg_fwmark
+
+                    // TODO:
+                    // // if the device is managed by rosenpass, these errors are thrown
+                    // if device.managed_by == FlatDeviceManagedByChoice::Rosenpass {
+                    //     validate_keypair!(
+                    //         wireguard_keypair.secret_key, wireguard_keypair.public_key,
+                    //         warnings, errors, recipe,
+                    //         device.name.clone(),
+                    //         DeviceIsManagedByRosenpassButSecretKeyFileDoesNotExist,
+                    //         DeviceIsManagedByRosenpassButSecretKeyFileCanNotBeRead,
+                    //         DeviceIsManagedByRosenpassButSecretKeyFileHasInvalidContent,
+                    //         DeviceIsManagedByRosenpassButSecretKeyFileIsGloballyReadable,
+                    //         DeviceIsManagedByRosenpassButPublicKeyFileDoesNotExist,
+                    //         DeviceIsManagedByRosenpassButPublicKeyFileCanNotBeRead,
+                    //         DeviceIsManagedByRosenpassButPublicKeyFileHasInvalidContent,
+                    //     );
+                    // }
+                    // // TODO: if the device is not managed by rosenpass, throw warnings similar to above errors
                 }
             }
         }
         // ============================== [[peer]] ==============================
         for peer in self.peers.iter() {
-            // TODO: name
-            // TODO: if crypto-agile: algorithm
-            // public key file
-            if !peer.public_key_file.is_file() {
-                if recipe.check_whether_files_exist {
-                    errors.push(Error::PeerPublicKeyFileDoesNotExist(peer.name.clone(), peer.public_key_file.clone()));
-                }
-            }
-            else { // public key file exists
-                if let Err(err) = peer.public_key_file.attempt_read() {
-                    if recipe.check_file_permissions {
-                        errors.push(Error::PeerPublicKeyFileCanNotBeRead(peer.name.clone(), peer.public_key_file.clone(), err))
-                    }
-                }
-                else { // public key file exists and is readable
-                    // TODO: check whether file content is valid
-                }
-            }
-            // TODO: endpoint
-            // preshared key file
-            if let Some(psk) = peer.preshared_key.as_ref() {
-                if !psk.is_file() {
-                    if recipe.check_whether_files_exist {
-                        errors.push(Error::PeerPskFileDoesNotExist(peer.name.clone(), psk.clone()))
-                    }
-                }
-                else { // psk file exists
-                    if let Err(err) = psk.attempt_read() {
-                        if recipe.check_file_permissions {
-                            errors.push(Error::PeerPskFileCanNotBeRead(peer.name.clone(), psk.clone(), err));
-                        }
-                    }
-                    else { // psk file exists and is readable
-                        if recipe.check_file_permissions && let Some(true) = psk.is_world_readable() {
-                            warnings.push(Warning::PresharedKeyFileIsGloballyReadable(psk.clone()));
-                        }
-                        // TODO: check whether file content is valid
-                    }
-                }
-            }
+            // // TODO: name
+            // // TODO: if crypto-agile: algorithm
+            // // public key file
+            // if !peer.public_key_file.is_file() {
+            //     if recipe.check_whether_files_exist {
+            //         errors.push(Error::PeerPublicKeyFileDoesNotExist(peer.name.clone(), peer.public_key_file.clone()));
+            //     }
+            // }
+            // else { // public key file exists
+            //     if let Err(err) = peer.public_key_file.attempt_read() {
+            //         if recipe.check_file_permissions {
+            //             errors.push(Error::PeerPublicKeyFileCanNotBeRead(peer.name.clone(), peer.public_key_file.clone(), err))
+            //         }
+            //     }
+            //     else { // public key file exists and is readable
+            //         // TODO: check whether file content is valid
+            //     }
+            // }
+            // // TODO: endpoint
+            // // preshared key file
+            // if let Some(psk) = peer.preshared_key.as_ref() {
+            //     if !psk.is_file() {
+            //         if recipe.check_whether_files_exist {
+            //             errors.push(Error::PeerPskFileDoesNotExist(peer.name.clone(), psk.clone()))
+            //         }
+            //     }
+            //     else { // psk file exists
+            //         if let Err(err) = psk.attempt_read() {
+            //             if recipe.check_file_permissions {
+            //                 errors.push(Error::PeerPskFileCanNotBeRead(peer.name.clone(), psk.clone(), err));
+            //             }
+            //         }
+            //         else { // psk file exists and is readable
+            //             if recipe.check_file_permissions && let Some(true) = psk.is_world_readable() {
+            //                 warnings.push(Warning::PresharedKeyFileIsGloballyReadable(psk.clone()));
+            //             }
+            //             // TODO: check whether file content is valid
+            //         }
+            //     }
+            // }
             // osk domain separator
             if recipe.check_inconsistencies && let Err(err) = peer.osk_domain_separator.validate() {
                 errors.push(Error::PeerHasInvalidOskDomainSeparator(peer.name.clone(), err));
