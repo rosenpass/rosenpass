@@ -728,22 +728,19 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         }
         // exclusive options
         (Some(_), None, Some(_)) => {
-            errors.push(ParseError::new(raw, 
-                        file_path,table_span.clone(),
+            errors.push(ParseError::new(raw, file_path,table_span.clone(),
                 format!("keys \"{LEGACY_ORG}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_ORG}\" is deprecated"))
             );
             None
         }
         (None, Some(_), Some(_)) => {
-            errors.push(ParseError::new(raw,
-                        file_path, table_span.clone(),
+            errors.push(ParseError::new(raw, file_path, table_span.clone(),
                 format!("keys \"{LEGACY_LABELS}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_LABELS}\" is deprecated"))
             );
             None
         }
         (Some(_), Some(_), Some(_)) => {
-            errors.push(ParseError::new(raw, 
-                        file_path,table_span.clone(),
+            errors.push(ParseError::new(raw, file_path,table_span.clone(),
                 format!("keys \"{LEGACY_ORG}\" and \"{LEGACY_LABELS}\" (deprecated OSK definition) can not be used together with \"{TABLE}\""))
             );
             None
@@ -1094,15 +1091,20 @@ get_as_type_generator!(
         const LISTEN_FD: &str = "listen-fd";
         const STREAM_FD: &str = "stream-fd";
 
-        let listen_path = get_as_vec_path_buf(raw, table, table.span(), LISTEN_PATH)
+        let listen_path = get_as_vec_path_buf(raw, file_path, table, table.span(), LISTEN_PATH)
             .process_parse_result(&mut errors);
-        let listen_fd =
-            get_as_vec_i32(raw, table, table.span(), LISTEN_FD).process_parse_result(&mut errors);
-        let stream_fd =
-            get_as_vec_i32(raw, table, table.span(), LISTEN_FD).process_parse_result(&mut errors);
+        let listen_fd = get_as_vec_i32(raw, file_path, table, table.span(), LISTEN_FD)
+            .process_parse_result(&mut errors);
+        let stream_fd = get_as_vec_i32(raw, file_path, table, table.span(), LISTEN_FD)
+            .process_parse_result(&mut errors);
 
-        deny_illegal_keys(raw, table, vec![LISTEN_PATH, LISTEN_FD, STREAM_FD])
-            .process_parse_result(&mut errors);
+        deny_illegal_keys(
+            raw,
+            file_path,
+            table,
+            vec![LISTEN_PATH, LISTEN_FD, STREAM_FD],
+        )
+        .process_parse_result(&mut errors);
 
         if !errors.is_empty() {
             return Err(errors);

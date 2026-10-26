@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::config::{
-    parse_from_toml::errors::{ParseIssue, ParseWarning},
+    parse_from_toml::errors::{ParseIssue, ParseWarning, PrettyIssueOutput},
     validate::{
         Error as ValidationError, Issue as ValidationIssue, ValidationRecipe,
         Warning as ValidationWarning,
@@ -82,17 +82,17 @@ pub fn parse(
     file_path: &Path,
 ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
     println!("parsing `RosenpassConfig` from `toml_edit::Document`...");
-    let data = RosenpassConfig::parse_from_toml(document, file_path);
+    let data = RosenpassConfig::parse_from_toml(&document, file_path);
     match &data {
-        Ok(ok) => {
+        Ok((data, warnings)) => {
             println!("successfully parsed this config:");
-            println!("{:#?}", ok.0);
-            if ok.1.is_empty() {
+            println!("{:#?}", data);
+            if warnings.is_empty() {
                 println!("no warnings occured");
             } else {
-                println!("{} warnings occured:", ok.1.len());
-                for warning in ok.1.iter() {
-                    println!("{}", warning);
+                println!("{} warnings occured:", warnings.len());
+                for warning in warnings.iter() {
+                    anstream::eprintln!("{}", warning.pretty(document.raw()));
                 }
             }
         }
@@ -100,7 +100,7 @@ pub fn parse(
             println!("failed parsing a valid `RosenpassConfig`");
             println!("{} issues occured:", err.len());
             for issue in err.iter() {
-                println!("{}", issue);
+                anstream::eprintln!("{}", issue.pretty(document.raw()));
             }
         }
     }
@@ -357,4 +357,19 @@ pub fn prepare_config_file(
     // read the new file back
     println!("reading new config file...");
     read_toml(destination_file)
+}
+
+pub(crate) trait ExpectSilent {
+    type Output;
+    fn expect_silent(self, message: &str) -> Self::Output;
+}
+
+impl<T, E> ExpectSilent for Result<T, E> {
+    type Output = T;
+    fn expect_silent(self, message: &str) -> Self::Output {
+        match self {
+            Ok(t) => t,
+            Err(e) => panic!("{message}"),
+        }
+    }
 }

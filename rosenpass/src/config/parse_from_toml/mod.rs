@@ -29,7 +29,7 @@ impl RosenpassConfig {
     /// TODO: use `Option::unwrap` (or custom implementation) instead of `.unwrap()`
     /// TODO: resolve paths
     pub fn parse_from_toml(
-        document: toml_edit::Document<String>,
+        document: &toml_edit::Document<String>,
         file_path: &Path,
     ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
         let mut warnings: Vec<ParseWarning> = Vec::new();
@@ -485,7 +485,7 @@ impl RosenpassConfig {
 
             let parsed_from = ConfigSource::TomlFile(ConfigSourceTomlFile {
                 file_path: file_path.to_path_buf(),
-                document,
+                document: document.clone(), // TODO: this could be a reference
                 warnings: warnings.clone(),
                 file_version: rosenpass_table.config_file_version,
             });
