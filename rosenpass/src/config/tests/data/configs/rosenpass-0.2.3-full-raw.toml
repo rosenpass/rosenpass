@@ -8,7 +8,7 @@ verbosity = "Quiet"
 [[peers]]
 public_key = "rp-peer-public-key"
 endpoint = "my-peer.test:9999"
-key_out = "rp-key-out"
+pre_shared_key = "file/to/psk"
 exchange_command = [
   "wg",
   "set",
@@ -18,3 +18,11 @@ exchange_command = [
   "preshared-key",
   "/dev/stdin",
 ]
+
+# key out option (writes the OSK to a file)
+key_out = "rp-key-out"
+
+# WireGuard protocol extension (supplies the OSK to WireGuard)
+device = "wg0"
+peer = "path/to/their-public-key.pk"
+extra_params = []                    # TODO: fill sth. in

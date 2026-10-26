@@ -3,7 +3,7 @@ use super::errors::ParseError;
 use crate::config::ApiConfig;
 use crate::{
     config::{
-        KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, PresharedKeySource,
+        HasInnerType, KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, PresharedKeySource,
         TomlConfigFileVersion,
     },
     oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
@@ -669,22 +669,27 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
     file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
+    legacy_org_name: &str,
+    legacy_labels_name: &str,
+    table_name: &str,
 ) -> Result<RosenpassPeerOskDomainSeparator, Vec<ParseError>> {
     let mut errors = Vec::new();
-    const LEGACY_ORG: &str = "osk_organization";
-    const LEGACY_LABELS: &str = "osk_label";
-    const TABLE: &str = "osk-domain-separator";
 
-    let legacy_org = get_as_opt_string(raw, file_path, table, table_span.clone(), LEGACY_ORG)
+    let legacy_org = get_as_opt_string(raw, file_path, table, table_span.clone(), legacy_org_name)
         .process_parse_result(&mut errors)
         .flatten();
 
-    let legacy_labels =
-        get_as_opt_vec_string(raw, file_path, table, table_span.clone(), LEGACY_LABELS)
-            .process_parse_result(&mut errors)
-            .flatten();
+    let legacy_labels = get_as_opt_vec_string(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_labels_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
 
-    let osk_table = get_as_opt_inline_table(raw, file_path, table, table_span.clone(), TABLE)
+    let osk_table = get_as_opt_inline_table(raw, file_path, table, table_span.clone(), table_name)
         .process_parse_result(&mut errors)
         .flatten();
 
@@ -710,7 +715,7 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
                 file_path,
                 table_span.clone(),
                 format!(
-                    "expected key \"{LEGACY_LABELS}\" because you also specified \"{LEGACY_ORG}\""
+                    "expected key \"{legacy_labels_name}\" because you also specified \"{legacy_org_name}\""
                 ),
             ));
             None
@@ -721,7 +726,7 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
                 file_path,
                 table_span.clone(),
                 format!(
-                    "expected key \"{LEGACY_ORG}\" because you also specified \"{LEGACY_LABELS}\""
+                    "expected key \"{legacy_org_name}\" because you also specified \"{legacy_labels_name}\""
                 ),
             ));
             None
@@ -729,19 +734,19 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         // exclusive options
         (Some(_), None, Some(_)) => {
             errors.push(ParseError::new(raw, file_path,table_span.clone(),
-                format!("keys \"{LEGACY_ORG}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_ORG}\" is deprecated"))
+                format!("keys \"{legacy_org_name}\" and \"{table_name}\" are mutually exclusive and \"{legacy_org_name}\" is deprecated"))
             );
             None
         }
         (None, Some(_), Some(_)) => {
             errors.push(ParseError::new(raw, file_path, table_span.clone(),
-                format!("keys \"{LEGACY_LABELS}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_LABELS}\" is deprecated"))
+                format!("keys \"{legacy_labels_name}\" and \"{table_name}\" are mutually exclusive and \"{legacy_labels_name}\" is deprecated"))
             );
             None
         }
         (Some(_), Some(_), Some(_)) => {
             errors.push(ParseError::new(raw, file_path,table_span.clone(),
-                format!("keys \"{LEGACY_ORG}\" and \"{LEGACY_LABELS}\" (deprecated OSK definition) can not be used together with \"{TABLE}\""))
+                format!("keys \"{legacy_org_name}\" and \"{legacy_labels_name}\" (deprecated OSK definition) can not be used together with \"{table_name}\""))
             );
             None
         }
@@ -833,20 +838,70 @@ get_as_type_generator!(
     }
 );
 
+pub(crate) fn get_legacy_psk_source<T: toml_edit::TableLike>(
+    raw: &str,
+    file_path: &Path,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+    legacy_name: &str,
+    table_name: &str,
+) -> Result<Result<PresharedKeySource, ParseError>, Vec<ParseError>> {
+    let mut errors = Vec::new();
+
+    let legacy_psk_file =
+        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), legacy_name)
+            .process_parse_result(&mut errors)
+            .flatten();
+    let psk_table = get_as_opt_psk_source(raw, file_path, table, table_span.clone(), table_name)
+        .process_parse_result(&mut errors)
+        .flatten();
+    let psk_source: Result<PresharedKeySource, ParseError> = match (legacy_psk_file, psk_table) {
+        // duplicate definition
+        (Some(_), Some(_)) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table_span.clone(),
+                format!(
+                    "keys \"{l}\" and \"{table_name}\" exlude each other and \"{l}\" is deprecated",
+                    l = legacy_name
+                ),
+            );
+            errors.push(err.clone());
+            Err(err)
+        }
+        // no PSK specified
+        (None, None) => Err(ParseError::new(
+            raw,
+            file_path,
+            table_span.clone(),
+            format!("require key \"{table_name}\""),
+        )),
+        // legacy PSK
+        (Some(legacy_psk_file), None) => Ok(PresharedKeySource::ReadFromFile(legacy_psk_file)),
+        // new semantic PSK
+        (None, Some(psk_table)) => Ok(psk_table),
+    };
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    Ok(psk_source)
+}
+
 /// reads a key source which can either be a file or a directory ([`KeyFromDisk`])
 ///
 /// returns:
 /// - `Ok(Ok(KeyFromDisk))` if the key was successfully read
 /// - `Err(Vec<ParseError>)` if errors occured during parsing
 /// - `Ok(Err(ParseError))` if the key is not present in the table
-pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr>(
+pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr, const SIZE: usize>(
     raw: &str,
     file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
     file_key: &str,
     dir_key: &str,
-) -> Result<Result<KeyFromDisk<FN>, ParseError>, Vec<ParseError>> {
+) -> Result<Result<KeyFromDisk<FN, SIZE>, ParseError>, Vec<ParseError>> {
     let mut errors = Vec::new();
 
     let file = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), file_key)
@@ -874,8 +929,10 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr>(
             // the err is just a dummy in this line – the function will return Err(errors) anyways
             Err(err)
         }
-        (Some(file), None) => Ok(KeyFromDisk::<FN>::new(KeyFromDiskInner::File(file))),
-        (None, Some(dir)) => Ok(KeyFromDisk::<FN>::new(KeyFromDiskInner::Directory(dir))),
+        (Some(file), None) => Ok(KeyFromDisk::<FN, SIZE>::new(KeyFromDiskInner::File(file))),
+        (None, Some(dir)) => Ok(KeyFromDisk::<FN, SIZE>::new(KeyFromDiskInner::Directory(
+            dir,
+        ))),
     };
 
     if errors.is_empty() {
@@ -885,12 +942,109 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr>(
     }
 }
 
+/// reads a public key from disk which can be one of these:
+///
+/// legacy:
+/// ```toml
+/// key = "file/to/key/"
+/// ```
+///
+/// new semantic:
+/// ```toml
+/// key = {
+///     public-key-file = "path/to/key",
+///     # alternative:
+///     # public-key-directory = "path/to/key-dir",
+/// }
+/// ```
+///
+/// returns:
+/// - `Ok(Ok(KeyFromDisk))` if the key was successfully read
+/// - `Err(Vec<ParseError>)` if errors occured during parsing
+/// - `Ok(Err(ParseError))` if the key is not present in the table
+pub(crate) fn get_legacy_public_key_from_disk<
+    T: toml_edit::TableLike,
+    FN: IsTStr,
+    const SIZE: usize,
+>(
+    raw: &str,
+    file_path: &Path,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+    legacy_key_name: &str,
+    key_table_name: &str,
+) -> Result<Result<KeyFromDisk<FN, SIZE>, ParseError>, Vec<ParseError>> {
+    let mut errors = Vec::new();
+
+    // read both key sources
+    let legacy_key_file = process_results!(
+        errors,
+        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), legacy_key_name)
+    )
+    .flatten();
+    let key_table = process_results!(
+        errors,
+        get_as_opt_inline_table(raw, file_path, table, table_span.clone(), key_table_name)
+    )
+    .flatten();
+    let key: Result<KeyFromDisk<FN, SIZE>, ParseError> = match (legacy_key_file, key_table) {
+        // duplicate definition
+        (Some(_), Some(_)) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table_span.clone(),
+                format!(
+                    "keys \"{l}\" and \"{key_table_name}\" {} \"{l}\" {}",
+                    "are mutually exclusive and",
+                    "is deprecated",
+                    l = legacy_key_name
+                ),
+            );
+            errors.push(err.clone());
+            Err(err)
+        }
+        // missing key
+        (None, None) => Err(ParseError::new(
+            raw,
+            file_path,
+            table_span.clone(),
+            format!("expected key \"{key_table_name}\""),
+        )),
+        // legacy key
+        (Some(legacy_key_file), None) => Ok(KeyFromDisk::new(
+            <KeyFromDisk<FN, SIZE> as HasInnerType>::InnerType::File(legacy_key_file),
+        )),
+        // new key table
+        (None, Some(table)) => {
+            const FILE_NAME: &str = "public-key-file";
+            const DIR_NAME: &str = "public-key-directory";
+
+            // TODO: use particularly strong wording for this error?
+            deny_illegal_keys(raw, file_path, table, vec![FILE_NAME, DIR_NAME])
+                .process_parse_result(&mut errors);
+
+            let key = get_key_from_disk(raw, file_path, table, table.span(), FILE_NAME, DIR_NAME)
+                .process_parse_result(&mut errors);
+
+            if !errors.is_empty() {
+                return Err(errors);
+            }
+            key.expect("unreachable")
+        }
+    };
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    Ok(key)
+}
+
 // Keypair<S: KeyFromDisk, P: KeyFromDisk>
 get_as_type_generator!(
     get_as_keypair_with_pub_from_disk,
     get_as_opt_keypair_with_pub_from_disk,
-    [SFN: IsTStr, PFN: IsTStr],
-    Keypair<KeyFromDisk<SFN>, KeyFromDisk<PFN>>,
+    [SFN: IsTStr, const SSIZE: usize, PFN: IsTStr, const PSIZE: usize],
+    Keypair<KeyFromDisk<SFN, SSIZE>, KeyFromDisk<PFN, PSIZE>>,
     as_inline_table,
     |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
         let mut errors = Vec::new();
@@ -951,13 +1105,19 @@ get_as_type_generator!(
 ///     # alternative: public-key-directory = "/path/to/public-dir"
 /// }
 /// ```
-pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr, PFN: IsTStr>(
+pub(crate) fn get_legacy_keypair_from_disk<
+    T: toml_edit::TableLike,
+    SFN: IsTStr,
+    const SSIZE: usize,
+    PFN: IsTStr,
+    const PSIZE: usize,
+>(
     raw: &str,
     file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
     new_name: &str,
-) -> Result<Keypair<KeyFromDisk<SFN>, KeyFromDisk<PFN>>, Vec<ParseError>> {
+) -> Result<Keypair<KeyFromDisk<SFN, SSIZE>, KeyFromDisk<PFN, PSIZE>>, Vec<ParseError>> {
     let mut errors = Vec::new();
 
     const LEGACY_SECRET: &str = "secret_key";
@@ -1041,8 +1201,8 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
 
         // legacy keypair
         (Some(secret), Some(public), None) => Keypair {
-            secret_key_source: KeyFromDisk::<SFN>::new(KeyFromDiskInner::File(secret)),
-            public_key_source: KeyFromDisk::<PFN>::new(KeyFromDiskInner::File(public)),
+            secret_key_source: KeyFromDisk::<SFN, SSIZE>::new(KeyFromDiskInner::File(secret)),
+            public_key_source: KeyFromDisk::<PFN, PSIZE>::new(KeyFromDiskInner::File(public)),
         },
 
         // new keypair
@@ -1116,3 +1276,7 @@ get_as_type_generator!(
         })
     }
 );
+
+pub(crate) fn default_peer_name(index: usize) -> String {
+    format!("peer no. {index}")
+}

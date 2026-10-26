@@ -27,8 +27,8 @@ fn init() -> Result<(), anyhow::Error> {
     // println!("initializing secret memory allocator...");
     // crate::internal::secret_memory::policy::secret_policy_try_use_memfd_secrets();
 
-    let cwd = current_dir()?;
-    println!("current working directory: {cwd:?}");
+    // let cwd = current_dir()?;
+    // println!("current working directory: {cwd:?}");
 
     Ok(())
 }
@@ -44,13 +44,13 @@ fn init() -> Result<(), anyhow::Error> {
 pub fn read_toml(path: &Path) -> Result<(toml_edit::Document<String>, PathBuf), anyhow::Error> {
     init()?;
     let path = std::path::Path::new("src/config/tests/data/configs").join(path);
+    // read
     println!("reading file: {path:?}");
     let data = std::fs::read(path.clone()).map_err(|err| anyhow!(err))?;
     let data = String::from_utf8(data).map_err(|err| anyhow!(err))?;
-    println!("parsing TOML...");
+    // parse
     let data = toml_edit::Document::from_str(data.as_str()).map_err(|err| anyhow!(err))?;
     let working_dir = path.parent().unwrap().to_owned();
-    println!("working directory of that config file is: {working_dir:?}");
     Ok((data, working_dir))
 }
 
@@ -59,13 +59,13 @@ pub fn read_toml(path: &Path) -> Result<(toml_edit::Document<String>, PathBuf), 
 pub fn read_toml_mut(path: &Path) -> Result<(toml_edit::DocumentMut, PathBuf), anyhow::Error> {
     init()?;
     let path = std::path::Path::new("src/config/tests/data/configs").join(path);
+    // read
     println!("reading file: {path:?}");
     let data = std::fs::read(path.clone()).map_err(|err| anyhow!(err))?;
     let data = String::from_utf8(data).map_err(|err| anyhow!(err))?;
-    println!("parsing TOML...");
+    // parse
     let data = toml_edit::DocumentMut::from_str(data.as_str()).map_err(|err| anyhow!(err))?;
     let working_dir = path.parent().unwrap().to_owned();
-    println!("working directory of that config file is: {working_dir:?}");
     Ok((data, working_dir))
 }
 
@@ -81,7 +81,7 @@ pub fn parse(
     document: toml_edit::Document<String>,
     file_path: &Path,
 ) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
-    println!("parsing `RosenpassConfig` from `toml_edit::Document`...");
+    println!("parsing...");
     let data = RosenpassConfig::parse_from_toml(&document, file_path);
     match &data {
         Ok((data, warnings)) => {
@@ -330,15 +330,12 @@ pub fn prepare_config_file(
     let (mut document, working_directory) = read_toml_mut(template_file)?;
 
     // run replacements/deletions/additions
-    println!("replacing values...");
     for replacement in replacements.iter() {
         replace_toml_item(&mut document, replacement.0, replacement.1.clone().into());
     }
-    println!("deleting values...");
     for deletion in deletions.iter() {
         remove_toml_item(&mut document, deletion);
     }
-    println!("adding values...");
     for addition in additions.iter() {
         add_toml_item(&mut document, addition.0, addition.1.clone().into());
     }
@@ -355,7 +352,6 @@ pub fn prepare_config_file(
     file.flush()?;
 
     // read the new file back
-    println!("reading new config file...");
     read_toml(destination_file)
 }
 

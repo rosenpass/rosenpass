@@ -1,18 +1,19 @@
 use crate::config::parse_from_toml::util::{
-    ProcessParseResult, get_as_hashset_protocol_version, get_as_opt_config_file_version,
-    get_legacy_keypair_from_disk,
+    ProcessParseResult, default_peer_name, deny_illegal_keys, get_as_opt_config_file_version,
+    get_as_opt_hashset_protocol_version, get_as_opt_string, get_legacy_keypair_from_disk,
+    get_legacy_psk_source, get_legacy_public_key_from_disk,
 };
 use crate::oldconfig::Verbosity;
 use crate::protocol::ProtocolVersion;
 use std::str::FromStr;
 use std::{collections::HashSet, path::Path};
-use toml_edit::Table;
+use toml_edit::{ArrayOfTables, Table};
 #[cfg(feature = "experiment_api")]
 use util::get_as_opt_api_config;
 use util::{
     get_as_array, get_as_bool, get_as_opt_bool, get_as_opt_inline_table, get_as_opt_path_buf,
-    get_as_opt_psk_source, get_as_opt_socket_addr, get_as_opt_u16, get_as_opt_verbosity_level,
-    get_as_string, get_legacy_osk_domain_separator, process_results,
+    get_as_opt_psk_source, get_as_opt_u16, get_as_opt_verbosity_level, get_as_string,
+    get_legacy_osk_domain_separator, process_results,
 };
 
 use super::types::*;
@@ -63,6 +64,26 @@ impl RosenpassConfig {
                 })?;
                 Ok(return_value)
             };
+        let get_opt_array_of_tables =
+            |name: &str| -> Result<Option<&toml_edit::ArrayOfTables>, Vec<ParseError>> {
+                match document.get(name) {
+                    None => Ok(None),
+                    Some(item) => {
+                        let array: &ArrayOfTables = item.as_array_of_tables().ok_or_else(|| {
+                            vec![ParseError::new(
+                                raw,
+                                file_path,
+                                item.span(),
+                                format!(
+                                    "item \"{name}\" {}",
+                                    "has wrong data type, must be array of tables"
+                                ),
+                            )]
+                        })?;
+                        Ok(Some(array))
+                    }
+                }
+            };
 
         // ============================== [rosenpass] ==============================
         struct RosenpassTable {
@@ -92,7 +113,7 @@ impl RosenpassConfig {
                                 raw,
                                 file_path,
                                 listen_addresses.span(),
-                                "listen addresses list is empty, defaulting to TODO".to_string(),
+                                "listen addresses list is empty, defaulting to all interfaces and a random ephemeral port".to_string(),
                             ));
                         }
                         for listen_address in listen_addresses.iter() {
@@ -129,16 +150,14 @@ impl RosenpassConfig {
                     });
 
                     // log_level
-                    let verbosity = process_results!(
-                        errors,
-                        get_as_opt_verbosity_level(
-                            raw,
-                            file_path,
-                            table,
-                            table.span(),
-                            "logging-level"
-                        )
+                    let verbosity = get_as_opt_verbosity_level(
+                        raw,
+                        file_path,
+                        table,
+                        table.span(),
+                        "logging-level",
                     )
+                    .process_parse_result(&mut errors)
                     .flatten()
                     .unwrap_or_default();
 
@@ -155,14 +174,16 @@ impl RosenpassConfig {
                     );
 
                     // supported protocol versions
-                    let supported_protocol_version = get_as_hashset_protocol_version(
+                    let supported_protocol_versions = get_as_opt_hashset_protocol_version(
                         raw,
                         file_path,
                         table,
                         table.span(),
                         "supported-protocol-versions",
                     )
-                    .process_parse_result(&mut errors);
+                    .process_parse_result(&mut errors)
+                    .flatten()
+                    .unwrap_or_else(ProtocolVersion::all_supported_by_default);
 
                     // config file version
                     let config_file_version = get_as_opt_config_file_version(
@@ -192,8 +213,7 @@ impl RosenpassConfig {
                         our_listen_adresses: our_listen_address.expect("unreachable"),
                         verbosity,
                         our_keypair: our_keypair.expect("unreachable"),
-                        supported_protocol_versions: supported_protocol_version
-                            .expect("unreachable"),
+                        supported_protocol_versions,
                         config_file_version,
                         #[cfg(feature = "experiment_api")]
                         api: api_config,
@@ -208,8 +228,9 @@ impl RosenpassConfig {
         let rosenpass_table = process_results!(errors, rosenpass_table);
         // ============================== [[wireguard-devices]] ==============================
         let mut wireguard_devices: Vec<WgDeviceConfig> = Vec::new();
-        if let Some(device_tables) =
-            process_results!(errors, get_array_of_tables("wireguard-devices"))
+        if let Some(device_tables) = get_opt_array_of_tables("wireguard-devices")
+            .process_parse_result(&mut errors)
+            .flatten()
         {
             for table in device_tables {
                 // TODO: remove unwrap()s
@@ -285,187 +306,98 @@ impl RosenpassConfig {
             for table in peer_tables {
                 let mut peer_errors = Vec::new();
 
-                let name = process_results!(
-                    peer_errors,
-                    get_as_string(raw, file_path, table, table.span(), "name")
-                );
+                const NAME: &str = "name";
+                const ENABLED: &str = "enabled";
+                const LEGACY_THEIR_PUBKEY: &str = "public_key";
+                const THEIR_PUBKEY_TABLE: &str = "their-keypair";
+                const ENDPOINT: &str = "endpoint";
 
+                const LEGACY_PSK: &str = "pre_shared_key";
+                const PSK_TABLE: &str = "preshared-key";
+
+                const LEGACY_OSK_ORG: &str = "osk_organization";
+                const LEGACY_OSK_LABELS: &str = "osk_label";
+                const OSK_TABLE: &str = "osk-domain-separator";
+
+                deny_illegal_keys(
+                    raw,
+                    file_path,
+                    table,
+                    vec![
+                        NAME,
+                        ENABLED,
+                        LEGACY_THEIR_PUBKEY,
+                        THEIR_PUBKEY_TABLE,
+                        ENDPOINT,
+                        LEGACY_PSK,
+                        PSK_TABLE,
+                        LEGACY_OSK_ORG,
+                        LEGACY_OSK_LABELS,
+                        OSK_TABLE,
+                    ],
+                )
+                .process_parse_result(&mut peer_errors);
+
+                // name
+                let name = get_as_opt_string(raw, file_path, table, table.span(), NAME)
+                    .process_parse_result(&mut peer_errors)
+                    .flatten()
+                    .unwrap_or_else(|| default_peer_name(peers.len()));
+
+                // enabled
                 let enabled = process_results!(
                     peer_errors,
-                    get_as_opt_bool(raw, file_path, table, table.span(), "enabled")
+                    get_as_opt_bool(raw, file_path, table, table.span(), ENABLED)
                 )
                 .flatten()
                 .unwrap_or(true);
 
-                // read public key (complicated due to downwards-compatibility)
-                let their_pubkey: Option<PublicPqKeySource> = {
-                    let mut pubkey_errors = Vec::new();
-                    const PUBLIC_KEY_NAME: &str = "public_key";
-                    const THEIR_KEYPAIR_NAME: &str = "their-keypair";
-
-                    // read both key sources
-                    let legacy_key_file = process_results!(
-                        pubkey_errors,
-                        get_as_opt_path_buf(raw, file_path, table, table.span(), PUBLIC_KEY_NAME)
-                    )
-                    .flatten();
-                    let their_keypair = process_results!(
-                        pubkey_errors,
-                        get_as_opt_inline_table(
-                            raw,
-                            file_path,
-                            table,
-                            table.span(),
-                            THEIR_KEYPAIR_NAME
-                        )
-                    )
-                    .flatten();
-                    let their_public_key = match (legacy_key_file, their_keypair) {
-                        (Some(_), Some(_)) => {
-                            pubkey_errors.push(ParseError::new(
-                                raw,
-                        file_path,
-                                table.span(),
-                                format!(
-                                    "keys \"{PUBLIC_KEY_NAME}\" and \"{THEIR_KEYPAIR_NAME}\" are mutually exclusive and \"{PUBLIC_KEY_NAME}\" is deprecated",
-                                ),
-                            ));
-                            None
-                        }
-                        (None, None) => {
-                            pubkey_errors.push(ParseError::new(
-                                raw,
-                                file_path,
-                                table.span(),
-                                format!("expected key \"{THEIR_KEYPAIR_NAME}\""),
-                            ));
-                            None
-                        }
-                        (Some(legacy_key_file), None) => Some(PublicPqKeySource::new(
-                            <PublicPqKeySource as HasInnerType>::InnerType::File(legacy_key_file),
-                        )),
-                        (None, Some(their_keypair)) => {
-                            // TODO: throw error if peer's secret key is present
-
-                            const FILE_NAME: &str = "public-key-file";
-                            const DIR_NAME: &str = "public-key-directory";
-
-                            let file = process_results!(
-                                pubkey_errors,
-                                get_as_opt_path_buf(
-                                    raw,
-                                    file_path,
-                                    their_keypair,
-                                    their_keypair.span(),
-                                    FILE_NAME
-                                )
-                            )
-                            .flatten();
-                            let directory = process_results!(
-                                pubkey_errors,
-                                get_as_opt_path_buf(
-                                    raw,
-                                    file_path,
-                                    their_keypair,
-                                    their_keypair.span(),
-                                    DIR_NAME
-                                )
-                            )
-                            .flatten();
-                            match (file, directory) {
-                                (Some(_), Some(_)) => {
-                                    pubkey_errors.push(ParseError::new(
-                                        raw,
-                        file_path,
-                                        their_keypair.span(),
-                                        format!("keys \"{FILE_NAME}\" and \"{DIR_NAME}\" are mutually exclusive"),
-                                    ));
-                                    None
-                                }
-                                (None, None) => {
-                                    pubkey_errors.push(ParseError::new(
-                                        raw,
-                                        file_path,
-                                        their_keypair.span(),
-                                        format!("expected key \"{FILE_NAME}\""),
-                                    ));
-                                    None
-                                }
-                                (Some(file), None) => Some(PublicPqKeySource::new(
-                                    <PublicPqKeySource as HasInnerType>::InnerType::File(file),
-                                )),
-                                (None, Some(dir)) => Some(PublicPqKeySource::new(
-                                    <PublicPqKeySource as HasInnerType>::InnerType::Directory(dir),
-                                )),
-                            }
-                        }
-                    };
-                    peer_errors.extend_from_slice(&pubkey_errors);
-                    their_public_key
-                };
-
-                let endpoint = process_results!(
-                    peer_errors,
-                    get_as_opt_socket_addr(raw, file_path, table, table.span(), "endpoint")
+                // their public key
+                let their_pubkey = get_legacy_public_key_from_disk(
+                    raw,
+                    file_path,
+                    table,
+                    table.span(),
+                    LEGACY_THEIR_PUBKEY,
+                    THEIR_PUBKEY_TABLE,
                 )
+                .process_parse_result(&mut peer_errors)
+                .transpose()
+                .process_parse_result(&mut peer_errors)
                 .flatten();
 
-                // read preshared key source (complicated due to downwards-compatibility)
-                // TODO: stuff into legacy-aware function similar to `get_legacy_osk_domain_separator`
-                let preshared_key_source = {
-                    const LEGACY_NAME: &str = "pre_shared_key";
-                    const PSK_NAME: &str = "preshared-key";
-                    let mut psk_errors = Vec::new();
+                // endpoint
+                let endpoint = get_as_opt_string(raw, file_path, table, table.span(), ENDPOINT)
+                    .process_parse_result(&mut peer_errors)
+                    .flatten();
 
-                    let legacy_psk_file = process_results!(
-                        psk_errors,
-                        get_as_opt_path_buf(raw, file_path, table, table.span(), LEGACY_NAME)
-                    )
-                    .flatten();
-                    let psk_table = process_results!(
-                        psk_errors,
-                        get_as_opt_psk_source(raw, file_path, table, table.span(), PSK_NAME)
-                    )
-                    .flatten();
-                    let psk_source = match (legacy_psk_file, psk_table) {
-                        (Some(_), Some(_)) => {
-                            psk_errors.push(ParseError::new(
-                                raw,
-                        file_path,
-                                table.span(),
-                                format!("keys \"{LEGACY_NAME}\" and \"{PSK_NAME}\" exlude each other and \"{LEGACY_NAME}\" is deprecated"),
-                            ));
-                            None
-                        }
-                        (None, None) => {
-                            psk_errors.push(ParseError::new(
-                                raw,
-                                file_path,
-                                table.span(),
-                                format!("expected key \"{PSK_NAME}\""),
-                            ));
-                            None
-                        }
-                        (Some(legacy_psk_file), None) => {
-                            Some(PresharedKeySource::ReadFromFile(legacy_psk_file))
-                        }
-                        (None, Some(psk_table)) => Some(psk_table),
-                    };
-                    peer_errors.extend_from_slice(&psk_errors);
-                    psk_source
-                };
-                let osk_domain_separator = process_results!(
-                    peer_errors,
-                    get_legacy_osk_domain_separator(raw, file_path, table, table.span())
-                );
+                let preshared_key =
+                    get_legacy_psk_source(raw, file_path, table, table.span(), LEGACY_PSK, PSK_TABLE)
+                        .process_parse_result(&mut peer_errors)
+                        // if PSK source is not present, just default to `None`:
+                        .transpose()
+                        .ok()
+                        .flatten();
+
+                // OSK domain separator
+                let osk_domain_separator = get_legacy_osk_domain_separator(
+                    raw,
+                    file_path,
+                    table,
+                    table.span(),
+                    LEGACY_OSK_ORG,
+                    LEGACY_OSK_LABELS,
+                    OSK_TABLE,
+                )
+                .process_parse_result(&mut peer_errors);
 
                 if peer_errors.is_empty() {
                     peers.push(PeerConfig {
-                        name: name.expect("unreachable"),
+                        name,
                         enabled,
                         their_public_key: their_pubkey.expect("unreachable"),
-                        endpoint: endpoint.expect("unreachable"),
-                        preshared_key: preshared_key_source,
+                        endpoint,
+                        preshared_key,
                         osk_domain_separator: osk_domain_separator.expect("unreachable"),
                         output_to_file: None, //todo!(),
                         wireguard: None,      //todo!(),

@@ -7,8 +7,10 @@ use crate::{
 };
 use cidr::IpCidr;
 pub use core::net::SocketAddr;
-use std::{collections::HashSet, marker::PhantomData, path::PathBuf};
-use tstr::{IsTStr, TS};
+use std::{collections::HashSet, path::PathBuf};
+
+pub mod keys;
+pub use keys::*;
 
 /// Configuration for Rosenpass
 ///
@@ -46,138 +48,10 @@ pub struct RosenpassConfig {
     pub parsed_from: ConfigSource,
 }
 // ============================== [rosenpass] ==============================
-/// a source a keypair consisting of one secret and one public key
-///
-/// - the secret key is always read from disk ([`KeyFromDisk`])
-/// - the public key can be read from different sources (parameter `P`, e.g. [`KeyFromDisk`] or
-///   [`KeyFromDiskOrB64EncodedString`])
-/// - if keys are read from a directory, the parameters `SFN` (secret file name) and `PFN` (public
-///   file name) specify the file inside the directory which should be read
-///
-/// TODO: more documentation
-#[derive(Debug)]
-pub struct Keypair<S: SecretKeySource, P: PublicKeySource> {
-    pub secret_key_source: S,
-    pub public_key_source: P,
-}
-#[derive(Debug)]
-pub enum KeyFromDiskInner {
-    File(PathBuf),
-    Directory(PathBuf),
-}
-#[derive(Debug)]
-pub struct KeyFromDisk<FN: IsTStr> {
-    pub inner: KeyFromDiskInner,
-    _marker: PhantomData<FN>,
-}
-#[derive(Debug)]
-pub enum KeyFromDiskOrB64EncodedStringInner {
-    File(PathBuf),
-    Directory(PathBuf),
-    Base64EncodedString(String),
-}
-#[derive(Debug)]
-pub struct KeyFromDiskOrB64EncodedString<FN: IsTStr> {
-    pub inner: KeyFromDiskOrB64EncodedStringInner,
-    _marker: PhantomData<FN>,
-}
-pub type PqKeypairSource = Keypair<SecretPqKeySource, PublicPqKeySource>;
-pub type SecretPqKeySource = KeyFromDisk<TS!("pqsk")>;
-pub type PublicPqKeySource = KeyFromDisk<TS!("pqsk")>;
-pub type WgKeypairSource = Keypair<SecretWgKeySource, PublicWgKeySource>;
-pub type SecretWgKeySource = KeyFromDisk<TS!("wgsk")>;
-pub type PublicWgKeySource = KeyFromDiskOrB64EncodedString<TS!("wgpk")>;
-
-// TODO: stuff these traits into submodule
-pub trait HasInnerType: Sized {
-    type InnerType;
-}
-impl<FN: IsTStr> HasInnerType for KeyFromDisk<FN> {
-    type InnerType = KeyFromDiskInner;
-}
-impl<FN: IsTStr> HasInnerType for KeyFromDiskOrB64EncodedString<FN> {
-    type InnerType = KeyFromDiskOrB64EncodedStringInner;
-}
-pub trait NewFromInner: HasInnerType + From<Self::InnerType> {
-    fn new(inner: Self::InnerType) -> Self {
-        Self::from(inner)
-    }
-}
-impl<T> NewFromInner for T where T: HasInnerType + From<T::InnerType> {}
-impl<FN: IsTStr> From<KeyFromDiskInner> for KeyFromDisk<FN> {
-    fn from(value: KeyFromDiskInner) -> Self {
-        KeyFromDisk {
-            inner: value,
-            _marker: Default::default(),
-        }
-    }
-}
-impl<FN: IsTStr> From<KeyFromDiskOrB64EncodedStringInner> for KeyFromDiskOrB64EncodedString<FN> {
-    fn from(value: KeyFromDiskOrB64EncodedStringInner) -> Self {
-        KeyFromDiskOrB64EncodedString {
-            inner: value,
-            _marker: Default::default(),
-        }
-    }
-}
-
-pub trait SecretKeySource {
-    fn get_key_path(&self) -> PathBuf;
-    // TODO:
-    // fn get_key(&self, length: usize) -> Self::GetKeyOutput;
-}
-impl<FN: IsTStr> SecretKeySource for KeyFromDisk<FN> {
-    fn get_key_path(&self) -> PathBuf {
-        match &self.inner {
-            KeyFromDiskInner::File(file) => file.clone(),
-            KeyFromDiskInner::Directory(dir) => dir.join(FN::STR),
-        }
-    }
-}
-pub trait PublicKeySource {
-    type GetPathOutput;
-    type GetInlineOutput;
-    fn get_key_path(&self) -> Self::GetPathOutput;
-    fn get_inline_key(&self) -> Self::GetInlineOutput;
-    // TODO:
-    // fn get_key(&self, length: usize) -> Self::GetKeyOutput;
-}
-impl<FN: IsTStr> PublicKeySource for KeyFromDisk<FN> {
-    type GetPathOutput = PathBuf;
-    type GetInlineOutput = !;
-    fn get_key_path(&self) -> Self::GetPathOutput {
-        match &self.inner {
-            KeyFromDiskInner::File(file) => file.clone(),
-            KeyFromDiskInner::Directory(dir) => dir.join(FN::STR),
-        }
-    }
-    fn get_inline_key(&self) -> Self::GetInlineOutput {
-        unimplemented!("this key is always read from disk")
-    }
-}
-impl<FN: IsTStr> PublicKeySource for KeyFromDiskOrB64EncodedString<FN> {
-    type GetPathOutput = Option<PathBuf>;
-    type GetInlineOutput = Option<String>;
-    fn get_key_path(&self) -> Self::GetPathOutput {
-        match &self.inner {
-            KeyFromDiskOrB64EncodedStringInner::File(file) => Some(file.clone()),
-            KeyFromDiskOrB64EncodedStringInner::Directory(dir) => Some(dir.join(FN::STR)),
-            KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(_raw) => None,
-        }
-    }
-    fn get_inline_key(&self) -> Self::GetInlineOutput {
-        match &self.inner {
-            KeyFromDiskOrB64EncodedStringInner::File(_file) => None,
-            KeyFromDiskOrB64EncodedStringInner::Directory(_dir) => None,
-            KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(raw) => Some(raw.clone()),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum ConfigSource {
     TomlFile(ConfigSourceTomlFile),
-    // CommandLineArguments(ConfigSourceCli)
+    // TODO: CommandLineArguments(ConfigSourceCli)
 }
 
 #[derive(Debug)]
@@ -202,7 +76,7 @@ pub enum TomlConfigFileVersion {
     #[default]
     Version1,
 }
-// ============================== [[device]] ==============================
+// ============================== [[wiregard-devices]] ==============================
 #[derive(Debug)]
 pub struct WgDeviceConfig {
     /// name of the WireGuard device, e.g. `wg0`
@@ -238,7 +112,7 @@ enum FlatWgDeviceCreateOptions {
     DoNotCreate,
 }
 
-// ============================== [[peer]] ==============================
+// ============================== [[peers]] ==============================
 #[derive(Debug)]
 pub struct PeerConfig {
     /// cosmetic name of the peer
@@ -251,7 +125,7 @@ pub struct PeerConfig {
     pub their_public_key: PublicPqKeySource,
 
     /// endpoint of the peer's Rosenpass application
-    pub endpoint: SocketAddr,
+    pub endpoint: Option<String>,
 
     /// optional PSK used for the protocol context `ctx`, see whitepaper
     ///

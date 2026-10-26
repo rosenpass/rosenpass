@@ -54,7 +54,7 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
 
 #[test]
 #[serial]
-fn read_old_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
+fn read_v0_2_generated_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
     let (config, working_dir) = prepare_config_file(
         Path::new("rosenpass-0.2.3-generated-raw.toml"),
         Path::new("tmp.toml"),
@@ -73,8 +73,26 @@ fn read_old_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+#[test]
+#[serial]
+fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
+    let (config, working_dir) = prepare_config_file(
+        Path::new("rosenpass-0.2.3-full-raw.toml"),
+        Path::new("tmp.toml"),
+        vec![
+            ("public_key", "../keys/alice-0.2-public/pqpk".into()),
+            ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
+            ("peers.0.public_key", "../keys/bob-0.2-public/pqpk".into()),
+        ],
+        vec![],
+        vec![],
+    )?;
+    let (config, _parse_warnings) =
+        parse(config, &working_dir.join("tmp.toml")).expect_silent("parser returned errors");
+    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+
+    Ok(())
+}
 // TODO: test that additional keys are rejected
 
 // TODO: test that peer secret key is rejected
-
-// TODO: `rosenpass-0.2.3-full-raw.toml`

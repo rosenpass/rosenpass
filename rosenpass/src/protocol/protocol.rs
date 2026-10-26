@@ -3,9 +3,12 @@
 //! It is merged entirely into [crate::protocol] and should be split up into multiple
 //! files.
 
-use std::collections::hash_map::{
-    Entry::{Occupied, Vacant},
-    HashMap,
+use std::collections::{
+    HashSet,
+    hash_map::{
+        Entry::{Occupied, Vacant},
+        HashMap,
+    },
 };
 use std::{
     borrow::Borrow,
@@ -173,6 +176,27 @@ impl ProtocolVersion {
             ProtocolVersion::V02 => EphemeralKem::Kyber512Round3,
             ProtocolVersion::V03 => EphemeralKem::MlKem512,
         }
+    }
+    /// a [`HashSet`] of all existing protocol versions
+    ///
+    /// for a set of all supported by default, see
+    #[cfg_attr(
+        feature = "expose_internal_modules",
+        doc = "[`ProtocolVersion::all_supported_by_default`]"
+    )]
+    #[cfg_attr(
+        not(feature = "expose_internal_modules"),
+        doc = "`ProtocolVersion::all_supported_by_default`"
+    )]
+    pub fn all() -> HashSet<ProtocolVersion> {
+        let mut return_value = HashSet::new();
+        return_value.insert(ProtocolVersion::V02);
+        return_value.insert(ProtocolVersion::V03);
+        return_value
+    }
+
+    pub fn all_supported_by_default() -> HashSet<ProtocolVersion> {
+        return Self::all();
     }
 }
 
