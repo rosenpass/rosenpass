@@ -1,5 +1,5 @@
 {
-  "lastUpdate": 1792985981443,
+  "lastUpdate": 1792986858636,
   "repoUrl": "https://github.com/rosenpass/rosenpass",
   "entries": {
     "Protocol Benchmarks": [
@@ -2126,6 +2126,371 @@
             "range": "± 13781",
             "unit": "ns/iter",
             "operating system": "x86_64-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "decaps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5790c6a6a4915243fa4bd17f6bd30ae5c5d6d4b3",
+          "message": "chore(deps): bump the weekly-cargo-patches group with 9 updates\n\nBumps the weekly-cargo-patches group with 9 updates:\n\n| Package | From | To |\n| --- | --- | --- |\n| [toml](https://github.com/toml-rs/toml) | `1.1.6+spec-1.1.0` | `1.1.8+spec-1.1.0` |\n| [libc](https://github.com/rust-lang/libc) | `0.2.190` | `0.2.191` |\n| [ml-kem](https://github.com/RustCrypto/KEMs) | `0.3.2` | `0.3.3` |\n| [find-msvc-tools](https://github.com/rust-lang/cc-rs) | `0.1.14` | `0.1.15` |\n| [sha3](https://github.com/RustCrypto/hashes) | `0.11.0` | `0.12.0` |\n| [toml_edit](https://github.com/toml-rs/toml) | `0.25.15+spec-1.1.0` | `0.25.17+spec-1.1.0` |\n| [zstd](https://github.com/gyscos/zstd-rs) | `0.14.2` | `0.14.3` |\n| [zstd-safe](https://github.com/gyscos/zstd-rs) | `8.1.0` | `8.2.0` |\n| [zstd-sys](https://github.com/gyscos/zstd-rs) | `2.1.1+zstd.1.5.7` | `2.1.2+zstd.1.5.7` |\n\n\nUpdates `toml` from 1.1.6+spec-1.1.0 to 1.1.8+spec-1.1.0\n- [Commits](https://github.com/toml-rs/toml/compare/toml-v1.1.6...toml-v1.1.8)\n\nUpdates `libc` from 0.2.190 to 0.2.191\n- [Release notes](https://github.com/rust-lang/libc/releases)\n- [Changelog](https://github.com/rust-lang/libc/blob/0.2.191/CHANGELOG.md)\n- [Commits](https://github.com/rust-lang/libc/compare/0.2.190...0.2.191)\n\nUpdates `ml-kem` from 0.3.2 to 0.3.3\n- [Commits](https://github.com/RustCrypto/KEMs/compare/ml-kem/v0.3.2...ml-kem/v0.3.3)\n\nUpdates `find-msvc-tools` from 0.1.14 to 0.1.15\n- [Release notes](https://github.com/rust-lang/cc-rs/releases)\n- [Changelog](https://github.com/rust-lang/cc-rs/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/rust-lang/cc-rs/compare/find-msvc-tools-v0.1.14...find-msvc-tools-v0.1.15)\n\nUpdates `sha3` from 0.11.0 to 0.12.0\n- [Commits](https://github.com/RustCrypto/hashes/compare/sha3-v0.11.0...sha3-v0.12.0)\n\nUpdates `toml_edit` from 0.25.15+spec-1.1.0 to 0.25.17+spec-1.1.0\n- [Commits](https://github.com/toml-rs/toml/compare/v0.25.15...v0.25.17)\n\nUpdates `zstd` from 0.14.2 to 0.14.3\n- [Release notes](https://github.com/gyscos/zstd-rs/releases)\n- [Commits](https://github.com/gyscos/zstd-rs/compare/v0.14.2...v0.14.3)\n\nUpdates `zstd-safe` from 8.1.0 to 8.2.0\n- [Release notes](https://github.com/gyscos/zstd-rs/releases)\n- [Commits](https://github.com/gyscos/zstd-rs/compare/zstd-safe-8.1.0...zstd-safe-8.2.0)\n\nUpdates `zstd-sys` from 2.1.1+zstd.1.5.7 to 2.1.2+zstd.1.5.7\n- [Release notes](https://github.com/gyscos/zstd-rs/releases)\n- [Commits](https://github.com/gyscos/zstd-rs/compare/zstd-sys-2.1.1...zstd-sys-2.1.2)\n\n---\nupdated-dependencies:\n- dependency-name: toml\n  dependency-version: 1.1.8+spec-1.1.0\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: libc\n  dependency-version: 0.2.191\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: ml-kem\n  dependency-version: 0.3.3\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: find-msvc-tools\n  dependency-version: 0.1.15\n  dependency-type: indirect\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: sha3\n  dependency-version: 0.12.0\n  dependency-type: indirect\n  update-type: version-update:semver-minor\n  dependency-group: weekly-cargo-patches\n- dependency-name: toml_edit\n  dependency-version: 0.25.17+spec-1.1.0\n  dependency-type: indirect\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: zstd\n  dependency-version: 0.14.3\n  dependency-type: indirect\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n- dependency-name: zstd-safe\n  dependency-version: 8.2.0\n  dependency-type: indirect\n  update-type: version-update:semver-minor\n  dependency-group: weekly-cargo-patches\n- dependency-name: zstd-sys\n  dependency-version: 2.1.2+zstd.1.5.7\n  dependency-type: indirect\n  update-type: version-update:semver-patch\n  dependency-group: weekly-cargo-patches\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-10-26T03:26:57Z",
+          "tree_id": "c538cea4621b98de86ba04e2dd138b1ecb0c7292",
+          "url": "https://github.com/rosenpass/rosenpass/commit/5790c6a6a4915243fa4bd17f6bd30ae5c5d6d4b3"
+        },
+        "date": 1792986854190,
+        "bigger_is_better": false,
+        "benches": [
+          {
+            "value": 588,
+            "range": "± 18",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "0byte"
+          },
+          {
+            "value": 1131,
+            "range": "± 9",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "32byte"
+          },
+          {
+            "value": 1137,
+            "range": "± 33",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "64byte"
+          },
+          {
+            "value": 1129,
+            "range": "± 97",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "128byte"
+          },
+          {
+            "value": 4911,
+            "range": "± 1268",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "blake2b",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "1024byte"
+          },
+          {
+            "value": 1396,
+            "range": "± 27",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "0byte"
+          },
+          {
+            "value": 1396,
+            "range": "± 119",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "32byte"
+          },
+          {
+            "value": 1409,
+            "range": "± 119",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "64byte"
+          },
+          {
+            "value": 2753,
+            "range": "± 26",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "128byte"
+          },
+          {
+            "value": 10884,
+            "range": "± 584",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "keyedhash",
+            "algorithm": "shake256",
+            "implementation": "rustcrypto",
+            "operation": "hash",
+            "length": "1024byte"
+          },
+          {
+            "value": 1291,
+            "range": "± 235",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1317,
+            "range": "± 52",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1399,
+            "range": "± 168",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 1425,
+            "range": "± 62",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 2551,
+            "range": "± 53",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "1024byt..."
+          },
+          {
+            "value": 2578,
+            "range": "± 35",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "chacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "1024byt..."
+          },
+          {
+            "value": 1516,
+            "range": "± 80",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1553,
+            "range": "± 92",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "0byte"
+          },
+          {
+            "value": 1634,
+            "range": "± 100",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 1664,
+            "range": "± 179",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "32byte"
+          },
+          {
+            "value": 2762,
+            "range": "± 24",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "encrypt",
+            "length": "1024by..."
+          },
+          {
+            "value": 2807,
+            "range": "± 103",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "aead",
+            "algorithm": "xchacha20poly1305",
+            "implementation": "rustcrypto",
+            "operation": "decrypt",
+            "length": "1024by..."
+          },
+          {
+            "value": 57309,
+            "range": "± 5595",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "mlkem512",
+            "implementation": "rustcrypto",
+            "length": "-1",
+            "operation": "keygen"
+          },
+          {
+            "value": 86535,
+            "range": "± 19413",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "mlkem512",
+            "implementation": "rustcrypto",
+            "length": "-1",
+            "operation": "encaps"
+          },
+          {
+            "value": 66112,
+            "range": "± 6311",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "mlkem512",
+            "implementation": "rustcrypto",
+            "length": "-1",
+            "operation": "decaps"
+          },
+          {
+            "value": 61174,
+            "range": "± 3764",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "keygen"
+          },
+          {
+            "value": 74929,
+            "range": "± 2861",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "encaps"
+          },
+          {
+            "value": 75245,
+            "range": "± 9637",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "kyber512",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "decaps"
+          },
+          {
+            "value": 534301965,
+            "range": "± 268463785",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "keygen"
+          },
+          {
+            "value": 750637,
+            "range": "± 112641",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
+            "primitive": "kem",
+            "algorithm": "classicmceliece460896",
+            "implementation": "oqs",
+            "length": "-1",
+            "operation": "encaps"
+          },
+          {
+            "value": 824535,
+            "range": "± 16617",
+            "unit": "ns/iter",
+            "operating system": "i686-linux",
             "primitive": "kem",
             "algorithm": "classicmceliece460896",
             "implementation": "oqs",
