@@ -11,7 +11,12 @@ use crate::{
 };
 use log::LevelFilter;
 use serde::{Deserialize, de::value::StrDeserializer};
-use std::{collections::HashSet, fmt::Display, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use toml_edit::InlineTable;
 use tstr::IsTStr;
 
@@ -95,6 +100,7 @@ impl<T> ProcessParseResult for Vec<Result<T, ParseError>> {
 
 pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
     raw: &str,
+    file_path: &Path,
     table: &T,
     allowed_keys: Vec<&str>,
 ) -> Result<(), Vec<ParseError>> {
@@ -112,6 +118,7 @@ pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
     for illegal_key in illegal_keys.iter() {
         errors.push(ParseError::new(
             raw,
+            file_path,
             illegal_key.1.clone(),
             format!("illegal key {}", illegal_key.0),
         ));
@@ -134,13 +141,19 @@ pub(crate) fn resolve_span(raw: &str, span: &std::ops::Range<usize>) -> Option<(
 /// - `table_span` is the location of the `table` within the TOML `file` and is only required to format the error message in case of a missing key
 fn get_item<'a, T: toml_edit::TableLike>(
     raw: &str,
+    file_path: &Path,
     table: &'a T,
     table_span: Option<&std::ops::Range<usize>>,
     key: &str,
 ) -> Result<&'a toml_edit::Item, ParseError> {
-    table
-        .get(key)
-        .ok_or_else(|| ParseError::new(raw, table_span.cloned(), format!("require key \"{key}\"")))
+    table.get(key).ok_or_else(|| {
+        ParseError::new(
+            raw,
+            file_path,
+            table_span.cloned(),
+            format!("require key \"{key}\""),
+        )
+    })
 }
 macro_rules! getter_to_typename {
     (as_str) => {
@@ -168,16 +181,18 @@ macro_rules! get_as_type_generator {
         #[allow(dead_code)]
         pub fn $fn_name<'a, TableLike: toml_edit::TableLike, $($generics)*>(
             raw: &'a str,
+            file_path: &Path,
             table: &'a TableLike,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
         ) -> Result<$type_, Vec<ParseError>> {
-            let item = get_item(raw, table, table_span.as_ref(), key).map_err(|err| vec![err])?;
+            let item = get_item(raw, file_path, table, table_span.as_ref(), key).map_err(|err| vec![err])?;
             let item_span = item.span();
             item.$getter()
                 .ok_or_else(|| {
                     vec![ParseError::new(
                         raw,
+                        file_path,
                         item_span,
                         format!(
                             "item \"{key}\" has wrong data type, expected {}",
@@ -185,16 +200,17 @@ macro_rules! get_as_type_generator {
                         ),
                     )]
                 })
-                .map(|v| $mapper(raw, item, v))?
+                .map(|v| $mapper(raw, file_path, item, v))?
         }
         #[allow(dead_code)]
         pub fn $opt_fn_name<'a, TableLike: toml_edit::TableLike, $($generics)*>(
             raw: &'a str,
+            file_path: &Path,
             table: &'a TableLike,
             table_span: Option<std::ops::Range<usize>>,
             key: &str,
         ) -> Result<Option<$type_>, Vec<ParseError>> {
-            match get_item(raw, table, table_span.as_ref(), key) {
+            match get_item(raw, file_path, table, table_span.as_ref(), key) {
                 Ok(item) => {
                     let item_span = item.span();
                     Ok(Some(
@@ -202,6 +218,7 @@ macro_rules! get_as_type_generator {
                             .ok_or_else(|| {
                                 vec![ParseError::new(
                                     raw,
+                                    file_path,
                                     item_span,
                                     format!(
                                         "item \"{key}\" has wrong data type, expected {}",
@@ -209,7 +226,7 @@ macro_rules! get_as_type_generator {
                                     ),
                                 )]
                             })
-                            .map(|v| $mapper(raw, item, v))??,
+                            .map(|v| $mapper(raw, file_path, item, v))??,
                     ))
                 }
                 Err(_) => Ok(None),
@@ -225,11 +242,16 @@ get_as_type_generator!(
     [],
     String,
     as_str,
-    |_: &str, _: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> { Ok(s.to_string()) }
+    |_raw: &str,
+     _file_path: &Path,
+     _item: &toml_edit::Item,
+     s: &str|
+     -> Result<_, Vec<ParseError>> { Ok(s.to_string()) }
 );
 
 fn i64_to_int<T: num_traits::PrimInt + Display>(
     raw: &str,
+    file_path: &Path,
     span: Option<std::ops::Range<usize>>,
     value: i64,
 ) -> Result<T, Vec<ParseError>> {
@@ -240,6 +262,7 @@ fn i64_to_int<T: num_traits::PrimInt + Display>(
     {
         Err(vec![ParseError::new(
             raw,
+            file_path,
             span,
             format!("value out of bounds (minimum is {})", T::min_value()),
         )])
@@ -250,6 +273,7 @@ fn i64_to_int<T: num_traits::PrimInt + Display>(
     {
         Err(vec![ParseError::new(
             raw,
+            file_path,
             span,
             format!("value out of bounds (maximum is {})", T::max_value()),
         )])
@@ -265,7 +289,7 @@ get_as_type_generator!(
     [],
     i64,
     as_integer,
-    |_: &str, _: &toml_edit::Item, i| -> Result<_, Vec<ParseError>> { Ok(i) }
+    |_: &str, _: &Path, _: &toml_edit::Item, i| -> Result<_, Vec<ParseError>> { Ok(i) }
 );
 
 // u64
@@ -275,7 +299,9 @@ get_as_type_generator!(
     [],
     u64,
     as_integer,
-    |raw: &str, item: &toml_edit::Item, i| { i64_to_int(raw, item.span(), i) }
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, i| {
+        i64_to_int(raw, file_path, item.span(), i)
+    }
 );
 
 // Vec<i32>
@@ -285,7 +311,7 @@ get_as_type_generator!(
     [],
     Vec<i32>,
     as_array,
-    |raw: &str, _item: &toml_edit::Item, array: &toml_edit::Array| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
         let array = array
             .iter()
@@ -293,6 +319,7 @@ get_as_type_generator!(
                 Some(integer) => Ok((integer, item.span())),
                 None => Err(ParseError::new(
                     raw,
+                    file_path,
                     item.span(),
                     format!(
                         "item has wrong data type, expected {}",
@@ -308,7 +335,7 @@ get_as_type_generator!(
         let array = array
             .unwrap()
             .iter()
-            .map(|(integer, span)| i64_to_int(raw, span.clone(), *integer))
+            .map(|(integer, span)| i64_to_int(raw, file_path, span.clone(), *integer))
             .collect::<Vec<_>>()
             .process_parse_result(&mut errors);
         if !errors.is_empty() {
@@ -325,7 +352,9 @@ get_as_type_generator!(
     [],
     u16,
     as_integer,
-    |raw: &str, item: &toml_edit::Item, i| { i64_to_int(raw, item.span(), i) }
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, i| {
+        i64_to_int(raw, file_path, item.span(), i)
+    }
 );
 
 // bool
@@ -335,7 +364,9 @@ get_as_type_generator!(
     [],
     bool,
     as_bool,
-    |_: &str, _: &toml_edit::Item, b| -> Result<_, Vec<ParseError>> { Ok(b) }
+    |_raw: &str, _file_path: &Path, _item: &toml_edit::Item, b| -> Result<_, Vec<ParseError>> {
+        Ok(b)
+    }
 );
 
 // log::LevelFilter
@@ -345,7 +376,7 @@ get_as_type_generator!(
     [],
     LevelFilter,
     as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
         const INFO: &str = "info";
         if s == INFO {
             Ok(LevelFilter::Info)
@@ -354,6 +385,7 @@ get_as_type_generator!(
         else {
             Err(vec![ParseError::new(
                 raw,
+                file_path,
                 item.span(),
                 format!("invalid value for logging level, possible values: \"{INFO}\""),
             )])
@@ -368,9 +400,15 @@ get_as_type_generator!(
     [],
     Verbosity,
     as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
-        Verbosity::deserialize(StrDeserializer::<serde::de::value::Error>::new(s))
-            .map_err(|err| vec![ParseError::new(raw, item.span(), format!("{err}"))])
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
+        Verbosity::deserialize(StrDeserializer::<serde::de::value::Error>::new(s)).map_err(|err| {
+            vec![ParseError::new(
+                raw,
+                file_path,
+                item.span(),
+                format!("{err}"),
+            )]
+        })
     }
 );
 
@@ -381,7 +419,7 @@ get_as_type_generator!(
     [],
     PathBuf,
     as_str,
-    |_raw: &str, _item: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> {
+    |_raw: &str, _: &Path, _item: &toml_edit::Item, s: &str| -> Result<_, Vec<ParseError>> {
         Ok(PathBuf::from(s))
     }
 );
@@ -393,7 +431,7 @@ get_as_type_generator!(
     [],
     Vec<PathBuf>,
     as_array,
-    |raw: &str, _item: &toml_edit::Item, array: &toml_edit::Array| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
         let array = array
             .iter()
@@ -401,6 +439,7 @@ get_as_type_generator!(
                 x.as_str().ok_or_else(|| {
                     ParseError::new(
                         raw,
+                        file_path,
                         x.span(),
                         format!(
                             "item has wrong data type, expected {}",
@@ -429,7 +468,7 @@ get_as_type_generator!(
     [],
     &'a toml_edit::Array,
     as_array,
-    |_, _, list: &'a toml_edit::Array| -> Result<_, Vec<ParseError>> { Ok(list) }
+    |_, _: &Path, _, list: &'a toml_edit::Array| -> Result<_, Vec<ParseError>> { Ok(list) }
 );
 
 // toml_edit::InlineTable
@@ -439,7 +478,11 @@ get_as_type_generator!(
     [],
     &'a toml_edit::InlineTable,
     as_inline_table,
-    |_, _, tab: &'a toml_edit::InlineTable| -> Result<_, Vec<ParseError>> { Ok(tab) }
+    |_raw: &str,
+     _file_path: &Path,
+     _item: &toml_edit::Item,
+     tab: &'a toml_edit::InlineTable|
+     -> Result<_, Vec<ParseError>> { Ok(tab) }
 );
 
 // Vec<String>
@@ -449,12 +492,17 @@ get_as_type_generator!(
     [],
     Vec<String>,
     as_array,
-    |raw: &'a str, _item: &'a toml_edit::Item, array: &'a toml_edit::Array| {
+    |raw: &'a str, file_path: &Path, _item: &'a toml_edit::Item, array: &'a toml_edit::Array| {
         let array = array
             .iter()
             .map(|item| -> Result<String, ParseError> {
                 item.as_str().map(|s| s.to_string()).ok_or_else(|| {
-                    ParseError::new(raw, item.span(), "expected array of strings".to_string())
+                    ParseError::new(
+                        raw,
+                        file_path,
+                        item.span(),
+                        "expected array of strings".to_string(),
+                    )
                 })
             })
             .collect::<Vec<_>>();
@@ -476,6 +524,7 @@ get_as_type_generator!(
 // ProtocolVersion
 pub(crate) fn as_protocol_version(
     raw: &str,
+    file_path: &Path,
     item: &toml_edit::Item,
     serialized: &str,
 ) -> Result<ProtocolVersion, Vec<ParseError>> {
@@ -488,6 +537,7 @@ pub(crate) fn as_protocol_version(
     } else {
         Err(vec![ParseError::new(
             raw,
+            file_path,
             item.span(),
             format!("invalid protocol version; valid options are \"{PROTO_2}\" or \"{PROTO_3}\""),
         )])
@@ -499,7 +549,9 @@ get_as_type_generator!(
     [],
     ProtocolVersion,
     as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| { as_protocol_version(raw, item, s) }
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
+        as_protocol_version(raw, file_path, item, s)
+    }
 );
 get_as_type_generator!(
     get_as_hashset_protocol_version,
@@ -507,7 +559,7 @@ get_as_type_generator!(
     [],
     HashSet<ProtocolVersion>,
     as_array,
-    |raw: &str, item: &toml_edit::Item, array: &toml_edit::Array| {
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
 
         // map to Array of Strings
@@ -515,7 +567,12 @@ get_as_type_generator!(
             .iter()
             .map(|item| -> Result<String, ParseError> {
                 item.as_str().map(|s| s.to_string()).ok_or_else(|| {
-                    ParseError::new(raw, item.span(), "expected array of strings".to_string())
+                    ParseError::new(
+                        raw,
+                        file_path,
+                        item.span(),
+                        "expected array of strings".to_string(),
+                    )
                 })
             })
             .collect::<Vec<_>>()
@@ -528,7 +585,7 @@ get_as_type_generator!(
         // map to Array of ProtocolVersion
         let array = array
             .iter()
-            .map(|x| as_protocol_version(raw, item, x))
+            .map(|x| as_protocol_version(raw, file_path, item, x))
             .collect::<Vec<_>>()
             .process_parse_result(&mut errors);
         if !errors.is_empty() {
@@ -541,6 +598,7 @@ get_as_type_generator!(
         if hashset.len() != array.len() {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 item.span(),
                 "duplicate values in set of protocol versions".to_string(),
             )]);
@@ -558,9 +616,15 @@ get_as_type_generator!(
     [],
     std::net::SocketAddr,
     as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
-        std::net::SocketAddr::from_str(s)
-            .map_err(|err| vec![ParseError::new(raw, item.span(), err.to_string())])
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
+        std::net::SocketAddr::from_str(s).map_err(|err| {
+            vec![ParseError::new(
+                raw,
+                file_path,
+                item.span(),
+                err.to_string(),
+            )]
+        })
     }
 );
 
@@ -571,20 +635,22 @@ get_as_type_generator!(
     [],
     RosenpassPeerOskDomainSeparator,
     as_inline_table,
-    |raw: &str, _item: &toml_edit::Item, inline_table: &InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, inline_table: &InlineTable| {
         let mut errors = Vec::new();
         const ORG: &str = "organization";
         const LABELS: &str = "labels";
 
         // read "organization"
-        let organization = get_as_string(raw, inline_table, inline_table.span(), ORG)
+        let organization = get_as_string(raw, file_path, inline_table, inline_table.span(), ORG)
             .process_parse_result(&mut errors);
 
         // read "labels"
-        let osk_labels = get_as_vec_string(raw, inline_table, inline_table.span(), LABELS)
-            .process_parse_result(&mut errors);
+        let osk_labels =
+            get_as_vec_string(raw, file_path, inline_table, inline_table.span(), LABELS)
+                .process_parse_result(&mut errors);
 
-        deny_illegal_keys(raw, inline_table, vec![ORG, LABELS]).process_parse_result(&mut errors);
+        deny_illegal_keys(raw, file_path, inline_table, vec![ORG, LABELS])
+            .process_parse_result(&mut errors);
 
         // return
         if !errors.is_empty() {
@@ -600,6 +666,7 @@ get_as_type_generator!(
 // OSK Domain Separator (legacy-aware)
 pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
     raw: &str,
+    file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
 ) -> Result<RosenpassPeerOskDomainSeparator, Vec<ParseError>> {
@@ -608,15 +675,16 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
     const LEGACY_LABELS: &str = "osk_label";
     const TABLE: &str = "osk-domain-separator";
 
-    let legacy_org = get_as_opt_string(raw, table, table_span.clone(), LEGACY_ORG)
+    let legacy_org = get_as_opt_string(raw, file_path, table, table_span.clone(), LEGACY_ORG)
         .process_parse_result(&mut errors)
         .flatten();
 
-    let legacy_labels = get_as_opt_vec_string(raw, table, table_span.clone(), LEGACY_LABELS)
-        .process_parse_result(&mut errors)
-        .flatten();
+    let legacy_labels =
+        get_as_opt_vec_string(raw, file_path, table, table_span.clone(), LEGACY_LABELS)
+            .process_parse_result(&mut errors)
+            .flatten();
 
-    let osk_table = get_as_opt_inline_table(raw, table, table_span.clone(), TABLE)
+    let osk_table = get_as_opt_inline_table(raw, file_path, table, table_span.clone(), TABLE)
         .process_parse_result(&mut errors)
         .flatten();
 
@@ -639,6 +707,7 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         (Some(_), None, None) => {
             errors.push(ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!(
                     "expected key \"{LEGACY_LABELS}\" because you also specified \"{LEGACY_ORG}\""
@@ -649,6 +718,7 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         (None, Some(_), None) => {
             errors.push(ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!(
                     "expected key \"{LEGACY_ORG}\" because you also specified \"{LEGACY_LABELS}\""
@@ -658,19 +728,22 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         }
         // exclusive options
         (Some(_), None, Some(_)) => {
-            errors.push(ParseError::new(raw, table_span.clone(),
+            errors.push(ParseError::new(raw, 
+                        file_path,table_span.clone(),
                 format!("keys \"{LEGACY_ORG}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_ORG}\" is deprecated"))
             );
             None
         }
         (None, Some(_), Some(_)) => {
-            errors.push(ParseError::new(raw, table_span.clone(),
+            errors.push(ParseError::new(raw,
+                        file_path, table_span.clone(),
                 format!("keys \"{LEGACY_LABELS}\" and \"{TABLE}\" are mutually exclusive and \"{LEGACY_LABELS}\" is deprecated"))
             );
             None
         }
         (Some(_), Some(_), Some(_)) => {
-            errors.push(ParseError::new(raw, table_span.clone(),
+            errors.push(ParseError::new(raw, 
+                        file_path,table_span.clone(),
                 format!("keys \"{LEGACY_ORG}\" and \"{LEGACY_LABELS}\" (deprecated OSK definition) can not be used together with \"{TABLE}\""))
             );
             None
@@ -679,11 +752,12 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         (None, None, Some(osk_table)) => {
             const ORG: &str = "organization";
             const LABELS: &str = "labels";
-            let org = get_as_string(raw, osk_table, osk_table.span(), ORG)
+            let org = get_as_string(raw, file_path, osk_table, osk_table.span(), ORG)
                 .process_parse_result(&mut errors);
-            let labels = get_as_vec_string(raw, osk_table, osk_table.span(), LABELS)
+            let labels = get_as_vec_string(raw, file_path, osk_table, osk_table.span(), LABELS)
                 .process_parse_result(&mut errors);
-            deny_illegal_keys(raw, osk_table, vec![ORG, LABELS]).process_parse_result(&mut errors);
+            deny_illegal_keys(raw, file_path, osk_table, vec![ORG, LABELS])
+                .process_parse_result(&mut errors);
             match (org, labels) {
                 (Some(org), Some(labels)) => Some(RosenpassPeerOskDomainSeparator {
                     osk_organization: Some(org),
@@ -709,25 +783,33 @@ get_as_type_generator!(
     [],
     PresharedKeySource,
     as_inline_table,
-    |raw: &str, _item: &toml_edit::Item, inline_table: &InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, inline_table: &InlineTable| {
         const FILE: &str = "file";
         const DIR: &str = "directory";
         let mut errors = Vec::new();
 
-        let file = get_as_opt_path_buf(raw, inline_table, inline_table.span(), "file")
+        let file = get_as_opt_path_buf(raw, file_path, inline_table, inline_table.span(), "file")
             .process_parse_result(&mut errors)
             .flatten();
-        let dir = get_as_opt_path_buf(raw, inline_table, inline_table.span(), "directory")
-            .process_parse_result(&mut errors)
-            .flatten();
+        let dir = get_as_opt_path_buf(
+            raw,
+            file_path,
+            inline_table,
+            inline_table.span(),
+            "directory",
+        )
+        .process_parse_result(&mut errors)
+        .flatten();
 
         // check that `inline_table` has no further keys (e.g. no plaintext PSK)
-        deny_illegal_keys(raw, inline_table, vec![FILE, DIR]).process_parse_result(&mut errors);
+        deny_illegal_keys(raw, file_path, inline_table, vec![FILE, DIR])
+            .process_parse_result(&mut errors);
 
         let psk_source = match (file, dir) {
             (None, None) => {
                 errors.push(ParseError::new(
                     raw,
+                    file_path,
                     inline_table.span(),
                     format!("expected key \"{FILE}\" or \"{DIR}\""),
                 ));
@@ -736,6 +818,7 @@ get_as_type_generator!(
             (Some(_), Some(_)) => {
                 errors.push(ParseError::new(
                     raw,
+                    file_path,
                     inline_table.span(),
                     format!("keys \"{FILE}\" and \"{DIR}\" are mutually exclusive"),
                 ));
@@ -761,6 +844,7 @@ get_as_type_generator!(
 /// - `Ok(Err(ParseError))` if the key is not present in the table
 pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr>(
     raw: &str,
+    file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
     file_key: &str,
@@ -768,22 +852,24 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr>(
 ) -> Result<Result<KeyFromDisk<FN>, ParseError>, Vec<ParseError>> {
     let mut errors = Vec::new();
 
-    let file = get_as_opt_path_buf(raw, table, table_span.clone(), file_key)
+    let file = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), file_key)
         .process_parse_result(&mut errors)
         .flatten();
-    let dir = get_as_opt_path_buf(raw, table, table_span.clone(), dir_key)
+    let dir = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), dir_key)
         .process_parse_result(&mut errors)
         .flatten();
 
     let key = match (file, dir) {
         (None, None) => Err(ParseError::new(
             raw,
+            file_path,
             table_span.clone(),
             format!("expected either key \"{file_key}\" or \"{dir_key}\""),
         )),
         (Some(_), Some(_)) => {
             let err = ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!("keys \"{file_key}\" and \"{dir_key}\" are mutually exclusive"),
             );
@@ -809,7 +895,7 @@ get_as_type_generator!(
     [SFN: IsTStr, PFN: IsTStr],
     Keypair<KeyFromDisk<SFN>, KeyFromDisk<PFN>>,
     as_inline_table,
-    |raw: &str, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
         let mut errors = Vec::new();
 
         // read secret and public key (both optional for now)
@@ -817,12 +903,15 @@ get_as_type_generator!(
         const SECRETDIR: &str = "secret-key-directory";
         const PUBFILE: &str = "public-key-file";
         const PUBDIR: &str = "public-key-directory";
-        let secret_key = get_key_from_disk(raw, table, table.span(), SECRETFILE, SECRETDIR)
+        let secret_key = get_key_from_disk(raw,
+                        file_path,table, table.span(), SECRETFILE, SECRETDIR)
             .process_parse_result(&mut errors);
-        let public_key = get_key_from_disk(raw, table, table.span(), PUBFILE, PUBDIR)
+        let public_key = get_key_from_disk(raw,
+                        file_path,table, table.span(), PUBFILE, PUBDIR)
             .process_parse_result(&mut errors);
 
-        deny_illegal_keys(raw, table, vec![SECRETFILE, SECRETDIR, PUBFILE, PUBDIR])
+        deny_illegal_keys(raw,
+                        file_path,table, vec![SECRETFILE, SECRETDIR, PUBFILE, PUBDIR])
             .process_parse_result(&mut errors);
 
         // return on error (parse errors, but not missing keys – they are optional this far)
@@ -867,6 +956,7 @@ get_as_type_generator!(
 /// ```
 pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr, PFN: IsTStr>(
     raw: &str,
+    file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
     new_name: &str,
@@ -876,15 +966,18 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
     const LEGACY_SECRET: &str = "secret_key";
     const LEGACY_PUBLIC: &str = "public_key";
 
-    let legacy_secret = get_as_opt_path_buf(raw, table, table_span.clone(), LEGACY_SECRET)
-        .process_parse_result(&mut errors)
-        .flatten();
-    let legacy_public = get_as_opt_path_buf(raw, table, table_span.clone(), LEGACY_PUBLIC)
-        .process_parse_result(&mut errors)
-        .flatten();
-    let new = get_as_opt_keypair_with_pub_from_disk(raw, table, table_span.clone(), new_name)
-        .process_parse_result(&mut errors)
-        .flatten();
+    let legacy_secret =
+        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), LEGACY_SECRET)
+            .process_parse_result(&mut errors)
+            .flatten();
+    let legacy_public =
+        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), LEGACY_PUBLIC)
+            .process_parse_result(&mut errors)
+            .flatten();
+    let new =
+        get_as_opt_keypair_with_pub_from_disk(raw, file_path, table, table_span.clone(), new_name)
+            .process_parse_result(&mut errors)
+            .flatten();
 
     if !errors.is_empty() {
         return Err(errors);
@@ -895,6 +988,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (None, None, None) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!("expected key \"{new_name}\""),
             )]);
@@ -902,6 +996,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (None, Some(_), None) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!("expected key \"{LEGACY_SECRET}\""),
             )]);
@@ -909,6 +1004,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (Some(_), None, None) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!("expected key \"{LEGACY_PUBLIC}\""),
             )]);
@@ -918,6 +1014,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (None, Some(_), Some(_)) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!(
                     "keys \"{LEGACY_PUBLIC}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_PUBLIC}\" is deprecated"
@@ -927,6 +1024,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (Some(_), None, Some(_)) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!(
                     "keys \"{LEGACY_SECRET}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_SECRET}\" is deprecated"
@@ -936,6 +1034,7 @@ pub(crate) fn get_legacy_keypair_from_disk<T: toml_edit::TableLike, SFN: IsTStr,
         (Some(_), Some(_), Some(_)) => {
             return Err(vec![ParseError::new(
                 raw,
+                file_path,
                 table_span.clone(),
                 format!(
                     "keys \"{LEGACY_SECRET}\" and \"{LEGACY_PUBLIC}\" (deprecated keypair definition) can not be used together with \"{new_name}\""
@@ -966,13 +1065,14 @@ get_as_type_generator!(
     [],
     TomlConfigFileVersion,
     as_str,
-    |raw: &str, item: &toml_edit::Item, s: &str| {
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
         const V1: &str = "1";
         if s == V1 {
             Ok(TomlConfigFileVersion::Version1)
         } else {
             Err(vec![ParseError::new(
                 raw,
+                file_path,
                 item.span(),
                 format!("invalid config file version; supported values are \"{V1}\""),
             )])
@@ -987,7 +1087,7 @@ get_as_type_generator!(
     [],
     ApiConfig,
     as_inline_table,
-    |raw: &str, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
         let mut errors = Vec::new();
 
         const LISTEN_PATH: &str = "listen-path";

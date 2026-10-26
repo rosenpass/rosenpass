@@ -1,7 +1,11 @@
 //! TODO: document module
 //! TODO: format errors/warnings with file name
 use super::util::resolve_span;
-use std::{fmt::Debug, marker::PhantomData};
+use std::{
+    fmt::Debug,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 
 mod sealed {
     pub trait Sealed {}
@@ -28,6 +32,7 @@ impl ParseIssueKind for Error {
 }
 #[derive(Debug, Clone)]
 pub struct ParseIssueInner<K: ParseIssueKind> {
+    pub file: PathBuf,
     pub line: usize,
     pub column: usize,
     pub message: String,
@@ -39,11 +44,13 @@ impl<K: ParseIssueKind> ParseIssueInner<K> {
     }
     pub fn new(
         raw: &str,
+        file: &Path,
         span: Option<std::ops::Range<usize>>,
         message: String,
     ) -> ParseIssueInner<K> {
-        let location = span.map(|span| resolve_span(raw, &span)).flatten();
+        let location = span.and_then(|span| resolve_span(raw, &span));
         ParseIssueInner::<K> {
+            file: file.to_path_buf(),
             line: location.map(|l| l.0).unwrap_or(1),
             column: location.map(|l| l.1).unwrap_or(1),
             message,
@@ -51,14 +58,29 @@ impl<K: ParseIssueKind> ParseIssueInner<K> {
         }
     }
 }
+// TODO: maybe use prettier printing format?
 impl<K: ParseIssueKind> std::fmt::Display for ParseIssueInner<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.level() {
             ParseIssueLevel::Warning => {
-                write!(f, "warning:{}:{}: {}", self.line, self.column, self.message)
+                write!(
+                    f,
+                    "warning:{}:{}:{}: {}",
+                    self.file.display(),
+                    self.line,
+                    self.column,
+                    self.message
+                )
             }
             ParseIssueLevel::Error => {
-                write!(f, "error:{}:{}: {}", self.line, self.column, self.message)
+                write!(
+                    f,
+                    "error:{}:{}:{}: {}",
+                    self.file.display(),
+                    self.line,
+                    self.column,
+                    self.message
+                )
             }
         }
     }
@@ -72,6 +94,12 @@ pub enum ParseIssue {
     Error(ParseError),
 }
 impl ParseIssue {
+    pub fn file(&self) -> &Path {
+        match &self {
+            ParseIssue::Warning(inner) => &inner.file,
+            ParseIssue::Error(inner) => &inner.file,
+        }
+    }
     pub fn line(&self) -> usize {
         match &self {
             ParseIssue::Warning(inner) => inner.line,

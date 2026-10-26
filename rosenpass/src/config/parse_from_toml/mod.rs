@@ -45,6 +45,7 @@ impl RosenpassConfig {
                 let item = document.get(name).ok_or_else(|| {
                     vec![ParseError::new(
                         raw,
+                        file_path,
                         document.span(),
                         format!("missing array of tables \"[[{name}]]\""),
                     )]
@@ -52,6 +53,7 @@ impl RosenpassConfig {
                 let return_value = item.as_array_of_tables().ok_or_else(|| {
                     vec![ParseError::new(
                         raw,
+                        file_path,
                         item.span(),
                         format!(
                             "item \"{name}\" {}",
@@ -79,53 +81,63 @@ impl RosenpassConfig {
 
                     // our_listen_addresses
                     // TODO: put this code into `util` module
-                    let our_listen_address =
-                        process_results!(errors, get_as_array(raw, table, table.span(), "listen"))
-                            .map(|listen_addresses| {
-                                let mut return_value = Vec::new();
-                                if listen_addresses.is_empty() {
-                                    warnings.push(ParseWarning::new(
+                    let our_listen_address = process_results!(
+                        errors,
+                        get_as_array(raw, file_path, table, table.span(), "listen")
+                    )
+                    .map(|listen_addresses| {
+                        let mut return_value = Vec::new();
+                        if listen_addresses.is_empty() {
+                            warnings.push(ParseWarning::new(
+                                raw,
+                                file_path,
+                                listen_addresses.span(),
+                                "listen addresses list is empty, defaulting to TODO".to_string(),
+                            ));
+                        }
+                        for listen_address in listen_addresses.iter() {
+                            let value = process_results!(
+                                errors,
+                                listen_address.as_str().ok_or_else(|| {
+                                    vec![ParseError::new(
                                         raw,
-                                        listen_addresses.span(),
-                                        "listen addresses list is empty, defaulting to TODO"
+                                        file_path,
+                                        listen_address.span(),
+                                        "item in list has wrong data type: should be string"
                                             .to_string(),
-                                    ));
-                                }
-                                for listen_address in listen_addresses.iter() {
-                                    let value = process_results!(
-                                        errors,
-                                        listen_address.as_str().ok_or_else(|| {
-                                            vec![ParseError::new(
+                                    )]
+                                })
+                            );
+                            if let Some(value) = value {
+                                let addr = process_results!(
+                                    errors,
+                                    std::net::SocketAddr::from_str(value).map_err(|err| {
+                                        vec![ParseError::new(
                                             raw,
+                                            file_path,
                                             listen_address.span(),
-                                            "item in list has wrong data type: should be string"
-                                                .to_string(),
+                                            err.to_string(),
                                         )]
-                                        })
-                                    );
-                                    if let Some(value) = value {
-                                        let addr = process_results!(
-                                            errors,
-                                            std::net::SocketAddr::from_str(value).map_err(|err| {
-                                                vec![ParseError::new(
-                                                    raw,
-                                                    listen_address.span(),
-                                                    err.to_string(),
-                                                )]
-                                            })
-                                        );
-                                        if let Some(addr) = addr {
-                                            return_value.push(addr);
-                                        }
-                                    }
+                                    })
+                                );
+                                if let Some(addr) = addr {
+                                    return_value.push(addr);
                                 }
-                                return_value
-                            });
+                            }
+                        }
+                        return_value
+                    });
 
                     // log_level
                     let verbosity = process_results!(
                         errors,
-                        get_as_opt_verbosity_level(raw, table, table.span(), "logging-level")
+                        get_as_opt_verbosity_level(
+                            raw,
+                            file_path,
+                            table,
+                            table.span(),
+                            "logging-level"
+                        )
                     )
                     .flatten()
                     .unwrap_or_default();
@@ -133,12 +145,19 @@ impl RosenpassConfig {
                     // our_keys
                     let our_keypair = process_results!(
                         errors,
-                        get_legacy_keypair_from_disk(raw, table, table.span(), "our-keypair")
+                        get_legacy_keypair_from_disk(
+                            raw,
+                            file_path,
+                            table,
+                            table.span(),
+                            "our-keypair"
+                        )
                     );
 
                     // supported protocol versions
                     let supported_protocol_version = get_as_hashset_protocol_version(
                         raw,
+                        file_path,
                         table,
                         table.span(),
                         "supported-protocol-versions",
@@ -148,6 +167,7 @@ impl RosenpassConfig {
                     // config file version
                     let config_file_version = get_as_opt_config_file_version(
                         raw,
+                        file_path,
                         table,
                         table.span(),
                         "config-file-version",
@@ -159,7 +179,7 @@ impl RosenpassConfig {
                     // api config
                     #[cfg(feature = "experiment_api")]
                     let api_config = {
-                        get_as_opt_api_config(raw, table, table.span(), "api")
+                        get_as_opt_api_config(raw, file_path, table, table.span(), "api")
                             .process_parse_result(&mut errors)
                             .flatten()
                             .unwrap_or_default()
@@ -197,51 +217,55 @@ impl RosenpassConfig {
                     let mut errors = Vec::new();
 
                     // name
-                    let name =
-                        process_results!(errors, get_as_string(raw, table, table.span(), "name"));
+                    let name = process_results!(
+                        errors,
+                        get_as_string(raw, file_path, table, table.span(), "name")
+                    );
 
                     // enabled
                     let enabled = process_results!(
                         errors,
-                        get_as_opt_bool(raw, table, table.span(), "enabled")
+                        get_as_opt_bool(raw, file_path, table, table.span(), "enabled")
                     )
                     .flatten()
                     .unwrap_or(true);
 
                     // created_by
-                    let created_by =
-                        process_results!(errors, get_as_bool(raw, table, table.span(), "create",))
-                            .map(|create| {
-                                if !create {
-                                    Some(WgDeviceCreateOptions::DoNotCreate)
-                                } else {
-                                    let mut inline_errors = Vec::new();
+                    let created_by = process_results!(
+                        errors,
+                        get_as_bool(raw, file_path, table, table.span(), "create",)
+                    )
+                    .map(|create| {
+                        if !create {
+                            Some(WgDeviceCreateOptions::DoNotCreate)
+                        } else {
+                            let mut inline_errors = Vec::new();
 
-                                    // wg_listen_port
-                                    let wg_listen_port = process_results!(
-                                        inline_errors,
-                                        get_as_opt_u16(raw, table, table.span(), "listen-port")
-                                    )
-                                    .flatten(); // defaults to `None`
+                            // wg_listen_port
+                            let wg_listen_port = process_results!(
+                                inline_errors,
+                                get_as_opt_u16(raw, file_path, table, table.span(), "listen-port")
+                            )
+                            .flatten(); // defaults to `None`
 
-                                    // wg_fwmark
-                                    let wg_fwmark = process_results!(
-                                        inline_errors,
-                                        get_as_opt_u16(raw, table, table.span(), "fwmark")
-                                    )
-                                    .flatten(); // defaults to `None`
+                            // wg_fwmark
+                            let wg_fwmark = process_results!(
+                                inline_errors,
+                                get_as_opt_u16(raw, file_path, table, table.span(), "fwmark")
+                            )
+                            .flatten(); // defaults to `None`
 
-                                    // return
-                                    errors.extend_from_slice(&inline_errors);
-                                    inline_errors.is_empty().then_some(
-                                        WgDeviceCreateOptions::Create {
-                                            wg_listen_port,
-                                            wg_fwmark,
-                                        },
-                                    )
-                                }
-                            })
-                            .flatten();
+                            // return
+                            errors.extend_from_slice(&inline_errors);
+                            inline_errors
+                                .is_empty()
+                                .then_some(WgDeviceCreateOptions::Create {
+                                    wg_listen_port,
+                                    wg_fwmark,
+                                })
+                        }
+                    })
+                    .flatten();
 
                     if errors.is_empty() {
                         wireguard_devices.push(WgDeviceConfig {
@@ -261,12 +285,14 @@ impl RosenpassConfig {
             for table in peer_tables {
                 let mut peer_errors = Vec::new();
 
-                let name =
-                    process_results!(peer_errors, get_as_string(raw, table, table.span(), "name"));
+                let name = process_results!(
+                    peer_errors,
+                    get_as_string(raw, file_path, table, table.span(), "name")
+                );
 
                 let enabled = process_results!(
                     peer_errors,
-                    get_as_opt_bool(raw, table, table.span(), "enabled")
+                    get_as_opt_bool(raw, file_path, table, table.span(), "enabled")
                 )
                 .flatten()
                 .unwrap_or(true);
@@ -280,18 +306,25 @@ impl RosenpassConfig {
                     // read both key sources
                     let legacy_key_file = process_results!(
                         pubkey_errors,
-                        get_as_opt_path_buf(raw, table, table.span(), PUBLIC_KEY_NAME)
+                        get_as_opt_path_buf(raw, file_path, table, table.span(), PUBLIC_KEY_NAME)
                     )
                     .flatten();
                     let their_keypair = process_results!(
                         pubkey_errors,
-                        get_as_opt_inline_table(raw, table, table.span(), THEIR_KEYPAIR_NAME)
+                        get_as_opt_inline_table(
+                            raw,
+                            file_path,
+                            table,
+                            table.span(),
+                            THEIR_KEYPAIR_NAME
+                        )
                     )
                     .flatten();
                     let their_public_key = match (legacy_key_file, their_keypair) {
                         (Some(_), Some(_)) => {
                             pubkey_errors.push(ParseError::new(
                                 raw,
+                        file_path,
                                 table.span(),
                                 format!(
                                     "keys \"{PUBLIC_KEY_NAME}\" and \"{THEIR_KEYPAIR_NAME}\" are mutually exclusive and \"{PUBLIC_KEY_NAME}\" is deprecated",
@@ -302,6 +335,7 @@ impl RosenpassConfig {
                         (None, None) => {
                             pubkey_errors.push(ParseError::new(
                                 raw,
+                                file_path,
                                 table.span(),
                                 format!("expected key \"{THEIR_KEYPAIR_NAME}\""),
                             ));
@@ -320,6 +354,7 @@ impl RosenpassConfig {
                                 pubkey_errors,
                                 get_as_opt_path_buf(
                                     raw,
+                                    file_path,
                                     their_keypair,
                                     their_keypair.span(),
                                     FILE_NAME
@@ -330,6 +365,7 @@ impl RosenpassConfig {
                                 pubkey_errors,
                                 get_as_opt_path_buf(
                                     raw,
+                                    file_path,
                                     their_keypair,
                                     their_keypair.span(),
                                     DIR_NAME
@@ -340,6 +376,7 @@ impl RosenpassConfig {
                                 (Some(_), Some(_)) => {
                                     pubkey_errors.push(ParseError::new(
                                         raw,
+                        file_path,
                                         their_keypair.span(),
                                         format!("keys \"{FILE_NAME}\" and \"{DIR_NAME}\" are mutually exclusive"),
                                     ));
@@ -348,6 +385,7 @@ impl RosenpassConfig {
                                 (None, None) => {
                                     pubkey_errors.push(ParseError::new(
                                         raw,
+                                        file_path,
                                         their_keypair.span(),
                                         format!("expected key \"{FILE_NAME}\""),
                                     ));
@@ -368,7 +406,7 @@ impl RosenpassConfig {
 
                 let endpoint = process_results!(
                     peer_errors,
-                    get_as_opt_socket_addr(raw, table, table.span(), "endpoint")
+                    get_as_opt_socket_addr(raw, file_path, table, table.span(), "endpoint")
                 )
                 .flatten();
 
@@ -381,18 +419,19 @@ impl RosenpassConfig {
 
                     let legacy_psk_file = process_results!(
                         psk_errors,
-                        get_as_opt_path_buf(raw, table, table.span(), LEGACY_NAME)
+                        get_as_opt_path_buf(raw, file_path, table, table.span(), LEGACY_NAME)
                     )
                     .flatten();
                     let psk_table = process_results!(
                         psk_errors,
-                        get_as_opt_psk_source(raw, table, table.span(), PSK_NAME)
+                        get_as_opt_psk_source(raw, file_path, table, table.span(), PSK_NAME)
                     )
                     .flatten();
                     let psk_source = match (legacy_psk_file, psk_table) {
                         (Some(_), Some(_)) => {
                             psk_errors.push(ParseError::new(
                                 raw,
+                        file_path,
                                 table.span(),
                                 format!("keys \"{LEGACY_NAME}\" and \"{PSK_NAME}\" exlude each other and \"{LEGACY_NAME}\" is deprecated"),
                             ));
@@ -401,6 +440,7 @@ impl RosenpassConfig {
                         (None, None) => {
                             psk_errors.push(ParseError::new(
                                 raw,
+                                file_path,
                                 table.span(),
                                 format!("expected key \"{PSK_NAME}\""),
                             ));
@@ -416,7 +456,7 @@ impl RosenpassConfig {
                 };
                 let osk_domain_separator = process_results!(
                     peer_errors,
-                    get_legacy_osk_domain_separator(raw, table, table.span())
+                    get_legacy_osk_domain_separator(raw, file_path, table, table.span())
                 );
 
                 if peer_errors.is_empty() {
