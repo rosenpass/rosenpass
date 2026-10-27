@@ -5,98 +5,39 @@ pub mod harness;
 
 #[cfg(feature = "experiment_api")]
 mod api;
-use std::path::Path;
+mod conflicts;
+mod example_files;
+mod illegal_keys;
+mod reject_secret_key;
 
-use crate::config::{tests::harness::ExpectSilent, validate::ValidationRecipe};
+use crate::config::tests::harness::{ExpectSilent, parse_string};
 
 use super::*;
-use harness::{assert_validation_succeeded, parse, prepare_config, validate};
-use serial_test::serial;
 
+// TODO: test [`RosenpassConfig::validate`]
+
+// TODO: test for missing keys – or does it even need testing?
+
+// TODO: test for wrong types – or does it even need testing?
+
+/// a minimal peer (only the mandatory key) parses with all optional fields empty
 #[test]
-#[serial] // run in serial so that no race-conditions around "tmp.toml" file can be avoided
-fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    #[rustfmt::skip]
-    let (config, file_path) = prepare_config(
-        Path::new("full-raw.toml"),
-        vec![
-            ("rosenpass.our-keypair.secret-key-file", "../keys/alice-0.2-secret/pqsk".into()),
-            ("rosenpass.our-keypair.public-key-file", "../keys/alice-0.2-public/pqpk".into()),
-            ("peers.0.their-keypair.public-key-file", "../keys/bob-0.2-public/pqpk".into()),
-            ("peers.0.preshared-key.file", "../alice-bob.psk".into()),
-            ("peers.0.wireguard.our-wireguard-keypair.secret-key-file", "../keys/alice-wg-secret/wqsk".into()),
-            ("peers.0.wireguard.our-wireguard-keypair.public-key-file", "../keys/alice-wg-public/wgpk".into()),
-            ("peers.0.wireguard.our-wireguard-keypair.public-key", "TODO: also test this".into()),
-        ],
-        vec![
-            "peers.0.their-keypair.public-key-directory",
-            "peers.0.wireguard.our-wireguard-keypair.public-key",
-            "peers.0.wireguard.their-wireguard-keypair.public-key-directory",
-            "peers.0.wireguard.their-wireguard-keypair.public-key",
-            "peers.0.preshared-key.directory",
-        ],
-        vec![],
-    )?;
-    let (config, parse_warnings) =
-        parse(config, &file_path).expect_silent("parser returned errors");
-    // without the `experiment_api` feature, the `[rosenpass.api]` table produces a warning
-    #[cfg(feature = "experiment_api")]
-    assert!(parse_warnings.is_empty(), "parser returned warnings");
-    #[cfg(not(feature = "experiment_api"))]
-    assert!(
-        parse_warnings
-            .iter()
-            .all(|w| w.message.contains("experiment_api")),
-        "unexpected parser warnings: {parse_warnings:?}"
-    );
+fn minimal_peer_parses() -> Result<(), anyhow::Error> {
+    let (config, _warnings) = parse_string(
+        r#"
+our-keypair = { secret-key-file = "../keys/alice-0.2-secret/pqsk", public-key-file = "../keys/alice-0.2-public/pqpk" }
+listen = ["0.0.0.0:9999"]
 
-    // TODO: write
-
+[[peers]]
+their-keypair = { public-key-file = "../keys/bob-0.2-public/pqpk" }
+"#,
+    )
+    .expect_silent("parser returned errors");
+    let peer = &config.peers[0];
+    assert!(peer.enabled);
+    assert_eq!(peer.endpoint, None);
+    assert!(peer.preshared_key.is_none());
+    assert!(peer.output_to_file.is_none());
+    assert!(peer.wireguard.is_none());
     Ok(())
 }
-
-#[test]
-fn read_v0_2_generated_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    let (config, file_path) = prepare_config(
-        Path::new("rosenpass-0.2.3-generated-raw.toml"),
-        vec![
-            ("public_key", "../keys/alice-0.2-public/pqpk".into()),
-            ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
-            ("peers.0.public_key", "../keys/bob-0.2-public/pqpk".into()),
-        ],
-        vec![],
-        vec![],
-    )?;
-    let (config, parse_warnings) =
-        parse(config, &file_path).expect_silent("parser returned errors");
-
-    // TODO: write
-    
-    Ok(())
-}
-
-#[test]
-fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    let (config, file_path) = prepare_config(
-        Path::new("rosenpass-0.2.3-full-raw.toml"),
-        vec![
-            ("public_key", "../keys/alice-0.2-public/pqpk".into()),
-            ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
-            ("peers.0.public_key", "../keys/bob-0.2-public/pqpk".into()),
-        ],
-        vec![],
-        vec![],
-    )?;
-    let (config, parse_warnings) =
-        parse(config, &file_path).expect_silent("parser returned errors");
-
-    // TODO: write
-    
-
-    Ok(())
-}
-// TODO: test that additional keys are rejected
-
-// TODO: test that peer secret key is rejected
-
-// TODO: test that all paths have been resolved

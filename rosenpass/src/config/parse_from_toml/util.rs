@@ -1038,7 +1038,7 @@ pub(crate) fn get_legacy_psk_source<T: toml_edit::TableLike>(
                 file_path,
                 table_span.clone(),
                 format!(
-                    "keys \"{l}\" and \"{table_name}\" exlude each other and \"{l}\" is deprecated",
+                    "keys \"{l}\" and \"{table_name}\" exclude each other and \"{l}\" is deprecated",
                     l = legacy_name
                 ),
             );
