@@ -1,8 +1,9 @@
 use crate::config::parse_from_toml::util::{
     GetKeyValueSpan, GuaranteedUnwrap, ProcessParseResult, default_peer_name, deny_illegal_keys,
-    get_array_of_tables, get_as_opt_config_file_version, get_as_opt_hashset_protocol_version,
-    get_as_opt_string, get_as_opt_vec_socket_addr, get_legacy_keypair_from_disk,
-    get_legacy_psk_source, get_legacy_public_key_from_disk, get_opt_array_of_tables,
+    get_as_opt_config_file_version, get_as_opt_hashset_protocol_version,
+    get_as_opt_string, get_as_opt_vec_socket_addr, get_legacy_key_output,
+    get_legacy_keypair_from_disk, get_legacy_psk_source, get_legacy_public_key_from_disk,
+    get_opt_array_of_tables,
 };
 use crate::oldconfig::Verbosity;
 use crate::protocol::ProtocolVersion;
@@ -277,6 +278,9 @@ impl RosenpassConfig {
                 const LEGACY_OSK_LABELS: &str = "osk_label";
                 const OSK_TABLE: &str = "osk-domain-separator";
 
+                const LEGACY_KEY_OUTPUT: &str = "key_out";
+                const KEY_OUTPUT_TABLE: &str = "key-out";
+
                 deny_illegal_keys(
                     raw,
                     file_path,
@@ -292,6 +296,8 @@ impl RosenpassConfig {
                         LEGACY_OSK_ORG,
                         LEGACY_OSK_LABELS,
                         OSK_TABLE,
+                        LEGACY_KEY_OUTPUT,
+                        KEY_OUTPUT_TABLE,
                     ],
                 )
                 .process_parse_result(&mut peer_errors);
@@ -353,6 +359,19 @@ impl RosenpassConfig {
                 )
                 .process_parse_result(&mut peer_errors);
 
+                // key output option: write to file
+                let output_to_file = get_legacy_key_output(
+                    raw,
+                    file_path,
+                    table,
+                    table.span(),
+                    LEGACY_KEY_OUTPUT,
+                    KEY_OUTPUT_TABLE,
+                )
+                .process_parse_result(&mut peer_errors)
+                .transpose()
+                .unwrap_or(None); // if not defined, use no key output
+
                 if peer_errors.is_empty() {
                     peers.push(PeerConfig {
                         name,
@@ -361,8 +380,8 @@ impl RosenpassConfig {
                         endpoint,
                         preshared_key,
                         osk_domain_separator: osk_domain_separator.guaranteed_unwrap(),
-                        output_to_file: None, //todo!(),
-                        wireguard: None,      //todo!(),
+                        output_to_file,
+                        wireguard: None, //todo!(),
                     })
                 }
                 errors.append(&mut peer_errors);

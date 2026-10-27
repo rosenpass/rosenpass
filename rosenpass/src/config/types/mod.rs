@@ -194,6 +194,8 @@ pub struct OutputToFileConfig {
 
     pub output_file_path: PathBuf,
 
+    // TODO: use this custom OSK here
+    // Tracking issue: https://github.com/rosenpass/rosenpass/issues/1182
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 
@@ -214,6 +216,8 @@ pub struct WireguardConfig {
     /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1184
     pub exchange_command: Option<ExchangeCommand>,
 
+    // TODO: use this custom OSK here
+    // Tracking issue: https://github.com/rosenpass/rosenpass/issues/1182
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 

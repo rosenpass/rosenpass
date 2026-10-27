@@ -3,11 +3,11 @@ use super::errors::ParseError;
 use crate::config::ApiConfig;
 use crate::{
     config::{
-        HasInnerType, KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, PresharedKeySource,
-        TomlConfigFileVersion,
+        HasInnerType, KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, OutputToFileConfig,
+        PresharedKeySource, TomlConfigFileVersion,
     },
     oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
-    protocol::ProtocolVersion,
+    protocol::{ProtocolVersion, osk_domain_separator},
 };
 use log::LevelFilter;
 use serde::{Deserialize, de::value::StrDeserializer};
@@ -1422,4 +1422,117 @@ pub(crate) fn get_opt_array_of_tables<'a>(
             Ok(Some(array))
         }
     }
+}
+
+get_as_type_generator!(
+    get_as_key_out,
+    get_as_opt_key_out,
+    [],
+    OutputToFileConfig,
+    as_inline_table,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+
+        const ENABLED: &str = "enabled";
+        const FILE: &str = "file";
+        const OSK_DOMAIN_SEPARATOR: &str = "osk-domain-separator";
+
+        deny_illegal_keys(raw, file_path, table, vec![ENABLED, FILE]);
+
+        let enabled = get_as_opt_bool(raw, file_path, table, table.span(), ENABLED)
+            .process_parse_result(&mut errors)
+            .flatten()
+            .unwrap_or(true); // default to true
+
+        let file = get_as_path_buf(raw, file_path, table, table.span(), FILE)
+            .process_parse_result(&mut errors);
+
+        let osk_domain_separator = get_as_opt_osk_domain_separator(
+            raw,
+            file_path,
+            table,
+            table.span(),
+            OSK_DOMAIN_SEPARATOR,
+        )
+        .process_parse_result(&mut errors)
+        .flatten()
+        .unwrap_or_default(); // defaults to empty OSK domain separator
+
+        // return
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(OutputToFileConfig {
+            enabled,
+            output_file_path: file.guaranteed_unwrap(),
+            osk_domain_separator,
+        })
+    }
+);
+
+pub(crate) fn get_legacy_key_output<T: toml_edit::TableLike>(
+    raw: &str,
+    file_path: &Path,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+    legacy_name: &str,
+    modern_name: &str,
+) -> Result<Result<OutputToFileConfig, ParseError>, Vec<ParseError>> {
+    let mut errors = Vec::new();
+
+    // parse both legacy and modern semantic
+    let legacy = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), legacy_name)
+        .process_parse_result(&mut errors)
+        .flatten();
+
+    let modern = get_as_opt_key_out(raw, file_path, table, table_span.clone(), modern_name)
+        .process_parse_result(&mut errors)
+        .flatten();
+
+    // return on error
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    // decide which definition to use (legacy / modern)
+    let key_out = match (legacy, modern) {
+        // none sepcified
+        (None, None) => Err(ParseError::new(
+            raw,
+            file_path,
+            table_span.clone(),
+            format!("missing key \"{modern_name}\""),
+        )),
+        // conflicting keys
+        (Some(_), Some(_)) => {
+            let span = table.key(legacy_name).guaranteed_unwrap().span();
+            let err = ParseError::new_ext(
+                raw,
+                file_path,
+                span,
+                format!(
+                    "conflicting keys \"{l}\" and \"{m}\" – use \"{m}\" because \"{l}\" is deprecated",
+                    l = legacy_name,
+                    m = modern_name
+                ),
+                "conflicting key here should be removed",
+            );
+            errors.push(err.clone());
+            Err(err)
+        }
+        // legacy definition
+        (Some(legacy), None) => Ok(OutputToFileConfig {
+            enabled: true,
+            output_file_path: legacy,
+            osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // defaults to empty
+        }),
+        // modern definition
+        (None, Some(modern)) => Ok(modern),
+    };
+
+    // return
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    Ok(key_out)
 }
