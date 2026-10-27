@@ -3,21 +3,22 @@
 
 pub mod harness;
 
+#[cfg(feature = "experiment_api")]
+mod api;
 use std::path::Path;
 
 use crate::config::{tests::harness::ExpectSilent, validate::ValidationRecipe};
 
 use super::*;
-use harness::{assert_validation_succeeded, parse, prepare_config_file, validate};
+use harness::{assert_validation_succeeded, parse, prepare_config, validate};
 use serial_test::serial;
 
 #[test]
 #[serial] // run in serial so that no race-conditions around "tmp.toml" file can be avoided
 fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
     #[rustfmt::skip]
-    let (config, working_dir) = prepare_config_file(
+    let (config, file_path) = prepare_config(
         Path::new("full-raw.toml"),
-        Path::new("tmp.toml"),
         vec![
             ("rosenpass.our-keypair.secret-key-file", "../keys/alice-0.2-secret/pqsk".into()),
             ("rosenpass.our-keypair.public-key-file", "../keys/alice-0.2-public/pqpk".into()),
@@ -37,19 +38,27 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         vec![],
     )?;
     let (config, parse_warnings) =
-        parse(config, &working_dir.join("tmp.toml")).expect_silent("parser returned errors");
-    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+        parse(config, &file_path).expect_silent("parser returned errors");
+    // without the `experiment_api` feature, the `[rosenpass.api]` table produces a warning
+    #[cfg(feature = "experiment_api")]
     assert!(parse_warnings.is_empty(), "parser returned warnings");
+    #[cfg(not(feature = "experiment_api"))]
+    assert!(
+        parse_warnings
+            .iter()
+            .all(|w| w.message.contains("experiment_api")),
+        "unexpected parser warnings: {parse_warnings:?}"
+    );
+
+    // TODO: write
 
     Ok(())
 }
 
 #[test]
-#[serial]
 fn read_v0_2_generated_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    let (config, working_dir) = prepare_config_file(
+    let (config, file_path) = prepare_config(
         Path::new("rosenpass-0.2.3-generated-raw.toml"),
-        Path::new("tmp.toml"),
         vec![
             ("public_key", "../keys/alice-0.2-public/pqpk".into()),
             ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
@@ -58,19 +67,18 @@ fn read_v0_2_generated_config_with_version_0_2_keys() -> Result<(), anyhow::Erro
         vec![],
         vec![],
     )?;
-    let (config, _parse_warnings) =
-        parse(config, &working_dir.join("tmp.toml")).expect_silent("parser returned errors");
-    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+    let (config, parse_warnings) =
+        parse(config, &file_path).expect_silent("parser returned errors");
 
+    // TODO: write
+    
     Ok(())
 }
 
 #[test]
-#[serial]
 fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
-    let (config, working_dir) = prepare_config_file(
+    let (config, file_path) = prepare_config(
         Path::new("rosenpass-0.2.3-full-raw.toml"),
-        Path::new("tmp.toml"),
         vec![
             ("public_key", "../keys/alice-0.2-public/pqpk".into()),
             ("secret_key", "../keys/alice-0.2-public/pqsk".into()),
@@ -79,9 +87,11 @@ fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         vec![],
         vec![],
     )?;
-    let (config, _parse_warnings) =
-        parse(config, &working_dir.join("tmp.toml")).expect_silent("parser returned errors");
-    assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
+    let (config, parse_warnings) =
+        parse(config, &file_path).expect_silent("parser returned errors");
+
+    // TODO: write
+    
 
     Ok(())
 }

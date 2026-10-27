@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::config::{
-    parse_from_toml::errors::{ParseIssue, ParseWarning, PrettyIssueOutput},
+    parse_from_toml::errors::{ParseError, ParseIssue, ParseWarning, PrettyIssueOutput},
     validate::{
         Error as ValidationError, Issue as ValidationIssue, ValidationRecipe,
         Warning as ValidationWarning,
@@ -10,13 +10,16 @@ use crate::config::{
 };
 use anyhow::anyhow;
 use std::{
-    env::current_dir,
-    fs::OpenOptions,
-    io::Write,
     path::{Path, PathBuf},
     str::FromStr,
 };
 use toml_edit::DocumentMut;
+
+/// directory holding the TOML config files used as test data (relative to the crate root)
+pub const CONFIGS_DIR: &str = "src/config/tests/data/configs";
+
+/// pseudo file name for in-memory-only configs
+pub const IN_MEMORY_FILE_NAME: &str = "in-memory.toml";
 
 /// helper function for config tests
 ///
@@ -40,10 +43,10 @@ fn init() -> Result<(), anyhow::Error> {
 /// - reads from `src/config/tests/data/configs/${path}` where `path` is the function's parameter
 /// - tries to interpret input as UTF-8 characters
 /// - parses TOML into [`toml_edit::Document`]
-/// - **returns** the parsed data and the current working directory
+/// - **returns** the parsed data and the path to the file's parent directory
 pub fn read_toml(path: &Path) -> Result<(toml_edit::Document<String>, PathBuf), anyhow::Error> {
     init()?;
-    let path = std::path::Path::new("src/config/tests/data/configs").join(path);
+    let path = Path::new(CONFIGS_DIR).join(path);
     // read
     println!("reading file: {path:?}");
     let data = std::fs::read(path.clone()).map_err(|err| anyhow!(err))?;
@@ -58,7 +61,7 @@ pub fn read_toml(path: &Path) -> Result<(toml_edit::Document<String>, PathBuf), 
 /// TODO: no DRY, see `fn read_toml`
 pub fn read_toml_mut(path: &Path) -> Result<(toml_edit::DocumentMut, PathBuf), anyhow::Error> {
     init()?;
-    let path = std::path::Path::new("src/config/tests/data/configs").join(path);
+    let path = Path::new(CONFIGS_DIR).join(path);
     // read
     println!("reading file: {path:?}");
     let data = std::fs::read(path.clone()).map_err(|err| anyhow!(err))?;
@@ -67,6 +70,21 @@ pub fn read_toml_mut(path: &Path) -> Result<(toml_edit::DocumentMut, PathBuf), a
     let data = toml_edit::DocumentMut::from_str(data.as_str()).map_err(|err| anyhow!(err))?;
     let working_dir = path.parent().unwrap().to_owned();
     Ok((data, working_dir))
+}
+
+/// parses a [`toml_edit::Document`] from a string
+///
+/// This is a helper function for config tests.
+///
+/// - sets a pseudo file path located in [`CONFIGS_DIR`]/[`IN_MEMORY_FILE_NAME`]
+pub fn doc_from_str<S: ToString>(
+    content: S,
+) -> Result<(toml_edit::Document<String>, PathBuf), anyhow::Error> {
+    init()?;
+    Ok((
+        toml_edit::Document::from_str(content.to_string().as_str()).map_err(|err| anyhow!(err))?,
+        Path::new(CONFIGS_DIR).join(IN_MEMORY_FILE_NAME),
+    ))
 }
 
 /// wrapper around [`RosenpassConfig::parse_from_toml`] printing debug info
@@ -107,6 +125,79 @@ pub fn parse(
     data
 }
 
+/// wrapper around [`parse`] for TOML documents parsed from a string
+///
+/// This is a helper function for config tests.
+pub fn parse_string<S: ToString>(
+    content: S,
+) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
+    let (document, file_path) = doc_from_str(content).expect("test contains invalid TOML");
+    parse(document, &file_path)
+}
+
+/// parses a TOML string which is expected to fail parsing
+///
+/// This is a helper function for config tests.
+///
+/// - pretty-prints the resulting issues (for debugging failed tests)
+/// - **panics** if parsing unexpectedly succeeds
+/// - returns the parse issues verbatim
+pub fn parse_str_expect_failure<S: ToString>(content: S) -> Vec<ParseIssue> {
+    let (document, file_path) = doc_from_str(content).expect("test contains invalid TOML");
+    match RosenpassConfig::parse_from_toml(&document, &file_path) {
+        Ok((config, warnings)) => {
+            println!("{config:#?}");
+            panic!("expected parsing to fail, but it succeeded (warnings: {warnings:?})");
+        }
+        Err(issues) => {
+            println!("parsing failed as expected with {} issues:", issues.len());
+            for issue in issues.iter() {
+                anstream::eprintln!("{}", issue.pretty(document.raw()));
+            }
+            issues
+        }
+    }
+}
+
+/// all errors within a list of [`ParseIssue`]s
+pub fn errors_of(issues: &[ParseIssue]) -> Vec<&ParseError> {
+    issues
+        .iter()
+        .filter_map(|issue| match issue {
+            ParseIssue::Error(err) => Some(err),
+            ParseIssue::Warning(_) => None,
+        })
+        .collect()
+}
+
+/// asserts that the issues contain, for each `needle`, at least one **error** whose message
+/// contains `needle`
+pub fn assert_errors_contain(issues: &[ParseIssue], expected: &[&str]) {
+    let messages: Vec<&str> = errors_of(issues)
+        .iter()
+        .map(|err| err.message.as_str())
+        .collect();
+    for needle in expected {
+        assert!(
+            messages.iter().any(|msg| msg.contains(needle)),
+            "expected an error containing {needle:?}, but the errors are: {messages:#?}"
+        );
+    }
+}
+
+/// asserts that parsing `content` fails and that the errors contain all `expected` substrings
+///
+/// This is a helper function for config tests.
+pub fn assert_parse_str_fails_with<S: ToString>(content: S, expected: &[&str]) -> Vec<ParseIssue> {
+    let issues = parse_str_expect_failure(content);
+    assert!(
+        !errors_of(&issues).is_empty(),
+        "expected at least one error"
+    );
+    assert_errors_contain(&issues, expected);
+    issues
+}
+
 /// wrapper around [`RosenpassConfig::validate`] printing debug info
 ///
 /// This is a helper function for config tests.
@@ -115,6 +206,8 @@ pub fn parse(
 /// - if successful, prints the returned warnings to stdout
 /// - if failed, prints the returned erros to stdout
 /// - returns the result from [`RosenpassConfig::validate`] verbatim
+///
+/// - TODO: use this once `RosenpassConfig::validate` is implemented
 pub fn validate(
     config: &RosenpassConfig,
     recipe: ValidationRecipe,
@@ -151,6 +244,8 @@ pub fn validate(
 /// The function goes through the result of [`RosenpassConfig::validate`] and checks that is
 /// contains no errors. However, the function does allow very specific errors which are just
 /// platform quirks, e.g. if wireguard is not installed.
+///
+/// - TODO: use this once `RosenpassConfig::validate` is implemented
 pub fn assert_validation_succeeded(
     validation_result: Result<Vec<ValidationWarning>, Vec<ValidationIssue>>,
 ) {
@@ -299,14 +394,16 @@ fn add_toml_item(doc: &mut DocumentMut, path: &str, to_add: toml_edit::Value) {
     }
 }
 
-/// TODO: this code is dirty, clean it up
+/// a new value to be placed into a TOML document via [`prepare_config`]
 #[derive(Clone)]
 pub enum PreparedNewValue<'a> {
+    /// a ready [`toml_edit::Value`]
     TomlValue(&'a toml_edit::Value),
+    /// plain string (becomes a TOML string)
     String(String),
 }
 impl<'a> From<&'a str> for PreparedNewValue<'a> {
-    fn from(value: &str) -> Self {
+    fn from(value: &'a str) -> Self {
         Self::String(value.to_string())
     }
 }
@@ -318,41 +415,49 @@ impl From<PreparedNewValue<'_>> for toml_edit::Value {
         }
     }
 }
-/// TODO: doc
-pub fn prepare_config_file(
+
+/// applies mutations to a TOML template file
+///
+/// This is a helper function for config tests.
+///
+/// - reads the template from [`CONFIGS_DIR`]
+/// - applies replacements, deletions and additions in this order
+/// - **returns** the mutated document and the working directory of the template file
+fn mutate_template(
     template_file: &Path,
-    destination_file: &Path,
+    replacements: Vec<(&str, PreparedNewValue)>,
+    deletions: Vec<&str>,
+    additions: Vec<(&str, PreparedNewValue)>,
+) -> Result<(toml_edit::DocumentMut, PathBuf), anyhow::Error> {
+    let (mut document, working_directory) = read_toml_mut(template_file)?;
+    for (path, replacement) in replacements {
+        replace_toml_item(&mut document, path, replacement.into());
+    }
+    for path in deletions {
+        remove_toml_item(&mut document, path);
+    }
+    for (path, addition) in additions {
+        add_toml_item(&mut document, path, addition.into());
+    }
+    Ok((document, working_directory))
+}
+
+/// prepares a config file in memory by mutating a template file
+///
+/// This is a helper function for config tests.
+pub fn prepare_config(
+    template_file: &Path,
     replacements: Vec<(&str, PreparedNewValue)>,
     deletions: Vec<&str>,
     additions: Vec<(&str, PreparedNewValue)>,
 ) -> Result<(toml_edit::Document<String>, PathBuf), anyhow::Error> {
-    // read template file
-    let (mut document, working_directory) = read_toml_mut(template_file)?;
-
-    // run replacements/deletions/additions
-    for replacement in replacements.iter() {
-        replace_toml_item(&mut document, replacement.0, replacement.1.clone().into());
-    }
-    for deletion in deletions.iter() {
-        remove_toml_item(&mut document, deletion);
-    }
-    for addition in additions.iter() {
-        add_toml_item(&mut document, addition.0, addition.1.clone().into());
-    }
-
-    // save file to new destination
-    // let destination_file = working_directory.join(destination_file);
-    println!("saving new config file to: {destination_file:?}");
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(working_directory.join(destination_file))?;
-    file.write_all(&document.to_string().into_bytes())?;
-    file.flush()?;
-
-    // read the new file back
-    read_toml(destination_file)
+    let (document, working_directory) =
+        mutate_template(template_file, replacements, deletions, additions)?;
+    // round-trip through the string representation to get an immutable document with fresh spans
+    let document =
+        toml_edit::Document::from_str(&document.to_string()).map_err(|err| anyhow!(err))?;
+    let file_path = working_directory.join(template_file);
+    Ok((document, file_path))
 }
 
 pub(crate) trait ExpectSilent {
@@ -365,7 +470,7 @@ impl<T, E> ExpectSilent for Result<T, E> {
     fn expect_silent(self, message: &str) -> Self::Output {
         match self {
             Ok(t) => t,
-            Err(e) => panic!("{message}"),
+            Err(_e) => panic!("{message}"),
         }
     }
 }
