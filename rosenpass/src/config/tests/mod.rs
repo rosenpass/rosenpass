@@ -11,17 +11,6 @@ use super::*;
 use harness::{assert_validation_succeeded, parse, prepare_config_file, validate};
 use serial_test::serial;
 
-// #[ignore] // TODO: remove ignore before merging into main
-// #[test]
-// fn read_full_config_with_version_0_2_keys() {
-//     let (config, working_dir) = read_toml(Path::new("full-with-v0.2-keys.toml")).unwrap();
-//     let (config, parse_warnings) = parse(config, &working_dir).expect_silent("parser returned errors");
-//     assert!(parse_warnings.is_empty(), "parser returned warnings");
-//     assert_validation_succeeded(validate(&config, ValidationRecipe::all()));
-//     // let warnings = validate(&config, ValidationRecipe::all()).expect_silent("validation returned errors");
-//     // assert!(warnings.is_empty(), "validation returned warnings");
-// }
-
 #[test]
 #[serial] // run in serial so that no race-conditions around "tmp.toml" file can be avoided
 fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
@@ -36,11 +25,14 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
             ("peers.0.preshared-key.file", "../alice-bob.psk".into()),
             ("peers.0.wireguard.our-wireguard-keypair.secret-key-file", "../keys/alice-wg-secret/wqsk".into()),
             ("peers.0.wireguard.our-wireguard-keypair.public-key-file", "../keys/alice-wg-public/wgpk".into()),
-            ("peers.0.wireguard.our-wireguard-keypair.public-key", "TODO".into()),
+            ("peers.0.wireguard.our-wireguard-keypair.public-key", "TODO: also test this".into()),
         ],
         vec![
-            ("peers.0.their-keypair.public-key-directory"),
-            ("peers.0.preshared-key.directory")
+            "peers.0.their-keypair.public-key-directory",
+            "peers.0.wireguard.our-wireguard-keypair.public-key",
+            "peers.0.wireguard.their-wireguard-keypair.public-key-directory",
+            "peers.0.wireguard.their-wireguard-keypair.public-key",
+            "peers.0.preshared-key.directory",
         ],
         vec![],
     )?;

@@ -102,6 +102,8 @@ impl<K: ParseIssueKind> ParseIssueInner<K> {
 ///  14 | endpoint = "my-peer.test:9999"
 ///     |            ^
 /// ```
+///
+/// TODO: do not print "^^^^^" if it is longer than one line
 fn render_diagnostic<'a>(
     level: &'static str,
     accent: Style,

@@ -10,8 +10,9 @@ use crate::protocol::basic_types::{SPk, SSk};
 use crate::{config::WgDeviceCreateOptions, internal::util::file::LoadValue};
 
 impl RosenpassConfig {
-    /// TODO: write documentation
-    /// TODO: warn if no wireguard devices defined and peers have defined WG devices (implicit definition)
+    /// - TODO: write documentation
+    /// - TODO: warn if no wireguard devices defined and peers have defined WG devices (implicit definition)
+    /// - TODO: warn if different OSK domain separators are set (not yet supported)
     #[rustfmt::skip]
     pub fn validate(&self, recipe: ValidationRecipe) -> Result<Vec<Warning>, Vec<Issue>> {
         let mut errors: Vec<Error> = Vec::new();

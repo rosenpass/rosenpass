@@ -3,13 +3,17 @@ use super::errors::ParseError;
 use crate::config::ApiConfig;
 use crate::{
     config::{
-        HasInnerType, KeyFromDisk, KeyFromDiskInner, Keypair, NewFromInner, OutputToFileConfig,
-        PresharedKeySource, TomlConfigFileVersion,
+        HasInnerType, KeyFromDisk, KeyFromDiskInner, KeyFromDiskOrB64EncodedString,
+        KeyFromDiskOrB64EncodedStringInner, Keypair, NewFromInner, OurWireguardKeypair,
+        OutputToFileConfig, PeerWireguardOptions, PresharedKeySource, TomlConfigFileVersion,
+        WireguardConfig,
     },
     oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
     protocol::{ProtocolVersion, osk_domain_separator},
 };
+use cidr::IpCidr;
 use log::LevelFilter;
+use ml_kem::Key;
 use serde::{Deserialize, de::value::StrDeserializer};
 use std::{
     collections::HashSet,
@@ -156,11 +160,15 @@ pub(crate) fn combine_opt_spans(
 }
 pub trait GetKeyValueSpan {
     fn get_key_value_span(&self, key: &str) -> Option<std::ops::Range<usize>>;
+    fn get_key_span(&self, key: &str) -> Option<std::ops::Range<usize>>;
 }
 impl<T: toml_edit::TableLike> GetKeyValueSpan for T {
     fn get_key_value_span(&self, key: &str) -> Option<std::ops::Range<usize>> {
         self.get_key_value(key)
             .and_then(|(k, v)| combine_opt_spans(k.span(), v.span()))
+    }
+    fn get_key_span(&self, key: &str) -> Option<std::ops::Range<usize>> {
+        self.key(key).and_then(|k| k.span())
     }
 }
 
@@ -411,12 +419,13 @@ get_as_type_generator!(
     LevelFilter,
     as_str,
     |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
+        todo!();
+        // TODO: implement more variants or use serde_plain
+
         const INFO: &str = "info";
         if s == INFO {
             Ok(LevelFilter::Info)
-        }
-        // TODO: implement more
-        else {
+        } else {
             Err(vec![ParseError::new(
                 raw,
                 file_path,
@@ -720,6 +729,80 @@ get_as_type_generator!(
     }
 );
 
+// IpCidr
+get_as_type_generator!(
+    get_as_ip_cidr,
+    get_as_opt_ip_cidr,
+    [],
+    IpCidr,
+    as_str,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
+        IpCidr::from_str(s).map_err(|e| {
+            vec![ParseError::new(
+                raw,
+                file_path,
+                item.span(),
+                "item \"{}\" has wrong data type, expected network in CIDR notation",
+            )]
+        })
+    }
+);
+// Vec<IpCidr>
+get_as_type_generator!(
+    get_as_vec_ip_cidr,
+    get_as_opt_vec_ip_cidr,
+    [],
+    Vec<IpCidr>,
+    as_array,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
+        let mut errors = Vec::new();
+
+        // transmute item to string
+        let array = array
+            .into_iter()
+            .map(|x| match x.as_str() {
+                Some(s) => Ok((s, x.span())),
+                None => Err(ParseError::new(
+                    raw,
+                    file_path,
+                    x.span(),
+                    format!(
+                        "item has wrong data type, expected {}",
+                        getter_to_typename!(as_str)
+                    ),
+                )),
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        // transmute string to IpCidr
+        let array = array
+            .guaranteed_unwrap()
+            .into_iter()
+            .map(|(string, span)| {
+                IpCidr::from_str(string).map_err(|e| {
+                    ParseError::new(
+                        raw,
+                        file_path,
+                        span,
+                        format!("item has wrong data type, expected network in CIDR notation"),
+                    )
+                })
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        // return
+        Ok(array.guaranteed_unwrap())
+    }
+);
+
 // OSK Domain Separator
 get_as_type_generator!(
     get_as_osk_domain_separator,
@@ -825,13 +908,13 @@ pub(crate) fn get_legacy_osk_domain_separator<T: toml_edit::TableLike>(
         }
         // exclusive options
         (Some(_), None, Some(_)) => {
-            errors.push(ParseError::new(raw, file_path,table_span.clone(),
+            errors.push(ParseError::new(raw, file_path,table.get_key_value_span(legacy_org_name),
                 format!("keys \"{legacy_org_name}\" and \"{table_name}\" are mutually exclusive and \"{legacy_org_name}\" is deprecated"))
             );
             None
         }
         (None, Some(_), Some(_)) => {
-            errors.push(ParseError::new(raw, file_path, table_span.clone(),
+            errors.push(ParseError::new(raw, file_path, table.get_key_value_span(legacy_labels_name),
                 format!("keys \"{legacy_labels_name}\" and \"{table_name}\" are mutually exclusive and \"{legacy_labels_name}\" is deprecated"))
             );
             None
@@ -913,7 +996,7 @@ get_as_type_generator!(
                 errors.push(ParseError::new(
                     raw,
                     file_path,
-                    inline_table.span(),
+                    inline_table.get_key_value_span(FILE),
                     format!("keys \"{FILE}\" and \"{DIR}\" are mutually exclusive"),
                 ));
                 None
@@ -991,6 +1074,7 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr, const SIZE:
     file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
+    deny_illegal_keys_check: bool,
     file_key: &str,
     dir_key: &str,
 ) -> Result<Result<KeyFromDisk<FN, SIZE>, ParseError>, Vec<ParseError>> {
@@ -1003,6 +1087,16 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr, const SIZE:
         .process_parse_result(&mut errors)
         .flatten();
 
+    if deny_illegal_keys_check {
+        deny_illegal_keys(raw, file_path, table, vec![file_key, dir_key])
+            .process_parse_result(&mut errors);
+    }
+
+    // return early if an error occured already during TOML parsing
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
     let key = match (file, dir) {
         (None, None) => Err(ParseError::new(
             raw,
@@ -1014,7 +1108,7 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr, const SIZE:
             let err = ParseError::new(
                 raw,
                 file_path,
-                table_span.clone(),
+                table.get_key_value_span(file_key),
                 format!("keys \"{file_key}\" and \"{dir_key}\" are mutually exclusive"),
             );
             errors.push(err.clone());
@@ -1025,6 +1119,122 @@ pub(crate) fn get_key_from_disk<T: toml_edit::TableLike, FN: IsTStr, const SIZE:
         (None, Some(dir)) => Ok(KeyFromDisk::<FN, SIZE>::new(KeyFromDiskInner::Directory(
             dir,
         ))),
+    };
+
+    if errors.is_empty() {
+        Ok(key)
+    } else {
+        Err(errors)
+    }
+}
+
+/// reads a key source which can either be a file or a directory or an inline Base64-encoded string
+///  ([`KeyFromDiskOrB64EncodedString`])
+///
+/// returns:
+/// - `Ok(Ok(KeyFromDiskOrB64EncodedString))` if the key was successfully read
+/// - `Err(Vec<ParseError>)` if errors occured during parsing
+/// - `Ok(Err(ParseError))` if the key is not present in the table
+pub(crate) fn get_key_from_disk_or_b64<T: toml_edit::TableLike, FN: IsTStr, const SIZE: usize>(
+    raw: &str,
+    file_path: &Path,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+    deny_illegal_keys_check: bool,
+    file_key: &str,
+    dir_key: &str,
+    b64_key: &str,
+) -> Result<Result<KeyFromDiskOrB64EncodedString<FN, SIZE>, ParseError>, Vec<ParseError>> {
+    let mut errors = Vec::new();
+
+    let file = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), file_key)
+        .process_parse_result(&mut errors)
+        .flatten();
+    let dir = get_as_opt_path_buf(raw, file_path, table, table_span.clone(), dir_key)
+        .process_parse_result(&mut errors)
+        .flatten();
+    let b64 = get_as_opt_string(raw, file_path, table, table_span.clone(), b64_key)
+        .process_parse_result(&mut errors)
+        .flatten();
+
+    if deny_illegal_keys_check {
+        deny_illegal_keys(raw, file_path, table, vec![file_key, dir_key, b64_key])
+            .process_parse_result(&mut errors);
+    }
+
+    // return early if an error occured already during TOML parsing
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    let key = match (file, dir, b64) {
+        // none specified
+        (None, None, None) => Err(ParseError::new(
+            raw,
+            file_path,
+            table_span.clone(),
+            format!("expected either key \"{file_key}\" or \"{dir_key}\""),
+        )),
+        // conflicting keys
+        (Some(_), Some(_), Some(_)) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table.get_key_value_span(file_key),
+                format!(
+                    "keys \"{file_key}\", \"{dir_key}\" and \"{b64_key}\" {}",
+                    "are mutually exclusive, please pick only one"
+                ),
+            );
+            errors.push(err.clone());
+            // the err is just a dummy in this line – the function will return Err(errors) anyways
+            Err(err)
+        }
+        (Some(_), Some(_), None) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table.get_key_value_span(file_key),
+                format!("keys \"{file_key}\" and \"{dir_key}\" are mutually exclusive"),
+            );
+            errors.push(err.clone());
+            // the err is just a dummy in this line – the function will return Err(errors) anyways
+            Err(err)
+        }
+        (Some(_), None, Some(_)) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table.get_key_value_span(file_key),
+                format!("keys \"{file_key}\" and \"{b64_key}\" are mutually exclusive"),
+            );
+            errors.push(err.clone());
+            // the err is just a dummy in this line – the function will return Err(errors) anyways
+            Err(err)
+        }
+        (None, Some(_), Some(_)) => {
+            let err = ParseError::new(
+                raw,
+                file_path,
+                table.get_key_value_span(dir_key),
+                format!("keys \"{dir_key}\" and \"{b64_key}\" are mutually exclusive"),
+            );
+            errors.push(err.clone());
+            // the err is just a dummy in this line – the function will return Err(errors) anyways
+            Err(err)
+        }
+        // read from file
+        (Some(file), None, None) => Ok(KeyFromDiskOrB64EncodedString::<FN, SIZE>::new(
+            KeyFromDiskOrB64EncodedStringInner::File(file),
+        )),
+        // read from directory
+        (None, Some(dir), None) => Ok(KeyFromDiskOrB64EncodedString::<FN, SIZE>::new(
+            KeyFromDiskOrB64EncodedStringInner::Directory(dir),
+        )),
+        // read from inline base64-encoded string
+        (None, None, Some(b64)) => Ok(KeyFromDiskOrB64EncodedString::<FN, SIZE>::new(
+            KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(b64),
+        )),
     };
 
     if errors.is_empty() {
@@ -1083,7 +1293,7 @@ pub(crate) fn get_legacy_public_key_from_disk<
             let err = ParseError::new(
                 raw,
                 file_path,
-                table_span.clone(),
+                table.get_key_value_span(legacy_key_name),
                 format!(
                     "keys \"{l}\" and \"{key_table_name}\" {} \"{l}\" {}",
                     "are mutually exclusive and",
@@ -1114,8 +1324,16 @@ pub(crate) fn get_legacy_public_key_from_disk<
             deny_illegal_keys(raw, file_path, table, vec![FILE_NAME, DIR_NAME])
                 .process_parse_result(&mut errors);
 
-            let key = get_key_from_disk(raw, file_path, table, table.span(), FILE_NAME, DIR_NAME)
-                .process_parse_result(&mut errors);
+            let key = get_key_from_disk(
+                raw,
+                file_path,
+                table,
+                table.span(),
+                false,
+                FILE_NAME,
+                DIR_NAME,
+            )
+            .process_parse_result(&mut errors);
 
             if !errors.is_empty() {
                 return Err(errors);
@@ -1145,10 +1363,10 @@ get_as_type_generator!(
         const PUBFILE: &str = "public-key-file";
         const PUBDIR: &str = "public-key-directory";
         let secret_key = get_key_from_disk(raw,
-                        file_path,table, table.span(), SECRETFILE, SECRETDIR)
+                        file_path,table, table.span(), false, SECRETFILE, SECRETDIR)
             .process_parse_result(&mut errors);
         let public_key = get_key_from_disk(raw,
-                        file_path,table, table.span(), PUBFILE, PUBDIR)
+                        file_path,table, table.span(), false, PUBFILE, PUBDIR)
             .process_parse_result(&mut errors);
 
         deny_illegal_keys(raw,
@@ -1159,21 +1377,76 @@ get_as_type_generator!(
         if !errors.is_empty() {
             return Err(errors);
         }
-        let secret_key = secret_key.unwrap();
-        let public_key = public_key.unwrap();
 
         // make secret and pubic key both required (no longer optional)
-        let secret_key = secret_key.process_parse_result(&mut errors);
-        let public_key = public_key.process_parse_result(&mut errors);
+        let secret_key = secret_key.guaranteed_unwrap().process_parse_result(&mut errors);
+        let public_key = public_key.guaranteed_unwrap().process_parse_result(&mut errors);
 
         // return
         if !errors.is_empty() {
             return Err(errors);
         }
         Ok(Keypair {
-            secret_key_source: secret_key.unwrap(),
-            public_key_source: public_key.unwrap(),
+            secret_key_source: secret_key.guaranteed_unwrap(),
+            public_key_source: public_key.guaranteed_unwrap(),
         })
+    }
+);
+
+// TODO: Rust formatter does not work on this function
+// Keypair<S: KeyFromDisk, P: KeyFromDiskOrB64EncodedString>
+get_as_type_generator!(
+    get_as_keypair_with_pub_from_disk_or_b64,
+    get_as_opt_keypair_with_pub_from_disk_or_b64,
+    [SFN: IsTStr, const SSIZE: usize, PFN: IsTStr, const PSIZE: usize],
+    Keypair<KeyFromDisk<SFN, SSIZE>, KeyFromDiskOrB64EncodedString<PFN, PSIZE>>,
+    as_inline_table,
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+
+        // read secret and public key (both optional for now)
+        const SECRETFILE: &str = "secret-key-file";
+        const SECRETDIR: &str = "secret-key-directory";
+        const PUBFILE: &str = "public-key-file";
+        const PUBDIR: &str = "public-key-directory";
+        const PUBINLINE: &str = "public-key";
+
+        let secret_key = get_key_from_disk(
+            raw,
+                        file_path,table, table.span(), false, SECRETFILE, SECRETDIR
+            )
+            .process_parse_result(&mut errors);
+        let public_key = get_key_from_disk_or_b64(
+            raw,
+                        file_path,table, table.span(), false, PUBFILE, PUBDIR,PUBINLINE)
+            .process_parse_result(&mut errors);
+
+        deny_illegal_keys(raw,
+                        file_path,table,
+                        vec![SECRETFILE, SECRETDIR, PUBFILE, PUBDIR, PUBINLINE]
+        )
+            .process_parse_result(&mut errors);
+
+        // return on error (parse errors, but not missing keys – they are optional this far)
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        // make secret and pubic key both required (no longer optional)
+        let secret_key = secret_key.guaranteed_unwrap().process_parse_result(&mut errors);
+        let public_key = public_key.guaranteed_unwrap().process_parse_result(&mut errors);
+
+
+
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        let keypair = Keypair {
+            secret_key_source: secret_key.guaranteed_unwrap(),
+            public_key_source: public_key.guaranteed_unwrap(),
+        };
+        Ok(keypair)
     }
 );
 
@@ -1262,7 +1535,7 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table_span.clone(),
+                table.get_key_value_span(LEGACY_PUBLIC),
                 format!(
                     "keys \"{LEGACY_PUBLIC}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_PUBLIC}\" is deprecated"
                 ),
@@ -1272,7 +1545,7 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table_span.clone(),
+                table.get_key_value_span(LEGACY_SECRET),
                 format!(
                     "keys \"{LEGACY_SECRET}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_SECRET}\" is deprecated"
                 ),
@@ -1282,7 +1555,7 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table_span.clone(),
+                table.get_key_value_span(LEGACY_SECRET),
                 format!(
                     "keys \"{LEGACY_SECRET}\" and \"{LEGACY_PUBLIC}\" (deprecated keypair definition) can not be used together with \"{new_name}\""
                 ),
@@ -1437,7 +1710,13 @@ get_as_type_generator!(
         const FILE: &str = "file";
         const OSK_DOMAIN_SEPARATOR: &str = "osk-domain-separator";
 
-        deny_illegal_keys(raw, file_path, table, vec![ENABLED, FILE]);
+        deny_illegal_keys(
+            raw,
+            file_path,
+            table,
+            vec![ENABLED, FILE, OSK_DOMAIN_SEPARATOR],
+        )
+        .process_parse_result(&mut errors);
 
         let enabled = get_as_opt_bool(raw, file_path, table, table.span(), ENABLED)
             .process_parse_result(&mut errors)
@@ -1535,4 +1814,377 @@ pub(crate) fn get_legacy_key_output<T: toml_edit::TableLike>(
         return Err(errors);
     }
     Ok(key_out)
+}
+
+get_as_type_generator!(
+    get_as_wireguard_options,
+    get_as_opt_wireguard_options,
+    [],
+    PeerWireguardOptions,
+    as_inline_table,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+        let table_span = table.span();
+
+        const ENDPOINT: &str = "endpoint";
+        const PERSISTENT_KEEPALIVE: &str = "persistent-keepalive";
+        const ALLOWED_IPS: &str = "allowed-ips";
+        const WG_EXTRA_ARGUMENTS: &str = "wg-extra-arguments";
+
+        deny_illegal_keys(
+            raw,
+            file_path,
+            table,
+            vec![
+                ENDPOINT,
+                PERSISTENT_KEEPALIVE,
+                ALLOWED_IPS,
+                WG_EXTRA_ARGUMENTS,
+            ],
+        )
+        .process_parse_result(&mut errors);
+
+        let endpoint = get_as_opt_string(raw, file_path, table, table_span.clone(), ENDPOINT)
+            .process_parse_result(&mut errors)
+            .flatten();
+
+        let persistent_keepalive = get_as_opt_unsigned_integer(
+            raw,
+            file_path,
+            table,
+            table_span.clone(),
+            PERSISTENT_KEEPALIVE,
+        )
+        .process_parse_result(&mut errors)
+        .flatten()
+        .map(|u| u as usize);
+
+        let allowed_ips =
+            get_as_opt_vec_ip_cidr(raw, file_path, table, table_span.clone(), ALLOWED_IPS)
+                .process_parse_result(&mut errors)
+                .flatten();
+
+        let wg_extra_arguments = get_as_opt_vec_string(
+            raw,
+            file_path,
+            table,
+            table_span.clone(),
+            WG_EXTRA_ARGUMENTS,
+        )
+        .process_parse_result(&mut errors)
+        .flatten()
+        .unwrap_or_default(); // default to empty list
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(PeerWireguardOptions {
+            endpoint,
+            persistent_keepalive,
+            allowed_ips,
+            wg_extra_arguments,
+        })
+    }
+);
+
+get_as_type_generator!(
+    get_as_wireguard,
+    get_as_opt_wireguard,
+    [],
+    WireguardConfig,
+    as_inline_table,
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+        let table_span = table.span();
+
+        const ENABLED: &str = "enabled";
+        const DEVICE: &str = "device";
+        const OUR_WG_KEYPAIR: &str = "our-wireguard-keypair";
+        const THEIR_WG_KEYPAIR: &str = "their-wireguard-keypair";
+        const WG_OPTIONS: &str = "wireguard-options";
+        const EXCHANGE_COMMAND: &str = "exchange-command";
+        const OSK_DOMAIN_SEPARATOR: &str = "osk-domain-separator";
+
+        deny_illegal_keys(
+            raw,
+            file_path,
+            table,
+            vec![
+                ENABLED,
+                DEVICE,
+                OUR_WG_KEYPAIR,
+                THEIR_WG_KEYPAIR,
+                WG_OPTIONS,
+                EXCHANGE_COMMAND,
+                OSK_DOMAIN_SEPARATOR,
+            ],
+        )
+        .process_parse_result(&mut errors);
+
+        let enabled = get_as_opt_bool(raw, file_path, table, table_span.clone(), ENABLED)
+            .process_parse_result(&mut errors)
+            .flatten()
+            .unwrap_or(true); // keys named "enabled" always defaults to true throughout the config
+
+        let device = get_as_string(raw, file_path, table, table_span.clone(), DEVICE)
+            .process_parse_result(&mut errors);
+
+        let our_wireguard_keypair = get_as_keypair_with_pub_from_disk_or_b64(
+            raw,
+            file_path,
+            table,
+            table_span.clone(),
+            OUR_WG_KEYPAIR,
+        )
+        .process_parse_result(&mut errors);
+
+        let their_wireguard_public_key =
+            get_as_inline_table(raw, file_path, table, table_span.clone(), THEIR_WG_KEYPAIR)
+                .process_parse_result(&mut errors)
+                .and_then(|table| {
+                    get_key_from_disk_or_b64(
+                        raw,
+                        file_path,
+                        table,
+                        table.span(),
+                        true,
+                        "public-key-file",
+                        "public-key-directory",
+                        "public-key",
+                    )
+                    .process_parse_result(&mut errors)
+                    // make key required
+                    .transpose()
+                    .process_parse_result(&mut errors)
+                    .flatten()
+                });
+
+        let wireguard_options =
+            get_as_opt_wireguard_options(raw, file_path, table, table_span.clone(), WG_OPTIONS)
+                .process_parse_result(&mut errors)
+                .flatten()
+                .unwrap_or_default(); // defaults to empty wireguard options
+
+        let exchange_command =
+            get_as_opt_vec_string(raw, file_path, table, table_span.clone(), EXCHANGE_COMMAND)
+                .process_parse_result(&mut errors)
+                .flatten();
+
+        let osk_domain_separator = get_as_opt_osk_domain_separator(
+            raw,
+            file_path,
+            table,
+            table_span.clone(),
+            OSK_DOMAIN_SEPARATOR,
+        )
+        .process_parse_result(&mut errors)
+        .flatten()
+        .unwrap_or_default(); // default to empty OSK domain separator
+
+        // return early if an error occured so far
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(WireguardConfig {
+            enabled,
+            device_name: device.guaranteed_unwrap(),
+            our_wireguard_keypair: OurWireguardKeypair::EntireKeypair(
+                our_wireguard_keypair.guaranteed_unwrap(),
+            ),
+            their_wireguard_public_key: their_wireguard_public_key.guaranteed_unwrap(),
+            wireguard_options,
+            exchange_command,
+            osk_domain_separator,
+        })
+    }
+);
+
+pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
+    raw: &str,
+    file_path: &Path,
+    table: &T,
+    table_span: Option<std::ops::Range<usize>>,
+    legacy_device_name: &str,
+    legacy_their_pubkey_name: &str,
+    legacy_our_pubkey_name: &str,
+    legacy_extra_params_name: &str,
+    legacy_exchange_command_name: &str,
+    modern_name: &str,
+) -> Result<Result<WireguardConfig, ParseError>, Vec<ParseError>> {
+    let mut errors = Vec::new();
+
+    // read both legacy and modern definition
+    let legacy_device = get_as_opt_string(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_device_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
+
+    let legacy_their_pubkey = get_as_opt_path_buf(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_their_pubkey_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
+
+    let legacy_our_pubkey = get_as_opt_string(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_our_pubkey_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
+
+    let legacy_extra_params = get_as_opt_vec_string(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_extra_params_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
+
+    let legacy_exchange_command = get_as_opt_vec_string(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_exchange_command_name,
+    )
+    .process_parse_result(&mut errors);
+
+    let modern = get_as_opt_wireguard(raw, file_path, table, table_span.clone(), modern_name)
+        .process_parse_result(&mut errors)
+        .flatten();
+
+    // return if parse errors already occured so far
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    // decide between legacy and modern option
+    let wireguard: Result<WireguardConfig, ParseError> = match (
+        legacy_device,
+        legacy_their_pubkey,
+        legacy_our_pubkey,
+        legacy_extra_params,
+        legacy_exchange_command,
+        modern,
+    ) {
+        // modern definition
+        (None, None, None, None, None | Some(None), Some(modern)) => Ok(modern),
+
+        // legacy definition
+        (
+            Some(legacy_device),
+            Some(legacy_their_pubkey),
+            Some(legacy_our_pubkey),
+            Some(legacy_extra_params),
+            Some(legacy_exchange_command),
+            None,
+        ) => Ok(WireguardConfig {
+            enabled: true,
+            device_name: legacy_device,
+            // yes, our WG keypair is indeed always a base64-encoded pubkey in the legacy format
+            // introduced in https://github.com/rosenpass/rosenpass/pull/1171
+            our_wireguard_keypair: OurWireguardKeypair::PublicKeyOnly(
+                KeyFromDiskOrB64EncodedString::new(
+                    KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(legacy_our_pubkey),
+                ),
+            ),
+            // TODO: check if the legacy format for their pubkey is always a file or whether it can
+            // also be a directory or base64-encoded
+            their_wireguard_public_key: KeyFromDiskOrB64EncodedString::new(
+                KeyFromDiskOrB64EncodedStringInner::File(legacy_their_pubkey),
+            ),
+            wireguard_options: PeerWireguardOptions {
+                endpoint: None,
+                persistent_keepalive: None,
+                allowed_ips: None,
+                wg_extra_arguments: legacy_extra_params,
+            },
+            exchange_command: legacy_exchange_command,
+            osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // default to empty
+        }),
+        // none specified
+        (None, None, None, None, None, None) => Err(ParseError::new(
+            raw,
+            file_path,
+            table_span,
+            format!("expected key {modern_name}"),
+        )),
+
+        // conflicting keys – put out an elaborate error message
+        _ => {
+            let all_legacy_keys = vec![
+                legacy_device_name,
+                legacy_their_pubkey_name,
+                legacy_our_pubkey_name,
+                legacy_extra_params_name,
+                legacy_exchange_command_name,
+            ];
+            let all_used_legacy_keys = all_legacy_keys
+                .clone()
+                .into_iter()
+                .filter(|s| table.contains_key(s))
+                .collect::<Vec<_>>();
+            let all_used_legacy_keys_joined = all_used_legacy_keys
+                .clone()
+                .into_iter()
+                .map(|x| format!("\"{x}\""))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let all_legacy_keys_joined = all_legacy_keys
+                .clone()
+                .into_iter()
+                .map(|x| format!("\"{x}\""))
+                .collect::<Vec<_>>()
+                .join(", ");
+            // list of legacy names and their positions
+            let legacy_list = all_used_legacy_keys
+                .clone()
+                .into_iter()
+                .filter_map(|string| table.get_key_value_span(string).map(|span| (string, span)))
+                .collect::<Vec<_>>();
+            // the legacy item, the error message will try to point to
+            let legacy_item = legacy_list.first();
+            // point to legacy item or alternatively to modern item
+            let span = legacy_item
+                .map(|(_string, span)| span.clone())
+                .or(table.get_key_span(modern_name));
+
+            let err = ParseError::new_ext(
+                raw,
+                file_path,
+                span,
+                format!(
+                    "conflicting keys: \"{modern_name}\" is not compatible with legacy wireguard keys {l}",
+                    l = all_used_legacy_keys_joined
+                ),
+                match legacy_item {
+                    Some((_name, _span)) => {
+                        format!("remove this legacy item in favor of \"{modern_name}\"")
+                    }
+                    None => format!("use \"{modern_name}\" instead of the legacy items"),
+                },
+            );
+            errors.push(err.clone());
+            Err(err)
+        }
+    };
+
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    Ok(wireguard)
 }

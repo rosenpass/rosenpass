@@ -207,32 +207,32 @@ pub struct WireguardConfig {
     /// references a [WgDeviceConfig] by [`WgDeviceConfig::name`]
     pub device_name: String,
 
-    pub our_wireguard_keypair: WgKeypairSource,
+    pub our_wireguard_keypair: OurWireguardKeypair,
 
     pub their_wireguard_public_key: PublicWgKeySource,
 
-    pub wireguard_options: Option<PeerWireguardOptions>,
+    pub wireguard_options: PeerWireguardOptions,
 
     /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1184
-    pub exchange_command: Option<ExchangeCommand>,
+    pub exchange_command: Option<Vec<String>>,
 
     // TODO: use this custom OSK here
     // Tracking issue: https://github.com/rosenpass/rosenpass/issues/1182
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PeerWireguardOptions {
-    pub preshared_key: PresharedKeySource,
-    pub endpoint: SocketAddr,
-    pub persistent_keepalive: usize,
-    pub allowed_ips: Vec<IpCidr>,
+    pub endpoint: Option<String>,
+    pub persistent_keepalive: Option<usize>,
+    pub allowed_ips: Option<Vec<IpCidr>>,
 
     /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1183
     pub wg_extra_arguments: Vec<String>,
 }
 
 #[derive(Debug)]
-pub struct ExchangeCommand {
-    pub arguments: Vec<String>,
+pub enum OurWireguardKeypair {
+    PublicKeyOnly(PublicWgKeySource),
+    EntireKeypair(WgKeypairSource),
 }

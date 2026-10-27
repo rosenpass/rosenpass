@@ -70,13 +70,12 @@ wireguard = { # uses key to secure wireguard
     their-wireguard-keypair = {
         # Fehler werfen, falls `secret-key-file` vorhanden ist
         public-key-file = "path/to/their.pk",
+        public-key-directory = "path/to/their/wgpk",
         public-key = "inline-pubkey" # alternative to public-key-file
     },
     # TODO: use the following only if the device is _created_ by rosenpass or always?
     wireguard-options = {
-        preshared-key = {
-            file = "path/to/wg-preshared-key.txt",
-        },
+        # TODO: are all these types correct?
         endpoint = "1.2.3.4:1234",
         persistent-keepalive = 25,
         allowed-ips = ["1.2.3.0/24"],
@@ -85,7 +84,7 @@ wireguard = { # uses key to secure wireguard
     },
 
     # TODO: deprecate `exchange_command`
-    exchange_command = [
+    exchange-command = [
         "wg",
         "set",
         "wg0",

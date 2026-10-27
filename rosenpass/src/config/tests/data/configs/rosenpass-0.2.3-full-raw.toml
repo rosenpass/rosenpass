@@ -1,4 +1,7 @@
 # This config file contains all features of Rosenpass 0.2.3.
+#
+# It uses values and references files which do not exist. You should insert your own values into the
+# file before using it.
 
 public_key = "rp-public-key"
 secret_key = "rp-secret-key"
@@ -9,6 +12,15 @@ verbosity = "Quiet"
 public_key = "rp-peer-public-key"
 endpoint = "my-peer.test:9999"
 pre_shared_key = "file/to/psk"
+
+# key out option (writes the OSK to a file)
+key_out = "rp-key-out"
+
+# WireGuard protocol extension (supplies the OSK to WireGuard)
+device = "wg0"
+peer = "<base64 of the peer's `wg pubkey`>" # WireGuard public key of the peer, required since protocol version 3
+our_wg_pubkey = "<base64 of our own `wg pubkey`>" # our WireGuard public key, required since protocol version 3
+extra_params = [] # TODO: fill sth. in
 exchange_command = [
   "wg",
   "set",
@@ -18,11 +30,3 @@ exchange_command = [
   "preshared-key",
   "/dev/stdin",
 ]
-
-# key out option (writes the OSK to a file)
-key_out = "rp-key-out"
-
-# WireGuard protocol extension (supplies the OSK to WireGuard)
-device = "wg0"
-peer = "path/to/their-public-key.pk"
-extra_params = []                    # TODO: fill sth. in

@@ -1,8 +1,8 @@
 use crate::config::parse_from_toml::util::{
     GetKeyValueSpan, GuaranteedUnwrap, ProcessParseResult, default_peer_name, deny_illegal_keys,
-    get_as_opt_config_file_version, get_as_opt_hashset_protocol_version,
-    get_as_opt_string, get_as_opt_vec_socket_addr, get_legacy_key_output,
-    get_legacy_keypair_from_disk, get_legacy_psk_source, get_legacy_public_key_from_disk,
+    get_as_opt_config_file_version, get_as_opt_hashset_protocol_version, get_as_opt_string,
+    get_as_opt_vec_socket_addr, get_legacy_key_output, get_legacy_keypair_from_disk,
+    get_legacy_psk_source, get_legacy_public_key_from_disk, get_legacy_wireguard,
     get_opt_array_of_tables,
 };
 use crate::oldconfig::Verbosity;
@@ -45,6 +45,16 @@ impl RosenpassConfig {
             .parent()
             .expect("specified file path has no parent directory");
 
+        const WG_DEVICES: &str = "wireguard-devices";
+        const PEERS: &str = "peers";
+        const ROSSENPASS: &str = "rosenpass";
+
+        let root_keys_except_rosenpass = vec![WG_DEVICES, PEERS];
+        let root_keys = {
+            let mut keys = vec![ROSSENPASS];
+            keys.extend_from_slice(&root_keys_except_rosenpass);
+            keys
+        };
         // ============================== [rosenpass] ==============================
         struct RosenpassTable {
             our_listen_addresses: Vec<SocketAddr>,
@@ -55,9 +65,12 @@ impl RosenpassConfig {
             #[cfg(feature = "experiment_api")]
             api: ApiConfig,
         }
+
         let rosenpass_table = {
             let mut process_rosenpass_table =
-                |table: &Table| -> Result<RosenpassTable, Vec<ParseError>> {
+                |table: &Table,
+                 is_document_root_table: bool|
+                 -> Result<RosenpassTable, Vec<ParseError>> {
                     let mut errors = Vec::new();
 
                     const LISTEN: &str = "listen";
@@ -67,20 +80,19 @@ impl RosenpassConfig {
                     const CONFIG_FILE_VERSION: &str = "config-file-version";
                     const API: &str = "api";
 
-                    deny_illegal_keys(
-                        raw,
-                        file_path,
-                        table,
-                        vec![
-                            LISTEN,
-                            VERBOSITY,
-                            OUR_KEYPAIR,
-                            SUPPORTED_PROTOCOL_VERSIONS,
-                            CONFIG_FILE_VERSION,
-                            API,
-                        ],
-                    )
-                    .process_parse_result(&mut errors);
+                    let mut legal_keys = vec![
+                        LISTEN,
+                        VERBOSITY,
+                        OUR_KEYPAIR,
+                        SUPPORTED_PROTOCOL_VERSIONS,
+                        CONFIG_FILE_VERSION,
+                        API,
+                    ];
+                    if is_document_root_table {
+                        legal_keys.extend_from_slice(&root_keys_except_rosenpass);
+                    }
+                    deny_illegal_keys(raw, file_path, table, legal_keys)
+                        .process_parse_result(&mut errors);
 
                     #[cfg(not(feature = "experiment_api"))]
                     if let Some(key) = table.key(API) {
@@ -179,18 +191,22 @@ impl RosenpassConfig {
                     })
                 };
             if let Some(rosenpass_table) = document.get("rosenpass").and_then(|v| v.as_table()) {
-                process_rosenpass_table(rosenpass_table)
+                // parse the `[rosenpass]` table (not the root document) – thus, we need to deny
+                // illegal keys manually
+                deny_illegal_keys(raw, file_path, document.as_table(), root_keys)
+                    .process_parse_result(&mut errors);
+                process_rosenpass_table(rosenpass_table, false)
             } else {
-                process_rosenpass_table(document.as_table())
+                // parse the root document – `process_rosenpass_table` will exclude illegal keys
+                process_rosenpass_table(document.as_table(), true)
             }
         };
         let rosenpass_table = rosenpass_table.process_parse_result(&mut errors);
         // ============================== [[wireguard-devices]] ==============================
         let mut wireguard_devices: Vec<WgDeviceConfig> = Vec::new();
-        if let Some(device_tables) =
-            get_opt_array_of_tables(raw, file_path, document, "wireguard-devices")
-                .process_parse_result(&mut errors)
-                .flatten()
+        if let Some(device_tables) = get_opt_array_of_tables(raw, file_path, document, WG_DEVICES)
+            .process_parse_result(&mut errors)
+            .flatten()
         {
             for table in device_tables {
                 let mut device_errors = {
@@ -258,7 +274,7 @@ impl RosenpassConfig {
 
         // ============================== [[peers]] ==============================
         let mut peers = Vec::new();
-        if let Some(peer_tables) = get_opt_array_of_tables(raw, file_path, document, "peers")
+        if let Some(peer_tables) = get_opt_array_of_tables(raw, file_path, document, PEERS)
             .process_parse_result(&mut errors)
             .flatten()
         {
@@ -281,7 +297,12 @@ impl RosenpassConfig {
                 const LEGACY_KEY_OUTPUT: &str = "key_out";
                 const KEY_OUTPUT_TABLE: &str = "key-out";
 
-                const WIREGUARD_TABLE: &str = "wireguard";
+                const LEGACY_WG_DEVICE: &str = "device";
+                const LEGACY_THEIR_WG_PUBKEY: &str = "peer";
+                const LEGACY_OUR_WG_PUBKEY: &str = "our_wg_pubkey";
+                const LEGACY_WG_EXTRA_PARAMS: &str = "extra_params";
+                const LEGACY_WG_EXCHANGE_COMMAND: &str = "exchange_command";
+                const WG_TABLE: &str = "wireguard";
 
                 deny_illegal_keys(
                     raw,
@@ -300,7 +321,12 @@ impl RosenpassConfig {
                         OSK_TABLE,
                         LEGACY_KEY_OUTPUT,
                         KEY_OUTPUT_TABLE,
-                        WIREGUARD_TABLE
+                        LEGACY_WG_DEVICE,
+                        LEGACY_THEIR_WG_PUBKEY,
+                        LEGACY_OUR_WG_PUBKEY,
+                        LEGACY_WG_EXTRA_PARAMS,
+                        LEGACY_WG_EXCHANGE_COMMAND,
+                        WG_TABLE,
                     ],
                 )
                 .process_parse_result(&mut peer_errors);
@@ -372,8 +398,27 @@ impl RosenpassConfig {
                     KEY_OUTPUT_TABLE,
                 )
                 .process_parse_result(&mut peer_errors)
+                // make this item optional
                 .transpose()
-                .unwrap_or(None); // if not defined, use no key output
+                .unwrap_or(None);
+
+                // wireguard protocol extension
+                let wireguard = get_legacy_wireguard(
+                    raw,
+                    file_path,
+                    table,
+                    table.span(),
+                    LEGACY_WG_DEVICE,
+                    LEGACY_THEIR_WG_PUBKEY,
+                    LEGACY_OUR_WG_PUBKEY,
+                    LEGACY_WG_EXTRA_PARAMS,
+                    LEGACY_WG_EXCHANGE_COMMAND,
+                    WG_TABLE,
+                )
+                .process_parse_result(&mut peer_errors)
+                // make this item optional
+                .transpose()
+                .unwrap_or(None);
 
                 if peer_errors.is_empty() {
                     peers.push(PeerConfig {
@@ -384,7 +429,7 @@ impl RosenpassConfig {
                         preshared_key,
                         osk_domain_separator: osk_domain_separator.guaranteed_unwrap(),
                         output_to_file,
-                        wireguard: None, //todo!(),
+                        wireguard,
                     })
                 }
                 errors.append(&mut peer_errors);
