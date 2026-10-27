@@ -1,10 +1,14 @@
+use core::fmt;
+use std::fmt::Debug;
 use std::{marker::PhantomData, path::PathBuf};
 
 use tstr::{IsTStr, TS};
 
 use crate::internal::secret_memory::PublicBox;
-use crate::internal::util::file::{LoadValue, LoadValueB64};
+use crate::internal::util::file::{LoadValue};
 use crate::internal::{cipher_traits::primitives::kem::Kem, ciphers};
+
+// ============================== user-facing types ==============================
 
 /// a source a keypair consisting of one secret and one public key
 ///
@@ -20,27 +24,15 @@ pub struct Keypair<S: SecretKeySource, P: PublicKeySource> {
     pub secret_key_source: S,
     pub public_key_source: P,
 }
-#[derive(Debug)]
-pub enum KeyFromDiskInner {
-    File(PathBuf),
-    Directory(PathBuf),
-}
-#[derive(Debug)]
 pub struct KeyFromDisk<FN: IsTStr, const SIZE: usize> {
     pub inner: KeyFromDiskInner,
     _marker: PhantomData<FN>,
 }
-#[derive(Debug)]
-pub enum KeyFromDiskOrB64EncodedStringInner {
-    File(PathBuf),
-    Directory(PathBuf),
-    Base64EncodedString(String),
-}
-#[derive(Debug)]
 pub struct KeyFromDiskOrB64EncodedString<FN: IsTStr, const SIZE: usize> {
     pub inner: KeyFromDiskOrB64EncodedStringInner,
     _marker: PhantomData<FN>,
 }
+
 pub type PqKeypairSource = Keypair<SecretPqKeySource, PublicPqKeySource>;
 pub type SecretPqKeySource = KeyFromDisk<TS!("pqsk"), { ciphers::StaticKem::SK_LEN }>;
 pub type PublicPqKeySource = KeyFromDisk<TS!("pqsk"), { ciphers::StaticKem::PK_LEN }>;
@@ -49,6 +41,34 @@ pub type WgKeypairSource = Keypair<SecretWgKeySource, PublicWgKeySource>;
 pub type SecretWgKeySource = KeyFromDisk<TS!("wgsk"), 32>;
 pub type PublicWgKeySource = KeyFromDiskOrB64EncodedString<TS!("wgpk"), { 32 }>;
 
+// ============================== inner types ==============================
+
+// improve the Debug output of the user-facing types by hiding the inner types
+impl<FN: IsTStr, const SIZE: usize> Debug for KeyFromDisk<FN, SIZE> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+impl<FN: IsTStr, const SIZE: usize> Debug for KeyFromDiskOrB64EncodedString<FN, SIZE> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+
+// define inner types
+#[derive(Debug)]
+pub enum KeyFromDiskInner {
+    File(PathBuf),
+    Directory(PathBuf),
+}
+#[derive(Debug)]
+pub enum KeyFromDiskOrB64EncodedStringInner {
+    File(PathBuf),
+    Directory(PathBuf),
+    Base64EncodedString(String),
+}
+
+// implement inner types traits From and [NewFromInner]
 pub trait HasInnerType: Sized {
     type InnerType;
 }
@@ -83,6 +103,7 @@ impl<FN: IsTStr, const SIZE: usize> From<KeyFromDiskOrB64EncodedStringInner>
     }
 }
 
+// ============================== getter functions for key content ==============================
 pub trait SecretKeySource {
     fn get_secret_key_path(&self) -> PathBuf;
     // TODO:

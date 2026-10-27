@@ -281,6 +281,8 @@ impl RosenpassConfig {
                 const LEGACY_KEY_OUTPUT: &str = "key_out";
                 const KEY_OUTPUT_TABLE: &str = "key-out";
 
+                const WIREGUARD_TABLE: &str = "wireguard";
+
                 deny_illegal_keys(
                     raw,
                     file_path,
@@ -298,6 +300,7 @@ impl RosenpassConfig {
                         OSK_TABLE,
                         LEGACY_KEY_OUTPUT,
                         KEY_OUTPUT_TABLE,
+                        WIREGUARD_TABLE
                     ],
                 )
                 .process_parse_result(&mut peer_errors);
