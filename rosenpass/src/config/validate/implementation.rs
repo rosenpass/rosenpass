@@ -6,7 +6,10 @@ use super::{
     util::{AttemptRead, validate_keypair},
 };
 
-use crate::protocol::basic_types::{SPk, SSk};
+use crate::{
+    config::DeviceWireguardOptions,
+    protocol::basic_types::{SPk, SSk},
+};
 use crate::{config::WgDeviceCreateOptions, internal::util::file::LoadValue};
 
 impl RosenpassConfig {
@@ -46,7 +49,7 @@ impl RosenpassConfig {
                 //         errors.push(Error::DeviceIsManagedByRosenpassButMissesWireguardKeypair(device.name.clone()));
                 //     }
                 // },
-                WgDeviceCreateOptions::Create{wg_listen_port, wg_fwmark} => {
+                WgDeviceCreateOptions::Create(DeviceWireguardOptions{wg_listen_port, wg_fwmark}) => {
                     // TODO: check wg_listen_port
 
                     // TODO: check wg_fwmark

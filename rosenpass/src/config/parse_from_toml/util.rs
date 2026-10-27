@@ -3,10 +3,10 @@ use super::errors::ParseError;
 use crate::config::ApiConfig;
 use crate::{
     config::{
-        HasInnerType, KeyFromDisk, KeyFromDiskInner, KeyFromDiskOrB64EncodedString,
-        KeyFromDiskOrB64EncodedStringInner, Keypair, NewFromInner, OurWireguardKeypair,
-        OutputToFileConfig, PeerWireguardOptions, PresharedKeySource, TomlConfigFileVersion,
-        WireguardConfig,
+        DeviceWireguardOptions, HasInnerType, KeyFromDisk, KeyFromDiskInner,
+        KeyFromDiskOrB64EncodedString, KeyFromDiskOrB64EncodedStringInner, Keypair, NewFromInner,
+        OurWireguardKeypair, OutputToFileConfig, PeerWireguardOptions, PresharedKeySource,
+        TomlConfigFileVersion, WireguardConfig,
     },
     oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
     protocol::{ProtocolVersion, osk_domain_separator},
@@ -1627,7 +1627,7 @@ get_as_type_generator!(
             .process_parse_result(&mut errors);
         let listen_fd = get_as_vec_i32(raw, file_path, table, item.span(), LISTEN_FD)
             .process_parse_result(&mut errors);
-        let stream_fd = get_as_vec_i32(raw, file_path, table, item.span(), LISTEN_FD)
+        let stream_fd = get_as_vec_i32(raw, file_path, table, item.span(), STREAM_FD)
             .process_parse_result(&mut errors);
 
         deny_illegal_keys(
@@ -1896,6 +1896,40 @@ get_as_type_generator!(
     }
 );
 
+// DeviceWireguardOptions
+get_as_type_generator!(
+    get_as_device_wireguard_options,
+    get_as_opt_device_wireguard_options,
+    [],
+    DeviceWireguardOptions,
+    as_inline_table,
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+        let mut errors = Vec::new();
+
+        const WG_LISTEN_PORT: &str = "listen-port";
+        const WG_FWMARK: &str = "fwmark";
+
+        deny_illegal_keys(raw, file_path, table, vec![WG_LISTEN_PORT, WG_FWMARK])
+            .process_parse_result(&mut errors);
+
+        let wg_listen_port = get_as_opt_u16(raw, file_path, table, table.span(), WG_LISTEN_PORT)
+            .process_parse_result(&mut errors)
+            .flatten();
+
+        let wg_fwmark = get_as_opt_u16(raw, file_path, table, table.span(), WG_FWMARK)
+            .process_parse_result(&mut errors)
+            .flatten();
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(DeviceWireguardOptions {
+            wg_listen_port,
+            wg_fwmark,
+        })
+    }
+);
+
 get_as_type_generator!(
     get_as_wireguard,
     get_as_opt_wireguard,
@@ -2072,7 +2106,8 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
         table_span.clone(),
         legacy_exchange_command_name,
     )
-    .process_parse_result(&mut errors);
+    .process_parse_result(&mut errors)
+    .flatten();
 
     let modern = get_as_opt_wireguard(raw, file_path, table, table_span.clone(), modern_name)
         .process_parse_result(&mut errors)
@@ -2085,7 +2120,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
 
     // quirk: in legacy config, the device used to be set via `exchange_command`
     let legacy_device_quirk = legacy_device.clone().or_else(|| {
-        match legacy_exchange_command.clone().flatten() {
+        match legacy_exchange_command.clone() {
             None => None,
             Some(legacy_exchange_command) => {
                 if legacy_exchange_command.get(1).is_some_and(|s| s == "set")
@@ -2102,7 +2137,6 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
     // quirk: in legacy config, users could define their own wg binary
     if legacy_exchange_command
         .clone()
-        .flatten()
         .is_some_and(|cmd| cmd.get(0).is_some_and(|cmd| cmd != "wg"))
     {
         errors.push(ParseError::new_ext(
@@ -2119,7 +2153,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
     }
 
     // catch legacy definition
-    match (legacy_device_quirk, legacy_exchange_command.clone().flatten()) {
+    match (legacy_device_quirk, legacy_exchange_command.clone()) {
         // not a legacy definition
         (None, None) => (),
         // strange legacy definition
@@ -2129,9 +2163,11 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                 file_path,
                 table.get_key_value_span(legacy_exchange_command_name),
                 "specific exchange command no longer supported",
-                "should start with `wg set <DEV> ...`"
+                "should start with `wg set <DEV> ...`",
             )]);
         }
+        // legacy keys combined with a modern definition conflict – error is handled further down
+        (Some(_), _) if modern.is_some() => (),
         // classic legacy definition
         (Some(legacy_device_quirk), _) => {
             return Ok(Ok(WireguardConfig {
@@ -2159,7 +2195,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                     allowed_ips: None,
                     wg_extra_arguments: legacy_extra_params.unwrap_or_default(), // default to empty
                 },
-                exchange_command: legacy_exchange_command.flatten(),
+                exchange_command: legacy_exchange_command.clone(),
                 osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // default to empty
             }));
         }
@@ -2175,7 +2211,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
         modern,
     ) {
         // modern definition
-        (None, None, None, None, None | Some(None), Some(modern)) => Ok(modern),
+        (None, None, None, None, None, Some(modern)) => Ok(modern),
 
         // none specified
         (None, None, None, None, None, None) => Err(ParseError::new(

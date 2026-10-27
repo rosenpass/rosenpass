@@ -121,10 +121,7 @@ pub struct WgDeviceConfig {
 #[derive(Debug)]
 pub enum WgDeviceCreateOptions {
     /// the WireGuard device needs to be created by this application
-    Create {
-        wg_listen_port: Option<u16>,
-        wg_fwmark: Option<u16>,
-    },
+    Create(DeviceWireguardOptions),
 
     /// the WireGuard device has already been created by so. else
     ///
@@ -140,6 +137,13 @@ pub enum WgDeviceCreateOptions {
 enum FlatWgDeviceCreateOptions {
     Create,
     DoNotCreate,
+}
+
+/// device's WireGuard options if the device is created
+#[derive(Debug, Default)]
+pub struct DeviceWireguardOptions {
+    pub wg_listen_port: Option<u16>,
+    pub wg_fwmark: Option<u16>,
 }
 
 // ============================== [[peers]] ==============================

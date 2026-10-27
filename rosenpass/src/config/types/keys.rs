@@ -35,7 +35,7 @@ pub struct KeyFromDiskOrB64EncodedString<FN: IsTStr, const SIZE: usize> {
 
 pub type PqKeypairSource = Keypair<SecretPqKeySource, PublicPqKeySource>;
 pub type SecretPqKeySource = KeyFromDisk<TS!("pqsk"), { ciphers::StaticKem::SK_LEN }>;
-pub type PublicPqKeySource = KeyFromDisk<TS!("pqsk"), { ciphers::StaticKem::PK_LEN }>;
+pub type PublicPqKeySource = KeyFromDisk<TS!("pqpk"), { ciphers::StaticKem::PK_LEN }>;
 pub type WgKeypairSource = Keypair<SecretWgKeySource, PublicWgKeySource>;
 // TODO: magic numbers for WireGuard key lengths
 pub type SecretWgKeySource = KeyFromDisk<TS!("wgsk"), 32>;

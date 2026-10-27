@@ -12,8 +12,8 @@ use toml_edit::Table;
 #[cfg(feature = "experiment_api")]
 use util::get_as_opt_api_config;
 use util::{
-    get_as_bool, get_as_opt_bool, get_as_opt_u16, get_as_opt_verbosity_level, get_as_string,
-    get_legacy_osk_domain_separator,
+    get_as_bool, get_as_opt_bool, get_as_opt_device_wireguard_options, get_as_opt_verbosity_level,
+    get_as_string, get_legacy_osk_domain_separator,
 };
 
 use super::types::*;
@@ -220,50 +220,47 @@ impl RosenpassConfig {
                 let mut device_errors = {
                     let mut errors = Vec::new();
 
+                    const NAME: &str = "name";
+                    const ENABLED: &str = "enabled";
+                    const CREATE: &str = "create";
+                    const WG_OPTIONS: &str = "wireguard-options";
+
+                    deny_illegal_keys(
+                        raw,
+                        file_path,
+                        table,
+                        vec![NAME, ENABLED, CREATE, WG_OPTIONS],
+                    )
+                    .process_parse_result(&mut errors);
+
                     // name
-                    let name = get_as_string(raw, file_path, table, table.span(), "name")
+                    let name = get_as_string(raw, file_path, table, table.span(), NAME)
                         .process_parse_result(&mut errors);
 
                     // enabled
-                    let enabled = get_as_opt_bool(raw, file_path, table, table.span(), "enabled")
+                    let enabled = get_as_opt_bool(raw, file_path, table, table.span(), ENABLED)
                         .process_parse_result(&mut errors)
                         .flatten()
                         .unwrap_or(true);
 
                     // created_by
-                    let created_by = get_as_bool(raw, file_path, table, table.span(), "create")
+                    let created_by = get_as_bool(raw, file_path, table, table.span(), CREATE)
                         .process_parse_result(&mut errors)
                         .and_then(|create| {
                             if !create {
                                 Some(WgDeviceCreateOptions::DoNotCreate)
                             } else {
-                                let mut inline_errors = Vec::new();
-
-                                // wg_listen_port
-                                let wg_listen_port = get_as_opt_u16(
+                                let options = get_as_opt_device_wireguard_options(
                                     raw,
                                     file_path,
                                     table,
                                     table.span(),
-                                    "listen-port",
+                                    WG_OPTIONS,
                                 )
-                                .process_parse_result(&mut inline_errors)
-                                .flatten(); // defaults to `None`
-
-                                // wg_fwmark
-                                let wg_fwmark =
-                                    get_as_opt_u16(raw, file_path, table, table.span(), "fwmark")
-                                        .process_parse_result(&mut inline_errors)
-                                        .flatten(); // defaults to `None`
-
-                                // return
-                                errors.extend_from_slice(&inline_errors);
-                                inline_errors
-                                    .is_empty()
-                                    .then_some(WgDeviceCreateOptions::Create {
-                                        wg_listen_port,
-                                        wg_fwmark,
-                                    })
+                                .process_parse_result(&mut errors)
+                                .flatten()
+                                .unwrap_or_default(); // defaults to empty options
+                                Some(WgDeviceCreateOptions::Create(options))
                             }
                         });
 
