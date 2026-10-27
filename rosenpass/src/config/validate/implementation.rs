@@ -11,6 +11,7 @@ use crate::{config::WgDeviceCreateOptions, internal::util::file::LoadValue};
 
 impl RosenpassConfig {
     /// TODO: write documentation
+    /// TODO: warn if no wireguard devices defined and peers have defined WG devices (implicit definition)
     #[rustfmt::skip]
     pub fn validate(&self, recipe: ValidationRecipe) -> Result<Vec<Warning>, Vec<Issue>> {
         let mut errors: Vec<Error> = Vec::new();

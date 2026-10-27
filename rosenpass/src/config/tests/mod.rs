@@ -96,3 +96,5 @@ fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
 // TODO: test that additional keys are rejected
 
 // TODO: test that peer secret key is rejected
+
+// TODO: test that all paths have been resolved

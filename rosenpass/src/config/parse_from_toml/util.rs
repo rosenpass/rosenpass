@@ -14,34 +14,14 @@ use serde::{Deserialize, de::value::StrDeserializer};
 use std::{
     collections::HashSet,
     fmt::Display,
+    net::SocketAddr,
     path::{Path, PathBuf},
     str::FromStr,
 };
-use toml_edit::InlineTable;
+use toml_edit::{ArrayOfTables, InlineTable};
 use tstr::IsTStr;
 
-/// can be used on the output of `get_as_*()` if `let mut errors: Parse<Error> = Vec::new();` has been defined
-macro_rules! process_results {
-    ($errors: expr, $result: expr) => {
-        $result.map(|v| Some(v)).unwrap_or_else(|err| {
-            $errors.extend_from_slice(&err);
-            None
-        })
-    };
-}
-pub(crate) use process_results;
-/// can be used on the output of `get_as_*()` if `let mut errors: Parse<Error> = Vec::new();` has been defined
-macro_rules! process_result {
-    ($errors: expr, $result: expr) => {
-        $result.map(|v| Some(v)).unwrap_or_else(|err| {
-            $errors.push(err);
-            None
-        })
-    };
-}
-#[allow(unused_imports)]
-pub(crate) use process_result;
-
+// ============================== process parse results ==============================
 pub(crate) trait ProcessParseResult {
     type Output;
     fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output>;
@@ -97,8 +77,29 @@ impl<T> ProcessParseResult for Vec<Result<T, ParseError>> {
         }
     }
 }
-
-pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
+mod sealed {
+    pub trait Sealed {}
+    // This is only implemented for `Option<T>` and not for `Result<T,E>` to make sure that the
+    // caller has called `process_parse_result` before calling `guaranteed_unwrap`.
+    impl<T> Sealed for Option<T> {}
+}
+pub(crate) trait GuaranteedUnwrap: sealed::Sealed {
+    type Output;
+    fn guaranteed_unwrap(self) -> Self::Output;
+}
+impl<T> GuaranteedUnwrap for Option<T> {
+    type Output = T;
+    fn guaranteed_unwrap(self) -> Self::Output {
+        self.expect(
+            "The code panicked because its execution took a path that \
+            the developers expected to be unreachable. This is a bug. \
+            It would be kind if you could open a bug report on \
+            https://github.com/rosenpass/rosenpass/issues",
+        )
+    }
+}
+// ============================== general parsing helpers ==============================
+pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike + ?Sized>(
     raw: &str,
     file_path: &Path,
     table: &T,
@@ -109,18 +110,19 @@ pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike>(
         .iter()
         .filter_map(|(key, value)| {
             if allowed_keys.iter().find(|k| **k == key).is_none() {
-                Some((key, value.span()))
+                Some((key, table.key(key).unwrap().span()))
             } else {
                 None
             }
         })
         .collect::<Vec<_>>();
     for illegal_key in illegal_keys.iter() {
-        errors.push(ParseError::new(
+        errors.push(ParseError::new_ext(
             raw,
             file_path,
             illegal_key.1.clone(),
-            format!("illegal key {}", illegal_key.0),
+            format!("illegal key \"{}\"", illegal_key.0),
+            "illegal key occurs here",
         ));
     }
     if errors.is_empty() {
@@ -135,11 +137,38 @@ pub(crate) fn resolve_span(raw: &str, span: &std::ops::Range<usize>) -> Option<(
     let lines = raw.get(0..span.start)?.split("\n").collect::<Vec<_>>();
     Some((lines.len(), lines.last().unwrap().len() + 1))
 }
+pub(crate) fn combine_spans(
+    span1: &std::ops::Range<usize>,
+    span2: &std::ops::Range<usize>,
+) -> std::ops::Range<usize> {
+    span1.start..span2.end
+}
+pub(crate) fn combine_opt_spans(
+    span1: Option<std::ops::Range<usize>>,
+    span2: Option<std::ops::Range<usize>>,
+) -> Option<std::ops::Range<usize>> {
+    match (span1, span2) {
+        (None, None) => None,
+        (Some(span), None) => Some(span.clone()),
+        (None, Some(span)) => Some(span.clone()),
+        (Some(span1), Some(span2)) => Some(combine_spans(&span1, &span2)),
+    }
+}
+pub trait GetKeyValueSpan {
+    fn get_key_value_span(&self, key: &str) -> Option<std::ops::Range<usize>>;
+}
+impl<T: toml_edit::TableLike> GetKeyValueSpan for T {
+    fn get_key_value_span(&self, key: &str) -> Option<std::ops::Range<usize>> {
+        self.get_key_value(key)
+            .and_then(|(k, v)| combine_opt_spans(k.span(), v.span()))
+    }
+}
+
 /// gets the value in `table` associated with `key` or returns an [`Err`] if the key does not exist within the table
 ///
 /// - `file` is a reference to the file holding the `table` and is only required to format the error message in case of a missing key
 /// - `table_span` is the location of the `table` within the TOML `file` and is only required to format the error message in case of a missing key
-fn get_item<'a, T: toml_edit::TableLike>(
+fn get_item<'a, T: toml_edit::TableLike + ?Sized>(
     raw: &str,
     file_path: &Path,
     table: &'a T,
@@ -171,15 +200,20 @@ macro_rules! getter_to_typename {
     (as_inline_table) => {
         "inline table"
     };
+    (as_table_like) => {
+        "table or inline table"
+    };
     ($getter: ident) => {
         compile_error!(concat!("unexpected getter: ", stringify!($getter)))
     };
 }
 
+// ============================== get_as_<T> functions ==============================
+
 macro_rules! get_as_type_generator {
     ($fn_name: ident, $opt_fn_name: ident, [$($generics:tt)*], $type_: ty, $getter: ident, $mapper: expr) => {
         #[allow(dead_code)]
-        pub fn $fn_name<'a, TableLike: toml_edit::TableLike, $($generics)*>(
+        pub fn $fn_name<'a, TableLike: toml_edit::TableLike + ?Sized, $($generics)*>(
             raw: &'a str,
             file_path: &Path,
             table: &'a TableLike,
@@ -203,7 +237,7 @@ macro_rules! get_as_type_generator {
                 .map(|v| $mapper(raw, file_path, item, v))?
         }
         #[allow(dead_code)]
-        pub fn $opt_fn_name<'a, TableLike: toml_edit::TableLike, $($generics)*>(
+        pub fn $opt_fn_name<'a, TableLike: toml_edit::TableLike + ?Sized, $($generics)*>(
             raw: &'a str,
             file_path: &Path,
             table: &'a TableLike,
@@ -614,10 +648,10 @@ get_as_type_generator!(
     get_as_socket_addr,
     get_as_opt_socket_addr,
     [],
-    std::net::SocketAddr,
+    SocketAddr,
     as_str,
     |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
-        std::net::SocketAddr::from_str(s).map_err(|err| {
+        SocketAddr::from_str(s).map_err(|err| {
             vec![ParseError::new(
                 raw,
                 file_path,
@@ -625,6 +659,64 @@ get_as_type_generator!(
                 err.to_string(),
             )]
         })
+    }
+);
+
+// Vec<SocketAddr>
+get_as_type_generator!(
+    get_as_vec_socket_addr,
+    get_as_opt_vec_socket_addr,
+    [],
+    Vec<SocketAddr>,
+    as_array,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
+        let mut errors = Vec::new();
+
+        // transmute items to strings
+        let array = array
+            .iter()
+            .map(|x| match x.as_str() {
+                Some(s) => Ok((s, x.span())),
+                None => Err(ParseError::new(
+                    raw,
+                    file_path,
+                    x.span(),
+                    format!(
+                        "item has wrong data type: expected {}",
+                        getter_to_typename!(as_str)
+                    ),
+                )),
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+
+        // return on error
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        let array = array.guaranteed_unwrap();
+
+        // transmute strings to socket addresses
+        let array = array
+            .iter()
+            .map(|(string, span)| {
+                SocketAddr::from_str(string).map_err(|err| {
+                    vec![ParseError::new(
+                        raw,
+                        file_path,
+                        span.clone(),
+                        err.to_string(),
+                    )]
+                })
+            })
+            .collect::<Vec<_>>()
+            .process_parse_result(&mut errors);
+
+        // return
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(array.guaranteed_unwrap())
     }
 );
 
@@ -977,16 +1069,14 @@ pub(crate) fn get_legacy_public_key_from_disk<
     let mut errors = Vec::new();
 
     // read both key sources
-    let legacy_key_file = process_results!(
-        errors,
+    let legacy_key_file =
         get_as_opt_path_buf(raw, file_path, table, table_span.clone(), legacy_key_name)
-    )
-    .flatten();
-    let key_table = process_results!(
-        errors,
+            .process_parse_result(&mut errors)
+            .flatten();
+    let key_table =
         get_as_opt_inline_table(raw, file_path, table, table_span.clone(), key_table_name)
-    )
-    .flatten();
+            .process_parse_result(&mut errors)
+            .flatten();
     let key: Result<KeyFromDisk<FN, SIZE>, ParseError> = match (legacy_key_file, key_table) {
         // duplicate definition
         (Some(_), Some(_)) => {
@@ -1073,8 +1163,8 @@ get_as_type_generator!(
         let public_key = public_key.unwrap();
 
         // make secret and pubic key both required (no longer optional)
-        let secret_key = process_result!(errors, secret_key);
-        let public_key = process_result!(errors, public_key);
+        let secret_key = secret_key.process_parse_result(&mut errors);
+        let public_key = public_key.process_parse_result(&mut errors);
 
         // return
         if !errors.is_empty() {
@@ -1243,19 +1333,19 @@ get_as_type_generator!(
     get_as_opt_api_config,
     [],
     ApiConfig,
-    as_inline_table,
-    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+    as_table_like,
+    |raw: &str, file_path: &Path, item: &toml_edit::Item, table: &dyn toml_edit::TableLike| {
         let mut errors = Vec::new();
 
         const LISTEN_PATH: &str = "listen-path";
         const LISTEN_FD: &str = "listen-fd";
         const STREAM_FD: &str = "stream-fd";
 
-        let listen_path = get_as_vec_path_buf(raw, file_path, table, table.span(), LISTEN_PATH)
+        let listen_path = get_as_vec_path_buf(raw, file_path, table, item.span(), LISTEN_PATH)
             .process_parse_result(&mut errors);
-        let listen_fd = get_as_vec_i32(raw, file_path, table, table.span(), LISTEN_FD)
+        let listen_fd = get_as_vec_i32(raw, file_path, table, item.span(), LISTEN_FD)
             .process_parse_result(&mut errors);
-        let stream_fd = get_as_vec_i32(raw, file_path, table, table.span(), LISTEN_FD)
+        let stream_fd = get_as_vec_i32(raw, file_path, table, item.span(), LISTEN_FD)
             .process_parse_result(&mut errors);
 
         deny_illegal_keys(
@@ -1279,4 +1369,57 @@ get_as_type_generator!(
 
 pub(crate) fn default_peer_name(index: usize) -> String {
     format!("peer no. {index}")
+}
+
+pub(crate) fn get_array_of_tables<'a>(
+    raw: &'a str,
+    file_path: &'a Path,
+    document: &'a toml_edit::Document<String>,
+    name: &'a str,
+) -> Result<&'a ArrayOfTables, Vec<ParseError>> {
+    let item = document.get(name).ok_or_else(|| {
+        vec![ParseError::new(
+            raw,
+            file_path,
+            document.span(),
+            format!("missing array of tables \"[[{name}]]\""),
+        )]
+    })?;
+    let return_value = item.as_array_of_tables().ok_or_else(|| {
+        vec![ParseError::new(
+            raw,
+            file_path,
+            item.span(),
+            format!(
+                "item \"{name}\" {}",
+                "has wrong data type, must be array of tables"
+            ),
+        )]
+    })?;
+    Ok(return_value)
+}
+
+pub(crate) fn get_opt_array_of_tables<'a>(
+    raw: &'a str,
+    file_path: &'a Path,
+    document: &'a toml_edit::Document<String>,
+    name: &'a str,
+) -> Result<Option<&'a ArrayOfTables>, Vec<ParseError>> {
+    match document.get(name) {
+        None => Ok(None),
+        Some(item) => {
+            let array: &ArrayOfTables = item.as_array_of_tables().ok_or_else(|| {
+                vec![ParseError::new(
+                    raw,
+                    file_path,
+                    item.span(),
+                    format!(
+                        "item \"{name}\" {}",
+                        "has wrong data type, must be array of tables"
+                    ),
+                )]
+            })?;
+            Ok(Some(array))
+        }
+    }
 }

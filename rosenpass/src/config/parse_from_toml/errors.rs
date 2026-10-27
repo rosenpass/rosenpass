@@ -32,30 +32,61 @@ impl ParseIssueKind for Warning {
 impl ParseIssueKind for Error {
     const LEVEL: ParseIssueLevel = ParseIssueLevel::Error;
 }
+/// TODO: use an enum with `thiserror` instead of the `message: String`
 #[derive(Debug, Clone)]
 pub struct ParseIssueInner<K: ParseIssueKind> {
     pub file: PathBuf,
     pub line: usize,
     pub column: usize,
+    pub length: usize,
+
+    // the long errors message printed into its own line
     pub message: String,
+
+    // some inline message shown next to the "^" indicator
+    pub inline_message: Option<String>,
+
     pub _kind: PhantomData<K>,
 }
 impl<K: ParseIssueKind> ParseIssueInner<K> {
     pub fn level(&self) -> ParseIssueLevel {
         K::LEVEL
     }
-    pub fn new(
+    pub fn new<S: ToString>(
         raw: &str,
-        file: &Path,
+        file_path: &Path,
         span: Option<std::ops::Range<usize>>,
-        message: String,
+        message: S,
     ) -> ParseIssueInner<K> {
-        let location = span.and_then(|span| resolve_span(raw, &span));
+        let location = span.as_ref().and_then(|span| resolve_span(raw, span));
+        let length = span.as_ref().map(|s| s.end - s.start);
         ParseIssueInner::<K> {
-            file: file.to_path_buf(),
+            file: file_path.to_path_buf(),
             line: location.map(|l| l.0).unwrap_or(1),
             column: location.map(|l| l.1).unwrap_or(1),
-            message,
+            length: length.unwrap_or(1),
+            message: message.to_string(),
+            inline_message: Some(message.to_string()),
+            _kind: Default::default(),
+        }
+    }
+
+    pub fn new_ext<S1: ToString, S2: ToString>(
+        raw: &str,
+        file_path: &Path,
+        span: Option<std::ops::Range<usize>>,
+        message: S1,
+        inline_message: S2,
+    ) -> ParseIssueInner<K> {
+        let location = span.as_ref().and_then(|span| resolve_span(raw, span));
+        let length = span.as_ref().map(|s| s.end - s.start);
+        ParseIssueInner::<K> {
+            file: file_path.to_path_buf(),
+            line: location.map(|l| l.0).unwrap_or(1),
+            column: location.map(|l| l.1).unwrap_or(1),
+            length: length.unwrap_or(1),
+            message: message.to_string(),
+            inline_message: Some(inline_message.to_string()),
             _kind: Default::default(),
         }
     }
@@ -77,7 +108,9 @@ fn render_diagnostic<'a>(
     file: &'a Path,
     line: usize,
     column: usize,
+    length: usize,
     message: &'a str,
+    inline_message: Option<&'a str>,
     raw: &'a str,
 ) -> impl fmt::Display + 'a {
     fmt::from_fn(move |f| {
@@ -135,10 +168,13 @@ fn render_diagnostic<'a>(
                     writeln!(
                         f,
                         " {:width$} {blue}|{blue:#} \
-                     {:pad$}{accent}^{accent:#}",
+                        {:pad$}{accent}{indicator}{inline_message}{accent:#}",
                         "",
                         "",
                         pad = column.saturating_sub(1),
+                        indicator = "^".repeat(length),
+                        inline_message =
+                            inline_message.map(|s| format!(" {s}")).unwrap_or_default() // default is empty string
                     )?;
                 }
             }
@@ -176,6 +212,7 @@ fn render_diagnostic<'a>(
 pub trait PrettyIssueOutput {
     fn pretty<'a>(&'a self, raw: &'a str) -> impl Display + 'a;
 }
+// TODO: the following code is not DRY
 impl PrettyIssueOutput for ParseWarning {
     fn pretty<'a>(&'a self, raw: &'a str) -> impl Display + 'a {
         render_diagnostic(
@@ -184,7 +221,9 @@ impl PrettyIssueOutput for ParseWarning {
             &self.file,
             self.line,
             self.column,
+            self.length,
             &self.message,
+            self.inline_message.as_deref(),
             raw,
         )
     }
@@ -197,7 +236,9 @@ impl PrettyIssueOutput for ParseError {
             &self.file,
             self.line,
             self.column,
+            self.length,
             &self.message,
+            self.inline_message.as_deref(),
             raw,
         )
     }

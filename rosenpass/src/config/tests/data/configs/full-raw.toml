@@ -5,6 +5,12 @@ our-keypair = { secret-key-file = "path/to/our.pqsk", public-key-file = "path/to
 supported-protocol-versions = ["2", "3"]
 config-file-version = "1" # only supported option: "1"
 
+# requires experimental feature "experiment_api" during compile time
+[rosenpass.api]
+listen-path = []
+listen-fd = []
+stream-fd = []
+
 
 [[wireguard-devices]]
 name = "wg0"

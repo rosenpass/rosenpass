@@ -84,12 +84,12 @@ impl<FN: IsTStr, const SIZE: usize> From<KeyFromDiskOrB64EncodedStringInner>
 }
 
 pub trait SecretKeySource {
-    fn get_key_path(&self) -> PathBuf;
+    fn get_secret_key_path(&self) -> PathBuf;
     // TODO:
     // fn get_key(&self, length: usize) -> Self::GetKeyOutput;
 }
 impl<FN: IsTStr, const SIZE: usize> SecretKeySource for KeyFromDisk<FN, SIZE> {
-    fn get_key_path(&self) -> PathBuf {
+    fn get_secret_key_path(&self) -> PathBuf {
         match &self.inner {
             KeyFromDiskInner::File(file) => file.clone(),
             KeyFromDiskInner::Directory(dir) => dir.join(FN::STR),

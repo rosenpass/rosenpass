@@ -7,14 +7,42 @@ use crate::{
 };
 use cidr::IpCidr;
 pub use core::net::SocketAddr;
+use debug_ignore::DebugIgnore;
 use std::{collections::HashSet, path::PathBuf};
 
 pub mod keys;
 pub use keys::*;
 
+pub mod paths;
+pub use paths::ResolvePathRelativeToConfig;
+
 /// Configuration for Rosenpass
 ///
-/// TODO: parse this manually with `toml_edit` – ask Ilka <ilka@rosenpass.eu> for experience
+/// **NOTE:** all paths (e.g. to key files) are relative to the configuration's working directory
+/// (the directory of the TOML file or the working directory of the shell calling the CLI). Use
+/// [`ResolvePathRelativeToConfig`] to resolve these relative paths (see last lines of below
+/// example).
+///
+/// ## Example
+/// ```rust
+/// use crate::config::ResolvePathRelativeToConfig;
+/// use anyhow::anyhow;
+///
+/// // read config file from disk
+/// let file_path = PathBuf::from("path/to/config.toml");
+/// let toml_file = std::fs::read(&file_path).unwrap();
+/// let toml_file = String::from_utf8(toml_file).unwrap();
+///
+/// // parse bytes into TOML
+/// let toml_file = toml_edit::Document::parse(toml_file).unwrap();
+///
+/// // parse TOML into RosenpassConfig
+/// let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_file, &file_path).unwrap();
+///
+/// // resolve a key's absolute file path
+/// let relative_secret_key_path = config.our_keypair.secret_key_source.get_secret_key_path();
+/// let absolute_secret_key_path = config.resolve_path(&relative_secret_key_path);
+/// ```
 #[derive(Debug)]
 pub struct RosenpassConfig {
     /// list of [`SocketAddr`] to listen on
@@ -60,7 +88,9 @@ pub struct ConfigSourceTomlFile {
     pub file_path: PathBuf,
 
     /// the complete TOML document which has been parsed
-    pub document: toml_edit::Document<String>,
+    ///
+    /// this will be omitted in the [`Debug`] output
+    pub document: DebugIgnore<toml_edit::Document<String>>,
 
     /// all warnings caused by the parser
     pub warnings: Vec<TomlParseWarning>,
