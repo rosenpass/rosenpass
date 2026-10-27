@@ -75,7 +75,11 @@ impl RosenpassConfig {
 
                     const LISTEN: &str = "listen";
                     const VERBOSITY: &str = "verbosity";
+
                     const OUR_KEYPAIR: &str = "our-keypair";
+                    const LEGACY_OUR_SECRET_KEY: &str = "secret_key";
+                    const LEGACY_OUR_PUBLIC_KEY: &str = "public_key";
+
                     const SUPPORTED_PROTOCOL_VERSIONS: &str = "supported-protocol-versions";
                     const CONFIG_FILE_VERSION: &str = "config-file-version";
                     const API: &str = "api";
@@ -84,6 +88,8 @@ impl RosenpassConfig {
                         LISTEN,
                         VERBOSITY,
                         OUR_KEYPAIR,
+                        LEGACY_OUR_SECRET_KEY,
+                        LEGACY_OUR_PUBLIC_KEY,
                         SUPPORTED_PROTOCOL_VERSIONS,
                         CONFIG_FILE_VERSION,
                         API,
@@ -140,6 +146,8 @@ impl RosenpassConfig {
                         file_path,
                         table,
                         table.span(),
+                        LEGACY_OUR_SECRET_KEY,
+                        LEGACY_OUR_PUBLIC_KEY,
                         OUR_KEYPAIR,
                     )
                     .process_parse_result(&mut errors);

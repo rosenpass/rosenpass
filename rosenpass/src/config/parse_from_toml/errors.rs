@@ -102,8 +102,6 @@ impl<K: ParseIssueKind> ParseIssueInner<K> {
 ///  14 | endpoint = "my-peer.test:9999"
 ///     |            ^
 /// ```
-///
-/// TODO: do not print "^^^^^" if it is longer than one line
 fn render_diagnostic<'a>(
     level: &'static str,
     accent: Style,
@@ -165,6 +163,9 @@ fn render_diagnostic<'a>(
 
                 writeln!(f, " {blue}{current_line:>width$} |{blue:#} {source_line}")?;
 
+                // make sure that the "^^^^^^" does not overflow the line
+                let length = length.min(source_line.len().saturating_sub(column - 1));
+
                 // highlight the affected line
                 if current_line == line {
                     writeln!(
@@ -181,32 +182,6 @@ fn render_diagnostic<'a>(
                 }
             }
         }
-
-        // // excerpt from source
-        // if let Some(source_line) = line.checked_sub(1).and_then(|n| raw.lines().nth(n)) {
-        //     let width = line.to_string().len();
-
-        //     // Gutter above source
-        //     writeln!(f, " {:width$} {blue}|{blue:#}", "")?;
-
-        //     // Source line
-        //     writeln!(
-        //         f,
-        //         " {blue}{line:>width$}{blue:#} \
-        //          {blue}|{blue:#} {source_line}"
-        //     )?;
-
-        //     // Highlighted location
-        //     write!(
-        //         f,
-        //         " {:width$} {blue}|{blue:#} {}",
-        //         "",
-        //         " ".repeat(column.saturating_sub(1))
-        //     )?;
-
-        //     write!(f, "{accent}^{accent:#}")?;
-        //     writeln!(f)?;
-        // }
 
         Ok(())
     })

@@ -1479,21 +1479,30 @@ pub(crate) fn get_legacy_keypair_from_disk<
     file_path: &Path,
     table: &T,
     table_span: Option<std::ops::Range<usize>>,
+    legacy_secret_name: &str,
+    legacy_public_name: &str,
     new_name: &str,
 ) -> Result<Keypair<KeyFromDisk<SFN, SSIZE>, KeyFromDisk<PFN, PSIZE>>, Vec<ParseError>> {
     let mut errors = Vec::new();
 
-    const LEGACY_SECRET: &str = "secret_key";
-    const LEGACY_PUBLIC: &str = "public_key";
-
-    let legacy_secret =
-        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), LEGACY_SECRET)
-            .process_parse_result(&mut errors)
-            .flatten();
-    let legacy_public =
-        get_as_opt_path_buf(raw, file_path, table, table_span.clone(), LEGACY_PUBLIC)
-            .process_parse_result(&mut errors)
-            .flatten();
+    let legacy_secret = get_as_opt_path_buf(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_secret_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
+    let legacy_public = get_as_opt_path_buf(
+        raw,
+        file_path,
+        table,
+        table_span.clone(),
+        legacy_public_name,
+    )
+    .process_parse_result(&mut errors)
+    .flatten();
     let new =
         get_as_opt_keypair_with_pub_from_disk(raw, file_path, table, table_span.clone(), new_name)
             .process_parse_result(&mut errors)
@@ -1518,7 +1527,7 @@ pub(crate) fn get_legacy_keypair_from_disk<
                 raw,
                 file_path,
                 table_span.clone(),
-                format!("expected key \"{LEGACY_SECRET}\""),
+                format!("expected key \"{legacy_secret_name}\""),
             )]);
         }
         (Some(_), None, None) => {
@@ -1526,7 +1535,7 @@ pub(crate) fn get_legacy_keypair_from_disk<
                 raw,
                 file_path,
                 table_span.clone(),
-                format!("expected key \"{LEGACY_PUBLIC}\""),
+                format!("expected key \"{legacy_public_name}\""),
             )]);
         }
 
@@ -1535,9 +1544,9 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table.get_key_value_span(LEGACY_PUBLIC),
+                table.get_key_value_span(legacy_public_name),
                 format!(
-                    "keys \"{LEGACY_PUBLIC}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_PUBLIC}\" is deprecated"
+                    "keys \"{legacy_public_name}\" and \"{new_name}\" are mutually exclusive and \"{legacy_public_name}\" is deprecated"
                 ),
             )]);
         }
@@ -1545,9 +1554,9 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table.get_key_value_span(LEGACY_SECRET),
+                table.get_key_value_span(legacy_secret_name),
                 format!(
-                    "keys \"{LEGACY_SECRET}\" and \"{new_name}\" are mutually exclusive and \"{LEGACY_SECRET}\" is deprecated"
+                    "keys \"{legacy_secret_name}\" and \"{new_name}\" are mutually exclusive and \"{legacy_secret_name}\" is deprecated"
                 ),
             )]);
         }
@@ -1555,9 +1564,9 @@ pub(crate) fn get_legacy_keypair_from_disk<
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
-                table.get_key_value_span(LEGACY_SECRET),
+                table.get_key_value_span(legacy_secret_name),
                 format!(
-                    "keys \"{LEGACY_SECRET}\" and \"{LEGACY_PUBLIC}\" (deprecated keypair definition) can not be used together with \"{new_name}\""
+                    "keys \"{legacy_secret_name}\" and \"{legacy_public_name}\" (deprecated keypair definition) can not be used together with \"{new_name}\""
                 ),
             )]);
         }
@@ -2173,7 +2182,11 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                 ),
                 match legacy_item {
                     Some((_name, _span)) => {
-                        format!("remove this legacy item in favor of \"{modern_name}\"")
+                        format!(
+                            "remove this legacy item in favor of \"{modern_name}\" {} {}",
+                            "– alternatively, supply all necessary legacy options:",
+                            all_legacy_keys_joined
+                        )
                     }
                     None => format!("use \"{modern_name}\" instead of the legacy items"),
                 },
