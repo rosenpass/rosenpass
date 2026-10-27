@@ -1938,18 +1938,20 @@ get_as_type_generator!(
         let device = get_as_string(raw, file_path, table, table_span.clone(), DEVICE)
             .process_parse_result(&mut errors);
 
-        let our_wireguard_keypair = get_as_keypair_with_pub_from_disk_or_b64(
+        let our_wireguard_keypair = get_as_opt_keypair_with_pub_from_disk_or_b64(
             raw,
             file_path,
             table,
             table_span.clone(),
             OUR_WG_KEYPAIR,
         )
-        .process_parse_result(&mut errors);
+        .process_parse_result(&mut errors)
+        .flatten();
 
         let their_wireguard_public_key =
-            get_as_inline_table(raw, file_path, table, table_span.clone(), THEIR_WG_KEYPAIR)
+            get_as_opt_inline_table(raw, file_path, table, table_span.clone(), THEIR_WG_KEYPAIR)
                 .process_parse_result(&mut errors)
+                .flatten()
                 .and_then(|table| {
                     get_key_from_disk_or_b64(
                         raw,
@@ -1997,10 +1999,10 @@ get_as_type_generator!(
         Ok(WireguardConfig {
             enabled,
             device_name: device.guaranteed_unwrap(),
-            our_wireguard_keypair: OurWireguardKeypair::EntireKeypair(
-                our_wireguard_keypair.guaranteed_unwrap(),
-            ),
-            their_wireguard_public_key: their_wireguard_public_key.guaranteed_unwrap(),
+            our_wireguard_keypair: our_wireguard_keypair.map(|our_wireguard_keypair| {
+                OurWireguardKeypair::EntireKeypair(our_wireguard_keypair)
+            }),
+            their_wireguard_public_key,
             wireguard_options,
             exchange_command,
             osk_domain_separator,
@@ -2081,11 +2083,93 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
         return Err(errors);
     }
 
-    // decide between legacy and modern option
+    // quirk: in legacy config, the device used to be set via `exchange_command`
+    let legacy_device_quirk = legacy_device.clone().or_else(|| {
+        match legacy_exchange_command.clone().flatten() {
+            None => None,
+            Some(legacy_exchange_command) => {
+                if legacy_exchange_command.get(1).is_some_and(|s| s == "set")
+                    && let Some(dev) = legacy_exchange_command.get(2)
+                {
+                    // it is very likely that this is an exchange command to define the WG device
+                    Some(dev.clone())
+                } else {
+                    None
+                }
+            }
+        }
+    });
+    // quirk: in legacy config, users could define their own wg binary
+    if legacy_exchange_command
+        .clone()
+        .flatten()
+        .is_some_and(|cmd| cmd.get(0).is_some_and(|cmd| cmd != "wg"))
+    {
+        errors.push(ParseError::new_ext(
+            raw,
+            file_path,
+            table.get_key_value_span(legacy_exchange_command_name),
+            "custom wg binary is no longer supported",
+            format!("this \"{legacy_exchange_command_name}\" will not work as expected"),
+        ));
+    }
+    // return if quirk errors occured so far
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    // catch legacy definition
+    match (legacy_device_quirk, legacy_exchange_command.clone().flatten()) {
+        // not a legacy definition
+        (None, None) => (),
+        // strange legacy definition
+        (None, _) => {
+            return Err(vec![ParseError::new_ext(
+                raw,
+                file_path,
+                table.get_key_value_span(legacy_exchange_command_name),
+                "specific exchange command no longer supported",
+                "should start with `wg set <DEV> ...`"
+            )]);
+        }
+        // classic legacy definition
+        (Some(legacy_device_quirk), _) => {
+            return Ok(Ok(WireguardConfig {
+                enabled: true,
+                device_name: legacy_device_quirk,
+                // yes, our WG keypair is indeed always a base64-encoded pubkey in the legacy format
+                // introduced in https://github.com/rosenpass/rosenpass/pull/1171
+                our_wireguard_keypair: legacy_our_pubkey.clone().map(|legacy_our_pubkey| {
+                    OurWireguardKeypair::PublicKeyOnly(KeyFromDiskOrB64EncodedString::new(
+                        KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(legacy_our_pubkey),
+                    ))
+                }),
+                // TODO: check if the legacy format for their pubkey is always a file or whether it can
+                // also be a directory or base64-encoded
+                their_wireguard_public_key: legacy_their_pubkey.clone().map(
+                    |legacy_their_pubkey| {
+                        KeyFromDiskOrB64EncodedString::new(
+                            KeyFromDiskOrB64EncodedStringInner::File(legacy_their_pubkey),
+                        )
+                    },
+                ),
+                wireguard_options: PeerWireguardOptions {
+                    endpoint: None,
+                    persistent_keepalive: None,
+                    allowed_ips: None,
+                    wg_extra_arguments: legacy_extra_params.unwrap_or_default(), // default to empty
+                },
+                exchange_command: legacy_exchange_command.flatten(),
+                osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // default to empty
+            }));
+        }
+    }
+
+    // catch modern option, missing definition and conflicting keys
     let wireguard: Result<WireguardConfig, ParseError> = match (
         legacy_device,
-        legacy_their_pubkey,
-        legacy_our_pubkey,
+        legacy_their_pubkey.clone(),
+        legacy_our_pubkey.clone(),
         legacy_extra_params,
         legacy_exchange_command,
         modern,
@@ -2093,38 +2177,6 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
         // modern definition
         (None, None, None, None, None | Some(None), Some(modern)) => Ok(modern),
 
-        // legacy definition
-        (
-            Some(legacy_device),
-            Some(legacy_their_pubkey),
-            Some(legacy_our_pubkey),
-            Some(legacy_extra_params),
-            Some(legacy_exchange_command),
-            None,
-        ) => Ok(WireguardConfig {
-            enabled: true,
-            device_name: legacy_device,
-            // yes, our WG keypair is indeed always a base64-encoded pubkey in the legacy format
-            // introduced in https://github.com/rosenpass/rosenpass/pull/1171
-            our_wireguard_keypair: OurWireguardKeypair::PublicKeyOnly(
-                KeyFromDiskOrB64EncodedString::new(
-                    KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(legacy_our_pubkey),
-                ),
-            ),
-            // TODO: check if the legacy format for their pubkey is always a file or whether it can
-            // also be a directory or base64-encoded
-            their_wireguard_public_key: KeyFromDiskOrB64EncodedString::new(
-                KeyFromDiskOrB64EncodedStringInner::File(legacy_their_pubkey),
-            ),
-            wireguard_options: PeerWireguardOptions {
-                endpoint: None,
-                persistent_keepalive: None,
-                allowed_ips: None,
-                wg_extra_arguments: legacy_extra_params,
-            },
-            exchange_command: legacy_exchange_command,
-            osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // default to empty
-        }),
         // none specified
         (None, None, None, None, None, None) => Err(ParseError::new(
             raw,

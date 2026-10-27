@@ -207,9 +207,9 @@ pub struct WireguardConfig {
     /// references a [WgDeviceConfig] by [`WgDeviceConfig::name`]
     pub device_name: String,
 
-    pub our_wireguard_keypair: OurWireguardKeypair,
+    pub our_wireguard_keypair: Option<OurWireguardKeypair>,
 
-    pub their_wireguard_public_key: PublicWgKeySource,
+    pub their_wireguard_public_key: Option<PublicWgKeySource>,
 
     pub wireguard_options: PeerWireguardOptions,
 
