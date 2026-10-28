@@ -1,4 +1,7 @@
-use super::parse_from_toml::ParseWarning as TomlParseWarning;
+use super::{
+    parse_from_cli::ParseWarning as CliParseWarning,
+    parse_from_toml::ParseWarning as TomlParseWarning,
+};
 #[cfg(feature = "experiment_api")]
 pub use crate::api::config::ApiConfig;
 use crate::{
@@ -79,7 +82,7 @@ pub struct RosenpassConfig {
 #[derive(Debug)]
 pub enum ConfigSource {
     TomlFile(ConfigSourceTomlFile),
-    // TODO: CommandLineArguments(ConfigSourceCli)
+    CommandLineArguments(ConfigSourceCli),
 }
 
 #[derive(Debug)]
@@ -105,6 +108,18 @@ pub enum TomlConfigFileVersion {
     /// This has been implicitly defined wucke13 in 2023 and extended by Ilka Schulz in 2026.
     #[default]
     Version1,
+}
+#[derive(Debug)]
+pub struct ConfigSourceCli {
+    /// full command line with "\0" as delimiter
+    pub full_command_line: String,
+
+    /// full command line with " " as delimiter
+    pub full_command_line_human_readable: String,
+
+    // TODO: maybe the entire PEST output?
+    pub warnings: Vec<CliParseWarning>,
+    // TODO: maybe some kind of grammar versioning?
 }
 // ============================== [[wiregard-devices]] ==============================
 #[derive(Debug)]
@@ -213,7 +228,7 @@ pub struct WireguardConfig {
 
     pub our_wireguard_keypair: Option<OurWireguardKeypair>,
 
-    pub their_wireguard_public_key: Option<PublicWgKeySource>,
+    pub their_wireguard_public_key: PublicWgKeySource,
 
     pub wireguard_options: PeerWireguardOptions,
 
@@ -225,10 +240,23 @@ pub struct WireguardConfig {
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 
+/// These are extra options supplied to the `wg` binary when configuring a peer
+///
+/// from wg's help:
+/// ```
+/// [endpoint <ip>:<port>]
+/// [persistent-keepalive <interval seconds>]
+/// [allowed-ips [+|-]<ip1>/<cidr1>[,[+|-]<ip2>/<cidr2>]...]
+/// ```
 #[derive(Debug, Default)]
 pub struct PeerWireguardOptions {
+    /// TODO: should this more strict (SocketAddr) or can it be a `<host>:<port>`?
     pub endpoint: Option<String>,
     pub persistent_keepalive: Option<usize>,
+
+    /// allowed IP addresses for the WG peer
+    ///
+    /// This can be a list of addresses or networks.
     pub allowed_ips: Option<Vec<IpCidr>>,
 
     /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1183

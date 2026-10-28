@@ -26,37 +26,42 @@ use toml_edit::{ArrayOfTables, InlineTable};
 use tstr::IsTStr;
 
 // ============================== process parse results ==============================
+pub(crate) trait ProcessableParseError: Clone + std::error::Error {}
 pub(crate) trait ProcessParseResult {
     type Output;
-    fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output>;
+    type Error: ProcessableParseError;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output>;
 }
-impl<T> ProcessParseResult for Result<T, Vec<ParseError>> {
+impl<T, E: ProcessableParseError> ProcessParseResult for Result<T, Vec<E>> {
     type Output = T;
-    fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
+    type Error = E;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output> {
         self.map(|v| Some(v)).unwrap_or_else(|err| {
             error_list.extend_from_slice(&err);
             None
         })
     }
 }
-impl<T> ProcessParseResult for Result<T, ParseError> {
+impl<T, E: ProcessableParseError> ProcessParseResult for Result<T, E> {
     type Output = T;
-    fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
+    type Error = E;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output> {
         self.map(|v| Some(v)).unwrap_or_else(|err| {
             error_list.push(err);
             None
         })
     }
 }
-impl<T> ProcessParseResult for Vec<Result<T, Vec<ParseError>>> {
+impl<T, E: ProcessableParseError> ProcessParseResult for Vec<Result<T, Vec<E>>> {
     type Output = Vec<T>;
-    fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
+    type Error = E;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output> {
         let errors = self
             .iter()
             .filter_map(|x| x.as_ref().err())
             .flatten()
             .cloned()
-            .collect::<Vec<ParseError>>();
+            .collect::<Vec<Self::Error>>();
         error_list.extend_from_slice(&errors);
         if errors.is_empty() {
             Some(self.into_iter().map(|x| x.expect("unreachable")).collect())
@@ -65,14 +70,15 @@ impl<T> ProcessParseResult for Vec<Result<T, Vec<ParseError>>> {
         }
     }
 }
-impl<T> ProcessParseResult for Vec<Result<T, ParseError>> {
+impl<T, E: ProcessableParseError> ProcessParseResult for Vec<Result<T, E>> {
     type Output = Vec<T>;
-    fn process_parse_result(self, error_list: &mut Vec<ParseError>) -> Option<Self::Output> {
+    type Error = E;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output> {
         let errors = self
             .iter()
             .filter_map(|x| x.as_ref().err())
             .cloned()
-            .collect::<Vec<ParseError>>();
+            .collect::<Vec<Self::Error>>();
         error_list.extend_from_slice(&errors);
         if errors.is_empty() {
             Some(self.into_iter().map(|x| x.expect("unreachable")).collect())
@@ -80,6 +86,26 @@ impl<T> ProcessParseResult for Vec<Result<T, ParseError>> {
             None
         }
     }
+}
+impl<E: ProcessableParseError> ProcessParseResult for E {
+    type Output = ();
+    type Error = E;
+    fn process_parse_result(self, error_list: &mut Vec<Self::Error>) -> Option<Self::Output> {
+        error_list.push(self);
+        None
+    }
+}
+
+// TODO: ProcessParseResultWithWarnings
+pub(crate) trait ProcessParseResultWithWarnings {
+    type Output;
+    type Error: ProcessableParseError;
+    type Warning: ProcessableParseError;
+    fn process_parse_result_with_warnings(
+        self,
+        error_list: &mut Vec<Self::Error>,
+        warnings_list: &mut Vec<Self::Warning>,
+    ) -> Option<Self::Output>;
 }
 mod sealed {
     pub trait Sealed {}
@@ -1983,9 +2009,8 @@ get_as_type_generator!(
         .flatten();
 
         let their_wireguard_public_key =
-            get_as_opt_inline_table(raw, file_path, table, table_span.clone(), THEIR_WG_KEYPAIR)
+            get_as_inline_table(raw, file_path, table, table_span.clone(), THEIR_WG_KEYPAIR)
                 .process_parse_result(&mut errors)
-                .flatten()
                 .and_then(|table| {
                     get_key_from_disk_or_b64(
                         raw,
@@ -2036,7 +2061,7 @@ get_as_type_generator!(
             our_wireguard_keypair: our_wireguard_keypair.map(|our_wireguard_keypair| {
                 OurWireguardKeypair::EntireKeypair(our_wireguard_keypair)
             }),
-            their_wireguard_public_key,
+            their_wireguard_public_key: their_wireguard_public_key.guaranteed_unwrap(),
             wireguard_options,
             exchange_command,
             osk_domain_separator,
@@ -2069,7 +2094,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
     .process_parse_result(&mut errors)
     .flatten();
 
-    let legacy_their_pubkey = get_as_opt_path_buf(
+    let legacy_their_pubkey = get_as_opt_string(
         raw,
         file_path,
         table,
@@ -2134,6 +2159,25 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
             }
         }
     });
+    // quirk: in legacy config, users could define their peer wg pubkey via `exchange_command`
+    let legacy_their_pubkey_quirk =
+        legacy_their_pubkey
+            .clone()
+            .or_else(|| match legacy_exchange_command.clone() {
+                None => None,
+                Some(legacy_exchange_command) => {
+                    if legacy_exchange_command.get(1).is_some_and(|s| s == "set")
+                        && legacy_exchange_command.get(3).is_some_and(|s| s == "peer")
+                        && let Some(peer_id) = legacy_exchange_command.get(4)
+                    {
+                        // wireguard calls their public key the "identiy of that peer", hence the
+                        // strange wording
+                        Some(peer_id.clone())
+                    } else {
+                        None
+                    }
+                }
+            });
     // quirk: in legacy config, users could define their own wg binary
     if legacy_exchange_command
         .clone()
@@ -2153,11 +2197,15 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
     }
 
     // catch legacy definition
-    match (legacy_device_quirk, legacy_exchange_command.clone()) {
+    match (
+        legacy_device_quirk,
+        legacy_their_pubkey_quirk,
+        legacy_exchange_command.clone(),
+    ) {
         // not a legacy definition
-        (None, None) => (),
+        (None, None, None) => (),
         // strange legacy definition
-        (None, _) => {
+        (None, _, Some(_)) | (_, None, Some(_)) => {
             return Err(vec![ParseError::new_ext(
                 raw,
                 file_path,
@@ -2166,10 +2214,11 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                 "should start with `wg set <DEV> ...`",
             )]);
         }
-        // legacy keys combined with a modern definition conflict – error is handled further down
-        (Some(_), _) if modern.is_some() => (),
         // classic legacy definition
-        (Some(legacy_device_quirk), _) => {
+        //
+        // It is not relevant whether this has been read from exchange_command (via the quirk)
+        // or directly from the keys, thus ignore `legacy_exchange_command` in this pattern
+        (Some(legacy_device_quirk), Some(legacy_their_pubkey_quirk), _) => {
             return Ok(Ok(WireguardConfig {
                 enabled: true,
                 device_name: legacy_device_quirk,
@@ -2180,14 +2229,11 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                         KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(legacy_our_pubkey),
                     ))
                 }),
-                // TODO: check if the legacy format for their pubkey is always a file or whether it can
-                // also be a directory or base64-encoded
-                their_wireguard_public_key: legacy_their_pubkey.clone().map(
-                    |legacy_their_pubkey| {
-                        KeyFromDiskOrB64EncodedString::new(
-                            KeyFromDiskOrB64EncodedStringInner::File(legacy_their_pubkey),
-                        )
-                    },
+                // their pubkey is always base64-encoded
+                their_wireguard_public_key: KeyFromDiskOrB64EncodedString::new(
+                    KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(
+                        legacy_their_pubkey_quirk.clone(),
+                    ),
                 ),
                 wireguard_options: PeerWireguardOptions {
                     endpoint: None,
@@ -2199,6 +2245,12 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
                 osk_domain_separator: RosenpassPeerOskDomainSeparator::default(), // default to empty
             }));
         }
+        // legacy keys combined with a modern definition conflict – error is handled further down
+        (Some(_), _, _) if modern.is_some() => (),
+        (_, Some(_), _) if modern.is_some() => (),
+        // unreachable: quirk values could only have been read from the exchange_command so it must
+        // not be None
+        (None, Some(_), None) | (Some(_), None, None) => None.guaranteed_unwrap(),
     }
 
     // catch modern option, missing definition and conflicting keys

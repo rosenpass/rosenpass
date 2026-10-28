@@ -1,5 +1,5 @@
 //! test that illegal keys are rejected at (almost) every level of the config file
-//! 
+//!
 //! - TODO: this module does not yet check ALL deny_illegal_key calls
 
 use super::harness::assert_parse_str_fails_with;

@@ -1,8 +1,8 @@
 //! helper functions for config tests
 
-use super::*;
 use crate::config::{
-    parse_from_toml::errors::{ParseError, ParseIssue, ParseWarning, PrettyIssueOutput},
+    PrettyIssueOutput, RosenpassConfig,
+    parse_from_toml::errors::{ParseError, ParseIssue, ParseWarning},
     validate::{
         Error as ValidationError, Issue as ValidationIssue, ValidationRecipe,
         Warning as ValidationWarning,
@@ -87,20 +87,11 @@ pub fn doc_from_str<S: ToString>(
     ))
 }
 
-/// wrapper around [`RosenpassConfig::parse_from_toml`] printing debug info
-///
-/// This is a helper function for config tests.
-///
-/// - parses [`toml_edit::Document`] into a [`RosenpassConfig`] with [`RosenpassConfig::parse_from_toml`]
-/// - prints warnings and errors for debugging failed tests
-/// - prints a successfully parsed [`RosenpassConfig`] (if successful)
-/// - returns the result from [`RosenpassConfig::parse_from_toml`] verbatim
-pub fn parse(
-    document: toml_edit::Document<String>,
-    file_path: &Path,
-) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
-    println!("parsing...");
-    let data = RosenpassConfig::parse_from_toml(&document, file_path);
+/// TODO: similar to implementation for parsing CLI, this is not DRY
+fn print_parse_result(
+    document: &toml_edit::Document<String>,
+    data: &Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>>,
+) {
     match &data {
         Ok((data, warnings)) => {
             println!("successfully parsed this config:");
@@ -122,6 +113,23 @@ pub fn parse(
             }
         }
     }
+}
+
+/// wrapper around [`RosenpassConfig::parse_from_toml`] printing debug info
+///
+/// This is a helper function for config tests.
+///
+/// - parses [`toml_edit::Document`] into a [`RosenpassConfig`] with [`RosenpassConfig::parse_from_toml`]
+/// - prints warnings and errors for debugging failed tests
+/// - prints a successfully parsed [`RosenpassConfig`] (if successful)
+/// - returns the result from [`RosenpassConfig::parse_from_toml`] verbatim
+pub fn parse(
+    document: toml_edit::Document<String>,
+    file_path: &Path,
+) -> Result<(RosenpassConfig, Vec<ParseWarning>), Vec<ParseIssue>> {
+    println!("parsing...");
+    let data = RosenpassConfig::parse_from_toml(&document, file_path);
+    print_parse_result(&document, &data);
     data
 }
 

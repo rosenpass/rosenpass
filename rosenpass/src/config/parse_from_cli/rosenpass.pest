@@ -1,0 +1,152 @@
+// TODO
+// Rosenpass `exchange` CLI grammar for pest PEG
+// TODO: go through old cli
+
+separator = _{ "\0" }
+
+// entry pooints
+command_line  = { SOI ~ "rosenpass" ~ separator ~ "exchange" ~ separator ~ exchange_body ~ EOI }
+exchange      = { SOI ~ "exchange" ~ separator ~ exchange_body ~ EOI }
+exchange_args = { SOI ~ exchange_body ~ EOI }
+
+// TODO: config file at any position
+exchange_body = { own_config ~ (separator ~ peer)* ~ (separator ~ config_file)?}
+
+// ============================== our config ==============================
+own_config = {
+    own_public_key
+    ~ separator ~ own_secret_key
+    ~ (separator ~ listen)*
+    ~ (separator ~ verbose)?
+}
+
+own_public_key = { "public-key" ~ separator ~ path }
+own_secret_key = { "secret-key" ~ separator ~ path }
+listen         = { "listen" ~ separator ~ socket_address }
+
+// TODO: support "quiet"
+// TODO: support "log-level"
+verbose        = { "verbose" }
+
+// TODO: experiment_api
+
+
+
+config_file = { ("-c" | "--config-file") ~ separator ~ path }
+
+
+
+// ============================== peer config ==============================
+peer = {
+    "peer" ~ separator ~ peer_public_key
+    ~ (separator ~ endpoint)?
+    ~ (separator ~ preshared_key)?
+    ~ (separator ~ outfile)?
+    ~ (separator ~ wireguard)?
+}
+
+peer_public_key = { "public-key" ~ separator ~ path }
+endpoint        = { "endpoint" ~ separator ~ host_port }
+preshared_key   = { "preshared-key" ~ separator ~ path }
+outfile         = { "outfile" ~ separator ~ path }
+
+// TODO: read our wg pubkey for protocol version 3
+// These are the extra arguments from wg's help output:
+// [endpoint <ip>:<port>] [persistent-keepalive <interval seconds>] [allowed-ips [+|-]<ip1>/<cidr1>[,[+|-]<ip2>/<cidr2>]...]
+wireguard = {
+    "wireguard" ~ separator ~ wireguard_device
+    ~ separator ~ their_wg_pubkey
+    ~ ( separator ~ wireguard_extra_option){0,3}
+}
+
+wireguard_extra_option = {
+      wireguard_endpoint
+    | wireguard_persistent_keepalive
+    | wireguard_allowed_ips
+}
+wireguard_endpoint = { "endpoint" ~ separator ~ socket_address}
+wireguard_persistent_keepalive = { "persistent-keepalive" ~ separator ~ unsigned_integer }
+wireguard_allowed_ips = {"allowed-ips" ~ separator ~ ip_or_cidr ~ ("," ~ ip_or_cidr)*  }
+
+
+
+
+
+
+
+// ============================== atomics ==============================
+
+path                    = @{ (!separator ~ ANY)+ }
+host_port               = @{ (!separator ~ ANY)+ }
+wireguard_device        = @{ (!separator ~ ANY)+ }
+their_wg_pubkey         = @{ (!separator ~ ANY)+ }
+
+unsigned_integer        = @{ (ASCII_DIGIT)+ }
+
+
+// ============================== network-related atomics ==============================
+
+ip_address = @{ ipv4_address | ipv6_address }
+cidr = @{ (ipv4_address ~ "/" ~ prefix4) | (ipv6_address ~ "/" ~ prefix6) }
+socket_address          = @{ (ipv4_address ~ ":" ~ network_port) | ( "[" ~ ipv6_address ~ "]:" ~ network_port ) }
+ip_or_cidr              = @{ cidr | ip_address }
+
+network_port            = @{
+//     65535 
+      "6553" ~ '0' .. '5'
+    | "655" ~ '0' .. '3' ~ ASCII_DIGIT
+    | "65" ~ '0' .. '5' ~ ASCII_DIGIT{2}
+    | "6" ~ '0' .. '5' ~ ASCII_DIGIT{3}
+    | '1' .. '5' ~ ASCII_DIGIT{4}
+    | '1' .. '9' ~ ASCII_HEX_DIGIT{0, 3}
+    | "0"
+}
+
+ipv4_address = _{ ipv4_octet ~ ("." ~ ipv4_octet){3} }
+ipv4_octet = _{
+//     255
+      "25" ~ '0'..'5'
+    | "2" ~ '0'..'4' ~ ASCII_DIGIT
+    | "1" ~ ASCII_DIGIT{2}
+    | '1'..'9' ~ ASCII_DIGIT?
+    | "0"
+}
+
+// TODO: parse IPv6 address properly (suprisingly hard...)
+ipv6_address = _{ (ASCII_HEX_DIGIT | "." | ":")+ }
+// h16 = _{ ASCII_HEX_DIGIT{1,4} }
+// // 32 bit address for embedding IPv4 in IPv6
+// ls32 = _{ ipv4_address | h16 ~ ":" ~ h16 }
+// // Prefix before "::", containing at most N groups.
+// left2 = _{ h16 ~ (":" ~ !":" ~ h16){0,1} }
+// left3 = _{ h16 ~ (":" ~ !":" ~ h16){0,2} }
+// left4 = _{ h16 ~ (":" ~ !":" ~ h16){0,3} }
+// left5 = _{ h16 ~ (":" ~ !":" ~ h16){0,4} }
+// left6 = _{ h16 ~ (":" ~ !":" ~ h16){0,5} }
+// left7 = _{ h16 ~ (":" ~ !":" ~ h16){0,6} }
+//
+// ipv6_address = _{
+//       (h16 ~ ":"){6} ~ ls32
+//     | "::" ~ (h16 ~ ":"){5} ~ ls32
+//     | h16? ~ "::" ~ (h16 ~ ":"){4} ~ ls32
+//     | left2? ~ "::" ~ (h16 ~ ":"){3} ~ ls32
+//     | left3? ~ "::" ~ (h16 ~ ":"){2} ~ ls32
+//     | left4? ~ "::" ~ h16 ~ ":" ~ ls32
+//     | left5? ~ "::" ~ ls32
+//     | left6? ~ "::" ~ h16
+//     | left7? ~ "::"
+// }
+
+// CIDR prefix lengths: ipv4_address 0..32, ipv6_address 0..128.
+prefix4 = _{
+      "3" ~ '0'..'2'
+    | '1'..'2' ~ ASCII_DIGIT
+    | ASCII_DIGIT
+}
+
+prefix6 = _{
+      "12" ~ '0'..'8'
+    | "1" ~ '0'..'1' ~ ASCII_DIGIT
+    | '1'..'9' ~ ASCII_DIGIT
+    | ASCII_DIGIT
+}

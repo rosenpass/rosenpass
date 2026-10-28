@@ -1,10 +1,9 @@
 //! test the example files in `data/configs/*.toml`
+use super::super::*;
+use super::harness::{ExpectSilent, parse, prepare_config};
 use crate::oldconfig::Verbosity;
 use crate::protocol::ProtocolVersion;
 use std::path::{Path, PathBuf};
-use super::harness::{ExpectSilent, parse, prepare_config};
-use super::super::*;
-
 
 #[test]
 fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
@@ -66,7 +65,9 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         config.our_keypair.public_key_source.get_key_path(),
         PathBuf::from("../keys/alice-0.2-public/pqpk")
     );
-    let ConfigSource::TomlFile(source) = &config.parsed_from;
+    let ConfigSource::TomlFile(source) = &config.parsed_from else {
+        panic!("not parsed from TOML file");
+    };
     assert!(matches!(
         source.file_version,
         TomlConfigFileVersion::Version1
@@ -153,11 +154,7 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         other => panic!("unexpected (our) wireguard keypair: {other:?}"),
     }
     assert_eq!(
-        wireguard
-            .their_wireguard_public_key
-            .as_ref()
-            .expect("their wireguard public key missing")
-            .get_key_path(),
+        wireguard.their_wireguard_public_key.get_key_path(),
         Some(PathBuf::from("path/to/their.pk"))
     );
     assert_eq!(
@@ -237,7 +234,13 @@ fn read_v0_2_generated_config_with_version_0_2_keys() -> Result<(), anyhow::Erro
     assert!(wireguard.enabled);
     assert_eq!(wireguard.device_name, "wg0");
     assert!(wireguard.our_wireguard_keypair.is_none());
-    assert!(wireguard.their_wireguard_public_key.is_none());
+    assert_eq!(
+        wireguard
+            .their_wireguard_public_key
+            .get_inline_key()
+            .expect("wireguard public key missing"),
+        "<PEER_ID>"
+    );
     assert!(wireguard.exchange_command.is_some());
 
     Ok(())
@@ -292,14 +295,13 @@ fn read_v0_2_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
         }
         other => panic!("expected our wireguard public key only, got: {other:?}"),
     }
-    // `peer` is a file path in the legacy format
+    // `peer` is a base64-encoded wireguard pubkey
     assert_eq!(
         wireguard
             .their_wireguard_public_key
-            .as_ref()
-            .expect("their wireguard public key missing")
-            .get_key_path(),
-        Some(PathBuf::from("<base64 of the peer's `wg pubkey`>"))
+            .get_inline_key()
+            .expect("their wireguard public key missing"),
+        "<base64 of the peer's `wg pubkey`>"
     );
     assert!(wireguard.wireguard_options.wg_extra_arguments.is_empty());
 

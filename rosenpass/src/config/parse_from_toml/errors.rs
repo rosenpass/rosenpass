@@ -1,6 +1,8 @@
 //! TODO: document module
 use anstyle::{AnsiColor, Style};
 
+use crate::config::{PrettyIssueOutput, parse_from_toml::util::ProcessableParseError};
+
 use super::util::resolve_span;
 use core::fmt;
 use std::{
@@ -33,6 +35,7 @@ impl ParseIssueKind for Error {
     const LEVEL: ParseIssueLevel = ParseIssueLevel::Error;
 }
 /// TODO: use an enum with `thiserror` instead of the `message: String`
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct ParseIssueInner<K: ParseIssueKind> {
     pub file: PathBuf,
@@ -186,9 +189,7 @@ fn render_diagnostic<'a>(
         Ok(())
     })
 }
-pub trait PrettyIssueOutput {
-    fn pretty<'a>(&'a self, raw: &'a str) -> impl Display + 'a;
-}
+
 // TODO: the following code is not DRY
 impl PrettyIssueOutput for ParseWarning {
     fn pretty<'a>(&'a self, raw: &'a str) -> impl Display + 'a {
@@ -232,6 +233,8 @@ impl PrettyIssueOutput for ParseIssue {
 impl<K: ParseIssueKind> std::error::Error for ParseIssueInner<K> {}
 pub type ParseWarning = ParseIssueInner<Warning>;
 pub type ParseError = ParseIssueInner<Error>;
+
+#[must_use]
 #[derive(Debug)]
 pub enum ParseIssue {
     Warning(ParseWarning),
@@ -302,3 +305,4 @@ impl std::fmt::Display for ParseIssue {
 }
 
 impl std::error::Error for ParseIssue {}
+impl ProcessableParseError for ParseError {}

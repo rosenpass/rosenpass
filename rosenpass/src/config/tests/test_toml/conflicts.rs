@@ -136,7 +136,12 @@ fn legacy_wireguard_items_and_modern_wireguard_table() {
 [[peers]]
 public_key = "k/pqpk"
 device = "wg0"
-wireguard = { device = "wg0" }
+wireguard = {
+    device = "wg0",
+    their-wireguard-keypair = {
+        public-key = "dummy"
+    }
+}
 "#,
         &["conflicting keys: \"wireguard\" is not compatible with legacy wireguard keys"],
     );
