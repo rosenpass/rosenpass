@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use crate::oldconfig::Rosenpass as RosenpassConfig;
+use crate::config::RosenpassConfig;
 
 use super::config::ApiConfig;
 

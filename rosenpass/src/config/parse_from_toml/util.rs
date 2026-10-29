@@ -1,6 +1,6 @@
-use super::errors::ParseError;
 #[cfg(feature = "experiment_api")]
-use crate::config::ApiConfig;
+use super::ApiConfig;
+use super::errors::ParseError;
 use crate::{
     config::{
         DeviceWireguardOptions, HasInnerType, KeyFromDisk, KeyFromDiskInner,
@@ -8,15 +8,15 @@ use crate::{
         OurWireguardKeypair, OutputToFileConfig, PeerWireguardOptions, PresharedKeySource,
         TomlConfigFileVersion, WireguardConfig,
     },
-    oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
+    config::{RosenpassPeerOskDomainSeparator, Verbosity},
     protocol::{ProtocolVersion, osk_domain_separator},
 };
 use cidr::IpCidr;
+use indexmap::IndexSet;
 use log::LevelFilter;
 use ml_kem::Key;
 use serde::{Deserialize, de::value::StrDeserializer};
 use std::{
-    collections::HashSet,
     fmt::Display,
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -623,10 +623,10 @@ get_as_type_generator!(
     }
 );
 get_as_type_generator!(
-    get_as_hashset_protocol_version,
-    get_as_opt_hashset_protocol_version,
+    get_as_indexset_protocol_version,
+    get_as_opt_indexset_protocol_version,
     [],
-    HashSet<ProtocolVersion>,
+    IndexSet<ProtocolVersion>,
     as_array,
     |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
@@ -663,8 +663,8 @@ get_as_type_generator!(
         let array = array.expect("unreachable");
 
         // make list unique
-        let hashset = HashSet::from_iter(array.iter().cloned());
-        if hashset.len() != array.len() {
+        let indexset = IndexSet::from_iter(array.iter().cloned());
+        if indexset.len() != array.len() {
             return Err(vec![ParseError::new(
                 raw,
                 file_path,
@@ -674,7 +674,7 @@ get_as_type_generator!(
         }
 
         // return
-        Ok(hashset)
+        Ok(indexset)
     }
 );
 

@@ -22,6 +22,7 @@ use rosenpass::api::{
     self, add_listen_socket_response_status, add_psk_broker_response_status,
     supply_keypair_response_status,
 };
+use rosenpass::config::ProtocolVersion;
 use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
@@ -31,7 +32,6 @@ use rosenpass::internal::util::{
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
-use rosenpass::oldconfig::ProtocolVersion;
 use rosenpass::protocol::basic_types::SymKey;
 use std::os::fd::AsFd;
 use tempfile::TempDir;
@@ -82,7 +82,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
-    let peer_a_keypair = oldconfig::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
     // peer a's own WireGuard public key, required since protocol version 3
     let peer_a_wg_peer_id = hex!(
         "
@@ -107,24 +107,24 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         ProtocolVersion::V03 => true,
     };
 
-    use rosenpass::oldconfig;
-    let peer_a = oldconfig::Rosenpass {
+    use rosenpass::config;
+    let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
-        keypair: None,
-        listen: vec![], // TODO: This could collide by accident
-        verbosity: oldconfig::Verbosity::Verbose,
+        our_keypair: None,
+        our_listen_addresses: vec![], // TODO: This could collide by accident
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![oldconfig::RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("b.pk"),
             key_out: None,
             endpoint: None,
             pre_shared_key: None,
-            wg: Some(oldconfig::WireGuard {
-                device: peer_b_wg_device.to_string(),
+            wg: Some(config::WireGuard {
+                device_name: peer_b_wg_device.to_string(),
                 // TODO:
                 // 1. why 8129? That magic number needs explanation.
                 // 2. Was this supposed to be 8192? In that case, please correct.
@@ -140,18 +140,18 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         }],
     };
 
-    let peer_b_keypair = oldconfig::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = oldconfig::Rosenpass {
+    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
-        keypair: Some(peer_b_keypair.clone()),
-        listen: vec![],
-        verbosity: oldconfig::Verbosity::Verbose,
+        our_keypair: Some(peer_b_keypair.clone()),
+        our_listen_addresses: vec![],
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![oldconfig::RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),
@@ -159,8 +159,8 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             // This was `wg: None` previously, introduced in a huge commit b1a7d942954ce6a41decc5a9f93c95cffafde801 .
             // We need to clean up and document this test.
             // https://github.com/rosenpass/rosenpass/issues/1172
-            wg: use_wg_key_binding.then(|| oldconfig::WireGuard {
-                device: peer_b_wg_device.to_string(),
+            wg: use_wg_key_binding.then(|| config::WireGuard {
+                device_name: peer_b_wg_device.to_string(),
                 peer: format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>()),
                 our_wg_pubkey: Some(format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>())),
                 extra_params: vec![],

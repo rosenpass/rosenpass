@@ -1,4 +1,4 @@
-//! TODO: doc
+//! TODO: doc (add proper `README.md here`)
 //!
 //! TODO: parse new format
 //! TODO: parse rp format
@@ -23,14 +23,14 @@
 // TODO: process_parse_result should be moved to common module
 
 #[cfg(feature = "experiment_api")]
-use crate::config::ApiConfig;
+use super::ApiConfig;
 use crate::{
+    config::Verbosity,
     config::{
         ConfigSource, ConfigSourceCli, KeyFromDiskInner, NewFromInner, PqKeypairSource,
         PublicPqKeySource, RosenpassConfig, SecretPqKeySource,
         parse_from_toml::util::{GuaranteedUnwrap, ProcessParseResult},
     },
-    oldconfig::Verbosity,
     protocol::ProtocolVersion,
 };
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -52,7 +52,7 @@ use pest_typed::{RuleType, TypedParser};
 use pest_typed_derive::TypedParser;
 
 #[derive(TypedParser)]
-#[grammar = "config/parse_from_cli/rosenpass.pest"]
+#[grammar = "config/parse_from_cli/exchange.pest"]
 #[emit_rule_reference]
 struct RosenpassParser;
 
@@ -77,8 +77,12 @@ impl RosenpassConfig {
                         name => name.replace('_', " "),
                     })
                     .with_path("command line");
-                eprintln!("error:\n{}", error.to_string().replace('\0', " "));
-                todo!("proper error message");
+                let error = error.to_string().replace('\0', " ");
+                return Err(vec![ParseIssue::Error(ParseError::new(
+                    None,
+                    full_line,
+                    errors::ParseProblemError::InvalidCommandLineSyntax(error),
+                ))]);
             }
         };
 
@@ -158,9 +162,9 @@ impl RosenpassConfig {
                 // TODO: this is the default, maybe read it from CLI?
                 supported_protocol_versions: ProtocolVersion::all_supported_by_default(),
 
-                // TODO: this is the default, maybe read it from CLI?
+                // TODO: read experimental API flags from CLI
                 #[cfg(feature = "experiment_api")]
-                api: ApiConfig::default(),
+                api: ApiConfig::new_empty(),
 
                 wireguard_devices: vec![],
                 peers,

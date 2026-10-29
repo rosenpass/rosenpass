@@ -8,13 +8,15 @@ use super::util::{
 };
 use crate::config::parse_from_toml::util::{
     GetKeyValueSpan, GuaranteedUnwrap, ProcessParseResult, default_peer_name, deny_illegal_keys,
-    get_as_opt_config_file_version, get_as_opt_hashset_protocol_version, get_as_opt_string,
+    get_as_opt_config_file_version, get_as_opt_indexset_protocol_version, get_as_opt_string,
     get_as_opt_vec_socket_addr, get_legacy_key_output, get_legacy_keypair_from_disk,
     get_legacy_psk_source, get_legacy_public_key_from_disk, get_legacy_wireguard,
     get_opt_array_of_tables,
 };
-use crate::oldconfig::Verbosity;
+use crate::config::{PrettyIssueOutput, Verbosity};
 use crate::protocol::ProtocolVersion;
+use anyhow::anyhow;
+use indexmap::IndexSet;
 use std::{collections::HashSet, path::Path};
 use toml_edit::Table;
 
@@ -22,6 +24,39 @@ use super::super::types::*;
 pub use super::errors::{ParseError, ParseIssue, ParseWarning};
 
 impl RosenpassConfig {
+    /// convenient wrapper for [`RosenpassConfig::parse_from_toml`] which adds this functionality:
+    /// - read the file from disk instead of expecting a parsed [`toml_edit::Document`]
+    /// - just dump the parse errors+warnings to the console
+    /// - does not return anything except a very short [`anyhow::Result`] with a string that
+    ///   `"parsing failed"`
+    pub fn load_from_file(file_path: &Path) -> Result<RosenpassConfig, anyhow::Error> {
+        // read config file from disk
+        let toml_raw = String::from_utf8(
+            std::fs::read(&file_path).map_err(|e| anyhow!("can not read from file: {e}"))?,
+        )
+        .map_err(|e| anyhow!("invalid UTF-8 contents in configuration file"))?;
+
+        // parse file content into TOML
+        let toml_document = toml_edit::Document::parse(toml_raw.clone()).unwrap();
+
+        // parse TOML into RosenpassConfig
+        // TODO: should these errors be passed to the caller instead of being printed directly?
+        let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_document, &file_path)
+            .map_err(|e| {
+                e.iter()
+                    .map(|e| anstream::eprintln!("{}", e.pretty(toml_raw.as_str())));
+                anyhow!("parsing failed")
+            })?;
+
+        // emit warnings
+        for warning in warnings.iter() {
+            anstream::eprintln!("{}", warning.pretty(toml_raw.as_str()));
+        }
+
+        // return
+        Ok(config)
+    }
+
     /// parses a TOML document into a [`RosenpassConfig`]
     ///
     /// - if successful, returns a [RosenpassConfig] and a list of warnings
@@ -30,6 +65,16 @@ impl RosenpassConfig {
     /// **NOTE:** all paths (e.g. to key files) are relative to the TOML file's parent directory.
     /// Use [`ResolvePathRelativeToConfig`]. See [`RosenpassConfig`]'s documentation for a code
     /// example.
+    ///
+    /// **NOTE**: no validation is conducted, e.g. the paths specified in the configuration are not
+    /// checked whether they even exist. Call [`RosenpassConfig::validate`].
+    ///
+    /// # Examples
+    ///
+    /// TODO: add example
+    // #[doc = "```ignore"]
+    // #[doc = include_str!("../../../tests/config_Rosenpass_store.rs")]
+    // #[doc = "```"]
     ///
     /// - TODO: many calls to `get_as_inline_table` could be replaced with `get_as_table_like` for a
     ///   more generic TOML-idiomatic semantic. However, this might need thorough discussion
@@ -60,7 +105,7 @@ impl RosenpassConfig {
             our_listen_addresses: Vec<SocketAddr>,
             verbosity: Verbosity,
             our_keypair: PqKeypairSource,
-            supported_protocol_versions: HashSet<ProtocolVersion>,
+            supported_protocol_versions: IndexSet<ProtocolVersion>,
             config_file_version: TomlConfigFileVersion,
             #[cfg(feature = "experiment_api")]
             api: ApiConfig,
@@ -153,7 +198,7 @@ impl RosenpassConfig {
                     .process_parse_result(&mut errors);
 
                     // supported protocol versions
-                    let supported_protocol_versions = get_as_opt_hashset_protocol_version(
+                    let supported_protocol_versions = get_as_opt_indexset_protocol_version(
                         raw,
                         file_path,
                         table,
@@ -456,32 +501,31 @@ impl RosenpassConfig {
             let mut issues: Vec<ParseIssue> = Vec::new();
             issues.extend(warnings.into_iter().map(ParseIssue::Warning));
             issues.extend(errors.into_iter().map(ParseIssue::Error));
-            Err(issues)
-        } else {
-            let rosenpass_table = rosenpass_table.guaranteed_unwrap();
-
-            let parsed_from = ConfigSource::TomlFile(ConfigSourceTomlFile {
-                file_path: file_path.to_path_buf(),
-                document: document.clone().into(), // TODO (fancy): this could be a reference
-                warnings: warnings.clone(),
-                file_version: rosenpass_table.config_file_version,
-            });
-            Ok((
-                RosenpassConfig {
-                    our_listen_addresses: rosenpass_table.our_listen_addresses,
-                    verbosity: rosenpass_table.verbosity,
-                    our_keypair: rosenpass_table.our_keypair,
-                    supported_protocol_versions: rosenpass_table.supported_protocol_versions,
-
-                    #[cfg(feature = "experiment_api")]
-                    api: rosenpass_table.api,
-                    wireguard_devices,
-                    peers,
-
-                    parsed_from,
-                },
-                warnings,
-            ))
+            return Err(issues);
         }
+        let rosenpass_table = rosenpass_table.guaranteed_unwrap();
+
+        let parsed_from = ConfigSource::TomlFile(ConfigSourceTomlFile {
+            file_path: file_path.to_path_buf(),
+            document: document.clone().into(), // TODO (fancy): this could be a reference
+            warnings: warnings.clone(),
+            file_version: rosenpass_table.config_file_version,
+        });
+        Ok((
+            RosenpassConfig {
+                our_listen_addresses: rosenpass_table.our_listen_addresses,
+                verbosity: rosenpass_table.verbosity,
+                our_keypair: rosenpass_table.our_keypair,
+                supported_protocol_versions: rosenpass_table.supported_protocol_versions,
+
+                #[cfg(feature = "experiment_api")]
+                api: rosenpass_table.api,
+                wireguard_devices,
+                peers,
+
+                parsed_from,
+            },
+            warnings,
+        ))
     }
 }

@@ -5,14 +5,17 @@ use super::{
 #[cfg(feature = "experiment_api")]
 pub use crate::api::config::ApiConfig;
 use crate::{
-    oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
-    protocol::ProtocolVersion,
+    config::Verbosity,
+    protocol::{ProtocolVersion, osk_domain_separator::OskDomainSeparator},
 };
+use anyhow::bail;
 use cidr::IpCidr;
 pub use core::net::SocketAddr;
 use debug_ignore::DebugIgnore;
-use std::{collections::HashSet, path::PathBuf};
+use indexmap::IndexSet;
+use std::{iter, path::PathBuf};
 
+// submodules
 pub mod keys;
 pub use keys::*;
 
@@ -28,24 +31,13 @@ pub use paths::ResolvePathRelativeToConfig;
 ///
 /// ## Example
 /// ```rust
-/// use crate::config::ResolvePathRelativeToConfig;
-/// use anyhow::anyhow;
-///
-/// // read config file from disk
-/// let file_path = PathBuf::from("path/to/config.toml");
-/// let toml_file = std::fs::read(&file_path).unwrap();
-/// let toml_file = String::from_utf8(toml_file).unwrap();
-///
-/// // parse bytes into TOML
-/// let toml_file = toml_edit::Document::parse(toml_file).unwrap();
-///
-/// // parse TOML into RosenpassConfig
-/// let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_file, &file_path).unwrap();
-///
-/// // resolve a key's absolute file path
-/// let relative_secret_key_path = config.our_keypair.secret_key_source.get_secret_key_path();
-/// let absolute_secret_key_path = config.resolve_path(&relative_secret_key_path);
+#[doc = include_str!("../../../tests/config_rosenpass_load_from_file.rs")]
 /// ```
+///
+/// ## TODO
+/// - get rid of [`Serialize`] so that [`RosenpassConfig::store`] can use [`toml_edit`] introduced
+///   in https://github.com/rosenpass/rosenpass/pull/1021
+///
 #[derive(Debug)]
 pub struct RosenpassConfig {
     /// list of [`SocketAddr`] to listen on
@@ -67,7 +59,7 @@ pub struct RosenpassConfig {
     ///
     /// This setting is currently true for all peers. A per-peer configuration might be introduced
     /// in the future, see https://github.com/rosenpass/rosenpass/issues/1181
-    pub supported_protocol_versions: HashSet<ProtocolVersion>,
+    pub supported_protocol_versions: IndexSet<ProtocolVersion>,
 
     /// Location of the API listen sockets
     #[cfg(feature = "experiment_api")]
@@ -83,6 +75,16 @@ pub struct RosenpassConfig {
 pub enum ConfigSource {
     TomlFile(ConfigSourceTomlFile),
     CommandLineArguments(ConfigSourceCli),
+
+    /// the config has been procedurally generated from some calling Rust code
+    ///
+    /// This might appear for debugging purposed
+    #[cfg_attr(
+        feature = "experiment_api",
+        doc = "or when reading configuration from the API"
+    )]
+    /// .
+    GeneratedFromCode,
 }
 
 #[derive(Debug)]
@@ -206,6 +208,85 @@ pub enum PresharedKeySource {
     ReadFromDirectory(PathBuf),
 }
 
+impl PresharedKeySource {
+    pub fn get_key_path(&self) -> PathBuf {
+        match &self {
+            Self::ReadFromFile(p) => p.clone(),
+            Self::ReadFromDirectory(p) => p.join("psk"),
+        }
+    }
+}
+
+/// Configuration for [crate::protocol::osk_domain_separator::OskDomainSeparator]
+///
+/// Refer to its documentation for more information and examples of how to use this.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct RosenpassPeerOskDomainSeparator {
+    /// If Rosenpass is used for purposes other then securing WireGuard,
+    /// a custom domain separator and domain separator must be specified.
+    ///
+    /// Use `osk_organization` to indicate the organization who specifies the use case
+    /// and `osk_label` for a specific purpose within that organization.
+    ///
+    /// ```toml
+    /// [[peer]]
+    /// public_key = "my_public_key"
+    /// ...
+    /// osk_organization = "myorg.com"
+    /// osk_label = ["My Custom Messenger app"]
+    /// ```
+    pub osk_organization: Option<String>,
+    // If Rosenpass is used for purposes other then securing WireGuard,
+    /// a custom domain separator and domain separator must be specified.
+    ///
+    /// Use `osk_organization` to indicate the organization who specifies the use case
+    /// and `osk_label` for a specific purpose within that organization.
+    ///
+    /// ```toml
+    /// [[peer]]
+    /// public_key = "my_public_key"
+    /// ...
+    /// osk_namespace = "myorg.com"
+    /// osk_label = ["My Custom Messenger app"]
+    /// ```
+    ///
+    /// TODO: flatten `Option<Vec<_>>` to `Vec<_>`
+    pub osk_label: Option<Vec<String>>,
+}
+
+impl RosenpassPeerOskDomainSeparator {
+    /// TODO: get rid of this match statement by simply using a proper type declaration and ensuring
+    /// these rules during parsing
+    pub fn org_and_label(&self) -> anyhow::Result<Option<(&String, &Vec<String>)>> {
+        match (&self.osk_organization, &self.osk_label) {
+            (None, None) => Ok(None),
+            (Some(org), Some(label)) => Ok(Some((org, label))),
+            (Some(_), None) => bail!(
+                "Specified osk_organization but not osk_label in config file. You need to specify both, or none."
+            ),
+            (None, Some(_)) => bail!(
+                "Specified osk_label but not osk_organization in config file. You need to specify both, or none."
+            ),
+        }
+    }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let _org_and_label: Option<(_, _)> = self.org_and_label()?;
+        Ok(())
+    }
+}
+
+impl TryFrom<RosenpassPeerOskDomainSeparator> for OskDomainSeparator {
+    type Error = anyhow::Error;
+
+    fn try_from(val: RosenpassPeerOskDomainSeparator) -> anyhow::Result<Self> {
+        match val.org_and_label()? {
+            None => Ok(OskDomainSeparator::default()),
+            Some((org, label)) => Ok(OskDomainSeparator::custom_utf8(org, label)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct OutputToFileConfig {
     /// whether the application should actually use this entry
@@ -261,6 +342,29 @@ pub struct PeerWireguardOptions {
 
     /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1183
     pub wg_extra_arguments: Vec<String>,
+}
+
+impl PeerWireguardOptions {
+    pub fn to_cli_parameters(&self) -> Vec<String> {
+        let mut items = vec![];
+        if let Some(endpoint) = &self.endpoint {
+            items.extend(vec!["endpoint".into(), endpoint.clone()]);
+        }
+        if let Some(persistent_keepalive) = &self.persistent_keepalive {
+            items.extend(vec![
+                "persistent-keepalive".into(),
+                persistent_keepalive.to_string(),
+            ])
+        }
+        if let Some(allowed_ips) = &self.allowed_ips {
+            let allowed_ips = iter::once("allowed-ips".into())
+                .chain(allowed_ips.iter().map(|ip| ip.to_string()))
+                .collect::<Vec<String>>();
+            items.extend(allowed_ips);
+        }
+        items.extend(self.wg_extra_arguments.clone());
+        items
+    }
 }
 
 #[derive(Debug)]

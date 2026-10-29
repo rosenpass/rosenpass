@@ -6,17 +6,17 @@
 pub(crate) mod harness;
 pub(crate) use harness::*;
 
+#[cfg(feature = "experiment_api")]
+use crate::config::ApiConfig;
 use crate::{
     config::{
-        ApiConfig, ConfigSource, PresharedKeySource, PublicKeySource, RosenpassConfig,
+        ConfigSource, PresharedKeySource, PublicKeySource,
         parse_from_toml::util::default_peer_name, tests::test_toml::harness::ExpectSilent,
     },
-    oldconfig::{RosenpassPeerOskDomainSeparator, Verbosity},
+    config::{RosenpassPeerOskDomainSeparator, Verbosity},
     protocol::ProtocolVersion,
 };
-use anstyle::AnsiColor;
 use cidr::IpCidr;
-use core::fmt;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 
 /// parse command line from rosenpass 0.2.3
@@ -57,14 +57,7 @@ rosenpass exchange
     );
 
     #[cfg(feature = "experiment_api")]
-    assert_eq!(
-        result.api,
-        ApiConfig {
-            listen_fd: vec![],
-            listen_path: vec![],
-            stream_fd: vec![]
-        }
-    );
+    assert_eq!(result.api, ApiConfig::new_empty());
 
     assert_eq!(result.peers.len(), 2);
 

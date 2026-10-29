@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use rosenpass::oldconfig::{Keypair, Rosenpass, RosenpassPeer, Verbosity};
+use rosenpass::config::{Keypair, RosenpassConfig, RosenpassPeer, Verbosity};
 
 #[test]
 fn parse_simple() {
@@ -12,15 +12,15 @@ fn parse_simple() {
                 peer.test:9999 outfile /peer/rp-out";
     let argv = argv.split(' ').map(|s| s.to_string()).collect();
 
-    let config = Rosenpass::parse_args(argv).unwrap();
+    let config = RosenpassConfig::parse_args(argv).unwrap();
 
     assert_eq!(
-        config.keypair,
-        Some(Keypair::new("/my/public-key", "/my/secret-key"))
+        config.our_keypair,
+        Some(Keypair::new_from_files("/my/public-key", "/my/secret-key"))
     );
     assert_eq!(config.verbosity, Verbosity::Verbose);
     assert_eq!(
-        &config.listen,
+        &config.our_listen_addresses,
         &vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9999)]
     );
     assert_eq!(

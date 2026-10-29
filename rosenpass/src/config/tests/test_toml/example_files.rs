@@ -1,7 +1,7 @@
 //! test the example files in `data/configs/*.toml`
 use super::super::*;
 use super::harness::{ExpectSilent, parse, prepare_config};
-use crate::oldconfig::Verbosity;
+use crate::config::Verbosity;
 use crate::protocol::ProtocolVersion;
 use std::path::{Path, PathBuf};
 

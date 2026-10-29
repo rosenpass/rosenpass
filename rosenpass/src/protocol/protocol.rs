@@ -19,6 +19,7 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use assert_tv::{TestVector, TestVectorNOP};
+use indexmap::IndexSet;
 use memoffset::span_of;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
@@ -149,9 +150,10 @@ pub struct CryptoServer {
     pub cookie_secrets: [CookieSecret; 2],
 }
 
-/// Specifies the protocol version used by a peer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// specifies the protocol version used by a peer
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ProtocolVersion {
+    #[default]
     V02,
     V03,
 }
@@ -177,7 +179,7 @@ impl ProtocolVersion {
             ProtocolVersion::V03 => EphemeralKem::MlKem512,
         }
     }
-    /// a [`HashSet`] of all existing protocol versions
+    /// an [`IndexSet`] of all existing protocol versions
     ///
     /// for a set of all supported by default, see
     #[cfg_attr(
@@ -188,14 +190,14 @@ impl ProtocolVersion {
         not(feature = "expose_internal_modules"),
         doc = "`ProtocolVersion::all_supported_by_default`"
     )]
-    pub fn all() -> HashSet<ProtocolVersion> {
-        let mut return_value = HashSet::new();
+    pub fn all() -> IndexSet<ProtocolVersion> {
+        let mut return_value = IndexSet::new();
         return_value.insert(ProtocolVersion::V02);
         return_value.insert(ProtocolVersion::V03);
         return_value
     }
 
-    pub fn all_supported_by_default() -> HashSet<ProtocolVersion> {
+    pub fn all_supported_by_default() -> IndexSet<ProtocolVersion> {
         return Self::all();
     }
 }
@@ -205,15 +207,6 @@ pub fn derive_ephemeral_kem_from_keyed_hash(keyed_hash: KeyedHash) -> EphemeralK
     match keyed_hash {
         KeyedHash::IncorrectHmacBlake2b(_) => EphemeralKem::Kyber512Round3,
         KeyedHash::KeyedShake256(_) => EphemeralKem::MlKem512,
-    }
-}
-
-impl From<crate::oldconfig::ProtocolVersion> for ProtocolVersion {
-    fn from(v: crate::oldconfig::ProtocolVersion) -> Self {
-        match v {
-            crate::oldconfig::ProtocolVersion::V02 => ProtocolVersion::V02,
-            crate::oldconfig::ProtocolVersion::V03 => ProtocolVersion::V03,
-        }
     }
 }
 

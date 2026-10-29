@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail, ensure};
 use futures_util::TryStreamExt as _;
 use serde::Deserialize;
 
+use rosenpass::config::ProtocolVersion;
 use rosenpass::internal::secret_memory::Secret;
 use rosenpass::internal::util::file::{LoadValue as _, LoadValueB64};
 use rosenpass::internal::util::functional::{ApplyExt, MutatingExt};
@@ -16,10 +17,9 @@ use rosenpass::internal::util::tokio::janitor::{spawn_cleanup_job, try_spawn_dae
 use rosenpass::internal::wireguard_broker::brokers::native_unix::{
     NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
 };
-use rosenpass::oldconfig::ProtocolVersion;
 use rosenpass::{
     app_server::{AppServer, BrokerPeer},
-    oldconfig::Verbosity,
+    config::Verbosity,
     protocol::{
         basic_types::{SPk, SSk, SymKey},
         osk_domain_separator::OskDomainSeparator,
@@ -532,7 +532,7 @@ pub async fn exchange(options: ExchangeOptions) -> Result<()> {
         // bind to WireGuard public keys, required since protocol version 3
         let wg_key_binding = match peer.protocol_version {
             ProtocolVersion::V03 => {
-                let peer_wg_pubkey = rosenpass::oldconfig::decode_wg_pubkey_b64(wgpk.trim())?;
+                let peer_wg_pubkey = rosenpass::config::decode_wg_pubkey_b64(wgpk.trim())?;
                 Some(WireGuardKeyBinding {
                     our_wg_pubkey,
                     peer_wg_pubkey,

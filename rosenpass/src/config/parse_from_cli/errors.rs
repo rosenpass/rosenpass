@@ -55,6 +55,9 @@ pub enum ParseProblemError {
 
     #[error("\"{0}\" is not a valid time in integer seconds")]
     InvalidTimeInSeconds(String),
+
+    #[error("invalid command line syntax\n{0}")]
+    InvalidCommandLineSyntax(String),
 }
 
 #[must_use]

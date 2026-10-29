@@ -17,7 +17,7 @@ use serial_test::serial;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
-use rosenpass::oldconfig::ProtocolVersion;
+use rosenpass::config::ProtocolVersion;
 use rosenpass::protocol::basic_types::SymKey;
 
 struct KillChild(std::process::Child);
@@ -66,20 +66,20 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
     let peer_a_osk = tempfile!("a.osk");
     let peer_b_osk = tempfile!("b.osk");
 
-    use rosenpass::oldconfig;
+    use rosenpass::config;
 
-    let peer_a_keypair = oldconfig::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
-    let peer_a = oldconfig::Rosenpass {
+    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
-        keypair: Some(peer_a_keypair.clone()),
-        listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
-        verbosity: oldconfig::Verbosity::Verbose,
+        our_keypair: Some(peer_a_keypair.clone()),
+        our_listen_addresses: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![oldconfig::RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("b.pk"),
             key_out: Some(peer_a_osk.clone()),
             endpoint: None,
@@ -90,18 +90,18 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
         }],
     };
 
-    let peer_b_keypair = oldconfig::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = oldconfig::Rosenpass {
+    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
-        keypair: Some(peer_b_keypair.clone()),
-        listen: vec![],
-        verbosity: oldconfig::Verbosity::Verbose,
+        our_keypair: Some(peer_b_keypair.clone()),
+        our_listen_addresses: vec![],
+        verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
             listen_fd: vec![],
             stream_fd: vec![],
         },
-        peers: vec![oldconfig::RosenpassPeer {
+        peers: vec![config::RosenpassPeer {
             public_key: tempfile!("a.pk"),
             key_out: Some(peer_b_osk.clone()),
             endpoint: Some(peer_a_endpoint.to_owned()),

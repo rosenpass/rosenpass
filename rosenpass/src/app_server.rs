@@ -1,38 +1,45 @@
 //! This contains the bulk of the rosenpass server IO handling code whereas
 //! the actual cryptographic code lives in the [crate::protocol] module
 
-use std::collections::{HashMap, VecDeque};
-use std::io::{ErrorKind, Write, stdout};
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-use std::time::{Duration, Instant};
-use std::{cell::Cell, fmt::Debug, io, path::PathBuf, slice};
-
-use mio::{Interest, Token};
-use signal_hook_mio::v1_0 as signal_hook_mio;
-
+use crate::config::Verbosity;
+use crate::internal::{
+    secret_memory::{Public, Secret},
+    util::{
+        attempt,
+        b64::B64Display,
+        build::ConstructionSite,
+        file::StoreValueB64,
+        fmt::debug::NullDebug,
+        functional::{ApplyExt, run},
+        io::{IoResultKindHintExt, SubstituteForIoErrorKindExt},
+        result::OkExt,
+    },
+    wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio},
+};
+use crate::protocol::{
+    BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr, ProtocolVersion,
+    basic_types::{MsgBuf, SPk, SSk, SymKey},
+    osk_domain_separator::OskDomainSeparator,
+    protocol_context::WireGuardKeyBinding,
+    timing::Timing,
+};
 use anyhow::{Context, Result, bail};
 use derive_builder::Builder;
 use log::{error, info, warn};
-use zerocopy::IntoBytes;
-
-use crate::internal::util::attempt;
-use crate::internal::util::fmt::debug::NullDebug;
-use crate::internal::util::functional::{ApplyExt, run};
-use crate::internal::util::io::{IoResultKindHintExt, SubstituteForIoErrorKindExt};
-use crate::internal::util::{
-    b64::B64Display, build::ConstructionSite, file::StoreValueB64, result::OkExt,
+use mio::{Interest, Token};
+use signal_hook_mio::v1_0 as signal_hook_mio;
+use std::{
+    cell::Cell,
+    collections::{HashMap, VecDeque},
+    fmt::Debug,
+    io,
+    io::{ErrorKind, Write, stdout},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs},
+    path::PathBuf,
+    slice,
+    time::{Duration, Instant},
 };
-
-use crate::internal::secret_memory::{Public, Secret};
-use crate::internal::wireguard_broker::{WG_KEY_LEN, WireguardBrokerCfg, WireguardBrokerMio};
-
-use crate::oldconfig::{ProtocolVersion, Verbosity};
-
-use crate::protocol::basic_types::{MsgBuf, SPk, SSk, SymKey};
-use crate::protocol::osk_domain_separator::OskDomainSeparator;
-use crate::protocol::protocol_context::WireGuardKeyBinding;
-use crate::protocol::timing::Timing;
-use crate::protocol::{BuildCryptoServer, CryptoServer, HostIdentification, PeerPtr};
+use zerocopy::IntoBytes;
 
 /// The maximum size of a base64 encoded symmetric key (estimate)
 pub const MAX_B64_KEY_SIZE: usize = 32 * 5 / 3;
