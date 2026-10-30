@@ -4,7 +4,7 @@ use super::{
 };
 #[cfg(feature = "experiment_api")]
 pub use crate::api::config::ApiConfig;
-#[cfg(feature= "experiment_api")]
+#[cfg(feature = "experiment_api")]
 use crate::cli::BrokerInterface;
 use crate::{
     config::Verbosity,
@@ -378,7 +378,7 @@ impl OurWireguardKeypair {
     pub fn get_pubkey(&self) -> &PublicWgKeySource {
         match &self {
             Self::EntireKeypair(pair) => &pair.public_key_source,
-            Self::PublicKeyOnly(pubkey) => pubkey
+            Self::PublicKeyOnly(pubkey) => pubkey,
         }
     }
 }

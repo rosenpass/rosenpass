@@ -30,10 +30,10 @@
 "#
 )]
 pub mod app_server;
+pub mod cli;
 pub mod config;
 pub mod hash_domains;
 pub mod msgs;
-pub mod cli;
 pub mod protocol;
 
 #[cfg(feature = "experiment_api")]

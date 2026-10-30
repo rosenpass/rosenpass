@@ -1,7 +1,11 @@
 use anyhow::anyhow;
 use pest_typed::TypedParser;
 use pest_typed_derive::TypedParser;
-use std::{iter, path::PathBuf};
+use std::{
+    fmt::{self, Display},
+    iter,
+    path::PathBuf,
+};
 
 #[derive(TypedParser)]
 #[grammar_inline = r#"
@@ -11,6 +15,15 @@ path = @{ (!separator ~ ANY)+ }
 "#]
 #[emit_rule_reference]
 struct Parser;
+
+/// returns the help message for the `rosenpass validate` subcommand
+#[rustfmt::skip]
+pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+    let i = indent; // shorter, save a bit of space in the code
+    fmt::from_fn(move |f| {
+        todo!()
+    })
+}
 
 /// parse [`super::CliCommand::Validate`] from a command line
 pub fn parse(parameters: &str) -> Result<Vec<PathBuf>, anyhow::Error> {

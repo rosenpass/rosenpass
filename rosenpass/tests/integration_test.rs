@@ -11,7 +11,7 @@ use tempfile::tempdir;
 use clap::Parser;
 use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
-use rosenpass::{app_server::AppServerTestBuilder, config::EXAMPLE_CONFIG, cli::CliArgs};
+use rosenpass::{app_server::AppServerTestBuilder, cli::CliCommand, config::EXAMPLE_CONFIG};
 use serial_test::serial;
 use std::io::Write;
 
@@ -93,7 +93,7 @@ fn run_server_client_exchange(
     let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
     let (client_terminate, client_terminate_rx) = std::sync::mpsc::channel();
 
-    let cli = CliArgs::try_parse_from(
+    let cli = CliComman::try_parse_from(
         [server_cmd.get_program()]
             .into_iter()
             .chain(server_cmd.get_args()),
@@ -108,7 +108,7 @@ fn run_server_client_exchange(
         cli.run(None, Some(test_helpers)).unwrap();
     });
 
-    let cli = CliArgs::try_parse_from(
+    let cli = CliCommand::try_parse_from(
         [client_cmd.get_program()]
             .into_iter()
             .chain(client_cmd.get_args()),

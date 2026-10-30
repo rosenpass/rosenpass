@@ -12,6 +12,15 @@
 // #[emit_rule_reference]
 // struct Parser;
 
+// /// returns the help message for the `rosenpass --print-completions` subcommand
+// #[rustfmt::skip]
+// pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+//     let i = indent; // shorter, save a bit of space in the code
+//     fmt::from_fn(move |f| {
+//         todo!()
+//     })
+// }
+
 // /// parse [`super::CliCommand::GenerateShellCompletion`] from a command line
 // pub fn parse(parameters: &str) -> Result<clap_complete::Shell, anyhow::Error> {
 //     let parameters =

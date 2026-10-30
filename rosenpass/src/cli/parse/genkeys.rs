@@ -1,6 +1,6 @@
 use crate::{
-    config::{PrettyIssueOutput, RosenpassConfig},
     cli::types::GenKeysParameters,
+    config::{PrettyIssueOutput, RosenpassConfig},
 };
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
@@ -33,7 +33,8 @@ path = @{ (!separator ~ ANY)+ }
 #[emit_rule_reference]
 struct Parser;
 
-pub fn help<'a>() -> impl Display + 'a {
+pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+    let i = indent; // shorter, save a bit of space in the code
     fmt::from_fn(|f| {
         writeln!(
             f,

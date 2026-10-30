@@ -1,6 +1,7 @@
 separator = _{ "\0" }
 
-command_line = ${ SOI ~ subcommand ~ EOI }
+command_line = ${ SOI ~ tool_name ~ separator ~ subcommand ~ EOI }
+tool_name = { (!separator ~ ANY)+ }
 subcommand = { subcommand_help | subcommand_normal }
 subcommand_normal = { subcommand_not_help ~ (separator ~ argument)* }
 
@@ -15,8 +16,6 @@ subcommand_help = {
 
     // rosenpass --help
     help_literal
-    ~ separator
-    ~ (separator ~ argument)*
 
     |
 

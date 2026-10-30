@@ -2,6 +2,9 @@
 //!
 //! - TODO: where should this code reside?
 
+use super::BrokerInterface;
+#[cfg(not(feature = "experiment_api"))]
+use crate::internal::wireguard_broker::brokers::native_unix::NativeUnixBroker;
 #[cfg(feature = "experiment_api")]
 use {
     crate::internal::util::rustix::claim_fd,
@@ -14,15 +17,6 @@ use {
     std::process::Command,
     std::thread,
 };
-
-use super::BrokerInterface;
-/// Return the WireGuard PSK broker interface configured.
-///
-/// Returns `None` if the `experiment_api` feature is disabled.
-#[cfg(not(feature = "experiment_api"))]
-pub fn get_broker_interface(&self) -> Option<BrokerInterface> {
-    None
-}
 
 /// Create the WireGuard PSK broker to be used by
 /// [crate::app_server::AppServer].
@@ -68,7 +62,7 @@ pub fn create_broker(
 /// sending pre-shared keys directly to WireGuard from within this
 /// process.
 #[cfg(not(feature = "experiment_api"))]
-fn create_broker(
+pub fn create_broker(
     _broker_interface: Option<BrokerInterface>,
 ) -> Result<Box<NativeUnixBroker>, anyhow::Error> {
     Ok(Box::new(NativeUnixBroker::new()))

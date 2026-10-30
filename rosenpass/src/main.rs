@@ -4,15 +4,15 @@
 #[cfg(feature = "experiment_api")]
 mod api;
 mod app_server;
+mod cli;
 mod config;
 mod error;
 mod hash_domains;
 mod internal;
 mod msgs;
-mod cli;
 mod protocol;
 
-use crate::{error::RosenpassError, cli::CliCommand};
+use crate::{cli::CliCommand, error::RosenpassError};
 use clap_mangen::roff::{Roff, roman};
 use log::error;
 use std::process::exit;
@@ -37,7 +37,7 @@ pub fn main() {
     match CliCommand::parse_and_run_from_env(None) {
         Ok(_) => {}
         Err(e) => {
-            error!("{e:?}");
+            eprintln!("{}", e.to_string());
             exit(1);
         }
     }

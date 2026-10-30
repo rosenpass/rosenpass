@@ -4,6 +4,8 @@ use crate::config::RosenpassConfig;
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
 use pest_typed_derive::TypedParser;
+use std::fmt;
+use std::fmt::Display;
 use std::path::PathBuf;
 
 #[derive(TypedParser)]
@@ -27,6 +29,15 @@ file_descriptor = @{ (!separator ~ ANY)+ }
 "#]
 #[emit_rule_reference]
 struct Parser;
+
+/// returns the help message for the `rosenpass exchange-config` subcommand
+#[rustfmt::skip]
+pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+    let i = indent; // shorter, save a bit of space in the code
+    fmt::from_fn(move |f| {
+        todo!()
+    })
+}
 
 /// parse [`super::CliCommand::ExchangeConfig`] from a command line
 pub fn parse(parameters: &str) -> Result<ExchangeConfigParameters, anyhow::Error> {

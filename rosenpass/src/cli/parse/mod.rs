@@ -26,27 +26,20 @@ pub struct SubCommandTypeParser;
 /// - TODO: evaluate to Help if no parameter is given
 impl CliCommand {
     pub fn parse_and_run_from_env(test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
-        let command = Self::parse_from_env()?;
-        command.run(test_helpers)
+        let (command, tool_name) = Self::parse_from_env()?;
+        command.run(test_helpers, tool_name)
     }
 
-    pub fn parse_from_env() -> anyhow::Result<CliCommand> {
+    pub fn parse_from_env() -> anyhow::Result<(CliCommand, String)> {
         let args: String = std::env::args().collect::<Vec<_>>().join("\0");
         CliCommand::parse(args.as_str())
     }
 
+    /// parses a command line and returns the [`CliCommand`] together with the tool name
+    ///
     /// TODO: doc
     /// TODO: use proper error type instead of [`anyhow::Error`]
-    pub fn parse(command_line: &str) -> Result<CliCommand, anyhow::Error> {
-        // remove program name
-        // TODO: use that program name in help output?
-        let command_line = command_line
-            .split('\0')
-            .skip(1)
-            .collect::<Vec<_>>()
-            .join("\0");
-        let command_line = command_line.as_str();
-
+    pub fn parse(command_line: &str) -> Result<(CliCommand, String), anyhow::Error> {
         // parse with `pest_typed`
         let command_line = SubCommandTypeParser::try_parse::<pairs::command_line>(command_line)
             .map_err(|error| {
@@ -62,6 +55,7 @@ impl CliCommand {
                     .replace('\0', " ");
                 anyhow!(error)
             })?;
+        let tool_name = command_line.tool_name().span.as_str().to_string();
         let subcommand = command_line.subcommand();
 
         let subcommand =
@@ -78,6 +72,21 @@ impl CliCommand {
                  }
                 else if sub.subcommand_exchange().is_some() {
                     FlatCliCommand::Exchange
+                }
+                else if sub.subcommand_gen_config().is_some() {
+                    FlatCliCommand::GenConfig
+                }
+                else if sub.subcommand_gen_keys().is_some() {
+                    FlatCliCommand::GenKeys
+                }
+                else if sub.subcommand_validate().is_some() {
+                    FlatCliCommand::Validate
+                }
+                else if sub.subcommand_generate_manpage().is_some() {
+                    FlatCliCommand::GenerateManpage
+                }
+                else if sub.subcommand_generate_shell_completion().is_some() {
+                    FlatCliCommand::GenerateShellCompletion
                 }
                 else{
                     bail!("unknown subcommand \"{}\"", sub.span.as_str().replace('\0'," "))    
@@ -114,6 +123,6 @@ impl CliCommand {
         }else {
             bail!("unknown subcommand \"{}\"", subcommand.span.as_str().replace('\0'," "))
         };
-        Ok(subcommand)
+        Ok((subcommand, tool_name))
     }
 }

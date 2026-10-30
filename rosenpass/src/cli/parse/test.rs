@@ -13,7 +13,7 @@ use crate::config::tests::test_cli::harness::replace_spaces;
 // ======================================== generate config ========================================
 #[test]
 fn parse_generate_config_no_force() {
-    let CliCommand::GenConfig(parameters) =
+    let (CliCommand::GenConfig(parameters), _) =
         CliCommand::parse(&replace_spaces("rosenpass gen-config some/path")).unwrap()
     else {
         panic!("parsing failed");
@@ -23,7 +23,7 @@ fn parse_generate_config_no_force() {
 }
 #[test]
 fn parse_generate_config_force_short() {
-    let CliCommand::GenConfig(parameters) =
+    let (CliCommand::GenConfig(parameters), _) =
         CliCommand::parse(&replace_spaces("rosenpass gen-config -f some/path")).unwrap()
     else {
         panic!("parsing failed");
@@ -33,7 +33,7 @@ fn parse_generate_config_force_short() {
 }
 #[test]
 fn parse_generate_config_force_long() {
-    let CliCommand::GenConfig(parameters) =
+    let (CliCommand::GenConfig(parameters), _) =
         CliCommand::parse(&replace_spaces("rosenpass gen-config some/path --force")).unwrap()
     else {
         panic!("parsing failed");
@@ -45,10 +45,13 @@ fn parse_generate_config_force_long() {
 // ======================================== generate keys ========================================
 #[test]
 fn parse_genkeys_short() {
-    let CliCommand::GenKeys(GenKeysParameters {
-        file_paths,
-        force: true,
-    }) = CliCommand::parse(&replace_spaces("rosenpass gen-keys -s foo -p bar -f")).unwrap()
+    let (
+        CliCommand::GenKeys(GenKeysParameters {
+            file_paths,
+            force: true,
+        }),
+        _,
+    ) = CliCommand::parse(&replace_spaces("rosenpass gen-keys -s foo -p bar -f")).unwrap()
     else {
         panic!("parsing failed");
     };
@@ -65,10 +68,13 @@ fn parse_genkeys_short() {
 
 #[test]
 fn parse_genkeys_legacy() {
-    let CliCommand::GenKeys(GenKeysParameters {
-        file_paths,
-        force: false,
-    }) = CliCommand::parse(&replace_spaces(
+    let (
+        CliCommand::GenKeys(GenKeysParameters {
+            file_paths,
+            force: false,
+        }),
+        _,
+    ) = CliCommand::parse(&replace_spaces(
         "rosenpass gen-keys --private-key foo --public-key bar",
     ))
     .unwrap()
@@ -89,7 +95,7 @@ fn parse_genkeys_legacy() {
 // ======================================== help ========================================
 #[test]
 fn parse_help_subcommand() {
-    let CliCommand::Help(Some(FlatCliCommand::Exchange)) =
+    let (CliCommand::Help(Some(FlatCliCommand::Exchange)), _) =
         CliCommand::parse(&replace_spaces("rosenpass help exchange")).unwrap()
     else {
         panic!("parsing failed")
@@ -99,7 +105,7 @@ fn parse_help_subcommand() {
 #[test]
 
 fn parse_help_option() {
-    let CliCommand::Help(Some(FlatCliCommand::Exchange)) =
+    let (CliCommand::Help(Some(FlatCliCommand::Exchange)), _) =
         CliCommand::parse(&replace_spaces("rosenpass exchange --help")).unwrap()
     else {
         panic!("parsing failed")
@@ -109,7 +115,7 @@ fn parse_help_option() {
 #[test]
 
 fn parse_help_option_at_end() {
-    let CliCommand::Help(Some(FlatCliCommand::Exchange)) = CliCommand::parse(&replace_spaces(
+    let (CliCommand::Help(Some(FlatCliCommand::Exchange)), _) = CliCommand::parse(&replace_spaces(
         "rosenpass exchange foo bar listen 1.2.3.4:2345 --help",
     ))
     .unwrap() else {
@@ -120,7 +126,7 @@ fn parse_help_option_at_end() {
 #[test]
 
 fn parse_help_option_in_middle() {
-    let CliCommand::Help(Some(FlatCliCommand::Exchange)) = CliCommand::parse(&replace_spaces(
+    let (CliCommand::Help(Some(FlatCliCommand::Exchange)), _) = CliCommand::parse(&replace_spaces(
         "rosenpass exchange foo bar listen 1.2.3.4:2345 --help listen 2.3.4.5:3456",
     ))
     .unwrap() else {
@@ -131,7 +137,7 @@ fn parse_help_option_in_middle() {
 // ======================================== validate ========================================
 #[test]
 fn parse_validate_one() {
-    let CliCommand::Validate(paths) =
+    let (CliCommand::Validate(paths), _) =
         CliCommand::parse(&replace_spaces("rosenpass validate path/file")).unwrap()
     else {
         panic!("parsing failed")
@@ -140,7 +146,7 @@ fn parse_validate_one() {
 }
 #[test]
 fn parse_validate_many() {
-    let CliCommand::Validate(paths) = CliCommand::parse(&replace_spaces(
+    let (CliCommand::Validate(paths), _) = CliCommand::parse(&replace_spaces(
         "rosenpass validate file1 foo/file2 foo/bar/file3",
     ))
     .unwrap() else {
@@ -159,7 +165,7 @@ fn parse_validate_many() {
 // ======================================== generate manpage ========================================
 #[test]
 fn parse_generate_manpage() {
-    let CliCommand::GenerateManpage(path) =
+    let (CliCommand::GenerateManpage(path), _) =
         CliCommand::parse(&replace_spaces("rosenpass --generate-manpage some/path")).unwrap()
     else {
         panic!("parsing failed");

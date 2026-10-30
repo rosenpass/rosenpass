@@ -1,11 +1,14 @@
 use crate::{
-    config::{PrettyIssueOutput, RosenpassConfig},
     cli::types::GenConfigParameters,
+    config::{PrettyIssueOutput, RosenpassConfig},
 };
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
 use pest_typed_derive::TypedParser;
-use std::path::PathBuf;
+use std::{
+    fmt::{self, Display},
+    path::PathBuf,
+};
 
 #[derive(TypedParser)]
 #[grammar_inline = r#"
@@ -21,6 +24,15 @@ force = @{ "--force" | "-f" }
 "#]
 #[emit_rule_reference]
 struct Parser;
+
+/// returns the help message for the `rosenpass gen-config` subcommand
+#[rustfmt::skip]
+pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+    let i = indent; // shorter, save a bit of space in the code
+    fmt::from_fn(move |f| {
+        todo!()
+    })
+}
 
 /// parse [`super::CliCommand::GenConfig`] from a command line
 pub fn parse(parameters: &str) -> Result<GenConfigParameters, anyhow::Error> {

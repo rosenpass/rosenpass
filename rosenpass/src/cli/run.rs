@@ -1,12 +1,17 @@
+#[cfg(feature = "experiment_api")]
+use super::psk_broker::get_broker_socket;
+use super::{
+    CliCommand, FlatCliCommand, GenKeysPathsSource,
+    parse::{
+        exchange, exchange_config, generate_config, generate_manpage, generate_shell_completion,
+        genkeys, validate,
+    },
+    psk_broker::create_broker,
+};
 use std::{
+    fmt::{self, Display},
     ops::DerefMut,
     path::{Path, PathBuf},
-};
-
-use super::{
-    CliCommand, ExchangeConfigParameters, FlatCliCommand, GenKeysPathsSource,
-    parse::{exchange, genkeys},
-    psk_broker::{create_broker, get_broker_socket},
 };
 // #[cfg(feature = "experiment_api")]
 use super::BrokerInterface;
@@ -19,8 +24,7 @@ use crate::{
         secret_memory::file::StoreSecret,
         util::file::{LoadValue, LoadValueB64, StoreValue},
         wireguard_broker::brokers::native_unix::{
-            NativeUnixBroker, NativeUnixBrokerConfigBaseBuilder,
-            NativeUnixBrokerConfigBaseBuilderError,
+            NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
         },
     },
     protocol::{
@@ -46,7 +50,11 @@ use {
 };
 
 impl CliCommand {
-    pub fn run(&self, test_helpers: Option<AppServerTest>) -> Result<(), anyhow::Error> {
+    pub fn run(
+        &self,
+        test_helpers: Option<AppServerTest>,
+        tool_name: String,
+    ) -> Result<(), anyhow::Error> {
         match &self {
             // TODO: support writing a command line config to a config file
             Self::ExchangeConfig(config) => {
@@ -165,20 +173,47 @@ impl CliCommand {
             Self::Help(subcommand) => {
                 const INDENT: &str = "    ";
                 match subcommand {
+                    Some(FlatCliCommand::ExchangeConfig) => {
+                        anstream::eprint!("{tool_name} {}", exchange_config::help(INDENT))
+                    }
                     Some(FlatCliCommand::Exchange) => {
-                        anstream::eprintln!("rosenpass {}", exchange::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", exchange::help(INDENT))
+                    }
+                    Some(FlatCliCommand::GenConfig) => {
+                        anstream::eprint!("{tool_name} {}", generate_config::help(INDENT))
                     }
                     Some(FlatCliCommand::GenKeys) => {
-                        anstream::eprintln!("rosenpass {}", genkeys::help())
+                        anstream::eprint!("{tool_name} {}", genkeys::help(INDENT))
                     }
-                    _ => todo!(),
+                    Some(FlatCliCommand::Validate) => {
+                        anstream::eprint!("{tool_name} {}", validate::help(INDENT))
+                    }
+                    Some(FlatCliCommand::GenerateManpage) => {
+                        anstream::eprint!("{tool_name} {}", generate_manpage::help(INDENT))
+                    }
+                    Some(FlatCliCommand::GenerateShellCompletion) => {
+                        todo!("shell completions are not yet supported");
+                        // anstream::eprintln!("{tool_name} {}", generate_shell_completion::help(INDENT))
+                    }
+                    Some(FlatCliCommand::Help) => unreachable!(),
+                    None => anstream::eprint!("{tool_name} {}", help(INDENT)),
                 }
-                todo!("write sensible help output");
             }
         }
 
         Ok(())
     }
+}
+
+/// returns the help message for the `rosenpass` command
+/// 
+/// TODO: print for `rp`
+#[rustfmt::skip]
+pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+    let i = indent; // shorter, save a bit of space in the code
+    fmt::from_fn(move |f| {
+        todo!("help message for rosenpass command")
+    })
 }
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
@@ -338,7 +373,7 @@ pub fn exchange_implementation(
                 .map(|psk| psk.get_key_path())
                 .map(SymKey::load_b64::<MAX_PSK_SIZE, _>)
                 .transpose()?,
-            SPk::load(&cfg_peer.their_public_key.get_key_path())?,
+            SPk::load(cfg_peer.their_public_key.get_key_path())?,
             cfg_peer
                 .output_to_file
                 .as_ref()
