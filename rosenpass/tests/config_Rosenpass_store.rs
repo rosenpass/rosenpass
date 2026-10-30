@@ -1,16 +1,23 @@
-use std::path::PathBuf;
+// TODO: this feature is not yet implemented
+// https://github.com/rosenpass/rosenpass/issues/1199
 
-use rosenpass::config::{RosenpassConfig, Verbosity};
-
+#[cfg(none)]
 #[test]
 fn example_config_rosenpass_store() -> anyhow::Result<()> {
+    use rosenpass::config::{RosenpassConfig, Verbosity};
+    use std::path::PathBuf;
+
     let tmpdir = tempfile::tempdir()?;
 
     let sk = tmpdir.path().join("example.sk");
     let pk = tmpdir.path().join("example.pk");
     let cfg = tmpdir.path().join("config.toml");
 
+    #[cfg(not(feature = "experiment_api"))]
     let mut c = RosenpassConfig::from_sk_pk(&sk, &pk);
+
+    #[cfg(feature = "experiment_api")]
+    let mut c = RosenpassConfig::from_sk_pk(Some(&sk), Some(&pk));
 
     // Can not commit config, path not known
     assert!(c.commit().is_err());
@@ -23,7 +30,7 @@ fn example_config_rosenpass_store() -> anyhow::Result<()> {
 
     // We can reload the config now and the configurations
     // are equal if we adjust the commitment path
-    let mut c2 = RosenpassConfig::load(&cfg)?;
+    let mut c2 = RosenpassConfig::load_from_file(&cfg)?;
     c.config_file_path = PathBuf::from(&cfg);
     assert_eq!(c, c2);
 

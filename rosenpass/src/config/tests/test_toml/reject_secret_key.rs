@@ -1,7 +1,6 @@
 //! test that secret keys are denied for peers
 
-use super::harness::{ExpectSilent, assert_parse_str_fails_with, parse_string};
-use crate::config::SecretKeySource;
+use super::harness::assert_parse_str_fails_with;
 
 #[test]
 fn their_keypair_rejects_secret_key_file() {

@@ -3,8 +3,8 @@
 //! TODO: test [`RosenpassConfig::parse_from_cli`]
 //!
 
-pub(crate) mod harness;
-pub(crate) use harness::*;
+pub mod harness;
+pub use harness::*;
 
 #[cfg(feature = "experiment_api")]
 use crate::config::ApiConfig;
@@ -157,7 +157,7 @@ rosenpass exchange
         assert!(result.wireguard_devices.is_empty());
 
         // check the record of where this config was parsed from
-        let ConfigSource::CommandLineArguments(source) = &result.parsed_from else {
+        let ConfigSource::CommandLineArguments(_) = &result.parsed_from else {
             panic!(
                 "expected the config to be parsed from the command line, got {:?}",
                 result.parsed_from

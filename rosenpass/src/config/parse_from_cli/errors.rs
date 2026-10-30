@@ -86,7 +86,7 @@ impl<P: ParseProblemLike> std::error::Error for ParseProblem<P> {
     // }
 }
 
-trait ParseProblemLike: Display + std::error::Error {}
+pub trait ParseProblemLike: Display + std::error::Error {}
 impl ParseProblemLike for ParseProblemError {}
 impl ParseProblemLike for ParseProblemWarning {}
 

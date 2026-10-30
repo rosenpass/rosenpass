@@ -84,6 +84,8 @@ fn handles_incorrect_size_messages_v03() {
 ///
 /// Through all this, the handshake should still successfully terminate;
 /// i.e. an exchanged key must be produced in both servers.
+///
+/// TODO: this test is slow
 fn handles_incorrect_size_messages(protocol_version: ProtocolVersion) {
     setup_logging();
     stacker::grow(8 * 1024 * 1024, || {
@@ -700,6 +702,7 @@ fn init_conf_retransmission_v03() -> Result<()> {
     init_conf_retransmission(ProtocolVersion::V03)
 }
 
+/// TODO: this test is slow
 fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result<()> {
     fn keypair() -> Result<(SSk, SPk)> {
         let (mut sk, mut pk) = (SSk::zero(), SPk::zero());

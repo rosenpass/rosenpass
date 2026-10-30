@@ -255,7 +255,7 @@ pub mod testing {
         secret_key: PathBuf,
         public_key: PathBuf,
     ) -> anyhow::Result<()> {
-        super::generate_and_save_keypair(secret_key, public_key)
+        super::generate_and_save_keypair(&secret_key, &public_key, true)
     }
 }
 

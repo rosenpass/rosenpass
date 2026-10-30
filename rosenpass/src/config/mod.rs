@@ -6,7 +6,7 @@
 //! - [`parse_from_toml`]: implements the function [`RosenpassConfig::parse_from_toml`]
 //! - [`validate`]: implements the function [`RosenpassConfig::validate`]
 //! - [`tests`]: contains unit tests
-
+//!
 //! Configuration readable from a config file.
 //!
 //! Rosenpass supports reading its configuration from a TOML file. This module contains a struct
@@ -44,7 +44,6 @@ pub trait PrettyIssueOutput {
 //
 
 use crate::app_server::AppServer;
-use crate::cli::BrokerInterface;
 use crate::protocol::ProtocolVersion;
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
@@ -239,6 +238,7 @@ impl Verbosity {
 //     }
 // }
 
+#[cfg(feature = "experiment_api")]
 impl Default for RosenpassConfig {
     /// Generate an empty configuration
     ///
@@ -317,6 +317,7 @@ impl RosenpassConfig {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
+    #[cfg(feature = "experiment_api")]
     pub fn new_empty() -> Self {
         Self {
             our_listen_addresses: vec![],
@@ -367,8 +368,28 @@ impl RosenpassConfig {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
+    #[cfg(not(feature = "experiment_api"))]
     pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Sk, pk: Pk) -> Self {
         Self::new_minimal(sk.as_ref().to_path_buf(), pk.as_ref().to_path_buf())
+    }
+
+    /// produce a minimal configuration from a PQ keypair specifed via their file paths
+    ///
+    /// This is a shorthand [`Self::new_minimal`].
+    ///
+    /// **NOTE**: the paths must refer to the keys' **file** paths, not their directories
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    #[cfg(feature = "experiment_api")]
+    pub fn from_sk_pk<Sk: AsRef<Path>, Pk: AsRef<Path>>(sk: Option<Sk>, pk: Option<Pk>) -> Self {
+        Self::new_minimal(
+            sk.map(|sk| sk.as_ref().to_path_buf()),
+            pk.map(|pk| pk.as_ref().to_path_buf()),
+        )
     }
 
     /// produce a minimal configuration with our PQ keypair supplied as a parameter
@@ -378,6 +399,7 @@ impl RosenpassConfig {
     #[doc = "```ignore"]
     #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
     #[doc = "```"]
+    #[cfg(not(feature = "experiment_api"))]
     pub fn new_minimal(our_secret_key_file: PathBuf, our_public_key_file: PathBuf) -> Self {
         Self {
             our_listen_addresses: vec![],
@@ -389,6 +411,42 @@ impl RosenpassConfig {
                 public_key_source: PublicPqKeySource::new(KeyFromDiskInner::File(
                     our_public_key_file,
                 )),
+            },
+            supported_protocol_versions: ProtocolVersion::all_supported_by_default(),
+            #[cfg(feature = "experiment_api")]
+            api: ApiConfig::new_empty(),
+            wireguard_devices: vec![],
+            peers: vec![],
+            parsed_from: ConfigSource::GeneratedFromCode,
+        }
+    }
+
+    /// produce a minimal configuration with our PQ keypair supplied as a parameter
+    ///
+    /// # Examples
+    ///
+    #[doc = "```ignore"]
+    #[doc = include_str!("../../tests/config_Rosenpass_new.rs")]
+    #[doc = "```"]
+    #[cfg(feature = "experiment_api")]
+    pub fn new_minimal(
+        our_secret_key_file: Option<PathBuf>,
+        our_public_key_file: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            our_listen_addresses: vec![],
+            verbosity: Verbosity::Quiet,
+            our_keypair: PqKeypairSource {
+                secret_key_source: SecretPqKeySource::new(
+                    our_secret_key_file
+                        .map(|s| KeyFromDiskInner::File(s))
+                        .unwrap_or(KeyFromDiskInner::None),
+                ),
+                public_key_source: PublicPqKeySource::new(
+                    our_public_key_file
+                        .map(|p| KeyFromDiskInner::File(p))
+                        .unwrap_or(KeyFromDiskInner::None),
+                ),
             },
             supported_protocol_versions: ProtocolVersion::all_supported_by_default(),
             #[cfg(feature = "experiment_api")]

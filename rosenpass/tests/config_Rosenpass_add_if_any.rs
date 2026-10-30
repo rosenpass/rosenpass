@@ -1,8 +1,15 @@
+#[cfg(not(feature = "experiment_api"))]
+use std::path::PathBuf;
+
 use rosenpass::config::RosenpassConfig;
 
 #[test]
 fn config_rosenpass_add_if_any_example() {
-    let mut v = RosenpassConfig::new_empty();
+    #[cfg(not(feature = "experiment_api"))]
+    let mut v = RosenpassConfig::new_minimal(PathBuf::from("secret"), PathBuf::from("public"));
+    #[cfg(feature = "experiment_api")]
+    let mut v = RosenpassConfig::new_minimal(None, None);
+
     v.add_if_any(4000);
 
     assert!(

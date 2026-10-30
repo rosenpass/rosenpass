@@ -9,12 +9,10 @@ use crate::{
         TomlConfigFileVersion, WireguardConfig,
     },
     config::{RosenpassPeerOskDomainSeparator, Verbosity},
-    protocol::{ProtocolVersion, osk_domain_separator},
+    protocol::ProtocolVersion,
 };
 use cidr::IpCidr;
 use indexmap::IndexSet;
-use log::LevelFilter;
-use ml_kem::Key;
 use serde::{Deserialize, de::value::StrDeserializer};
 use std::{
     fmt::Display,
@@ -138,7 +136,7 @@ pub(crate) fn deny_illegal_keys<T: toml_edit::TableLike + ?Sized>(
     let mut errors = Vec::new();
     let illegal_keys = table
         .iter()
-        .filter_map(|(key, value)| {
+        .filter_map(|(key, _value)| {
             if allowed_keys.iter().find(|k| **k == key).is_none() {
                 Some((key, table.key(key).unwrap().span()))
             } else {
@@ -437,31 +435,6 @@ get_as_type_generator!(
     }
 );
 
-// log::LevelFilter
-get_as_type_generator!(
-    get_as_log_level,
-    get_as_opt_log_level,
-    [],
-    LevelFilter,
-    as_str,
-    |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
-        todo!();
-        // TODO: implement more variants or use serde_plain
-
-        const INFO: &str = "info";
-        if s == INFO {
-            Ok(LevelFilter::Info)
-        } else {
-            Err(vec![ParseError::new(
-                raw,
-                file_path,
-                item.span(),
-                format!("invalid value for logging level, possible values: \"{INFO}\""),
-            )])
-        }
-    }
-);
-
 // config::Verbosity
 get_as_type_generator!(
     get_as_verbosity_level,
@@ -704,7 +677,7 @@ get_as_type_generator!(
     [],
     Vec<SocketAddr>,
     as_array,
-    |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
 
         // transmute items to strings
@@ -763,7 +736,7 @@ get_as_type_generator!(
     IpCidr,
     as_str,
     |raw: &str, file_path: &Path, item: &toml_edit::Item, s: &str| {
-        IpCidr::from_str(s).map_err(|e| {
+        IpCidr::from_str(s).map_err(|_e| {
             vec![ParseError::new(
                 raw,
                 file_path,
@@ -780,7 +753,7 @@ get_as_type_generator!(
     [],
     Vec<IpCidr>,
     as_array,
-    |raw: &str, file_path: &Path, item: &toml_edit::Item, array: &toml_edit::Array| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, array: &toml_edit::Array| {
         let mut errors = Vec::new();
 
         // transmute item to string
@@ -809,12 +782,12 @@ get_as_type_generator!(
             .guaranteed_unwrap()
             .into_iter()
             .map(|(string, span)| {
-                IpCidr::from_str(string).map_err(|e| {
+                IpCidr::from_str(string).map_err(|_e| {
                     ParseError::new(
                         raw,
                         file_path,
                         span,
-                        format!("item has wrong data type, expected network in CIDR notation"),
+                        "item has wrong data type, expected network in CIDR notation",
                     )
                 })
             })
@@ -1738,7 +1711,7 @@ get_as_type_generator!(
     [],
     OutputToFileConfig,
     as_inline_table,
-    |raw: &str, file_path: &Path, item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
         let mut errors = Vec::new();
 
         const ENABLED: &str = "enabled";
@@ -1857,7 +1830,7 @@ get_as_type_generator!(
     [],
     PeerWireguardOptions,
     as_inline_table,
-    |raw: &str, file_path: &Path, item: &toml_edit::Item, table: &toml_edit::InlineTable| {
+    |raw: &str, file_path: &Path, _item: &toml_edit::Item, table: &toml_edit::InlineTable| {
         let mut errors = Vec::new();
         let table_span = table.span();
 
@@ -2181,7 +2154,7 @@ pub(crate) fn get_legacy_wireguard<T: toml_edit::TableLike>(
     // quirk: in legacy config, users could define their own wg binary
     if legacy_exchange_command
         .clone()
-        .is_some_and(|cmd| cmd.get(0).is_some_and(|cmd| cmd != "wg"))
+        .is_some_and(|cmd| cmd.first().is_some_and(|cmd| cmd != "wg"))
     {
         errors.push(ParseError::new_ext(
             raw,

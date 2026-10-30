@@ -100,10 +100,11 @@ impl RosenpassConfig {
             let transformed = raw
                 .iter()
                 .map(|l| {
-                    let s = l.socket_address().span.as_str();
+                    let span = l.socket_address().span;
+                    let s = span.as_str();
                     SocketAddr::from_str(s).map_err(|e| {
                         ParseError::new(
-                            None,
+                            Some(span.start()..span.end()),
                             full_line,
                             errors::ParseProblemError::InvalidSocketAddr(s.to_string()),
                         )

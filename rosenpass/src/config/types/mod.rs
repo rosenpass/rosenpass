@@ -1,3 +1,5 @@
+//! TODO: rustfmt gives up on this
+
 use super::{
     parse_from_cli::ParseWarning as CliParseWarning,
     parse_from_toml::ParseWarning as TomlParseWarning,
@@ -40,7 +42,7 @@ pub use paths::ResolvePathRelativeToConfig;
 /// - get rid of [`Serialize`] so that [`RosenpassConfig::store`] can use [`toml_edit`] introduced
 ///   in https://github.com/rosenpass/rosenpass/pull/1021
 ///
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RosenpassConfig {
     /// list of [`SocketAddr`] to listen on
     ///
@@ -73,7 +75,7 @@ pub struct RosenpassConfig {
     pub parsed_from: ConfigSource,
 }
 // ============================== [rosenpass] ==============================
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigSource {
     TomlFile(ConfigSourceTomlFile),
     CommandLineArguments(ConfigSourceCli),
@@ -105,7 +107,13 @@ pub struct ConfigSourceTomlFile {
     /// config file version specified in `[rosenpass].config-file-version`
     pub file_version: TomlConfigFileVersion,
 }
-#[derive(Debug, Default)]
+// ignore document and warning when comparing TOML config sources
+impl PartialEq for ConfigSourceTomlFile {
+    fn eq(&self, other: &Self) -> bool {
+        self.file_path == other.file_path && self.file_version == other.file_version
+    }
+}
+#[derive(Debug, Default, PartialEq)]
 pub enum TomlConfigFileVersion {
     /// currently the only config file version
     ///
@@ -125,8 +133,15 @@ pub struct ConfigSourceCli {
     pub warnings: Vec<CliParseWarning>,
     // TODO: maybe some kind of grammar versioning?
 }
+// ignore warnings when comparing CLI config sources
+impl PartialEq for ConfigSourceCli {
+    fn eq(&self, other: &Self) -> bool {
+        self.full_command_line == other.full_command_line
+            && self.full_command_line_human_readable == other.full_command_line_human_readable
+    }
+}
 // ============================== [[wiregard-devices]] ==============================
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct WgDeviceConfig {
     /// name of the WireGuard device, e.g. `wg0`
     pub name: String,
@@ -137,7 +152,7 @@ pub struct WgDeviceConfig {
     /// whether this device is created by someone else or by this application
     pub created_by: WgDeviceCreateOptions,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WgDeviceCreateOptions {
     /// the WireGuard device needs to be created by this application
     Create(DeviceWireguardOptions),
@@ -159,14 +174,14 @@ enum FlatWgDeviceCreateOptions {
 }
 
 /// device's WireGuard options if the device is created
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct DeviceWireguardOptions {
     pub wg_listen_port: Option<u16>,
     pub wg_fwmark: Option<u16>,
 }
 
 // ============================== [[peers]] ==============================
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PeerConfig {
     /// cosmetic name of the peer
     pub name: String,
@@ -204,7 +219,7 @@ pub struct PeerConfig {
     /// see whitepaper sec. 3.2 "Extension: WireGuard PSK"
     pub wireguard: Option<WireguardConfig>,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PresharedKeySource {
     ReadFromFile(PathBuf),
     ReadFromDirectory(PathBuf),
@@ -289,7 +304,7 @@ impl TryFrom<RosenpassPeerOskDomainSeparator> for OskDomainSeparator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct OutputToFileConfig {
     /// whether the application should actually use this entry
     pub enabled: bool,
@@ -301,7 +316,7 @@ pub struct OutputToFileConfig {
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct WireguardConfig {
     /// whether the application should actually use this entry
     pub enabled: bool,
@@ -331,7 +346,7 @@ pub struct WireguardConfig {
 /// [persistent-keepalive <interval seconds>]
 /// [allowed-ips [+|-]<ip1>/<cidr1>[,[+|-]<ip2>/<cidr2>]...]
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct PeerWireguardOptions {
     /// TODO: should this more strict (SocketAddr) or can it be a `<host>:<port>`?
     pub endpoint: Option<String>,
@@ -369,7 +384,7 @@ impl PeerWireguardOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OurWireguardKeypair {
     PublicKeyOnly(PublicWgKeySource),
     EntireKeypair(WgKeypairSource),

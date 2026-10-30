@@ -17,7 +17,7 @@ use crate::config::{PrettyIssueOutput, Verbosity};
 use crate::protocol::ProtocolVersion;
 use anyhow::anyhow;
 use indexmap::IndexSet;
-use std::{collections::HashSet, path::Path};
+use std::path::Path;
 use toml_edit::Table;
 
 use super::super::types::*;
@@ -34,7 +34,7 @@ impl RosenpassConfig {
         let toml_raw = String::from_utf8(
             std::fs::read(file_path).map_err(|e| anyhow!("can not read from file: {e}"))?,
         )
-        .map_err(|e| anyhow!("invalid UTF-8 contents in configuration file"))?;
+        .map_err(|e| anyhow!("invalid UTF-8 contents in configuration file: {e}"))?;
 
         // parse file content into TOML
         let toml_document = toml_edit::Document::parse(toml_raw.clone()).unwrap();
@@ -87,9 +87,6 @@ impl RosenpassConfig {
         let mut warnings: Vec<ParseWarning> = Vec::new();
         let mut errors: Vec<ParseError> = Vec::new();
         let raw = document.raw();
-        let working_directory = file_path
-            .parent()
-            .expect("specified file path has no parent directory");
 
         const WG_DEVICES: &str = "wireguard-devices";
         const PEERS: &str = "peers";
@@ -292,9 +289,9 @@ impl RosenpassConfig {
                     // created_by
                     let created_by = get_as_bool(raw, file_path, table, table.span(), CREATE)
                         .process_parse_result(&mut errors)
-                        .and_then(|create| {
+                        .map(|create| {
                             if !create {
-                                Some(WgDeviceCreateOptions::DoNotCreate)
+                                WgDeviceCreateOptions::DoNotCreate
                             } else {
                                 let options = get_as_opt_device_wireguard_options(
                                     raw,
@@ -306,7 +303,7 @@ impl RosenpassConfig {
                                 .process_parse_result(&mut errors)
                                 .flatten()
                                 .unwrap_or_default(); // defaults to empty options
-                                Some(WgDeviceCreateOptions::Create(options))
+                                WgDeviceCreateOptions::Create(options)
                             }
                         });
 

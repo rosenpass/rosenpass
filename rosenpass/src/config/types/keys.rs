@@ -25,15 +25,17 @@ use super::RosenpassConfig;
 ///   file name) specify the file inside the directory which should be read
 ///
 /// TODO: more documentation
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Keypair<S: SecretKeySource, P: PublicKeySource> {
     pub secret_key_source: S,
     pub public_key_source: P,
 }
+#[derive(PartialEq)]
 pub struct KeyFromDisk<FN: IsTStr, const SIZE: usize> {
     pub inner: KeyFromDiskInner,
     _marker: PhantomData<FN>,
 }
+#[derive(PartialEq)]
 pub struct KeyFromDiskOrB64EncodedString<FN: IsTStr, const SIZE: usize> {
     pub inner: KeyFromDiskOrB64EncodedStringInner,
     _marker: PhantomData<FN>,
@@ -62,7 +64,7 @@ impl<FN: IsTStr, const SIZE: usize> Debug for KeyFromDiskOrB64EncodedString<FN, 
 }
 
 // define inner types
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum KeyFromDiskInner {
     /// the specified path refers to a key **file**
     File(PathBuf),
@@ -81,7 +83,7 @@ pub enum KeyFromDiskInner {
     #[cfg(feature = "experiment_api")]
     None,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum KeyFromDiskOrB64EncodedStringInner {
     /// the specified path refers to a key **file**
     File(PathBuf),

@@ -22,7 +22,7 @@ use super::RosenpassConfig;
 
 /// specifies which validation checks are supposed to run on a given [`RosenpassConfig`] when
 /// calling [`RosenpassConfig::validate`]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ValidationRecipe {
     /// check inconsistencies between configuration items
     ///
