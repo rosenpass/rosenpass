@@ -68,11 +68,11 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
 
     use rosenpass::config;
 
-    let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
-    let peer_a = config::Rosenpass {
+    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
-        keypair: Some(peer_a_keypair.clone()),
-        listen: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
+        our_keypair: Some(peer_a_keypair.clone()),
+        our_listen_addresses: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
@@ -90,11 +90,11 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
         }],
     };
 
-    let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::Rosenpass {
+    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
-        keypair: Some(peer_b_keypair.clone()),
-        listen: vec![],
+        our_keypair: Some(peer_b_keypair.clone()),
+        our_listen_addresses: vec![],
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],

@@ -12,9 +12,7 @@ mod internal;
 mod msgs;
 mod protocol;
 
-use crate::{cli::CliArgs, error::RosenpassError};
-use clap::CommandFactory;
-use clap::Parser;
+use crate::{cli::CliCommand, error::RosenpassError};
 use clap_mangen::roff::{Roff, roman};
 use log::error;
 use std::process::exit;
@@ -27,65 +25,19 @@ fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File)
     let _ = roff.to_writer(file);
 }
 
-/// Catches errors, prints them through the logger, then exits
+/// parses command line, catches errors, prints them through the logger, then exits
 ///
-/// The bulk of the command line logic is handled inside [crate::cli::CliArgs::run].
+/// The bulk of the command line logic is handled inside [crate::cli::CliCommand::run].
 pub fn main() {
-    // parse CLI arguments
-    let args = CliArgs::parse();
+    // DO NOT set logging here. Logging is set differently per subcommand.
+    // I.e. the exchange command reads it from the command line, the exchange-config command
+    // reads it from a config file, some commands just use the default.
 
-    if let Some(shell) = args.print_completions {
-        let mut cmd = CliArgs::command();
-        clap_complete::generate(shell, &mut cmd, "rosenpass", &mut std::io::stdout());
-        return;
-    }
-
-    if let Some(out_dir) = args.generate_manpage {
-        std::fs::create_dir_all(&out_dir).expect("Failed to create man pages directory");
-
-        let cmd = CliArgs::command();
-        let man = clap_mangen::Man::new(cmd.clone());
-        let _ = clap_mangen::generate_to(cmd, &out_dir);
-
-        let file_path = out_dir.join("rosenpass.1");
-        let mut file = std::fs::File::create(file_path).expect("Failed to create man page file");
-
-        let _ = man.render_title(&mut file);
-        let _ = man.render_name_section(&mut file);
-        let _ = man.render_synopsis_section(&mut file);
-        let _ = man.render_subcommands_section(&mut file);
-        let _ = man.render_options_section(&mut file);
-        print_custom_man_section("EXIT STATUS", EXIT_STATUS_MAN, &mut file);
-        print_custom_man_section("SEE ALSO", SEE_ALSO_MAN, &mut file);
-        print_custom_man_section("STANDARDS", STANDARDS_MAN, &mut file);
-        print_custom_man_section("AUTHORS", AUTHORS_MAN, &mut file);
-        print_custom_man_section("BUGS", BUGS_MAN, &mut file);
-        return;
-    }
-
-    // init logging
-    {
-        let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
-        if let Some(level) = args.get_log_level() {
-            log::debug!("setting log level to {:?} (set via CLI parameter)", level);
-            log_builder.filter_level(level); // set log level filter from CLI args if available
-        }
-        log_builder.init();
-
-        // // check the effectiveness of the log level filter with the following lines:
-        // use log::{debug, error, info, trace, warn};
-        // trace!("trace dummy");
-        // debug!("debug dummy");
-        // info!("info dummy");
-        // warn!("warn dummy");
-        // error!("error dummy");
-    }
-
-    let broker_interface = args.get_broker_interface();
-    match args.run(broker_interface, None) {
+    // run the application based on the command line arguments
+    match CliCommand::parse_and_run_from_env(None) {
         Ok(_) => {}
         Err(e) => {
-            error!("{e:?}");
+            eprintln!("{}", e.to_string());
             exit(1);
         }
     }

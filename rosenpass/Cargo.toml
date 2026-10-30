@@ -1,8 +1,8 @@
 [package]
 name = "rosenpass"
 version = "0.3.0-dev"
-authors = ["Karolin Varner <karo@rosenpass.eu>", "wucke13 <wucke13@gmail.com>"]
-edition = "2021"
+authors = ["Karolin Varner <karo@cupdev.net>", "wucke13 <wucke13@gmail.com>"]
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Build post-quantum-secure VPNs with WireGuard!"
 homepage = "https://rosenpass.eu/"
@@ -74,6 +74,10 @@ name = "config_Rosenpass_new"
 required-features = []
 
 [[test]]
+name = "config_rosenpass_load_from_file"
+required-features = []
+
+[[test]]
 name = "config_Rosenpass_parse_args_simple"
 required-features = []
 
@@ -140,7 +144,10 @@ required-features = ["trace_bench"]
 # ============================== dependencies ==============================
 [dependencies]
 rosenpass-to = { path = "../to" }
+anstyle = "1.0.14"
+anstream = "1.0.0"
 anyhow = { version = "1.0", features = ["backtrace", "std"] }
+debug-ignore = "1.0"
 static_assertions = "1.1.0"
 memoffset = "0.9.1"
 thiserror = "2"
@@ -148,11 +155,14 @@ paste = "1.0.15"
 log = { version = "0.4.27" }
 env_logger = "0.11"
 serde = { version = "1.0.217", features = ["derive"] }
+serde_plain = { version = "1.0" }
 toml = "1.1.2"
+cidr = { version = "0.3.2", features = ["no_unsafe"] }
 clap = { version = "4.5.23", features = ["derive"] }
 clap_complete = "4.5.40"
 clap_mangen = "0.3.0"
 mio = { version = "1.0.3", features = ["net", "os-poll"] }
+num-traits = "0.2.19"
 signal-hook = "0.4.4"
 signal-hook-mio = { version = "0.3", features = ["support-v1_0"] }
 rand = "0.10"
@@ -163,6 +173,15 @@ zeroize = "1.9"
 hex-literal = { version = "1.1.0", optional = true }
 hex = { version = "0.4.3", optional = true }
 heck = { version = "0.5.0", optional = true }
+indexmap = "2.14.2"
+pest = { version = "2.9", features = ["pretty-print"] }
+pest_derive = "2.9.5"
+pest_typed_derive = "0.20.11"
+pest_typed = "0.20.11"
+toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
+tstr = "0.3.2"
+
+
 command-fds = { version = "0.3.3", optional = true } # Broker dependencies (might need cleanup or changes)
 rustix = { version = "1.1.4", features = [
   "net",
@@ -192,7 +211,6 @@ base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
 bitflags = { version = "2.9.3" }
 tinyvec = { version = "1.10.0" }
-num-traits = { version = "0.2.19" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
   "std",
@@ -233,6 +251,13 @@ netlink-packet-core = { version = "0.9", optional = true }
 netlink-packet-generic = { version = "0.5", optional = true }
 netlink-packet-wireguard = { version = "0.5", optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+] }
 
 [dev-dependencies]
 criterion = "0.8.2"

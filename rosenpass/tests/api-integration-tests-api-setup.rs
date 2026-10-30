@@ -82,7 +82,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
-    let peer_a_keypair = config::Keypair::new(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
     // peer a's own WireGuard public key, required since protocol version 3
     let peer_a_wg_peer_id = hex!(
         "
@@ -108,10 +108,10 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     };
 
     use rosenpass::config;
-    let peer_a = config::Rosenpass {
+    let peer_a = config::RosenpassConfig {
         config_file_path: tempfile!("a.config"),
-        keypair: None,
-        listen: vec![], // TODO: This could collide by accident
+        our_keypair: None,
+        our_listen_addresses: vec![], // TODO: This could collide by accident
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("a.sock")],
@@ -124,7 +124,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             endpoint: None,
             pre_shared_key: None,
             wg: Some(config::WireGuard {
-                device: peer_b_wg_device.to_string(),
+                device_name: peer_b_wg_device.to_string(),
                 // TODO:
                 // 1. why 8129? That magic number needs explanation.
                 // 2. Was this supposed to be 8192? In that case, please correct.
@@ -135,16 +135,16 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
                     .then(|| format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>())),
                 extra_params: vec![],
             }),
-            protocol_version,
+            protocol_version: protocol_version,
             osk_domain_separator: Default::default(),
         }],
     };
 
-    let peer_b_keypair = config::Keypair::new(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::Rosenpass {
+    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
+    let peer_b = config::RosenpassConfig {
         config_file_path: tempfile!("b.config"),
-        keypair: Some(peer_b_keypair.clone()),
-        listen: vec![],
+        our_keypair: Some(peer_b_keypair.clone()),
+        our_listen_addresses: vec![],
         verbosity: config::Verbosity::Verbose,
         api: api::config::ApiConfig {
             listen_path: vec![tempfile!("b.sock")],
@@ -160,7 +160,7 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
             // We need to clean up and document this test.
             // https://github.com/rosenpass/rosenpass/issues/1172
             wg: use_wg_key_binding.then(|| config::WireGuard {
-                device: peer_b_wg_device.to_string(),
+                device_name: peer_b_wg_device.to_string(),
                 peer: format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>()),
                 our_wg_pubkey: Some(format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>())),
                 extra_params: vec![],

@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::iter;
 use std::{
     fs,
     net::UdpSocket,
@@ -11,7 +12,7 @@ use tempfile::tempdir;
 use clap::Parser;
 use rosenpass::internal::secret_memory::{Public, Secret};
 use rosenpass::internal::wireguard_broker::{WG_KEY_LEN, WG_PEER_LEN, WireguardBrokerMio};
-use rosenpass::{app_server::AppServerTestBuilder, cli::CliArgs, config::EXAMPLE_CONFIG};
+use rosenpass::{app_server::AppServerTestBuilder, cli::CliCommand, config::EXAMPLE_CONFIG};
 use serial_test::serial;
 use std::io::Write;
 
@@ -93,35 +94,47 @@ fn run_server_client_exchange(
     let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
     let (client_terminate, client_terminate_rx) = std::sync::mpsc::channel();
 
-    let cli = CliArgs::try_parse_from(
-        [server_cmd.get_program()]
-            .into_iter()
-            .chain(server_cmd.get_args()),
-    )
-    .unwrap();
+    // spawn server
+    {
+        let (cli_command, tool_name) = CliCommand::parse(
+            iter::once(server_cmd.get_program())
+                .chain(server_cmd.get_args())
+                .map(|s| s.to_str().unwrap())
+                .collect::<Vec<_>>()
+                .join("\0")
+                .as_str(),
+        )
+        .unwrap();
 
-    std::thread::spawn(move || {
-        let test_helpers = server_test_builder
-            .termination_handler(Some(server_terminate_rx))
-            .build()
-            .unwrap();
-        cli.run(None, Some(test_helpers)).unwrap();
-    });
+        std::thread::spawn(move || {
+            let test_helpers = server_test_builder
+                .termination_handler(Some(server_terminate_rx))
+                .build()
+                .unwrap();
+            cli_command.run(Some(test_helpers), tool_name).unwrap();
+        });
+    }
 
-    let cli = CliArgs::try_parse_from(
-        [client_cmd.get_program()]
-            .into_iter()
-            .chain(client_cmd.get_args()),
-    )
-    .unwrap();
+    // spawn client
+    {
+        let (cli_command, tool_name) = CliCommand::parse(
+            iter::once(client_cmd.get_program())
+                .chain(client_cmd.get_args())
+                .map(|s| s.to_str().unwrap())
+                .collect::<Vec<_>>()
+                .join("\0")
+                .as_str(),
+        )
+        .unwrap();
 
-    std::thread::spawn(move || {
-        let test_helpers = client_test_builder
-            .termination_handler(Some(client_terminate_rx))
-            .build()
-            .unwrap();
-        cli.run(None, Some(test_helpers)).unwrap();
-    });
+        std::thread::spawn(move || {
+            let test_helpers = client_test_builder
+                .termination_handler(Some(client_terminate_rx))
+                .build()
+                .unwrap();
+            cli_command.run(Some(test_helpers), tool_name).unwrap();
+        });
+    }
 
     // give them some time to do the key exchange under load
     std::thread::sleep(Duration::from_secs(30));

@@ -1,24 +1,33 @@
 use std::fs;
 
-use rosenpass::{cli::generate_and_save_keypair, config::Rosenpass};
+use rosenpass::{
+    cli::run::generate_and_save_keypair,
+    config::{RosenpassConfig, validate::ValidationRecipe},
+};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
 fn example_config_rosenpass_validate() -> anyhow::Result<()> {
     let tmpdir = tempfile::tempdir()?;
+    let validation_recipe = ValidationRecipe::all();
 
-    // Empty validates OK
-    assert!(Rosenpass::empty().validate().is_ok());
+    // empty configurations are possible with the experimental API feature enabled
+    #[cfg(feature = "experiment_api")]
+    let _ = RosenpassConfig::new_empty();
 
-    // Missing secret key does not pass usefulness
-    assert!(Rosenpass::empty().check_usefullness().is_err());
+    // missing secret key does not pass usefulness with experimental API feature enabled
+    #[cfg(feature = "experiment_api")]
+    assert!(RosenpassConfig::new_empty().check_usefullness().is_err());
 
     let sk = tmpdir.path().join("example.sk");
     let pk = tmpdir.path().join("example.pk");
-    let cfg = Rosenpass::from_sk_pk(&sk, &pk);
+    #[cfg(feature = "experiment_api")]
+    let cfg = RosenpassConfig::from_sk_pk(Some(&sk), Some(&pk));
+    #[cfg(not(feature = "experiment_api"))]
+    let cfg = RosenpassConfig::from_sk_pk(&sk, &pk);
 
-    // Missing secret key does not validate
-    assert!(cfg.validate().is_err());
+    // missing secret key (file does not exist) does not validate
+    assert!(cfg.validate(validation_recipe).is_err());
 
     // But passes usefulness (the configuration is useful but invalid)
     assert!(cfg.check_usefullness().is_ok());
@@ -26,11 +35,11 @@ fn example_config_rosenpass_validate() -> anyhow::Result<()> {
     // Providing empty key files does not help
     fs::write(&sk, b"")?;
     fs::write(&pk, b"")?;
-    assert!(cfg.validate().is_err());
+    assert!(cfg.validate(validation_recipe).is_err());
 
     // But after providing proper key files, the configuration validates
-    generate_and_save_keypair(sk, pk)?;
-    assert!(cfg.validate().is_ok());
+    generate_and_save_keypair(&sk, &pk, true)?;
+    assert!(cfg.validate(validation_recipe).is_ok());
 
     Ok(())
 }

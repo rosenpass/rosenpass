@@ -21,16 +21,24 @@ let
     # File suffices to include
     extensions = [
       "lock"
+      "pest"
       "rs"
       "service"
       "target"
       "toml"
       "zstd" # used for offloaded test vector values
+      # key material used by tests
+      "pqpk"
+      "pqsk"
+      "psk"
+      "wgpk"
+      "wgsk"
     ];
     # Files to explicitly include
     files = [
       "to/README.md"
       "rosenpass/src/internal/README.md"
+      "rosenpass/src/config/tests/README.md"
     ];
 
     src = ../.;

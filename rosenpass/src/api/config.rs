@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::app_server::AppServer;
 
 /// Configuration options for the Rosenpass API
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ApiConfig {
     /// Where in the file-system to create the unix socket the rosenpass API will be listening for
@@ -24,7 +24,21 @@ pub struct ApiConfig {
     pub stream_fd: Vec<i32>,
 }
 
+impl Default for ApiConfig {
+    fn default() -> Self {
+        Self::new_empty()
+    }
+}
+
 impl ApiConfig {
+    pub fn new_empty() -> ApiConfig {
+        ApiConfig {
+            listen_path: Vec::new(),
+            listen_fd: Vec::new(),
+            stream_fd: Vec::new(),
+        }
+    }
+
     /// Construct appropriate [UnixListener]s for each of the API
     /// listeners and connections configured in [Self] and invoke
     /// [AppServer::add_api_listener] for each to add them to the
