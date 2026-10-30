@@ -51,7 +51,13 @@
               };
             in
             {
-              rosenpass-rust-toolchain = final.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+              # rust-overlay enables Cargo's libsecret credential integration
+              # by default on Linux. It pulls in libsecret, whose test suite is
+              # flaky in the Nix build sandbox (e.g. on i686-linux), and this
+              # project doesn't use Cargo credentials.
+              rosenpass-rust-toolchain = (final.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
+                enableLibsecret = false;
+              };
               rosenpass = prev.rosenpass.override { inherit rustPlatform; };
               rp = prev.rp.override { inherit rustPlatform; };
             }
