@@ -45,7 +45,7 @@ pub type PublicPqKeySource = KeyFromDisk<TS!("pqpk"), { ciphers::StaticKem::PK_L
 pub type WgKeypairSource = Keypair<SecretWgKeySource, PublicWgKeySource>;
 // TODO: magic numbers for WireGuard key lengths
 pub type SecretWgKeySource = KeyFromDisk<TS!("wgsk"), 32>;
-pub type PublicWgKeySource = KeyFromDiskOrB64EncodedString<TS!("wgpk"), { 32 }>;
+pub type PublicWgKeySource = KeyFromDiskOrB64EncodedString<TS!("wgpk"), 32>;
 
 // ============================== inner types ==============================
 

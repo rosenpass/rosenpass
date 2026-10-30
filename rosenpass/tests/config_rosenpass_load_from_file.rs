@@ -1,5 +1,5 @@
-use anyhow::anyhow;
-use rosenpass::config::ResolvePathRelativeToConfig;
+use rosenpass::config::{PublicKeySource, ResolvePathRelativeToConfig, RosenpassConfig};
+use std::path::PathBuf;
 
 #[test]
 fn example_config_rosenpass_load_from_file() {
@@ -15,6 +15,6 @@ fn example_config_rosenpass_load_from_file() {
     let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_file, &file_path).unwrap();
 
     // resolve a key's absolute file path
-    let relative_secret_key_path = config.our_keypair.secret_key_source.get_secret_key_path();
+    let relative_secret_key_path = config.our_keypair.secret_key_source.get_key_path();
     let absolute_secret_key_path = config.resolve_path(&relative_secret_key_path);
 }

@@ -5,7 +5,6 @@
 mod api;
 mod app_server;
 mod config;
-mod config;
 mod error;
 mod hash_domains;
 mod internal;
@@ -13,10 +12,7 @@ mod msgs;
 mod oldcli;
 mod protocol;
 
-use crate::oldcli::CliCommand;
-use crate::{error::RosenpassError, oldcli::CliArgs};
-use clap::CommandFactory;
-use clap::Parser;
+use crate::{error::RosenpassError, oldcli::CliCommand};
 use clap_mangen::roff::{Roff, roman};
 use log::error;
 use std::process::exit;
@@ -33,14 +29,12 @@ fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File)
 ///
 /// The bulk of the command line logic is handled inside [crate::oldcli::CliCommand::run].
 pub fn main() {
-    // parse CLI arguments
-    let subcommand = CliCommand::parse_from_env();
-
     // DO NOT set logging here. Logging is set differently per subcommand.
     // I.e. the exchange command reads it from the command line, the exchange-config command
     // reads it from a config file, some commands just use the default.
 
-    match subcommand.run(None) {
+    // run the application based on the command line arguments
+    match CliCommand::parse_and_run_from_env(None) {
         Ok(_) => {}
         Err(e) => {
             error!("{e:?}");

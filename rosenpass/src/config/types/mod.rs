@@ -4,6 +4,8 @@ use super::{
 };
 #[cfg(feature = "experiment_api")]
 pub use crate::api::config::ApiConfig;
+#[cfg(feature= "experiment_api")]
+use crate::oldcli::BrokerInterface;
 use crate::{
     config::Verbosity,
     protocol::{ProtocolVersion, osk_domain_separator::OskDomainSeparator},
@@ -371,4 +373,12 @@ impl PeerWireguardOptions {
 pub enum OurWireguardKeypair {
     PublicKeyOnly(PublicWgKeySource),
     EntireKeypair(WgKeypairSource),
+}
+impl OurWireguardKeypair {
+    pub fn get_pubkey(&self) -> &PublicWgKeySource {
+        match &self {
+            Self::EntireKeypair(pair) => &pair.public_key_source,
+            Self::PublicKeyOnly(pubkey) => pubkey
+        }
+    }
 }

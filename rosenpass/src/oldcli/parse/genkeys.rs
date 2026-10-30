@@ -5,7 +5,11 @@ use crate::{
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
 use pest_typed_derive::TypedParser;
-use std::{iter, path::PathBuf};
+use std::{
+    fmt::{self, Display},
+    iter,
+    path::PathBuf,
+};
 
 #[derive(TypedParser)]
 #[grammar_inline = r#"
@@ -29,7 +33,16 @@ path = @{ (!separator ~ ANY)+ }
 #[emit_rule_reference]
 struct Parser;
 
-/// parse [`super::CliCommand::ExchangeConfig`] from a command line
+pub fn help<'a>() -> impl Display + 'a {
+    fmt::from_fn(|f| {
+        writeln!(
+            f,
+            r#"gen-keys [-s | --secret-key] <FILE> [-p | --public-key] <FILE> [-f | --force]"#
+        )
+    })
+}
+
+/// parse [`super::CliCommand::GenKeys`] from a command line
 pub fn parse(parameters: &str) -> Result<GenKeysParameters, anyhow::Error> {
     // parse parameter
     let parameters =

@@ -17,9 +17,6 @@
 //     },
 // }
 
-// TODO: use in parsing the CLI
-// let args: Vec<String> = std::env::args().collect::<Vec<_>>().join("\0");
-
 // TODO: process_parse_result should be moved to common module
 
 #[cfg(feature = "experiment_api")]
@@ -117,13 +114,18 @@ impl RosenpassConfig {
             (raw, transformed)
         };
         let verbosity = {
-            let raw = own_config.verbose();
-            let transformed = if raw.is_some() {
-                Verbosity::Verbose
-            } else {
-                Verbosity::Quiet
-            };
-            (raw, transformed)
+            own_config
+                .verbosity()
+                .map(|raw| {
+                    if raw.verbosity_verbose().is_some() {
+                        Verbosity::Verbose
+                    } else if raw.verbosity_quiet().is_some() {
+                        Verbosity::Quiet
+                    } else {
+                        panic!("unexpected verbosity");
+                    }
+                })
+                .unwrap_or_default()
         };
 
         let peers = parsed
@@ -150,7 +152,7 @@ impl RosenpassConfig {
         Ok((
             RosenpassConfig {
                 our_listen_addresses: listen_addresses.1.guaranteed_unwrap(),
-                verbosity: verbosity.1,
+                verbosity,
                 our_keypair: PqKeypairSource {
                     secret_key_source: SecretPqKeySource::new(KeyFromDiskInner::File(
                         our_secret_key.1,

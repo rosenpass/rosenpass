@@ -32,7 +32,7 @@ impl RosenpassConfig {
     pub fn load_from_file(file_path: &Path) -> Result<RosenpassConfig, anyhow::Error> {
         // read config file from disk
         let toml_raw = String::from_utf8(
-            std::fs::read(&file_path).map_err(|e| anyhow!("can not read from file: {e}"))?,
+            std::fs::read(file_path).map_err(|e| anyhow!("can not read from file: {e}"))?,
         )
         .map_err(|e| anyhow!("invalid UTF-8 contents in configuration file"))?;
 
@@ -41,10 +41,11 @@ impl RosenpassConfig {
 
         // parse TOML into RosenpassConfig
         // TODO: should these errors be passed to the caller instead of being printed directly?
-        let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_document, &file_path)
+        let (config, warnings) = RosenpassConfig::parse_from_toml(&toml_document, file_path)
             .map_err(|e| {
                 e.iter()
-                    .map(|e| anstream::eprintln!("{}", e.pretty(toml_raw.as_str())));
+                    .map(|e| anstream::eprintln!("{}", e.pretty(toml_raw.as_str())))
+                    .for_each(drop);
                 anyhow!("parsing failed")
             })?;
 

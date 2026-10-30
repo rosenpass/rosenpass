@@ -7,4 +7,5 @@ pub mod errors;
 pub mod implementation;
 pub mod util;
 
+#[cfg(feature = "experiment_api")]
 use super::ApiConfig;

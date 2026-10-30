@@ -17,16 +17,17 @@ own_config = {
     own_public_key
     ~ separator ~ own_secret_key
     ~ (separator ~ listen)*
-    ~ (separator ~ verbose)?
+    ~ (separator ~ verbosity)?
 }
 
 own_public_key = { "public-key" ~ separator ~ path }
 own_secret_key = { "secret-key" ~ separator ~ path }
 listen         = { "listen" ~ separator ~ socket_address }
 
-// TODO: support "quiet"
 // TODO: support "log-level"
-verbose        = { "verbose" }
+verbosity         = { verbosity_verbose | verbosity_quiet }
+verbosity_verbose = @{ "verbose" }
+verbosity_quiet   = @{ "quiet" }
 
 // TODO: experiment_api
 

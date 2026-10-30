@@ -56,7 +56,7 @@ pub(crate) fn print_parse_result(
         }
     }
 }
-fn replace_spaces(input: &str) -> String {
+pub(crate) fn replace_spaces(input: &str) -> String {
     let input = input.replace('\n', " ");
     let mut chars = input.chars().peekable();
     let mut output = String::with_capacity(input.len());

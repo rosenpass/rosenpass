@@ -1,0 +1,51 @@
+separator = _{ "\0" }
+
+command_line = ${ SOI ~ subcommand ~ EOI }
+subcommand = { subcommand_help | subcommand_normal }
+subcommand_normal = { subcommand_not_help ~ (separator ~ argument)* }
+
+subcommand_help = {
+    // rosenpass --help <subcommand>
+    help_literal
+    ~ separator
+    ~ subcommand_not_help
+    ~ (separator ~ argument)*
+
+    |
+
+    // rosenpass --help
+    help_literal
+    ~ separator
+    ~ (separator ~ argument)*
+
+    |
+
+    // rosenpass <subcommand> [parameters] --help [parameters]
+    subcommand_not_help
+    ~ (separator ~ non_help_argument)*
+    ~ separator
+    ~ help_literal
+    ~ (separator ~ argument)*
+}
+
+argument = @{ (!separator ~ ANY)* }
+non_help_argument = @{ !help_literal ~ (!separator ~ ANY)* }
+help_literal = @{ ("--help" | "-h" | "help") ~ &(separator | EOI) }
+
+subcommand_not_help = {
+    subcommand_exchange_config
+    | subcommand_exchange
+    | subcommand_gen_config
+    | subcommand_gen_keys
+    | subcommand_validate
+    | subcommand_generate_manpage
+    | subcommand_generate_shell_completion
+}
+
+subcommand_exchange_config = { "exchange-config" }
+subcommand_exchange = { "exchange" }
+subcommand_gen_config = { "gen-config" }
+subcommand_gen_keys = { "gen-keys" | "keygen" }
+subcommand_validate = { "validate" }
+subcommand_generate_manpage = { "--generate-manpage" }
+subcommand_generate_shell_completion = { "--print-completions" }

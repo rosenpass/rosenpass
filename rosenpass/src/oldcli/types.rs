@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::config::RosenpassConfig;
+use crate::{config::RosenpassConfig, oldcli::BrokerInterface};
 
 /// represents a command specified via CLI
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub enum CliCommand {
     /// the specified peers. If a peer's endpoint is specified, this Rosenpass
     /// instance will try to initiate a key exchange with the peer; otherwise,
     /// only initiation attempts from other peers will be responded to.
-    ExchangeConfig(RosenpassConfig),
+    ExchangeConfig(ExchangeConfigParameters),
 
     /// start Rosenpass key exchanges based on command line arguments
     ///
@@ -34,12 +34,18 @@ pub enum CliCommand {
     GenerateManpage(PathBuf),
 
     /// generate completion file for a shell
-    GenerateShellCompletion(clap_complete::Shell),
+    ///
+    /// TODO: take `clap_complete::Shell` parameter?
+    GenerateShellCompletion(()),
 
     // print help for the entire application or for the specified subcommand
     Help(Option<FlatCliCommand>),
 }
-
+#[derive(Debug)]
+pub struct ExchangeConfigParameters {
+    pub config: RosenpassConfig,
+    pub psk_broker_config: Option<BrokerInterface>,
+}
 #[derive(Debug)]
 pub struct GenConfigParameters {
     /// file path to the where the config is written
