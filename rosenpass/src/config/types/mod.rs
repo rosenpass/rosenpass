@@ -5,7 +5,7 @@ use super::{
 #[cfg(feature = "experiment_api")]
 pub use crate::api::config::ApiConfig;
 #[cfg(feature= "experiment_api")]
-use crate::oldcli::BrokerInterface;
+use crate::cli::BrokerInterface;
 use crate::{
     config::Verbosity,
     protocol::{ProtocolVersion, osk_domain_separator::OskDomainSeparator},

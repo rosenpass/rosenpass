@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{config::RosenpassConfig, oldcli::BrokerInterface};
+use crate::{config::RosenpassConfig, cli::BrokerInterface};
 
 /// represents a command specified via CLI
 #[derive(Debug)]

@@ -6,9 +6,9 @@
 //!
 //! It contains the following modules:
 //! - [`crate::app_server`] contains the business logic of rosenpass, handling networking
-//! - [`crate::oldcli`] contains the cli parsing logic and contains quite a bit of startup logic; the
-//!   main function quickly hands over to [`crate::oldcli::CliArgs::run`] which contains quite a bit
-//!   of our startup logic
+//! - [`crate::cli`] contains the cli parsing logic and contains quite a bit of startup logic; the
+//!   main function quickly hands over to [`crate::cli::CliCommand::run`] which contains will
+//!   execute the supplied command line
 //! - [`crate::config`] has the code to parse and generate configuration files
 //! - [`crate::hash_domains`] lists the different hash function domains used in the Rosenpass
 //!   protocol
@@ -33,7 +33,7 @@ pub mod app_server;
 pub mod config;
 pub mod hash_domains;
 pub mod msgs;
-pub mod oldcli;
+pub mod cli;
 pub mod protocol;
 
 #[cfg(feature = "experiment_api")]

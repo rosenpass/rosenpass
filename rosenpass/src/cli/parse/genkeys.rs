@@ -1,6 +1,6 @@
 use crate::{
     config::{PrettyIssueOutput, RosenpassConfig},
-    oldcli::types::GenKeysParameters,
+    cli::types::GenKeysParameters,
 };
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
@@ -103,7 +103,7 @@ pub fn parse(parameters: &str) -> Result<GenKeysParameters, anyhow::Error> {
 
     // return
     Ok(GenKeysParameters {
-        file_paths: crate::oldcli::GenKeysPathsSource::Raw {
+        file_paths: crate::cli::GenKeysPathsSource::Raw {
             secret_key_file: PathBuf::from(secret),
             public_key_file: PathBuf::from(public),
         },

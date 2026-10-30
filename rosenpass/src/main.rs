@@ -9,10 +9,10 @@ mod error;
 mod hash_domains;
 mod internal;
 mod msgs;
-mod oldcli;
+mod cli;
 mod protocol;
 
-use crate::{error::RosenpassError, oldcli::CliCommand};
+use crate::{error::RosenpassError, cli::CliCommand};
 use clap_mangen::roff::{Roff, roman};
 use log::error;
 use std::process::exit;
@@ -27,7 +27,7 @@ fn print_custom_man_section(section: &str, text: &str, file: &mut std::fs::File)
 
 /// parses command line, catches errors, prints them through the logger, then exits
 ///
-/// The bulk of the command line logic is handled inside [crate::oldcli::CliCommand::run].
+/// The bulk of the command line logic is handled inside [crate::cli::CliCommand::run].
 pub fn main() {
     // DO NOT set logging here. Logging is set differently per subcommand.
     // I.e. the exchange command reads it from the command line, the exchange-config command

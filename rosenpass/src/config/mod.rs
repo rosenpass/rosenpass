@@ -44,7 +44,7 @@ pub trait PrettyIssueOutput {
 //
 
 use crate::app_server::AppServer;
-use crate::oldcli::BrokerInterface;
+use crate::cli::BrokerInterface;
 use crate::protocol::ProtocolVersion;
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};

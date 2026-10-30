@@ -1,6 +1,6 @@
 use crate::{
     config::{PrettyIssueOutput, RosenpassConfig},
-    oldcli::types::GenConfigParameters,
+    cli::types::GenConfigParameters,
 };
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};

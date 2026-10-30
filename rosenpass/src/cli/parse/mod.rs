@@ -1,5 +1,5 @@
 //! TODO: rustfmt silently gives up on this file
-use crate::{app_server::AppServerTest, oldcli::types::GenConfigParameters};
+use crate::{app_server::AppServerTest, cli::types::GenConfigParameters};
 
 use super::{
     BrokerInterface, CliCommand, ExchangeConfigParameters, FlatCliCommand, GenKeysParameters,
@@ -19,7 +19,7 @@ pub mod test;
 pub mod validate;
 
 #[derive(TypedParser)]
-#[grammar = "oldcli/parse/subcommand.pest"]
+#[grammar = "cli/parse/subcommand.pest"]
 #[emit_rule_reference]
 pub struct SubCommandTypeParser;
 

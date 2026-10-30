@@ -1,5 +1,5 @@
 #![cfg(test)]
-//! unit tests for [`crate::oldcli::CliCommand::parse`]
+//! unit tests for [`crate::cli::CliCommand::parse`]
 
 use std::path::PathBuf;
 
