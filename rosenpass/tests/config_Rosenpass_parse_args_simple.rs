@@ -16,7 +16,7 @@ fn parse_simple() {
                 peer.test:9999 outfile /peer/rp-out";
     let argv = replace_spaces(argv); // replace continues whitespace with '\0'
 
-    let (config, _warnings) = RosenpassConfig::parse_from_cli(argv.as_str()).unwrap();
+    let (config, _warnings) = RosenpassConfig::parse_from_cli_parameters(argv.as_str()).unwrap();
 
     // our config
     assert_eq!(

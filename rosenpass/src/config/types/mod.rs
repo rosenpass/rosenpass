@@ -17,7 +17,7 @@ use cidr::IpCidr;
 pub use core::net::SocketAddr;
 use debug_ignore::DebugIgnore;
 use indexmap::IndexSet;
-use std::{iter, path::PathBuf};
+use std::{iter, net::IpAddr, path::PathBuf};
 
 // submodules
 pub mod keys;
@@ -178,6 +178,16 @@ enum FlatWgDeviceCreateOptions {
 pub struct DeviceWireguardOptions {
     pub wg_listen_port: Option<u16>,
     pub wg_fwmark: Option<u16>,
+    
+    /// this IP address should be set when creating the device like 
+    /// ```sh,ignore
+    /// ip address add <ADDR> dev <DEVICE>
+    /// ```
+    pub set_ip_addr: Option<IpAddr>,
+
+    pub set_listen_addr: Option<SocketAddr>,
+
+    pub set_secret_key: Option<SecretWgKeySource>,
 }
 
 // ============================== [[peers]] ==============================

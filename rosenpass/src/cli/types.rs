@@ -2,6 +2,16 @@ use std::path::PathBuf;
 
 use crate::{cli::BrokerInterface, config::RosenpassConfig};
 
+/// grammar for the CLI
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum CliGrammar {
+    /// grammar for the `rosenpass` command
+    Rosenpass,
+
+    /// grammar for the `rp` command
+    Rp,
+}
+
 /// represents a command specified via CLI
 #[derive(Debug)]
 pub enum CliCommand {
@@ -27,6 +37,11 @@ pub enum CliCommand {
     /// TODO: support alternative secret-key name: `public-key <PATH> private-key <PATH>`
     GenKeys(GenKeysParameters),
 
+    /// generate public keys directory from a secret keys directory
+    ///
+    /// This is currently an `rp` only command
+    GenPubKeys(GenPubKeysParameters),
+
     /// validate a configuration file
     Validate(Vec<PathBuf>),
 
@@ -39,7 +54,7 @@ pub enum CliCommand {
     GenerateShellCompletion(()),
 
     // print help for the entire application or for the specified subcommand
-    Help(Option<FlatCliCommand>),
+    Help((Option<FlatCliCommand>, CliGrammar)),
 }
 #[derive(Debug)]
 pub struct ExchangeConfigParameters {
@@ -66,14 +81,25 @@ pub struct GenKeysParameters {
 /// from where the [`CliCommand::GenKeys`] will read the paths of the secret/public key files
 #[derive(Debug)]
 pub enum GenKeysPathsSource {
-    // read the destination of the secret/public key files from the config
+    /// read the destination of the secret/public key files from the config
+    ///
+    /// This will only create the PQ keypair `pqsk`/`pqpk`.
     FromConfig(RosenpassConfig),
 
     /// the user just specified the file paths on the command line
     Raw {
+        /// if set, algorithm is supposed to also create this directory for writing any key files
+        generate_directory: Option<PathBuf>,
         secret_key_file: PathBuf,
         public_key_file: PathBuf,
+        wg_secret_key_file: Option<PathBuf>,
     },
+}
+
+#[derive(Debug)]
+pub struct GenPubKeysParameters {
+    pub secret_keys_directory: PathBuf,
+    pub public_keys_directory: PathBuf,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -82,6 +108,7 @@ pub enum FlatCliCommand {
     Exchange,
     GenConfig,
     GenKeys,
+    GenPubkeys,
     Validate,
     GenerateManpage,
     GenerateShellCompletion,
@@ -95,6 +122,7 @@ impl From<&CliCommand> for FlatCliCommand {
             CliCommand::Exchange(_) => Self::Exchange,
             CliCommand::GenConfig(_) => Self::GenConfig,
             CliCommand::GenKeys(_) => Self::GenKeys,
+            CliCommand::GenPubkeys(_) => Self::GenPubkeys,
             CliCommand::Validate(_) => Self::Validate,
             CliCommand::GenerateManpage(_) => Self::GenerateManpage,
             CliCommand::GenerateShellCompletion(_) => Self::GenerateShellCompletion,

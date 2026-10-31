@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use super::{CliCommand, FlatCliCommand, GenKeysParameters, GenKeysPathsSource};
 use crate::config::tests::test_cli::harness::replace_spaces;
 
+// TODO: write all these tests for `rp`, too
+
 // ======================================== TODO: exchange ========================================
 
 // ======================================== TODO: exchange config ========================================

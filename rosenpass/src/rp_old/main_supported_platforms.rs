@@ -2,14 +2,9 @@ use std::{fs, process::exit};
 
 use rosenpass::internal::util::tokio::janitor::ensure_janitor;
 
-use crate::cli::{Cli, Command};
-use crate::exchange::{ExchangeOptions, exchange};
-use crate::key::{genkey, pubkey};
-
-#[tokio::main]
-pub async fn main() -> anyhow::Result<()> {
-    ensure_janitor(async move { main_impl().await }).await
-}
+use super::cli::{Cli, Command};
+use super::exchange::{ExchangeOptions, exchange};
+use super::key::{genkey, pubkey};
 
 async fn main_impl() -> anyhow::Result<()> {
     let cli = match Cli::parse(std::env::args().peekable()) {
@@ -27,7 +22,7 @@ async fn main_impl() -> anyhow::Result<()> {
     let command = cli.command.unwrap();
 
     match command {
-        Command::GenKey { private_keys_dir } => genkey(&private_keys_dir),
+        // Command::GenKey { private_keys_dir } => genkey(&private_keys_dir),
         Command::PubKey {
             private_keys_dir,
             public_keys_dir,
@@ -36,13 +31,14 @@ async fn main_impl() -> anyhow::Result<()> {
             options.verbose = cli.verbose;
             exchange(options).await
         }
-        Command::ExchangeConfig { config_file } => {
-            let s: String = fs::read_to_string(config_file).expect("cannot read config");
-            let mut options: ExchangeOptions =
-                toml::from_str::<ExchangeOptions>(&s).expect("cannot parse config");
-            options.verbose = options.verbose || cli.verbose;
-            exchange(options).await
-        }
+        // done:
+        // Command::ExchangeConfig { config_file } => {
+        //     let s: String = fs::read_to_string(config_file).expect("cannot read config");
+        //     let mut options: ExchangeOptions =
+        //         toml::from_str::<ExchangeOptions>(&s).expect("cannot parse config");
+        //     options.verbose = options.verbose || cli.verbose;
+        //     exchange(options).await
+        // }
         Command::Help => {
             println!("Usage: rp [verbose] genkey|pubkey|exchange [ARGS]...");
             Ok(())

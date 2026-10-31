@@ -1,10 +1,11 @@
 #[cfg(feature = "experiment_api")]
 use super::psk_broker::get_broker_socket;
+
 use super::{
     CliCommand, FlatCliCommand, GenKeysPathsSource,
     parse::{
         exchange, exchange_config, generate_config, generate_manpage, generate_shell_completion,
-        genkeys, validate,
+        genkeys, genpubkeys, validate,
     },
     psk_broker::create_broker,
 };
@@ -33,21 +34,7 @@ use crate::{
         protocol_context::WireGuardKeyBinding,
     },
 };
-use anyhow::{anyhow, bail, ensure};
-
-#[cfg(feature = "experiment_api")]
-use {
-    crate::internal::util::rustix::claim_fd,
-    crate::internal::wireguard_broker::WireguardBrokerMio,
-    crate::internal::wireguard_broker::brokers::mio_client::MioBrokerClient,
-    command_fds::{CommandFdExt, FdMapping},
-    log::{error, info},
-    mio::net::UnixStream,
-    rustix::net::{AddressFamily, SocketFlags, SocketType, socketpair},
-    std::os::unix::net,
-    std::process::Command,
-    std::thread,
-};
+use anyhow::{bail, ensure};
 
 impl CliCommand {
     pub fn run(
@@ -170,31 +157,35 @@ impl CliCommand {
                     return;
                 }
             }
-            Self::Help(subcommand) => {
+            Self::Help((subcommand, grammar)) => {
                 const INDENT: &str = "    ";
                 match subcommand {
                     Some(FlatCliCommand::ExchangeConfig) => {
-                        anstream::eprint!("{tool_name} {}", exchange_config::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", exchange_config::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::Exchange) => {
-                        anstream::eprint!("{tool_name} {}", exchange::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", exchange::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::GenConfig) => {
-                        anstream::eprint!("{tool_name} {}", generate_config::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", generate_config::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::GenKeys) => {
-                        anstream::eprint!("{tool_name} {}", genkeys::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", genkeys::help(INDENT, grammar))
+                    }
+                    Some(FlatCliCommand::GenPubkeys) => {
+                        anstream::eprint!("{tool_name} {}", genpubkeys::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::Validate) => {
-                        anstream::eprint!("{tool_name} {}", validate::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", validate::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::GenerateManpage) => {
-                        anstream::eprint!("{tool_name} {}", generate_manpage::help(INDENT))
+                        anstream::eprint!("{tool_name} {}", generate_manpage::help(INDENT, grammar))
                     }
                     Some(FlatCliCommand::GenerateShellCompletion) => {
                         todo!("shell completions are not yet supported");
                         // anstream::eprintln!("{tool_name} {}", generate_shell_completion::help(INDENT))
                     }
+                    // there is no help on help on help on help...
                     Some(FlatCliCommand::Help) => unreachable!(),
                     None => anstream::eprint!("{tool_name} {}", help(INDENT)),
                 }

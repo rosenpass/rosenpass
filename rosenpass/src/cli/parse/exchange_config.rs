@@ -1,5 +1,4 @@
-use super::BrokerInterface;
-use super::ExchangeConfigParameters;
+use super::{BrokerInterface, CliGrammar, ExchangeConfigParameters};
 use crate::config::RosenpassConfig;
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
@@ -40,13 +39,35 @@ pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
 }
 
 /// parse [`super::CliCommand::ExchangeConfig`] from a command line
-pub fn parse(parameters: &str) -> Result<ExchangeConfigParameters, anyhow::Error> {
+/// 
+/// Note: This subcommand does actually *not* depend on the [`CliGrammar`]. `rp` and `rosenpass`
+/// implement the same `exchange-config` subcommand
+pub fn parse(
+    parameters: &str,
+    grammar: CliGrammar,
+) -> Result<ExchangeConfigParameters, anyhow::Error> {
+    
+    // This command does no depend on the grammar – see function doc comment
+    std::mem::drop(grammar);
+
+    // parse
     let parameters =
         Parser::try_parse::<pairs::exchange_config_arguments>(parameters).map_err(|error| {
             let error = error
-                .renamed_rules(|rule| match rule.name() {
-                    "path" => "path to a configuration file".into(),
-                    name => name.into(),
+                .renamed_rules(|rule| match *rule {
+                    // TODO: due to an upstream bug, this renaming is not applied:
+                    // https://github.com/TheVeryDarkness/pest-typed/issues/4
+                    Rule::exchange_config_arguments => "argument to the subcommand".into(),
+                    Rule::psk_broker_option => "a PSK broker setting".into(),
+                    Rule::psk_broker_spawn => "--psk-broker-spawn".into(),
+                    Rule::psk_broker_path => "--psk-broker-path <PATH>".into(),
+                    Rule::psk_broker_fd => "--psk-broker-fd <FD>".into(),
+                    Rule::config_path => "path to a configuration file".into(),
+                    Rule::path => "path to a file".into(),
+                    Rule::broker_path => "path to a UNIX socket where the broker will listen".into(),
+                    Rule::file_descriptor => "a file descriptor".into(),
+                    Rule::EOI => "end of command line".into(),
+                    Rule::separator => "end of argument".into(),
                 })
                 .to_string()
                 .replace('\0', " ");

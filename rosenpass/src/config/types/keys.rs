@@ -145,6 +145,22 @@ impl<FN: IsTStr, const SIZE: usize> From<KeyFromDiskOrB64EncodedStringInner>
 }
 
 // ============================== getter functions for key content ==============================
+
+pub trait DefaultFileName {
+    /// return the default file name of a key, e.g. `pqsk`, `pqpk`, `wgsk`, `wgpk`
+    fn default_file_name() -> &'static str;
+}
+impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDisk<FN,SIZE> {
+    fn default_file_name() -> &'static str {
+        FN::STR
+    }
+}
+impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDiskOrB64EncodedString<FN,SIZE> {
+    fn default_file_name() -> &'static str {
+        FN::STR
+    }
+}
+
 pub trait SecretKeySource {
     fn get_secret_key_path(&self) -> PathBuf;
     // TODO:

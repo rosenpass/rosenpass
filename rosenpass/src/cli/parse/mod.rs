@@ -1,9 +1,7 @@
 //! TODO: rustfmt silently gives up on this file
-use crate::{app_server::AppServerTest, cli::types::GenConfigParameters};
-
 use super::{
-    BrokerInterface, CliCommand, ExchangeConfigParameters, FlatCliCommand, GenKeysParameters,
-    GenKeysPathsSource,
+    BrokerInterface, CliCommand, CliGrammar, ExchangeConfigParameters, FlatCliCommand,
+    GenKeysParameters, GenKeysPathsSource,GenPubKeysParameters
 };
 use anyhow::{anyhow, bail};
 use pest_typed::{RuleType, TypedParser};
@@ -15,6 +13,7 @@ pub mod generate_config;
 pub mod generate_manpage;
 pub mod generate_shell_completion;
 pub mod genkeys;
+pub mod genpubkeys;
 pub mod test;
 pub mod validate;
 
@@ -25,21 +24,22 @@ pub struct SubCommandTypeParser;
 
 /// - TODO: evaluate to Help if no parameter is given
 impl CliCommand {
-    pub fn parse_and_run_from_env(test_helpers: Option<AppServerTest>) -> anyhow::Result<()> {
-        let (command, tool_name) = Self::parse_from_env()?;
-        command.run(test_helpers, tool_name)
-    }
-
-    pub fn parse_from_env() -> anyhow::Result<(CliCommand, String)> {
+    pub fn parse_from_env(grammar: CliGrammar) -> anyhow::Result<(CliCommand, String)> {
         let args: String = std::env::args().collect::<Vec<_>>().join("\0");
-        CliCommand::parse(args.as_str())
+        CliCommand::parse(args.as_str(), grammar)
     }
 
     /// parses a command line and returns the [`CliCommand`] together with the tool name
     ///
-    /// TODO: doc
-    /// TODO: use proper error type instead of [`anyhow::Error`]
-    pub fn parse(command_line: &str) -> Result<(CliCommand, String), anyhow::Error> {
+    /// - TODO: doc
+    /// - TODO: use proper error type instead of [`anyhow::Error`]
+    /// - TODO: do not return the `tool_name` in the tuple but as part of `CliCommand` ?
+    /// - TODO: write unit tests for `rp` grammar
+    /// - TODO: write unit tests for `GenPubkeys`
+    pub fn parse(
+        command_line: &str,
+        grammar: CliGrammar,
+    ) -> Result<(CliCommand, String), anyhow::Error> {
         // parse with `pest_typed`
         let command_line = SubCommandTypeParser::try_parse::<pairs::command_line>(command_line)
             .map_err(|error| {
@@ -58,70 +58,85 @@ impl CliCommand {
         let tool_name = command_line.tool_name().span.as_str().to_string();
         let subcommand = command_line.subcommand();
 
-        let subcommand =
-        // parse complicated "help" subcommand
-        if let Some(subcommand_help) = subcommand.subcommand_help() {
-            let subcommand = [
-                subcommand_help.subcommand_not_help().0,
-                subcommand_help.subcommand_not_help().1,
-            ]
-            .iter()
-              .flatten().next().map(|sub| ->Result<FlatCliCommand,anyhow::Error> {
-                 let sub = if sub.subcommand_exchange_config().is_some() {
-                    FlatCliCommand::ExchangeConfig
-                 }
-                else if sub.subcommand_exchange().is_some() {
-                    FlatCliCommand::Exchange
-                }
-                else if sub.subcommand_gen_config().is_some() {
-                    FlatCliCommand::GenConfig
-                }
-                else if sub.subcommand_gen_keys().is_some() {
-                    FlatCliCommand::GenKeys
-                }
-                else if sub.subcommand_validate().is_some() {
-                    FlatCliCommand::Validate
-                }
-                else if sub.subcommand_generate_manpage().is_some() {
-                    FlatCliCommand::GenerateManpage
-                }
-                else if sub.subcommand_generate_shell_completion().is_some() {
-                    FlatCliCommand::GenerateShellCompletion
-                }
-                else{
-                    bail!("unknown subcommand \"{}\"", sub.span.as_str().replace('\0'," "))    
-                };
-                Ok(sub)
-            }).transpose()?;
-            CliCommand::Help(subcommand)
-        }
-        // parse all other subcommands
-        else if let Some(subcommand) = subcommand.subcommand_normal(){
-            let remainder = subcommand.argument().iter().map(|a|a.span.as_str()).collect::<Vec<_>>().join("\0");
-            let remainder = remainder.as_str();
-
-              let subcommand = subcommand.subcommand_not_help();
-
-            if subcommand.subcommand_exchange_config().is_some() {
-                CliCommand::ExchangeConfig(exchange_config::parse(remainder)?)
-            } else if subcommand.subcommand_exchange().is_some() {
-                CliCommand::Exchange(exchange::parse(remainder)?)
-            } else if subcommand.subcommand_gen_config().is_some() {
-                CliCommand::GenConfig(generate_config::parse(remainder)?)
-            } else if subcommand.subcommand_gen_keys().is_some() {
-                CliCommand::GenKeys(genkeys::parse(remainder)?)
-            } else if subcommand.subcommand_validate().is_some() {
-                CliCommand::Validate(validate::parse(remainder)?)
-            } else if subcommand.subcommand_generate_manpage().is_some() {
-                CliCommand::GenerateManpage(generate_manpage::parse(remainder)?)
-            } else if subcommand.subcommand_generate_shell_completion().is_some() {
-                bail!("shell completion is not yet implemented"); // TODO: implement shell completion
-                // CliCommand::GenerateShellCompletion(generate_shell_completion::parse(remainder)?)
-            } else {
-                bail!("unknown subcommand \"{}\"", subcommand.span.as_str().replace('\0'," "))
+        let subcommand = {
+            // parse complicated "help" subcommand
+            if let Some(subcommand_help) = subcommand.subcommand_help() {
+                let subcommand = [
+                    subcommand_help.subcommand_not_help().0,
+                    subcommand_help.subcommand_not_help().1,
+                ]
+                .iter()
+                .flatten()
+                .next()
+                .map(|sub| -> Result<FlatCliCommand, anyhow::Error> {
+                    let sub = if sub.subcommand_exchange_config().is_some() {
+                        FlatCliCommand::ExchangeConfig
+                    } else if sub.subcommand_exchange().is_some() {
+                        FlatCliCommand::Exchange
+                    } else if sub.subcommand_gen_config().is_some() {
+                        FlatCliCommand::GenConfig
+                    } else if sub.subcommand_gen_keys().is_some() {
+                        FlatCliCommand::GenKeys
+                    } else if sub.subcommand_gen_pubkeys().is_some() {
+                        FlatCliCommand::GenPubkeys
+                    } else if sub.subcommand_validate().is_some() {
+                        FlatCliCommand::Validate
+                    } else if sub.subcommand_generate_manpage().is_some() {
+                        FlatCliCommand::GenerateManpage
+                    } else if sub.subcommand_generate_shell_completion().is_some() {
+                        FlatCliCommand::GenerateShellCompletion
+                    } else {
+                        bail!(
+                            "unknown subcommand \"{}\"",
+                            sub.span.as_str().replace('\0', " ")
+                        )
+                    };
+                    Ok(sub)
+                })
+                .transpose()?;
+                CliCommand::Help((subcommand, grammar))
             }
-        }else {
-            bail!("unknown subcommand \"{}\"", subcommand.span.as_str().replace('\0'," "))
+            // parse all other subcommands
+            else if let Some(subcommand) = subcommand.subcommand_normal() {
+                let remainder = subcommand
+                    .argument()
+                    .iter()
+                    .map(|a| a.span.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\0");
+                let remainder = remainder.as_str();
+
+                let subcommand = subcommand.subcommand_not_help();
+
+                if subcommand.subcommand_exchange_config().is_some() {
+                    CliCommand::ExchangeConfig(exchange_config::parse(remainder, grammar)?)
+                } else if subcommand.subcommand_exchange().is_some() {
+                    CliCommand::Exchange(exchange::parse(remainder, grammar)?)
+                } else if subcommand.subcommand_gen_config().is_some() {
+                    CliCommand::GenConfig(generate_config::parse(remainder)?)
+                } else if subcommand.subcommand_gen_keys().is_some() {
+                    CliCommand::GenKeys(genkeys::parse(remainder, grammar)?)
+                } else if subcommand.subcommand_gen_pubkeys().is_some() {
+                    CliCommand::GenPubKeys(genpubkeys::parse(remainder, grammar)?)
+                } else if subcommand.subcommand_validate().is_some() {
+                    CliCommand::Validate(validate::parse(remainder)?)
+                } else if subcommand.subcommand_generate_manpage().is_some() {
+                    CliCommand::GenerateManpage(generate_manpage::parse(remainder)?)
+                } else if subcommand.subcommand_generate_shell_completion().is_some() {
+                    bail!("shell completion is not yet implemented"); // TODO: implement shell completion
+                // CliCommand::GenerateShellCompletion(generate_shell_completion::parse(remainder)?)
+                } else {
+                    bail!(
+                        "unknown subcommand \"{}\"",
+                        subcommand.span.as_str().replace('\0', " ")
+                    )
+                }
+            } else {
+                bail!(
+                    "unknown subcommand \"{}\"",
+                    subcommand.span.as_str().replace('\0', " ")
+                )
+            }
         };
         Ok((subcommand, tool_name))
     }

@@ -3,12 +3,12 @@
 //! TODO: allow mutilple spans per problem
 
 use core::fmt;
-use std::fmt::Display;
+use std::{fmt::Display, net::IpAddr};
 
 use anstyle::AnsiColor;
 use thiserror::Error;
 
-use crate::config::{PrettyIssueOutput, parse_from_toml::util::ProcessableParseError};
+use crate::config::{PrettyIssueOutput, Verbosity, parse_from_toml::util::ProcessableParseError};
 
 // ============================== user-facing types ==============================
 #[derive(Debug)]
@@ -58,6 +58,29 @@ pub enum ParseProblemError {
 
     #[error("invalid command line syntax\n{0}")]
     InvalidCommandLineSyntax(String),
+
+    #[error("rp only supports one WireGuard device and you already specified device named \"{0}\"")]
+    MoreThanOneDeviceNameInRp(String),
+
+    #[error(
+        "rp only supports one WireGuard device with one IP address and you already specified device address \"{0}\""
+    )]
+    MoreThanOneDeviceAddressInRp(IpAddr),
+
+    #[error("rp only supports one listen address and you already specified \"{0}\"")]
+    MoreThanOneListenAddressInRp(SocketAddr),
+
+    #[error("\"{0}\" is not a valid IP address")]
+    InvalidIpAddress(String),
+
+    #[error("WireGuard device address \"{0}\" is specified but no device name")]
+    WgDeviceAddressWithoutNameInRp(IpAddr),
+
+    #[error("verbosity defined more than once, previously defined as \"{0}\"")]
+    MultipleVerbosity(Verbosity),
+
+    #[error("no WireGuard device specified")]
+    NoWireguardDeviceInRp,
 }
 
 #[must_use]

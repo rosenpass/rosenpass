@@ -3,16 +3,28 @@
 //! [CliArgs::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
+use crate::app_server::AppServerTest;
 use std::path::PathBuf;
 
 // submodules
 mod types;
 pub use types::{
-    CliCommand, ExchangeConfigParameters, FlatCliCommand, GenKeysParameters, GenKeysPathsSource,
+    CliCommand, CliGrammar, ExchangeConfigParameters, FlatCliCommand, GenKeysParameters,
+    GenKeysPathsSource, GenPubKeysParameters,
 };
 pub mod parse;
 pub mod psk_broker;
 pub mod run;
+
+impl CliCommand {
+    pub fn parse_and_run_from_env(
+        test_helpers: Option<AppServerTest>,
+        grammar: CliGrammar,
+    ) -> anyhow::Result<()> {
+        let (command, tool_name) = Self::parse_from_env(grammar)?;
+        command.run(test_helpers, tool_name)
+    }
+}
 
 /// How to reach a WireGuard PSK Broker
 #[derive(Debug, Clone)]

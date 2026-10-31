@@ -97,7 +97,7 @@ pub(crate) fn parse_str(line: &str) -> ParseResult<RosenpassConfig> {
     let line = replace_spaces(line);
 
     // parse
-    let result = RosenpassConfig::parse_from_cli(line.as_str());
+    let result = RosenpassConfig::parse_from_entire_cli(line.as_str());
 
     // print parse result for easier debugging
     print_parse_result(line.as_str(), &result);
