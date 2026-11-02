@@ -1,24 +1,26 @@
-#[cfg(feature = "experiment_api")]
-use super::psk_broker::get_broker_socket;
-
 use super::{
     CliCommand, FlatCliCommand, GenKeysPathsSource,
     parse::{
-        exchange, exchange_config, generate_config, generate_manpage, generate_shell_completion,
-        genkeys, genpubkeys, validate,
+        exchange, exchange_config, generate_config, generate_manpage, genkeys, genpubkeys, validate,
     },
     psk_broker::create_broker,
 };
 use std::{
     fmt::{self, Display},
+    fs::File,
     ops::DerefMut,
     path::{Path, PathBuf},
+    process::{Command, Stdio},
 };
 // #[cfg(feature = "experiment_api")]
 use super::BrokerInterface;
 use crate::{
     app_server::{AppServer, AppServerTest, BrokerPeer},
-    config::{PublicKeySource, RosenpassConfig, decode_wg_pubkey_b64, validate::ValidationRecipe},
+    config::{
+        KeyFromDisk, KeyFromDiskInner, KeyFromDiskOrB64EncodedString,
+        KeyFromDiskOrB64EncodedStringInner, NewFromInner, PublicKeySource, PublicPqKeySource,
+        RosenpassConfig, WgKeypairSource, decode_wg_pubkey_b64, validate::ValidationRecipe,
+    },
     internal::{
         cipher_traits::primitives::Kem,
         ciphers::StaticKem,
@@ -34,7 +36,7 @@ use crate::{
         protocol_context::WireGuardKeyBinding,
     },
 };
-use anyhow::{bail, ensure};
+use anyhow::{anyhow, bail, ensure};
 
 impl CliCommand {
     pub fn run(
@@ -63,15 +65,24 @@ impl CliCommand {
             Self::GenKeys(parameters) => {
                 match &parameters.file_paths {
                     GenKeysPathsSource::Raw {
+                        generate_directory,
                         secret_key_file,
                         public_key_file,
+                        wg_secret_key_file,
                     } => generate_and_save_keypair(
+                        generate_directory.as_deref(),
                         secret_key_file,
                         public_key_file,
+                        wg_secret_key_file.as_deref(),
                         parameters.force,
                     )?,
                     GenKeysPathsSource::FromConfig(config) => {
                         generate_and_save_keypair(
+                            // When reading the paths from config, we can generally assume that the
+                            // directory already exists because entering a path to a non-existent
+                            // directory into a TOML config file is not sth. that so. would do
+                            // intuitively.
+                            None,
                             config
                                 .our_keypair
                                 .secret_key_source
@@ -82,11 +93,100 @@ impl CliCommand {
                                 .public_key_source
                                 .get_key_path()
                                 .as_path(),
+                            todo!(
+                                "determine whether to create a WG secret key, see https://github.com/rosenpass/rosenpass/issues/1210"
+                            ),
                             // TODO: really force overwrite when reading from config file?
                             // https://github.com/rosenpass/rosenpass/issues/1193
                             parameters.force || true,
                         )?;
                     }
+                }
+            }
+            Self::GenPubKeys(parameters) => {
+                // TODO: this implementation would work greatly with two separate functions instead
+                // of an inline implementation
+
+                // TODO: maybe set umask?
+                // https://github.com/rosenpass/rosenpass/issues/1209
+                log::warn!(
+                    "creating public keys without setting umask, see {}",
+                    "https://github.com/rosenpass/rosenpass/issues/1209"
+                );
+
+                // create public key directy (this must not exist yet)
+                log::info!(
+                    "creating directory \"{}\"",
+                    parameters.public_keys_directory.display()
+                );
+                if parameters.public_keys_directory.exists() {
+                    bail!("public key directory already exists");
+                }
+                std::fs::DirBuilder::new()
+                    .recursive(true) // historically, rp 0.2.3 also creates parent dirs
+                    .create(parameters.public_keys_directory.clone())
+                    .map_err(|e| anyhow!(e).context("can not create public keys directory"));
+
+                // copy over the rosenpass public key
+                // TODO: historically, the pqpk is just copied over but maybe we want to derive it
+                // from the pqsk?
+                let old_pq_pubkey = PublicPqKeySource::new(KeyFromDiskInner::Directory(
+                    parameters.secret_keys_directory.clone(),
+                ))
+                .get_key_path();
+                let new_pq_pubkey = PublicPqKeySource::new(KeyFromDiskInner::Directory(
+                    parameters.public_keys_directory.clone(),
+                ))
+                .get_key_path();
+                log::info!(
+                    "copying over public key from \"{}\" to \"{}\"",
+                    old_pq_pubkey.display(),
+                    new_pq_pubkey.display()
+                );
+                std::fs::copy(old_pq_pubkey, new_pq_pubkey)
+                    .map_err(|e| anyhow!(e).context("can not copy rosenpass public key"));
+
+                // generate the WG public key
+                // use a command like this: `wg pubkey $SECRET_FILE  >  $PUBLIC_FILE`
+                let wg_keypair = WgKeypairSource {
+                    secret_key_source: KeyFromDisk::new(KeyFromDiskInner::Directory(
+                        parameters.secret_keys_directory.clone(),
+                    )),
+                    public_key_source: KeyFromDiskOrB64EncodedString::new(
+                        KeyFromDiskOrB64EncodedStringInner::Directory(
+                            parameters.public_keys_directory.clone(),
+                        ),
+                    ),
+                };
+                let wg_outfile = wg_keypair
+                    .public_key_source
+                    .get_key_path()
+                    // `None` is unreachable because we just defined the key source to
+                    // be a path in the previous let binding
+                    .expect("unreachable");
+                log::info!(
+                    "writing WireGuard public key to \"{}\"",
+                    wg_outfile.display()
+                );
+                let outfile = File::create(wg_outfile)
+                    .map_err(|e| anyhow!(e).context("can not create wg public key file"))?;
+                let exit_code = Command::new("wg")
+                    .arg("pubkey")
+                    .arg(wg_keypair.secret_key_source.get_key_path())
+                    .stdout(Stdio::from(outfile))
+                    .status()
+                    .map_err(|e| {
+                        anyhow!(e).context("can not spawn process \"wg\" to create public key")
+                    })?;
+                if !exit_code.success() {
+                    return Err(anyhow!(
+                        "\"wg\" returend with {}",
+                        exit_code
+                            .code()
+                            .map(|s| format!("exit code {s}"))
+                            .unwrap_or_else(|| "unknown exit code".to_string())
+                    )
+                    .context("can not create wg public key"));
                 }
             }
             Self::Validate(paths) => {
@@ -159,27 +259,22 @@ impl CliCommand {
             }
             Self::Help((subcommand, grammar)) => {
                 const INDENT: &str = "    ";
-                match subcommand {
+                let bold = anstyle::Style::new().bold();
+                let help: Box<dyn Display> = match subcommand {
                     Some(FlatCliCommand::ExchangeConfig) => {
-                        anstream::eprint!("{tool_name} {}", exchange_config::help(INDENT, grammar))
+                        Box::new(exchange_config::help(INDENT, *grammar))
                     }
-                    Some(FlatCliCommand::Exchange) => {
-                        anstream::eprint!("{tool_name} {}", exchange::help(INDENT, grammar))
-                    }
+                    Some(FlatCliCommand::Exchange) => Box::new(exchange::help(INDENT, *grammar)),
                     Some(FlatCliCommand::GenConfig) => {
-                        anstream::eprint!("{tool_name} {}", generate_config::help(INDENT, grammar))
+                        Box::new(generate_config::help(INDENT, *grammar)?)
                     }
-                    Some(FlatCliCommand::GenKeys) => {
-                        anstream::eprint!("{tool_name} {}", genkeys::help(INDENT, grammar))
+                    Some(FlatCliCommand::GenKeys) => Box::new(genkeys::help(INDENT, *grammar)),
+                    Some(FlatCliCommand::GenPubKeys) => {
+                        Box::new(genpubkeys::help(INDENT, *grammar)?)
                     }
-                    Some(FlatCliCommand::GenPubkeys) => {
-                        anstream::eprint!("{tool_name} {}", genpubkeys::help(INDENT, grammar))
-                    }
-                    Some(FlatCliCommand::Validate) => {
-                        anstream::eprint!("{tool_name} {}", validate::help(INDENT, grammar))
-                    }
+                    Some(FlatCliCommand::Validate) => Box::new(validate::help(INDENT, *grammar)?),
                     Some(FlatCliCommand::GenerateManpage) => {
-                        anstream::eprint!("{tool_name} {}", generate_manpage::help(INDENT, grammar))
+                        Box::new(generate_manpage::help(INDENT, *grammar))
                     }
                     Some(FlatCliCommand::GenerateShellCompletion) => {
                         todo!("shell completions are not yet supported");
@@ -187,8 +282,9 @@ impl CliCommand {
                     }
                     // there is no help on help on help on help...
                     Some(FlatCliCommand::Help) => unreachable!(),
-                    None => anstream::eprint!("{tool_name} {}", help(INDENT)),
-                }
+                    None => Box::new(help(INDENT)),
+                };
+                anstream::eprint!("{bold}{tool_name}{bold:#} {help}");
             }
         }
 
@@ -209,33 +305,95 @@ pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
 
 /// generate secret and public keys, store in files according to the paths passed as arguments
 pub fn generate_and_save_keypair(
-    secret_key: &Path,
-    public_key: &Path,
+    generate_directory: Option<&Path>,
+    secret_key_file: &Path,
+    public_key_file: &Path,
+    wg_secret_key: Option<&Path>,
     force: bool,
 ) -> anyhow::Result<()> {
+    // TODO: maybe set umask?
+    // https://github.com/rosenpass/rosenpass/issues/1209
+    log::warn!(
+        "creating secret/public keys without setting umask, see {}",
+        "https://github.com/rosenpass/rosenpass/issues/1209"
+    );
+
+    // create directory
+    if let Some(generate_directory) = generate_directory {
+        log::info!("creating directory \"{}\"", generate_directory.display());
+        if generate_directory.exists() {
+            bail!(
+                "can not create key  directory \"{}\" because it already exists",
+                generate_directory.display()
+            );
+        }
+        std::fs::DirBuilder::new()
+            .recursive(true) // historically, rp 0.2.3 also creates parent dirs
+            .create(generate_directory.clone())
+            .map_err(|e| anyhow!(e).context("can not create keys directory"));
+    }
+
     // check that we are not overriding something unintentionally
     let mut problems = vec![];
-    if !force && public_key.is_file() {
+    if !force && public_key_file.exists() {
         problems.push(format!(
             "public-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(public_key)?,
+            std::fs::canonicalize(public_key_file)?,
         ));
     }
-    if !force && secret_key.is_file() {
+    if !force && secret_key_file.exists() {
         problems.push(format!(
             "secret-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(secret_key)?,
+            std::fs::canonicalize(secret_key_file)?,
         ));
     }
     if !problems.is_empty() {
         bail!(problems.join("\n"));
     }
 
+    // generate and write secret key and public key
+    log::info!("generating static keypair");
     let mut ssk = crate::protocol::basic_types::SSk::random();
     let mut spk = crate::protocol::basic_types::SPk::random();
     StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
-    ssk.store_secret(secret_key)?;
-    spk.store(public_key)
+    log::info!(
+        "storing static secret key to \"{}\"",
+        secret_key_file.display()
+    );
+    ssk.store_secret(secret_key_file)?;
+    log::info!(
+        "storing static public key to \"{}\"",
+        public_key_file.display()
+    );
+    spk.store(public_key_file)?;
+
+    // generate WireGuard secret key with command line this: `wg genkey > $OUTFILE`
+    if let Some(wg_secret_key) = wg_secret_key {
+        log::info!(
+            "generating WireGuard secret key and writing it to \"{}\"",
+            wg_secret_key.display()
+        );
+        let outfile = File::create(wg_secret_key)
+            .map_err(|e| anyhow!(e).context("can not create wg secret key file"))?;
+        let exit_code = Command::new("wg")
+            .arg("genkey")
+            .stdout(Stdio::from(outfile))
+            .status()
+            .map_err(|e| anyhow!(e).context("can not spawn process \"wg\" to create secret key"))?;
+        if !exit_code.success() {
+            return Err(anyhow!(
+                "\"wg\" returend with {}",
+                exit_code
+                    .code()
+                    .map(|s| format!("exit code {s}"))
+                    .unwrap_or_else(|| "unknown exit code".to_string())
+            )
+            .context("can not create wg secret key"));
+        }
+    }
+
+    // return
+    Ok(())
 }
 
 #[cfg(feature = "internal_testing")]
@@ -243,10 +401,10 @@ pub mod testing {
     use super::*;
 
     pub fn generate_and_save_keypair(
-        secret_key: PathBuf,
-        public_key: PathBuf,
+        secret_key_file: PathBuf,
+        public_key_file: PathBuf,
     ) -> anyhow::Result<()> {
-        super::generate_and_save_keypair(&secret_key, &public_key, true)
+        super::generate_and_save_keypair(&secret_key_file, &public_key_file, true)
     }
 }
 
@@ -361,7 +519,7 @@ pub fn exchange_implementation(
             cfg_peer
                 .preshared_key
                 .as_ref()
-                .map(|psk| psk.get_key_path())
+                .map(|psk| psk.get_key_file_path())
                 .map(SymKey::load_b64::<MAX_PSK_SIZE, _>)
                 .transpose()?,
             SPk::load(cfg_peer.their_public_key.get_key_path())?,

@@ -27,14 +27,19 @@ public_key_dir = { path }
 #[emit_rule_reference]
 struct RosenpassParser;
 
-pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+pub fn help<'a>(indent: &'a str, grammar: CliGrammar) -> anyhow::Result<impl Display + 'a> {
     let i = indent; // shorter, save a bit of space in the code
-    fmt::from_fn(|f| {
-        writeln!(
-            f,
-            r#"pubkey <SECRET_KEYS_DIRECTORY> <PUBLIC_KEYS_DIRECTORY>"#
-        )
-    })
+    match grammar {
+        CliGrammar::Rp => Ok(fmt::from_fn(|f| {
+            writeln!(
+                f,
+                r#"pubkey <SECRET_KEYS_DIRECTORY> <PUBLIC_KEYS_DIRECTORY>"#
+            )
+        })),
+        CliGrammar::Rosenpass => bail!(
+            r#"The "rosenpass" command does not support this subcommand. Did you mean to call "rp" instead?"#
+        ),
+    }
 }
 
 /// parse [`super::CliCommand::GenPubKeys`] from a command line

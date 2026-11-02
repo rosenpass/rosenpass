@@ -1,5 +1,5 @@
 use crate::{
-    cli::types::GenConfigParameters,
+    cli::{CliGrammar, types::GenConfigParameters},
     config::{PrettyIssueOutput, RosenpassConfig},
 };
 use anyhow::{anyhow, bail};
@@ -26,16 +26,28 @@ force = @{ "--force" | "-f" }
 struct Parser;
 
 /// returns the help message for the `rosenpass gen-config` subcommand
-#[rustfmt::skip]
-pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+// #[rustfmt::skip]
+pub fn help<'a>(indent: &'a str, grammar: CliGrammar) -> anyhow::Result<impl Display + 'a> {
     let i = indent; // shorter, save a bit of space in the code
-    fmt::from_fn(move |f| {
-        todo!()
-    })
+    match grammar {
+        CliGrammar::Rosenpass => Ok(fmt::from_fn(move |f| {
+            writeln!(f, "generate-config <FILE> [-f | --force]")?;
+            Ok(())
+        })),
+        CliGrammar::Rp => {
+            bail!("this subcommand only exists for the rosenpass tool, not for the rp tool")
+        }
+    }
 }
 
 /// parse [`super::CliCommand::GenConfig`] from a command line
-pub fn parse(parameters: &str) -> Result<GenConfigParameters, anyhow::Error> {
+pub fn parse(parameters: &str, grammar: CliGrammar) -> Result<GenConfigParameters, anyhow::Error> {
+    match grammar {
+        CliGrammar::Rosenpass => (),
+        CliGrammar::Rp => {
+            bail!("this subcommand only exists for the rosenpass tool, not for the rp tool");
+        }
+    }
     let parameters =
         Parser::try_parse::<pairs::generate_config_arguments>(parameters).map_err(|error| {
             let error = error

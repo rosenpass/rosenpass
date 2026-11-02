@@ -23,16 +23,11 @@ use crate::{
     cli::CliGrammar,
     config::{
         ConfigSource, ConfigSourceCli, DeviceWireguardOptions, KeyFromDiskInner, NewFromInner,
-        PeerConfig, PqKeypairSource, PublicPqKeySource, RosenpassConfig,
-        RosenpassPeerOskDomainSeparator, SecretPqKeySource, Verbosity, WgDeviceConfig,
-        WgDeviceCreateOptions,
-        parse_from_cli::{
-            errors::ParseProblemError,
-            util::{parse_rosenpass_peer_wireguard, parse_rp_peer, parse_wireguard_options},
-        },
-        parse_from_toml::util::{GuaranteedUnwrap, ProcessParseResult, default_peer_name},
+        PqKeypairSource, PublicPqKeySource, RosenpassConfig, SecretPqKeySource, SecretWgKeySource,
+        Verbosity, WgDeviceConfig, WgDeviceCreateOptions,
+        parse_from_cli::{errors::ParseProblemError, util::parse_rp_peer},
+        parse_from_toml::util::{GuaranteedUnwrap, ProcessParseResult},
     },
-    internal::util::result::OkExt,
     protocol::ProtocolVersion,
 };
 use std::{
@@ -43,7 +38,6 @@ use std::{
 };
 
 pub mod errors;
-use anyhow::bail;
 pub use errors::{ParseError, ParseIssue, ParseResult, ParseWarning};
 use errors::{ProcessParseResult2, declare_issues, return_on_error};
 
@@ -103,13 +97,30 @@ impl RosenpassConfig {
     ) -> ParseResult<RosenpassConfig> {
         declare_issues!(errors, warnings);
         match grammar {
+            // `rp` command grammar has some specific quirks:
+            // - [x] expect exactly zero or one listen address
+            // - [x] if a listen address is set, then the WG device's port will be set to the listen
+            //   address' port + 1
+            // - [x] the `endpoint` of a peer (optional) does _not_ describe the WG endpoint. It is the
+            //   peer's rosenpass endpoint. The peer's WG endpoint will be the same but with
+            //   port + 1
+            // - [x] our WG device is exactly one (defaults to `rosenpass0` if not set by the user).
+            //   It is the same for all peers.
+            // - [x] rp always _creates_ a WireGuard device
+            // - [x] our WG device is suplied with its secret key (wgsk)
+            // - [x] the `ip` parameter can be used to assign the public IP address of our WG device
+            //   (optional)
+            // - [x] read the peer's WG pubkey from `<peer's pubkey dir>/wgpk` (must exist)
+            // - [x] read the PSK shared with a peer from `<peer's pubkey dir>/psk` (only if file
+            //   exists)
+            // TODO: write unit tests for all of these assumptions
             CliGrammar::Rp => {
                 let parsed =
                     match Parser::try_parse::<pairs::rp_exchange_parameters>(parameter_line) {
                         Ok(parsed) => parsed,
                         Err(error) => {
                             let error = error
-                                .renamed_rules(f)
+                                .renamed_rules(rename_rules)
                                 .with_path("command line")
                                 .to_string()
                                 .replace('\0', " ");
@@ -128,24 +139,20 @@ impl RosenpassConfig {
                     PathBuf::from(parsed.rp_secret_keys_dir().path().span.as_str());
                 let our_keypair = PqKeypairSource {
                     secret_key_source: SecretPqKeySource::new(KeyFromDiskInner::Directory(
-                        secret_keys_dir,
+                        secret_keys_dir.clone(),
                     )),
                     public_key_source: PublicPqKeySource::new(KeyFromDiskInner::Directory(
                         // sic!, the public keys are always also read from the same directory as the
                         // secret keys by the `rp` command
-                        secret_keys_dir,
+                        secret_keys_dir.clone(),
                     )),
                 };
 
-                let mut verbosity = OnceCell::new();
-                let mut our_listen_addresses = OnceCell::new();
-                // TODO: implement experimental API feature for `rp` CLI when it is stabilized
-                #[cfg(feature = "experiment_api")]
-                let mut api = ApiConfig::new_empty();
-                let mut peers = Vec::new();
-
-                let mut device_name = OnceCell::new();
-                let mut device_ip = OnceCell::new();
+                // optional parameters
+                let verbosity = OnceCell::new();
+                let our_listen_address = OnceCell::new();
+                let device_name = OnceCell::new();
+                let device_ip = OnceCell::new();
 
                 for option in parsed.rp_option() {
                     // device name
@@ -186,11 +193,11 @@ impl RosenpassConfig {
                                 ))]
                             })?;
                     }
-                    // out listen addresses
+                    // our listen addresses
                     else if let Some(listen) = option.listen() {
                         let listen = listen.socket_address();
 
-                        our_listen_addresses
+                        our_listen_address
                             .set(SocketAddr::from_str(listen.span.as_str()).map_err(|_err| {
                                 vec![ParseIssue::Error(ParseError::new(
                                     Some(listen.span.start()..listen.span.end()),
@@ -202,10 +209,10 @@ impl RosenpassConfig {
                             })?)
                             .map_err(|e| {
                                 vec![ParseIssue::Error(ParseError::new(
-                                    Some(ip.span.start()..ip.span.end()),
+                                    Some(listen.span.start()..listen.span.end()),
                                     parameter_line,
                                     ParseProblemError::MoreThanOneListenAddressInRp(
-                                        our_listen_addresses.get().expect("unreachable").clone(),
+                                        our_listen_address.get().expect("unreachable").clone(),
                                     ),
                                 ))]
                             })?;
@@ -228,7 +235,23 @@ impl RosenpassConfig {
                     }
                 }
 
-                let wireguard_device = match (device_name.get(), device_ip.get()) {
+                // if device name is not set by user, default to `rosenpas0`
+                device_name.get_or_init(|| {
+                    const DEFAULT_WG_NAME: &str = "rosenpass0";
+                    log::warn!(
+                        "{message}, defaulting to {DEFAULT_WG_NAME}",
+                        message = "no WireGuard device name specified on the command line"
+                    );
+                    DEFAULT_WG_NAME.into()
+                });
+
+                // determine WG device
+                // NOTE: this catches errors if the above code defaulting to `rosenpass0` might be
+                // removed/disabled in the future
+                // NOTE: we are consuming `device_name` and `device_ip` because their data now live
+                // in `wireguard_device`. Do not attempt to use the (`device_name`, `device_ip`)
+                // product later but refer to the `wireguard_device` let binding instead.
+                let wireguard_device = match (device_name.into_inner(), device_ip.into_inner()) {
                     // no wg device specified but `rp` requires this
                     (None, None) => {
                         return Err(vec![ParseIssue::Error(ParseError::new(
@@ -239,18 +262,25 @@ impl RosenpassConfig {
                     }
                     // wg device specified
                     (Some(name), addr) => WgDeviceConfig {
-                        name: name.clone(),
+                        name,
                         enabled: true,
-                        created_by: WgDeviceCreateOptions::Create(
-                            // TODO: these parameters are not supported by `rp`
-                            DeviceWireguardOptions {
-                                wg_listen_port: None,
-                                wg_fwmark: None,
-                                set_ip_addr: addr.cloned(),
-                                set_listen_addr: todo!(),
-                                set_private_key: todo!(),
-                            },
-                        ),
+                        // rp _always creates_ the WG device, it never uses an existing one
+                        created_by: WgDeviceCreateOptions::Create(DeviceWireguardOptions {
+                            // TODO: these parameters are not supported by `rp`:
+                            // - wg_listen_port
+                            // - wg_fwmark
+                            wg_listen_port: None,
+                            wg_fwmark: None,
+                            set_ip_addr: addr,
+                            // set WG device port to rosenpass' port + 1 (of `listen` parameter
+                            // is set at all)
+                            set_listen_port: our_listen_address.get().map(|a| a.port() + 1),
+                            // rp _always_ sets the WG secret key as the device is _always_
+                            // created by rp.
+                            set_secret_key: Some(SecretWgKeySource::new(
+                                KeyFromDiskInner::Directory(secret_keys_dir.clone()),
+                            )),
+                        }),
                     },
                     (None, Some(addr)) => {
                         return Err(vec![ParseIssue::Error(ParseError::new(
@@ -283,7 +313,7 @@ impl RosenpassConfig {
 
                 Ok((
                     RosenpassConfig {
-                        our_listen_addresses: our_listen_addresses
+                        our_listen_addresses: our_listen_address
                             .get()
                             .iter()
                             .cloned()
@@ -293,8 +323,9 @@ impl RosenpassConfig {
                         our_keypair,
                         // TODO: should `rp` get a command to specify the allowed protocol versions?
                         supported_protocol_versions: ProtocolVersion::all_supported_by_default(),
+                        // TODO: implement experimental API feature for `rp` CLI when it is stabilized
                         #[cfg(feature = "experiment_api")]
-                        api,
+                        api: ApiConfig::new_empty(),
                         wireguard_devices: vec![wireguard_device],
                         peers,
                         parsed_from,
@@ -322,7 +353,7 @@ impl RosenpassConfig {
                     };
 
                 // our own config
-                let own_config = parsed.rosenpass_exchange_body().own_config();
+                let own_config = parsed.rosenpass_exchange_body().rosenpass_own_config();
                 let our_secret_key = {
                     let raw = own_config.own_secret_key().path();
                     let transformed = PathBuf::from(raw.span.as_str());
@@ -361,7 +392,7 @@ impl RosenpassConfig {
 
                 let peers = parsed
                     .rosenpass_exchange_body()
-                    .peer()
+                    .rosenpass_peer()
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, peer)| {
@@ -414,12 +445,61 @@ impl RosenpassConfig {
 // TODO: put this in `util` submodule
 fn rename_rules(rule: &Rule) -> String {
     match *rule {
-        Rule::ip_address => "an IP address".into(),
-        Rule::cidr => "a CIDR prefix".into(),
-        Rule::peer => "a peer configuration".into(),
-        Rule::own_config => "own configuration".into(),
+        // common
+        Rule::rosenpass_entire_command_line | Rule::rp_entire_command_line => {
+            "command line".to_string()
+        }
+        Rule::rosenpass_exchange_parameters
+        | Rule::rp_exchange_parameters
+        | Rule::rosenpass_exchange_body
+        | Rule::rp_exchange_body => "parameters to the subcommand".into(),
+        Rule::verbosity => "[verbose|quiet]".into(),
+        Rule::verbosity_verbose => "verbose".into(),
+        Rule::verbosity_quiet => "quiet".into(),
+        Rule::rosenpass_config_file => "-c | --config-file <FILE>".into(),
+        Rule::endpoint => "endpoint <HOST:PORT>".into(),
+
+        Rule::wireguard_extra_option => "wireguard extra options".into(),
+        Rule::wireguard_endpoint => "endpoint <HOST:PORT>".into(),
+        Rule::wireguard_persistent_keepalive => "persistent-keepalive <SECONDS>".into(),
+        Rule::wireguard_allowed_ips => "allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...".into(),
+
+        Rule::path => "path to a file or directory".into(),
+        Rule::wireguard_device => "wireguard device name".into(),
+        Rule::their_wg_pubkey => "their wireguard public key".into(),
+        Rule::unsigned_integer => "an unsigned integer".into(),
+        Rule::ip_address => "an IPv4 or IPv6 address".into(),
+        Rule::cidr => "a CIDR prefix (IPv4 or IPv6)".into(),
+        Rule::socket_address => "HOST:PORT".into(),
+        Rule::ip_or_cidr => "IP address or CIDR prefix".into(),
+        Rule::network_port => "a network port".into(),
+        Rule::ipv4_address => "an IPv4 address".into(),
+        Rule::ipv4_octet => "one octet of an IPv4 address".into(),
+        Rule::ipv6_address => "IPv6 address".into(),
+        Rule::prefix4 => "a number between 0 and 32".into(),
+        Rule::prefix6 => "a number between 0 and 128".into(),
+
         Rule::EOI => "end of command line".into(),
         Rule::separator => "end of argument".into(),
+
+        // RP
+        Rule::rp_secret_keys_dir => "path to our secret keys".into(),
+        Rule::rp_option => "option to the subcommand".into(),
+        Rule::rp_device_option => "device <WG_DEVICE>".into(),
+        Rule::rp_ip_option => "ip <IP_ADDRESS>".into(),
+        Rule::rp_peer => "peer configuration".into(),
+        Rule::rp_peer_pubkey_dir => "path to the peer's public keys directory".into(),
+
+        // Rosenpass
+        Rule::rosenpass_own_config => "<OWN_CONFIG>".into(),
+        Rule::own_public_key => "public-key <FILE>".into(),
+        Rule::own_secret_key => "secret-key <FILE>".into(),
+        Rule::listen => "listen <IP:PORT>".into(),
+        Rule::rosenpass_peer => "peer configuration".into(),
+        Rule::peer_public_key => "public-key <FILE>".into(),
+        Rule::preshared_key => "preshared-key <FILE>".into(),
+        Rule::outfile => "outfile <FILE>".into(),
+        Rule::wireguard => "wireguard <DEVICE> <THEIR-PUBLIC-KEY> [OPTIONS]".into(),
     }
 }
 

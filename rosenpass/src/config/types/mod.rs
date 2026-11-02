@@ -155,6 +155,23 @@ pub struct WgDeviceConfig {
 #[derive(Debug, PartialEq)]
 pub enum WgDeviceCreateOptions {
     /// the WireGuard device needs to be created by this application
+    ///
+    /// Linux:
+    /// ```sh,ignore
+    /// ip link add dev <DEVICE> type wireguard || true
+    /// ip link set dev <DEVICE> up
+    /// # destroy:
+    /// ip link del dev <DEVICE> || true
+    /// ```
+    ///
+    /// FreeBSD:
+    /// ```sh,ignore
+    /// kldload -n if_wg || fatal 'Cannot load if_wg kernel module'
+    /// ifconfig wg create name <DEVICE> || true
+    /// ifconfig <DEVICE> up
+    /// # destroy:
+    /// ifconfig <DEVICE> destroy || true
+    /// ```
     Create(DeviceWireguardOptions),
 
     /// the WireGuard device has already been created by so. else
@@ -178,15 +195,25 @@ enum FlatWgDeviceCreateOptions {
 pub struct DeviceWireguardOptions {
     pub wg_listen_port: Option<u16>,
     pub wg_fwmark: Option<u16>,
-    
-    /// this IP address should be set when creating the device like 
+
+    /// this IP address shall be set when creating the device like
     /// ```sh,ignore
     /// ip address add <ADDR> dev <DEVICE>
     /// ```
+    ///
+    /// This is typically the public IP address of the interface and the user might want to set it.
     pub set_ip_addr: Option<IpAddr>,
 
-    pub set_listen_addr: Option<SocketAddr>,
+    /// this port shall be set on the Wireguard device like
+    /// ```sh,ignore
+    /// wg set <DEVICE> listen-port <PORT>
+    /// ```
+    pub set_listen_port: Option<u16>,
 
+    /// this secret key shall be supplied to WireGuard like
+    /// ```sh,ignore
+    /// wg set <DEVICE> private-key <FILE>
+    /// ```
     pub set_secret_key: Option<SecretWgKeySource>,
 }
 
@@ -236,7 +263,7 @@ pub enum PresharedKeySource {
 }
 
 impl PresharedKeySource {
-    pub fn get_key_path(&self) -> PathBuf {
+    pub fn get_key_file_path(&self) -> PathBuf {
         match &self {
             Self::ReadFromFile(p) => p.clone(),
             Self::ReadFromDirectory(p) => p.join("psk"),

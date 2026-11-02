@@ -82,7 +82,7 @@ impl RosenpassConfig {
                 //         errors.push(Error::DeviceIsManagedByRosenpassButMissesWireguardKeypair(device.name.clone()));
                 //     }
                 // },
-                WgDeviceCreateOptions::Create(DeviceWireguardOptions{wg_listen_port, wg_fwmark}) => {
+                WgDeviceCreateOptions::Create(DeviceWireguardOptions{wg_listen_port, wg_fwmark,set_ip_addr,set_listen_port,set_secret_key}) => {
                     // TODO: check wg_listen_port
 
                     // TODO: check wg_fwmark

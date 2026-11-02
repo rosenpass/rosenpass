@@ -16,9 +16,10 @@ rosenpass_exchange_body = { rosenpass_own_config ~ (separator ~ rosenpass_peer)*
 // ============================== rp ==============================
 
 // rp exchange <PRIVATE_KEYS_DIR>
-// [dev <device>] [ip <IP_ADDRESS>] [listen <ip>:<port>] [verbose|quiet]
-// ................................. ^^^^^^
-// ................................. rosenpass listen address (wg endpoint is <unknown>:port+1) (field is required)
+// [dev <device>] [ip <IP_ADDRESS>]   [listen <ip>:<port>] [verbose|quiet]
+// .^^^                                ^^^^^^
+// .our wireguard device (same         rosenpass listen address (wg endpoint is <unknown>:port+1)
+// for all peers) (optional)           (field is optional)
 // 
 // [peer <PUBLIC_KEYS_DIR> [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...
 // ........................ ^^^^^^^^
@@ -63,7 +64,7 @@ rosenpass_peer = {
 }
 
 peer_public_key = { "public-key" ~ separator ~ path }
-endpoint        = { "endpoint" ~ separator ~ host_port }
+endpoint        = { "endpoint" ~ separator ~ socket_address }
 preshared_key   = { "preshared-key" ~ separator ~ path }
 outfile         = { "outfile" ~ separator ~ path }
 
@@ -86,7 +87,6 @@ wireguard_allowed_ips          = { "allowed-ips" ~ separator ~ ip_or_cidr ~ (","
 // ============================== atomics ==============================
 
 path             = @{ (!separator ~ ANY)+ }
-host_port        = @{ (!separator ~ ANY)+ }
 wireguard_device = @{ (!separator ~ ANY)+ }
 their_wg_pubkey  = @{ (!separator ~ ANY)+ }
 

@@ -15,7 +15,8 @@ mod internal;
 mod msgs;
 mod protocol;
 
-use crate::cli::{CliCommand,CliGrammar};
+use crate::cli::{CliCommand, CliGrammar};
+pub use error::RosenpassError;
 
 // TODO: remove rp_old
 mod rp_old;

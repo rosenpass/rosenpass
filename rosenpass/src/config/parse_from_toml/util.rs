@@ -1925,6 +1925,10 @@ get_as_type_generator!(
         Ok(DeviceWireguardOptions {
             wg_listen_port,
             wg_fwmark,
+            // TODO: support reading these options from a TOML config file
+            set_ip_addr: None,
+            set_listen_port: None,
+            set_secret_key: None,
         })
     }
 );

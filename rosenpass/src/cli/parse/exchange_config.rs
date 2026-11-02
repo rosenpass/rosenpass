@@ -31,22 +31,39 @@ struct Parser;
 
 /// returns the help message for the `rosenpass exchange-config` subcommand
 #[rustfmt::skip]
-pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
+pub fn help<'a>(indent: &'a str, grammar: CliGrammar) -> impl Display + 'a {
     let i = indent; // shorter, save a bit of space in the code
-    fmt::from_fn(move |f| {
-        todo!()
-    })
+    match grammar {
+        CliGrammar::Rosenpass | CliGrammar::Rp => {
+            fmt::from_fn(move |f| {
+                #[cfg(not(feature = "experiment_api"))]
+                writeln!(f, "exchange-config <FILE>")?;
+
+                #[cfg(feature = "experiment_api")]
+                {
+                    writeln!(f, "exchange-config <FILE> [OPTIONS]")?;
+                    writeln!(f, "")?;
+                    writeln!(f, "OPTIONS:")?;
+                    // TODO: is the following correct?
+                    writeln!(f, "{i}--psk-broker-spawn        create a socketpair(3p), spawn the PSK broker process")?;
+                    writeln!(f, "{i}--psk-broker-path <PATH>  let PSK broker listen on a unix socket at the given path")?;
+                    writeln!(f, "{i}--psk_broker_fd <FD>      connect to given PSK broker file descriptor")?;
+                }
+
+                Ok(())
+            })
+        }
+    }
 }
 
 /// parse [`super::CliCommand::ExchangeConfig`] from a command line
-/// 
+///
 /// Note: This subcommand does actually *not* depend on the [`CliGrammar`]. `rp` and `rosenpass`
 /// implement the same `exchange-config` subcommand
 pub fn parse(
     parameters: &str,
     grammar: CliGrammar,
 ) -> Result<ExchangeConfigParameters, anyhow::Error> {
-    
     // This command does no depend on the grammar – see function doc comment
     std::mem::drop(grammar);
 
@@ -64,7 +81,9 @@ pub fn parse(
                     Rule::psk_broker_fd => "--psk-broker-fd <FD>".into(),
                     Rule::config_path => "path to a configuration file".into(),
                     Rule::path => "path to a file".into(),
-                    Rule::broker_path => "path to a UNIX socket where the broker will listen".into(),
+                    Rule::broker_path => {
+                        "path to a UNIX socket where the broker will listen".into()
+                    }
                     Rule::file_descriptor => "a file descriptor".into(),
                     Rule::EOI => "end of command line".into(),
                     Rule::separator => "end of argument".into(),

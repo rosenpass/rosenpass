@@ -150,12 +150,12 @@ pub trait DefaultFileName {
     /// return the default file name of a key, e.g. `pqsk`, `pqpk`, `wgsk`, `wgpk`
     fn default_file_name() -> &'static str;
 }
-impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDisk<FN,SIZE> {
+impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDisk<FN, SIZE> {
     fn default_file_name() -> &'static str {
         FN::STR
     }
 }
-impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDiskOrB64EncodedString<FN,SIZE> {
+impl<FN: IsTStr, const SIZE: usize> DefaultFileName for KeyFromDiskOrB64EncodedString<FN, SIZE> {
     fn default_file_name() -> &'static str {
         FN::STR
     }

@@ -3,7 +3,10 @@
 //! TODO: allow mutilple spans per problem
 
 use core::fmt;
-use std::{fmt::Display, net::IpAddr};
+use std::{
+    fmt::Display,
+    net::{IpAddr, SocketAddr},
+};
 
 use anstyle::AnsiColor;
 use thiserror::Error;
@@ -76,7 +79,7 @@ pub enum ParseProblemError {
     #[error("WireGuard device address \"{0}\" is specified but no device name")]
     WgDeviceAddressWithoutNameInRp(IpAddr),
 
-    #[error("verbosity defined more than once, previously defined as \"{0}\"")]
+    #[error("verbosity defined more than once, previously defined as \"{0:?}\"")]
     MultipleVerbosity(Verbosity),
 
     #[error("no WireGuard device specified")]

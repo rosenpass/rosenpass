@@ -2,9 +2,12 @@ use core::fmt;
 
 use anstyle::AnsiColor;
 
-use crate::config::{
-    PrettyIssueOutput, RosenpassConfig,
-    parse_from_cli::{ParseIssue, ParseResult, ParseWarning},
+use crate::{
+    cli::CliGrammar,
+    config::{
+        PrettyIssueOutput, RosenpassConfig,
+        parse_from_cli::{ParseIssue, ParseResult, ParseWarning},
+    },
 };
 
 // some default values for tests
@@ -77,6 +80,10 @@ fn test_replace_spaces() {
     assert_eq!(replace_spaces("a   b   c"), "a\0b\0c");
 }
 
+/// parses a command line into a [`RosenpassConfig`]
+///
+/// This is a helper function for unit tests only. It determines the grammar from the first
+/// parameter being either `rosenpass` or `rp`.
 pub(crate) fn parse_str(line: &str) -> ParseResult<RosenpassConfig> {
     // start preparing the command line
     let line = line.trim();
@@ -96,8 +103,20 @@ pub(crate) fn parse_str(line: &str) -> ParseResult<RosenpassConfig> {
     // finish preparing the command line
     let line = replace_spaces(line);
 
+    // determine the grammar: in unit tests, this is determined by the first parameter being
+    // either `rosenpass` or `rp`. Of course in production, the grammar is baked into each binary.
+    let grammar = match line
+        .split('\0')
+        .next()
+        .expect("can not process empty command line")
+    {
+        "rosenpass" => CliGrammar::Rosenpass,
+        "rp" => CliGrammar::Rp,
+        name => panic!("can not run unit test with unkown grammar \"{name}\""),
+    };
+
     // parse
-    let result = RosenpassConfig::parse_from_entire_cli(line.as_str());
+    let result = RosenpassConfig::parse_from_entire_cli(line.as_str(), grammar);
 
     // print parse result for easier debugging
     print_parse_result(line.as_str(), &result);

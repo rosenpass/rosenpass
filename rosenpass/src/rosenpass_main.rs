@@ -16,6 +16,7 @@ mod msgs;
 mod protocol;
 
 use crate::cli::{CliCommand, CliGrammar};
+pub use error::RosenpassError;
 
 /// parses command line, catches errors, prints them through the logger, then exits
 ///

@@ -7,7 +7,7 @@
 use anyhow::anyhow;
 use rustix::path::Arg;
 
-/// TODO: rename trait
+/// - TODO: rename trait?
 pub trait AttemptRead {
     /// attempts to open a file in read mode
     ///

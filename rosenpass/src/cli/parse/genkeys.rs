@@ -1,7 +1,7 @@
 use super::{CliGrammar, GenKeysPathsSource};
 use crate::{
     cli::types::GenKeysParameters,
-    config::{DefaultFileName, PublicPqKeySource, PublicWgKeySource, SecretPqKeySource},
+    config::{DefaultFileName, PublicPqKeySource, SecretPqKeySource, SecretWgKeySource},
 };
 use anyhow::{anyhow, bail};
 use pest_typed::TypedParser;
@@ -43,11 +43,18 @@ struct RosenpassParser;
 pub fn help<'a>(indent: &'a str, grammar: CliGrammar) -> impl Display + 'a {
     let i = indent; // shorter, save a bit of space in the code
     fmt::from_fn(move |f| match grammar {
-        CliGrammar::Rosenpass => writeln!(
-            f,
-            r#"gen-keys [-s | --secret-key] <FILE> [-p | --public-key] <FILE> [-f | --force]"#
-        ),
-        CliGrammar::Rp => writeln!(f, r#"genkey <DIRECTORY>"#),
+        CliGrammar::Rosenpass => {
+            writeln!(
+                f,
+                r#"gen-keys {{-s | --secret-key}} <FILE> {{-p | --public-key}} <FILE> [-f | --force]"#
+            )?;
+            // writeln!("examples: TODO:toolname+subcommand gen-keys -s secrets/pqsk -p public/pqpk")?;
+            Ok(())
+        }
+        CliGrammar::Rp => {
+            writeln!(f, r#"genkey <DIRECTORY>"#)?;
+            Ok(())
+        }
     })
 }
 
@@ -90,14 +97,14 @@ pub fn parse(parameters: &str, grammar: CliGrammar) -> Result<GenKeysParameters,
             let directory = PathBuf::from(parameters.directory_path().path().span.as_str());
             let pqsk_path = directory.join(SecretPqKeySource::default_file_name());
             let pqpk_path = directory.join(PublicPqKeySource::default_file_name());
-            let wgpk_path = directory.join(PublicWgKeySource::default_file_name());
+            let wgsk_path = directory.join(SecretWgKeySource::default_file_name());
 
             Ok(GenKeysParameters {
                 file_paths: GenKeysPathsSource::Raw {
                     generate_directory: Some(directory),
                     secret_key_file: pqsk_path,
                     public_key_file: pqpk_path,
-                    wg_secret_key_file: Some(wgpk_path),
+                    wg_secret_key_file: Some(wgsk_path),
                 },
                 // rp never overwrites existing keys
                 // TODO: should rp get a `--force` flag?

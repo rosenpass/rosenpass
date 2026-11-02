@@ -36,10 +36,18 @@ pub fn help<'a>(indent: &'a str, grammar: CliGrammar) -> impl Display + 'a {
                 writeln!(f, "{i}PEERS...: peer public-key <PATH> [endpoint <HOST/IP>:<PORT>] [preshared-key <PATH>] [outfile <PATH>] [WG]")?;
                 writeln!(f, "{i}{i}WG: wireguard <DEVICE> <THEIR_PUBKEY> [endpoint <ip>:<port>] [persistent-keepalive <interval seconds>] [allowed-ips [+|-]<ip1>/<cidr1>[,[+|-]<ip2>/<cidr2>]...]")?;
 
+                // TODO: write prose
+
                 Ok(())
             }
             CliGrammar::Rp => {
-                TODO: implement
+                write!(f, "exchange <PRIVATE_KEYS_DIR>")?;
+                write!(f, "[dev <device>] [ip <IP_ADDRESS>] [listen <ip>:<port>] [verbose|quiet]")?;
+                write!(f, "[peer <PUBLIC_KEYS_DIR> [endpoint <ip>:<port>] [persistent-keepalive <interval>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]...]]...")?;
+
+                // TODO: write prose
+
+                Ok(())
             }
         }
     })
