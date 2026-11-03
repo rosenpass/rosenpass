@@ -1,31 +1,54 @@
+#![cfg(test)]
+
+use rosenpass::config::{
+    OutputToFileConfig, PublicKeySource, RosenpassConfig, RosenpassPeerOskDomainSeparator,
+    Verbosity,
+};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
 
-use rosenpass::config::{
-    OutputToFileConfig, PublicKeySource, RosenpassConfig, RosenpassPeerOskDomainSeparator,
-    Verbosity, tests::test_cli::replace_spaces,
-};
-
 #[cfg(test)]
 #[test]
 fn parse_simple() {
-    let argv = "public-key /my/public-key secret-key /my/secret-key verbose \
-                listen 0.0.0.0:9999 peer public-key /peer/public-key endpoint \
-                peer.test:9999 outfile /peer/rp-out";
-    let argv = replace_spaces(argv); // replace continues whitespace with '\0'
+    use rosenpass::{
+        cli::CliGrammar,
+        config::parse_from_cli::{
+            ParseError, ParseIssue,
+            errors::{ParseProblem, ParseProblemError},
+        },
+    };
 
-    let (config, _warnings) = RosenpassConfig::parse_from_cli_parameters(argv.as_str()).unwrap();
+    let argv = [
+        "public-key",
+        "/my/public-key",
+        "secret-key",
+        "/my/secret-key",
+        "verbose",
+        "listen",
+        "0.0.0.0:9999",
+        "peer",
+        "public-key",
+        "/peer/public-key",
+        "endpoint",
+        "peer.test:9999",
+        "outfile",
+        "/peer/rp-out",
+    ]
+    .join("\0");
+
+    let (config, _warnings) =
+        RosenpassConfig::parse_from_cli_parameters(argv.as_str(), CliGrammar::Rosenpass).unwrap();
 
     // our config
     assert_eq!(
         config.our_keypair.secret_key_source.get_key_path(),
-        PathBuf::from("/my/public-key")
+        PathBuf::from("/my/secret-key")
     );
     assert_eq!(
         config.our_keypair.public_key_source.get_key_path(),
-        PathBuf::from("/my/secret-key")
+        PathBuf::from("/my/public-key")
     );
     assert_eq!(config.verbosity, Verbosity::Verbose);
     assert_eq!(

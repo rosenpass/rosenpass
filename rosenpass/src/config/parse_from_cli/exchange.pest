@@ -42,7 +42,14 @@ rp_peer_pubkey_dir = { path }
 
 // ============================== rosenpass: our config ==============================
 rosenpass_own_config = {
-    own_public_key ~ separator ~ own_secret_key ~ (separator ~ listen)* ~ (separator ~ verbosity)?
+    rosenpass_own_config_element ~ (separator ~ rosenpass_own_config_element)*
+}
+// own_public_key ~ separator ~ own_secret_key ~ (separator ~ listen)* ~ (separator ~ verbosity)?
+rosenpass_own_config_element = {
+    own_public_key
+  | own_secret_key
+  | listen
+  | verbosity
 }
 
 own_public_key = { "public-key" ~ separator ~ path }
@@ -64,7 +71,7 @@ rosenpass_peer = {
 }
 
 peer_public_key = { "public-key" ~ separator ~ path }
-endpoint        = { "endpoint" ~ separator ~ socket_address }
+endpoint        = { "endpoint" ~ separator ~ host_port_pair }
 preshared_key   = { "preshared-key" ~ separator ~ path }
 outfile         = { "outfile" ~ separator ~ path }
 
@@ -80,7 +87,7 @@ wireguard_extra_option         = {
   | wireguard_persistent_keepalive
   | wireguard_allowed_ips
 }
-wireguard_endpoint             = { "endpoint" ~ separator ~ socket_address }
+wireguard_endpoint             = { "endpoint" ~ separator ~ host_port_pair }
 wireguard_persistent_keepalive = { "persistent-keepalive" ~ separator ~ unsigned_integer }
 wireguard_allowed_ips          = { "allowed-ips" ~ separator ~ ip_or_cidr ~ ("," ~ ip_or_cidr)* }
 
@@ -94,6 +101,9 @@ unsigned_integer = @{ (ASCII_DIGIT)+ }
 
 // ============================== network-related atomics ==============================
 
+host_port_pair = { ( host_name ~ ":" ~ network_port ) | socket_address }
+// TODO: restrict host_name further
+host_name      = @{ ( !(separator | ":" | " ") ~ ANY )+ }
 ip_address     = @{ ipv4_address | ipv6_address }
 cidr           = @{ (ipv4_address ~ "/" ~ prefix4) | (ipv6_address ~ "/" ~ prefix6) }
 socket_address = @{ (ipv4_address ~ ":" ~ network_port) | ("[" ~ ipv6_address ~ "]:" ~ network_port) }

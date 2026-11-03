@@ -44,8 +44,9 @@ pub trait PrettyIssueOutput {
 //
 
 use crate::app_server::AppServer;
-use crate::protocol::ProtocolVersion;
+pub use crate::protocol::ProtocolVersion;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 use std::path::{Path, PathBuf};
 
@@ -110,7 +111,14 @@ pub enum Verbosity {
     Quiet,
     Verbose,
 }
-
+impl Display for Verbosity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Self::Quiet => write!(f, "quiet"),
+            Self::Verbose => write!(f, "verbose"),
+        }
+    }
+}
 impl Verbosity {
     pub fn apply(&self) {
         let mut log_builder = env_logger::Builder::from_default_env(); // sets log level filter from environment (or defaults)
@@ -439,12 +447,12 @@ impl RosenpassConfig {
             our_keypair: PqKeypairSource {
                 secret_key_source: SecretPqKeySource::new(
                     our_secret_key_file
-                        .map(|s| KeyFromDiskInner::File(s))
+                        .map(KeyFromDiskInner::File)
                         .unwrap_or(KeyFromDiskInner::None),
                 ),
                 public_key_source: PublicPqKeySource::new(
                     our_public_key_file
-                        .map(|p| KeyFromDiskInner::File(p))
+                        .map(KeyFromDiskInner::File)
                         .unwrap_or(KeyFromDiskInner::None),
                 ),
             },

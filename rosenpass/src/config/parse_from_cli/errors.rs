@@ -14,7 +14,7 @@ use thiserror::Error;
 use crate::config::{PrettyIssueOutput, Verbosity, parse_from_toml::util::ProcessableParseError};
 
 // ============================== user-facing types ==============================
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ParseIssue {
     Warning(ParseWarning),
     Error(ParseError),
@@ -28,12 +28,12 @@ pub type ParseResult<T> = Result<(T, Vec<ParseWarning>), Vec<ParseIssue>>;
 #[derive(Debug, Clone)]
 pub struct ParseProblem<P: ParseProblemLike> {
     // character index of the error source in the command line
-    span: Span,
+    pub span: Span,
 
     /// full command line from which this error originates
-    full_line: String,
+    pub full_line: String,
 
-    problem: P,
+    pub problem: P,
 }
 #[must_use]
 #[derive(Debug, Error, Clone)]
@@ -84,6 +84,21 @@ pub enum ParseProblemError {
 
     #[error("no WireGuard device specified")]
     NoWireguardDeviceInRp,
+
+    #[error("exactly one secret key required but more than one sepcified")]
+    MoreThanOneOurPqSeckey,
+    #[error("exactly one secret key required but none specified")]
+    NoOurPqSecretKeySupplied,
+    #[error("exactly one public key required but more than one specified")]
+    MoreThanOneOurPqPubkey,
+    #[error("exactly one public key required but non specified")]
+    NoOurPqPublicKeySupplied,
+
+    #[error("endpoint defined more than once, previously defined as \"{0}\"")]
+    MoreThanOneEndpoint(String),
+
+    #[error("verbosity has already been specifed in a previous parameter to {0}")]
+    MoreThanOneVerbosity(Verbosity),
 }
 
 #[must_use]
@@ -239,9 +254,74 @@ impl<T> ProcessParseResult2 for ParseResult<T> {
         }
     }
 }
+impl<T> ProcessParseResult2 for Result<T, ParseIssue> {
+    type Error = ParseError;
+    type Warning = ParseWarning;
+    type Output = T;
+    fn process_parse_result(
+        self,
+        errors: &mut Vec<Self::Error>,
+        warnings: &mut Vec<Self::Warning>,
+    ) -> Option<Self::Output> {
+        match self {
+            Ok(ok) => Some(ok),
+            Err(issue) => {
+                match issue {
+                    ParseIssue::Error(e) => errors.push(e),
+                    ParseIssue::Warning(w) => warnings.push(w),
+                }
+                None
+            }
+        }
+    }
+}
+impl<T> ProcessParseResult2 for Result<T, ParseProblem<ParseProblemError>> {
+    type Error = ParseError;
+    type Warning = ParseWarning;
+    type Output = T;
+    fn process_parse_result(
+        self,
+        errors: &mut Vec<Self::Error>,
+        warnings: &mut Vec<Self::Warning>,
+    ) -> Option<Self::Output> {
+        match self {
+            Ok(ok) => Some(ok),
+            Err(e) => {
+                errors.push(e);
+                None
+            }
+        }
+    }
+}
+impl<T> ProcessParseResult2 for Result<T, ParseProblem<ParseProblemWarning>> {
+    type Error = ParseError;
+    type Warning = ParseWarning;
+    type Output = T;
+    fn process_parse_result(
+        self,
+        errors: &mut Vec<Self::Error>,
+        warnings: &mut Vec<Self::Warning>,
+    ) -> Option<Self::Output> {
+        match self {
+            Ok(ok) => Some(ok),
+            Err(w) => {
+                warnings.push(w);
+                None
+            }
+        }
+    }
+}
 
 // ============================== print ==============================
 // TODO: print diagnostics
+impl Display for ParseIssue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Self::Error(e) => writeln!(f, "error: {e}"),
+            Self::Warning(w) => writeln!(f, "warning: {w}"),
+        }
+    }
+}
 
 // ============================== utility regarding error handling ==============================
 macro_rules! return_on_error {

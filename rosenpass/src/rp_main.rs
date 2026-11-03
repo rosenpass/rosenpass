@@ -39,8 +39,9 @@ pub fn main() {
     }
 }
 
-/// - TODO: what to do with this legacy code?
-#[tokio::main]
-pub async fn main() -> anyhow::Result<()> {
-    ensure_janitor(async move { main_impl().await }).await
-}
+// - TODO: what to do with this legacy code?
+//
+// #[tokio::main]
+// pub async fn main() -> anyhow::Result<()> {
+//     ensure_janitor(async move { main_impl().await }).await
+// }

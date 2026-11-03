@@ -4,7 +4,9 @@ use std::path::PathBuf;
 #[test]
 fn example_config_rosenpass_load_from_file() {
     // read config file from disk
-    let file_path = PathBuf::from("path/to/config.toml");
+    let file_path = PathBuf::from(
+        "src/config/tests/data/configs/rosenpass-0.2.3-full-raw.toml",
+    );
     let toml_file = std::fs::read(&file_path).unwrap();
     let toml_file = String::from_utf8(toml_file).unwrap();
 

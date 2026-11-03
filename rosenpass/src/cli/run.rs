@@ -396,18 +396,6 @@ pub fn generate_and_save_keypair(
     Ok(())
 }
 
-#[cfg(feature = "internal_testing")]
-pub mod testing {
-    use super::*;
-
-    pub fn generate_and_save_keypair(
-        secret_key_file: PathBuf,
-        public_key_file: PathBuf,
-    ) -> anyhow::Result<()> {
-        super::generate_and_save_keypair(&secret_key_file, &public_key_file, true)
-    }
-}
-
 /// called by [`CliCommand::run`]
 pub fn exchange_implementation(
     config: &RosenpassConfig,

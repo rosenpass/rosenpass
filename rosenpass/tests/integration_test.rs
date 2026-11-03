@@ -1,3 +1,4 @@
+use rosenpass::cli::CliGrammar;
 use std::fs::File;
 use std::iter;
 use std::{
@@ -103,6 +104,7 @@ fn run_server_client_exchange(
                 .collect::<Vec<_>>()
                 .join("\0")
                 .as_str(),
+            CliGrammar::Rosenpass,
         )
         .unwrap();
 
@@ -124,6 +126,7 @@ fn run_server_client_exchange(
                 .collect::<Vec<_>>()
                 .join("\0")
                 .as_str(),
+            CliGrammar::Rosenpass,
         )
         .unwrap();
 

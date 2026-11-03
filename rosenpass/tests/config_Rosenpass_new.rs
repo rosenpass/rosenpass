@@ -19,7 +19,7 @@ fn example_config_rosenpass_new() {
 
         let mut v = RosenpassConfig::new_empty();
         v.our_keypair.secret_key_source =
-            SecretPqKeySource::new(KeyFromDiskInner::File(PathBuf::from(pk)));
+            SecretPqKeySource::new(KeyFromDiskInner::File(PathBuf::from(sk)));
         v.our_keypair.public_key_source =
             PublicPqKeySource::new(KeyFromDiskInner::File(PathBuf::from(pk)));
 

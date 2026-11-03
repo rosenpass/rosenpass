@@ -38,7 +38,7 @@ fn example_config_rosenpass_validate() -> anyhow::Result<()> {
     assert!(cfg.validate(validation_recipe).is_err());
 
     // But after providing proper key files, the configuration validates
-    generate_and_save_keypair(&sk, &pk, true)?;
+    generate_and_save_keypair(None, &sk, &pk, None, true)?;
     assert!(cfg.validate(validation_recipe).is_ok());
 
     Ok(())

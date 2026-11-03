@@ -37,11 +37,10 @@ pub(crate) fn parse_rosenpass_peer(
         let parsed = PathBuf::from(raw.span.as_str());
         (raw, parsed)
     };
-    let endpoint = {
-        let raw = peer.endpoint();
-        let parsed = raw.map(|r| r.socket_address().span.as_str().to_string());
-        (raw, parsed)
-    };
+    let endpoint = peer
+        .endpoint()
+        .map(|r| r.host_port_pair().span.as_str().to_string());
+
     let preshared_key = {
         let raw = peer.preshared_key();
         let parsed = raw
@@ -77,7 +76,7 @@ pub(crate) fn parse_rosenpass_peer(
             name: default_peer_name(index),
             enabled: true, // peers specified in CLI are always enabled
             their_public_key: PublicPqKeySource::new(KeyFromDiskInner::File(public_key.1)),
-            endpoint: endpoint.1,
+            endpoint,
             preshared_key: preshared_key.1,
             // defaults to empty – TODO: eventually introduce this option to the CLI
             osk_domain_separator: Default::default(),
@@ -248,9 +247,16 @@ pub(crate) fn parse_wireguard_options(
     for option in vec![opt1, opt2, opt3].into_iter().flatten() {
         if let Some(endpoint) = option.wireguard_endpoint() {
             if options.endpoint.is_none() {
-                options.endpoint = Some(endpoint.socket_address().span.as_str().to_string())
+                options.endpoint = Some(endpoint.host_port_pair().span.as_str().to_string())
             } else {
-                todo!("duplicate item endpoint")
+                ParseError::new(
+                    Some(endpoint.span.start()..endpoint.span.end()),
+                    endpoint.span.get_input(),
+                    ParseProblemError::MoreThanOneEndpoint(
+                        options.endpoint.as_ref().guaranteed_unwrap().clone(),
+                    ),
+                )
+                .process_parse_result(&mut errors);
             }
         } else if let Some(persistent_keepalive) = option
             .wireguard_persistent_keepalive()
@@ -311,5 +317,6 @@ pub(crate) fn parse_wireguard_options(
             .process_parse_result(&mut errors);
         }
     }
+    return_on_error!(errors, warnings);
     Ok((options, warnings))
 }

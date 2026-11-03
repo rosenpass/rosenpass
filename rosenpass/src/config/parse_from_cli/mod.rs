@@ -25,13 +25,17 @@ use crate::{
         ConfigSource, ConfigSourceCli, DeviceWireguardOptions, KeyFromDiskInner, NewFromInner,
         PqKeypairSource, PublicPqKeySource, RosenpassConfig, SecretPqKeySource, SecretWgKeySource,
         Verbosity, WgDeviceConfig, WgDeviceCreateOptions,
-        parse_from_cli::{errors::ParseProblemError, util::parse_rp_peer},
-        parse_from_toml::util::{GuaranteedUnwrap, ProcessParseResult},
+        parse_from_cli::{
+            errors::{ParseProblem, ParseProblemError},
+            util::parse_rp_peer,
+        },
+        parse_from_toml::util::GuaranteedUnwrap,
     },
     protocol::ProtocolVersion,
 };
 use std::{
     cell::OnceCell,
+    iter,
     net::{IpAddr, SocketAddr},
     path::PathBuf,
     str::FromStr,
@@ -353,42 +357,87 @@ impl RosenpassConfig {
                     };
 
                 // our own config
-                let own_config = parsed.rosenpass_exchange_body().rosenpass_own_config();
-                let our_secret_key = {
-                    let raw = own_config.own_secret_key().path();
-                    let transformed = PathBuf::from(raw.span.as_str());
-                    (raw, transformed)
+                let our_secret_key = OnceCell::new();
+                let our_public_key = OnceCell::new();
+                let mut our_listen_addresses = Vec::new();
+                let verbosity = OnceCell::new();
+
+                let own_config_options = {
+                    let elements = parsed
+                        .rosenpass_exchange_body()
+                        .rosenpass_own_config()
+                        .rosenpass_own_config_element();
+                    iter::once(elements.0).chain(elements.1).collect::<Vec<_>>()
                 };
-                let our_public_key = {
-                    let raw = own_config.own_public_key().path();
-                    let transformed = PathBuf::from(raw.span.as_str());
-                    (raw, transformed)
-                };
-                let listen_addresses = {
-                    let raw = own_config.listen();
-                    let transformed = raw
-                        .iter()
-                        .map(|l| {
-                            let span = l.socket_address().span;
-                            let s = span.as_str();
-                            SocketAddr::from_str(s).map_err(|e| {
+                for option in own_config_options {
+                    if let Some(seckey) = option.own_secret_key() {
+                        our_secret_key
+                            .set(PathBuf::from(seckey.path().span.as_str()))
+                            .map_err(|e| {
                                 ParseError::new(
-                                    Some(span.start()..span.end()),
+                                    Some(seckey.span.start()..seckey.span.end()),
                                     parameter_line,
-                                    errors::ParseProblemError::InvalidSocketAddr(s.to_string()),
+                                    ParseProblemError::MoreThanOneOurPqSeckey,
                                 )
                             })
-                        })
-                        .collect::<Vec<_>>()
-                        .process_parse_result(&mut errors);
-                    (raw, transformed)
-                };
-                let verbosity = {
-                    own_config
-                        .verbosity()
-                        .map(parse_verbosity)
-                        .unwrap_or_default()
-                };
+                            .process_parse_result(&mut errors, &mut warnings);
+                    } else if let Some(pubkey) = option.own_public_key() {
+                        our_public_key
+                            .set(PathBuf::from(pubkey.path().span.as_str()))
+                            .map_err(|e| {
+                                ParseError::new(
+                                    Some(pubkey.span.start()..pubkey.span.end()),
+                                    parameter_line,
+                                    ParseProblemError::MoreThanOneOurPqPubkey,
+                                )
+                            })
+                            .process_parse_result(&mut errors, &mut warnings);
+                    } else if let Some(listen) = option.listen() {
+                        let string = listen.socket_address().span.as_str();
+                        let socket = SocketAddr::from_str(string)
+                            .map_err(|e| {
+                                ParseError::new(
+                                    Some(listen.span.start()..listen.span.end()),
+                                    parameter_line,
+                                    ParseProblemError::InvalidSocketAddr(string.to_string()),
+                                )
+                            })
+                            .process_parse_result(&mut errors, &mut warnings);
+                        if let Some(socket) = socket {
+                            our_listen_addresses.push(socket);
+                        }
+                    } else if let Some(v) = option.verbosity() {
+                        verbosity
+                            .set(parse_verbosity(v))
+                            .map_err(|e| {
+                                ParseError::new(
+                                    Some(v.span.start()..v.span.end()),
+                                    parameter_line,
+                                    ParseProblemError::MoreThanOneVerbosity(
+                                        *verbosity.get().guaranteed_unwrap(),
+                                    ),
+                                )
+                            })
+                            .process_parse_result(&mut errors, &mut warnings);
+                    } else {
+                        unreachable!("unknown option \"{}\"", option.span.as_str());
+                    }
+                }
+
+                if our_secret_key.get().is_none() {
+                    errors.push(ParseProblem::new(
+                        None,
+                        parameter_line,
+                        ParseProblemError::NoOurPqSecretKeySupplied,
+                    ));
+                }
+                if our_public_key.get().is_none() {
+                    errors.push(ParseProblem::new(
+                        None,
+                        parameter_line,
+                        ParseProblemError::NoOurPqPublicKeySupplied,
+                    ));
+                }
 
                 let peers = parsed
                     .rosenpass_exchange_body()
@@ -403,7 +452,11 @@ impl RosenpassConfig {
 
                 // TODO: devices(?)
 
+                // return on error, then unwrap
                 return_on_error!(errors, warnings);
+                let our_secret_key = our_secret_key.into_inner().guaranteed_unwrap();
+                let our_public_key = our_public_key.into_inner().guaranteed_unwrap();
+                let verbosity = verbosity.into_inner().unwrap_or(Verbosity::default());
 
                 // parsed from
                 let parsed_from = ConfigSource::CommandLineArguments(ConfigSourceCli {
@@ -414,14 +467,14 @@ impl RosenpassConfig {
 
                 Ok((
                     RosenpassConfig {
-                        our_listen_addresses: listen_addresses.1.guaranteed_unwrap(),
+                        our_listen_addresses,
                         verbosity,
                         our_keypair: PqKeypairSource {
                             secret_key_source: SecretPqKeySource::new(KeyFromDiskInner::File(
-                                our_secret_key.1,
+                                our_secret_key,
                             )),
                             public_key_source: PublicPqKeySource::new(KeyFromDiskInner::File(
-                                our_public_key.1,
+                                our_public_key,
                             )),
                         },
                         // TODO: this is the default, maybe read it from CLI?
@@ -458,6 +511,8 @@ fn rename_rules(rule: &Rule) -> String {
         Rule::verbosity_quiet => "quiet".into(),
         Rule::rosenpass_config_file => "-c | --config-file <FILE>".into(),
         Rule::endpoint => "endpoint <HOST:PORT>".into(),
+        Rule::host_port_pair => "<HOST:PORT>".into(),
+        Rule::host_name => "name of a network host or an IPv4 or IPv6 address".into(),
 
         Rule::wireguard_extra_option => "wireguard extra options".into(),
         Rule::wireguard_endpoint => "endpoint <HOST:PORT>".into(),
@@ -470,7 +525,7 @@ fn rename_rules(rule: &Rule) -> String {
         Rule::unsigned_integer => "an unsigned integer".into(),
         Rule::ip_address => "an IPv4 or IPv6 address".into(),
         Rule::cidr => "a CIDR prefix (IPv4 or IPv6)".into(),
-        Rule::socket_address => "HOST:PORT".into(),
+        Rule::socket_address => "<IP:PORT>".into(),
         Rule::ip_or_cidr => "IP address or CIDR prefix".into(),
         Rule::network_port => "a network port".into(),
         Rule::ipv4_address => "an IPv4 address".into(),
@@ -492,6 +547,7 @@ fn rename_rules(rule: &Rule) -> String {
 
         // Rosenpass
         Rule::rosenpass_own_config => "<OWN_CONFIG>".into(),
+        Rule::rosenpass_own_config_element => "item of this instance's configuration".into(),
         Rule::own_public_key => "public-key <FILE>".into(),
         Rule::own_secret_key => "secret-key <FILE>".into(),
         Rule::listen => "listen <IP:PORT>".into(),
