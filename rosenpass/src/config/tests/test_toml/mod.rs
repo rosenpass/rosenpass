@@ -11,7 +11,7 @@ mod example_files;
 mod illegal_keys;
 mod reject_secret_key;
 
-use harness::{ExpectSilent, parse_string};
+pub(crate) use harness::{ExpectSilent, parse_string};
 
 // TODO: test for missing keys – or does it even need testing?
 

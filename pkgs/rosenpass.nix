@@ -98,6 +98,8 @@ rustPlatform.buildRustPackage {
     lockFile = src + "/Cargo.lock";
     outputHashes = {
       "uds-0.4.2" = "sha256-qlxr/iJt2AV4WryePIvqm/8/MK/iqtzegztNliR93W8=";
+      # Ilka's backported fix from https://github.com/ilka-schulz/pest-typed/tree/fix-backport
+      "pest_typed-0.20.11" = "sha256-WkP6q5tbptReSN0X9eTObnck/nrRsEXstOH4NT+J9ss=";
     };
   };
 

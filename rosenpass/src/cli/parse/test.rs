@@ -47,14 +47,35 @@ fn parse_cmd(command_line: &str) -> Result<(CliCommand, String), anyhow::Error> 
     // parse
     let result = CliCommand::parse(command_line.as_str(), grammar);
 
-    // return
-    result
+    // print error and return
+    match result {
+        Ok(good) => Ok(good),
+        Err(err) => {
+            let red = AnsiColor::Red.on_default();
+            anstream::eprintln!("{red}{err}{red:#}");
+            Err(err)
+        }
+    }
 }
 
 // mod exchange {} This subcommand is already tested in `crate::config::tests`
 
 mod exchange_config {
     // TODO: test exchange-config
+    // use super::*;
+    // use crate::config::tests::test_toml::harness::CONFIGS_DIR;
+    // #[test]
+    // fn rosenpass_exchange_config() {
+    //     let CliCommand::ExchangeConfig(config) = parse_cmd(&format!(
+    //         "rosenpass exchange-config {CONFIGS_DIR}/full-raw.toml"
+    //     ))
+    //     .unwrap()
+    //     .0
+    //     else {
+    //         panic!("parsing failed");
+    //     };
+    //     todo!("assertions");
+    // }
 }
 mod generate_config {
     use super::*;
@@ -154,6 +175,27 @@ mod generate_keys {
         assert_eq!(public_key_file, PathBuf::from("bar"),);
     }
     #[test]
+    fn rp_parse_genkeys_repeated_arguments() {
+        assert!(
+            parse_cmd("rosenpass gen-keys -s foo -p bar -s foo")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("more than one secret key file specified")
+        );
+        assert!(
+            parse_cmd("rosenpass gen-keys -s foo -p bar -p bar")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("more than one public key file specified")
+        );
+        assert!(
+            parse_cmd("rosenpass gen-keys -s foo -p bar -f -f")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("more than one --force flag specified")
+        );
+    }
+    #[test]
     fn rp_parse_genkeys() {
         for set_force in [false, true] {
             let CliCommand::GenKeys(GenKeysParameters {
@@ -190,7 +232,51 @@ mod generate_keys {
         }
     }
 }
-// TODO: implement: generate public keys
+mod generate_public_keys {
+    use super::*;
+
+    #[test]
+    fn rp_parse_genpubkeys() {
+        let CliCommand::GenPubKeys(parameters) =
+            parse_cmd("rp pubkey my/secrets our/publics").unwrap().0
+        else {
+            panic!("parsing failed");
+        };
+        assert_eq!(
+            parameters.secret_keys_directory,
+            PathBuf::from("my/secrets")
+        );
+        assert_eq!(
+            parameters.public_keys_directory,
+            PathBuf::from("our/publics")
+        );
+    }
+    #[test]
+    fn rp_parse_genpubkey_wrong_parameter_count() {
+        assert!(
+            parse_cmd("rp pubkey my/secrets")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("= unknown parsing error") // TODO: this error message should be better
+        );
+        assert!(
+            parse_cmd("rp pubkey my/secrets our/publics --force")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("= expected ")
+        )
+    }
+
+    #[test]
+    fn rosenpass_has_no_genpubkey() {
+        assert!(
+            parse_cmd("rosenpass pubkey my/secrets our/publics")
+                .expect_err("parsing should fail")
+                .to_string()
+                .contains("does not support this subcommand")
+        );
+    }
+}
 mod help {
     use super::*;
     #[test]
@@ -253,7 +339,7 @@ mod help {
             parse_cmd("rosenpass foo bar")
                 .expect_err("excpected error")
                 .to_string()
-                .contains("Expected [")
+                .contains("= expected ")
         )
     }
 
@@ -263,7 +349,7 @@ mod help {
             parse_cmd("rp foo bar")
                 .expect_err("expected error")
                 .to_string()
-                .contains("Expected [")
+                .contains("= expected ")
         );
     }
 }

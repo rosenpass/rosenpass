@@ -177,7 +177,8 @@ indexmap = "2.14.2"
 pest = { version = "2.9", features = ["pretty-print"] }
 pest_derive = "2.9.5"
 pest_typed_derive = "0.20.11"
-pest_typed = "0.20.11"
+pest_typed = { version = "0.20.11", git = "https://github.com/ilka-schulz/pest-typed.git", branch = "fix-backport" }
+# pest_typed = { version = "0.20.11" }
 toml_edit = { version = "0.25", features = ["display", "serde", "parse"] }
 tstr = "0.3.2"
 

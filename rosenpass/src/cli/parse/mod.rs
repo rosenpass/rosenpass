@@ -22,6 +22,21 @@ pub mod validate;
 #[emit_rule_reference]
 pub struct SubCommandTypeParser;
 
+fn rename_rules(rule: &Rule) -> String {
+    match *rule {
+        Rule::tool_name => "the tool's name".into(),
+        Rule::command_line => "command line".into(),
+
+        Rule::subcommand | Rule::subcommand_normal | Rule::subcommand_not_help => "a subcommand".into(),
+        Rule::subcommand_help => "the subcommand \"--help\"".into(),
+        Rule::subcommand_exchange_config => "the subcommand \"exchange-config\"".into(),
+        Rule::subcommand_exchange => "the subcommand \"exchange\"".into(),
+        Rule::subcommand_gen_config => "the subcommand \"gen-config\"".into(),
+        // TODO: rename all rules
+        name => name.name().into()
+    }
+}
+
 /// - TODO: evaluate to Help if no parameter is given
 impl CliCommand {
     pub fn parse_from_env(grammar: CliGrammar) -> anyhow::Result<(CliCommand, String)> {
@@ -44,13 +59,7 @@ impl CliCommand {
         let command_line = SubCommandTypeParser::try_parse::<pairs::command_line>(command_line)
             .map_err(|error| {
                 let error = error
-                    .renamed_rules(|rule| match rule.name() {
-                        "subcommand" => "a subcommand".into(),
-                        "subcommand_exchange_config" => "the subcommand \"exchange-config\"".into(),
-                        "subcommand_exchange" => "the subcommand \"exchange\"".into(),
-                        // TODO: rename all rules
-                        name => name.replace("_", " "),
-                    })
+                    .renamed_rules(rename_rules)
                     .to_string()
                     .replace('\0', " ");
                 anyhow!(error)
