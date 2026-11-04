@@ -406,7 +406,13 @@ pub fn exchange_implementation(
     test_helpers: Option<AppServerTest>,
 ) -> anyhow::Result<()> {
     // check configuration
-    config.verbosity.apply();
+    if !test_helpers
+        .as_ref()
+        .map(|th| th.skip_init_logging)
+        .unwrap_or(false)
+    {
+        config.verbosity.apply();
+    }
     config.validate_and_print(ValidationRecipe::all())?;
     config.check_usefullness()?;
 

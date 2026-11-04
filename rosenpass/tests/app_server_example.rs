@@ -123,6 +123,7 @@ impl TestServer {
         let test_helpers = Some(AppServerTest {
             enable_dos_permanently: false,
             termination_handler: Some(termination_queue),
+            skip_init_logging: false,
         });
 
         let app_srv = AppServer::new(keypair, addrs, verbosity, test_helpers)?;

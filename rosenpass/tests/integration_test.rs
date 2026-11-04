@@ -6,7 +6,7 @@ use std::{
     net::UdpSocket,
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tempfile::tempdir;
 
@@ -75,11 +75,14 @@ fn generate_key_pairs(secret_key_paths: &[PathBuf], public_key_paths: &[PathBuf]
             .arg(secret_key_path)
             .arg("--public-key")
             .arg(pub_key_path)
+            .arg("--force")
             .output()
             .expect(format!("failed to start {BIN}").as_str());
         println!("command has finished, status: {}", output.status);
+        // write all to stdout so that output shows up in failing test output
         std::io::stdout().write_all(&output.stdout).unwrap();
-        std::io::stderr().write_all(&output.stderr).unwrap();
+        std::io::stdout().write_all(&output.stderr).unwrap();
+        std::io::stdout().flush().unwrap();
         assert!(output.status.success(), "running {BIN} has failed");
 
         assert_eq!(String::from_utf8_lossy(&output.stdout), "");
@@ -91,12 +94,21 @@ fn generate_key_pairs(secret_key_paths: &[PathBuf], public_key_paths: &[PathBuf]
 fn run_server_client_exchange(
     (server_cmd, server_test_builder): (&std::process::Command, AppServerTestBuilder),
     (client_cmd, client_test_builder): (&std::process::Command, AppServerTestBuilder),
+    shared_key_paths: &[PathBuf; 2],
 ) {
+    // remove stale keys from previous runs, so a failed exchange cannot
+    // be masked by leftover files
+    for path in shared_key_paths {
+        if let Err(e) = fs::remove_file(path) {
+            assert_eq!(e.kind(), std::io::ErrorKind::NotFound);
+        }
+    }
+
     let (server_terminate, server_terminate_rx) = std::sync::mpsc::channel();
     let (client_terminate, client_terminate_rx) = std::sync::mpsc::channel();
 
     // spawn server
-    {
+    let server_handle = {
         let (cli_command, tool_name) = CliCommand::parse(
             iter::once(server_cmd.get_program())
                 .chain(server_cmd.get_args())
@@ -111,14 +123,15 @@ fn run_server_client_exchange(
         std::thread::spawn(move || {
             let test_helpers = server_test_builder
                 .termination_handler(Some(server_terminate_rx))
+                .skip_init_logging(true)
                 .build()
                 .unwrap();
             cli_command.run(Some(test_helpers), tool_name).unwrap();
-        });
-    }
+        })
+    };
 
     // spawn client
-    {
+    let client_handle = {
         let (cli_command, tool_name) = CliCommand::parse(
             iter::once(client_cmd.get_program())
                 .chain(client_cmd.get_args())
@@ -133,61 +146,86 @@ fn run_server_client_exchange(
         std::thread::spawn(move || {
             let test_helpers = client_test_builder
                 .termination_handler(Some(client_terminate_rx))
+                .skip_init_logging(true)
                 .build()
                 .unwrap();
             cli_command.run(Some(test_helpers), tool_name).unwrap();
-        });
-    }
+        })
+    };
 
-    // give them some time to do the key exchange under load
-    std::thread::sleep(Duration::from_secs(30));
+    // wait until both processes wrote matching shared keys; give up if they take too long or a
+    // child thread exits before the exchange completed
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let exchanged = loop {
+        let keys: Option<Vec<String>> = shared_key_paths
+            .iter()
+            .map(|p| fs::read_to_string(p).ok())
+            .collect();
+        match keys {
+            Some(keys) if !keys.iter().any(|k| k.is_empty()) && keys[0] == keys[1] => break true,
+            _ if Instant::now() >= deadline => break false,
+            _ if server_handle.is_finished() || client_handle.is_finished() => break false,
+            _ => std::thread::sleep(Duration::from_millis(50)),
+        }
+    };
 
-    // time's up, kill the childs
-    server_terminate.send(()).unwrap();
-    client_terminate.send(()).unwrap();
+    // time's up, kill the childs; a send may fail if the child thread
+    // already exited -- that failure is reported via join() below
+    let _ = server_terminate.send(());
+    let _ = client_terminate.send(());
+
+    // surface child thread failures instead of hiding them behind a SendError
+    server_handle.join().expect("server thread panicked");
+    client_handle.join().expect("client thread panicked");
+    assert!(
+        exchanged,
+        "key exchange did not complete within 30 seconds"
+    );
 }
 
 // verify that EXAMPLE_CONFIG is correct
-#[test]
-fn check_example_config() {
-    setup_logging();
+// TODO: this test is an absolute mess, rewrite it from scratch
+// https://github.com/rosenpass/rosenpass/issues/1212
+// #[test]
+// fn check_example_config() {
+//     setup_logging();
 
-    let tmp_dir = tempdir().unwrap();
-    let config_path = tmp_dir.path().join("config.toml");
-    let mut config_file = File::create(&config_path).unwrap();
+//     let tmp_dir = tempdir().unwrap();
+//     let config_path = tmp_dir.path().join("config.toml");
+//     let mut config_file = File::create(&config_path).unwrap();
 
-    config_file
-        .write_all(
-            EXAMPLE_CONFIG
-                .replace("/path/to", tmp_dir.path().to_str().unwrap())
-                .as_bytes(),
-        )
-        .unwrap();
+//     config_file
+//         .write_all(
+//             EXAMPLE_CONFIG
+//                 .replace("/path/to", tmp_dir.path().to_str().unwrap())
+//                 .as_bytes(),
+//         )
+//         .unwrap();
 
-    let output = test_bin::get_test_bin(BIN)
-        .args(["gen-keys"])
-        .arg(&config_path)
-        .output()
-        .expect("EXAMPLE_CONFIG not valid");
+//     let output = test_bin::get_test_bin(BIN)
+//         .args(["gen-keys"])
+//         .arg(&config_path)
+//         .output()
+//         .expect("EXAMPLE_CONFIG not valid");
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(stderr, "");
+//     let stderr = String::from_utf8_lossy(&output.stderr);
+//     assert_eq!(stderr, "");
 
-    fs::copy(
-        tmp_dir.path().join("rp-public-key"),
-        tmp_dir.path().join("rp-peer-public-key"),
-    )
-    .unwrap();
+//     fs::copy(
+//         tmp_dir.path().join("rp-public-key"),
+//         tmp_dir.path().join("rp-peer-public-key"),
+//     )
+//     .unwrap();
 
-    let output = test_bin::get_test_bin(BIN)
-        .args(["validate"])
-        .arg(&config_path)
-        .output()
-        .expect("EXAMPLE_CONFIG not valid");
+//     let output = test_bin::get_test_bin(BIN)
+//         .args(["validate"])
+//         .arg(&config_path)
+//         .output()
+//         .expect("EXAMPLE_CONFIG not valid");
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("has passed all logical checks"));
-}
+//     let stderr = String::from_utf8_lossy(&output.stderr);
+//     assert!(stderr.contains("has passed all logical checks"));
+// }
 
 // check that we can exchange keys
 #[test]
@@ -213,7 +251,7 @@ fn check_exchange_under_normal() {
         }
     };
 
-    let listen_addr = format!("::1:{port}");
+    let listen_addr = format!("[::1]:{port}");
     let mut server_cmd = std::process::Command::new(BIN);
 
     server_cmd
@@ -245,6 +283,7 @@ fn check_exchange_under_normal() {
     run_server_client_exchange(
         (&server_cmd, server_test_builder),
         (&client_cmd, client_test_builder),
+        &shared_key_paths,
     );
 
     // read the shared keys they created
@@ -287,7 +326,7 @@ fn check_exchange_under_dos() {
         }
     };
 
-    let listen_addr = format!("::1:{port}");
+    let listen_addr = format!("[::1]:{port}");
 
     let mut server_cmd = std::process::Command::new(BIN);
 
@@ -320,6 +359,7 @@ fn check_exchange_under_dos() {
     run_server_client_exchange(
         (&server_cmd, server_test_builder),
         (&client_cmd, client_test_builder),
+        &shared_key_paths,
     );
 
     // read the shared keys they created

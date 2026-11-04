@@ -287,6 +287,8 @@ pub struct AppServerTest {
     /// Terminate application signal
     #[builder(default = "None")]
     pub termination_handler: Option<std::sync::mpsc::Receiver<()>>,
+
+    pub skip_init_logging: bool,
 }
 
 /// This represents a some source of IO operations in the context of the Rosenpass server

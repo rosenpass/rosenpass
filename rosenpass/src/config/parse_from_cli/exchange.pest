@@ -103,7 +103,7 @@ unsigned_integer = @{ (ASCII_DIGIT)+ }
 
 host_port_pair = { ( host_name ~ ":" ~ network_port ) | socket_address }
 // TODO: restrict host_name further
-host_name      = @{ ( !(separator | ":" | " ") ~ ANY )+ }
+host_name      = @{ ( ASCII_DIGIT | ASCII_ALPHA_LOWER | "." | "-" )+ }
 ip_address     = @{ ipv4_address | ipv6_address }
 cidr           = @{ (ipv4_address ~ "/" ~ prefix4) | (ipv6_address ~ "/" ~ prefix6) }
 socket_address = @{ (ipv4_address ~ ":" ~ network_port) | ("[" ~ ipv6_address ~ "]:" ~ network_port) }

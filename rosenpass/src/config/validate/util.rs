@@ -168,8 +168,8 @@ impl AttemptRead for std::path::PathBuf {
 
     fn attempt_write(&self) -> Result<(), std::io::Error> {
         let result = std::fs::OpenOptions::new()
-            .write(true)
             .append(true)
+            .create(true)
             .open(self.clone());
         match result {
             Err(err) => Err(err),
