@@ -311,6 +311,27 @@ pub fn generate_and_save_keypair(
     wg_secret_key: Option<&Path>,
     force: bool,
 ) -> anyhow::Result<()> {
+    // check that we are not overriding something unintentionally
+    let mut problems = vec![];
+    if !force && public_key_file.exists() {
+        problems.push(format!(
+            "public-key file {:?} exists, refusing to overwrite",
+            std::fs::canonicalize(public_key_file)?,
+        ));
+    }
+    if !force && secret_key_file.exists() {
+        problems.push(format!(
+            "secret-key file {:?} exists, refusing to overwrite",
+            std::fs::canonicalize(secret_key_file)?,
+        ));
+    }
+    if secret_key_file == public_key_file {
+        problems.push("secret key file and public key file have the same path".into());
+    }
+    if !problems.is_empty() {
+        bail!(problems.join("\n"));
+    }
+
     // TODO: maybe set umask?
     // https://github.com/rosenpass/rosenpass/issues/1209
     log::warn!(
@@ -331,24 +352,6 @@ pub fn generate_and_save_keypair(
             .recursive(true) // historically, rp 0.2.3 also creates parent dirs
             .create(generate_directory.clone())
             .map_err(|e| anyhow!(e).context("can not create keys directory"));
-    }
-
-    // check that we are not overriding something unintentionally
-    let mut problems = vec![];
-    if !force && public_key_file.exists() {
-        problems.push(format!(
-            "public-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(public_key_file)?,
-        ));
-    }
-    if !force && secret_key_file.exists() {
-        problems.push(format!(
-            "secret-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(secret_key_file)?,
-        ));
-    }
-    if !problems.is_empty() {
-        bail!(problems.join("\n"));
     }
 
     // generate and write secret key and public key
@@ -465,7 +468,7 @@ pub fn exchange_implementation(
         let (broker_peer, wg_key_binding) = match &cfg_peer.wireguard {
             Some(wg) => {
                 let our_wg_pubkey = wg.our_wireguard_keypair.as_ref()
-                .map(|our|our.get_pubkey())
+                .map(|our|our.get_public_key())
                 .map(|key| key.get_inline_key().expect("not yet implemented: read WireGuard keypair from other sources than inline base64-encoded"));
                 let their_wg_pubkey = wg.their_wireguard_public_key.get_inline_key().ok_or_else(
                     || {

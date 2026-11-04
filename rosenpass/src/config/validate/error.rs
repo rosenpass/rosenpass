@@ -4,7 +4,9 @@
 //!
 //! [`Issue`] is a simple sum type (enum) which can either hold an [`Error`] or a [`Warning`].
 
-use std::path::PathBuf;
+use crate::protocol::ProtocolVersion;
+use anstyle::AnsiColor;
+use std::{fmt::Display, path::PathBuf};
 use thiserror::Error;
 
 // allow unused import because the import is actually used in the doc comment which clippy does not
@@ -25,17 +27,20 @@ pub enum Error {
     OurSecretKeyFileDoesNotExist(PathBuf),
     #[error("can not read secret key file \"{0}\": {1}")]
     OurSecretKeyFileCanNotBeRead(PathBuf, std::io::Error),
-    #[error("secret key file has invalid content, expected secret key in file \"{0}\"")]
-    OurSecretKeyFileHasInvalidContent(PathBuf),
+    #[error("secret key file has invalid content, expected secret key in file \"{0}\": {1}")]
+    OurSecretKeyFileHasInvalidContent(PathBuf, anyhow::Error),
 
     #[error("can not read public key file \"{0}\": file does not exist")]
     OurPublicKeyFileDoesNotExist(PathBuf),
     #[error("can not read public key file \"{0}\": {1}")]
     OurPublicKeyFileCanNotBeRead(PathBuf, std::io::Error),
-    #[error("public key file has invalid content, expected public key in file \"{0}\"")]
-    OurPublicKeyFileHasInvalidContent(PathBuf),
+    #[error("public key file has invalid content, expected public key in file \"{0}\": {1}")]
+    OurPublicKeyFileHasInvalidContent(PathBuf, anyhow::Error),
 
-    // ============================== [[device]] ==============================
+    // ============================== [[wireguard-devices]] ==============================
+    #[error("duplicate name \"{0}\" among enabled WireGuard devices")]
+    DuplicateDeviceName(String),
+
     #[error("device \"{0}\" is managed by rosenpass but has no wireguard secret key specified")]
     DeviceIsManagedByRosenpassButMissesWireguardSecretKey(String),
     #[error("device \"{0}\" is managed by rosenpass but has no wireguard public key specified")]
@@ -81,19 +86,30 @@ pub enum Error {
     )]
     DevicesWireguardBinaryMisbehaves(String, PathBuf),
 
-    // ============================== [[peer]] ==============================
+    // ============================== [[peers]] ==============================
+    #[error("duplicate name \"{0}\" among enabled peers")]
+    DuplicatePeerName(String),
+
     #[error("can not read public key file of peer \"{0}\" from \"{1}\": file does not exist")]
     PeerPublicKeyFileDoesNotExist(String, PathBuf),
     #[error("can not read public key file of peer \"{0}\" from \"{1}\": {2}")]
     PeerPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
-    #[error("TODO")]
-    PeerPublicKeyFileHasInvalidContent(String, PathBuf),
+    #[error(
+        "public key file of peer \"{0}\" has invalid content, expected public key in file \"{1}\": {2}"
+    )]
+    PeerPublicKeyFileHasInvalidContent(String, PathBuf, anyhow::Error),
+
+    #[error("peer \"{0}\" has an invalid endpoint \"{1}\": {2}")]
+    InvalidPeerEndpoint(String, String, std::io::Error),
+
     #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": file does not exist")]
     PeerPskFileDoesNotExist(String, PathBuf),
     #[error("can not read preshared key file of peer \"{0}\" from \"{1}\": {2}")]
     PeerPskFileCanNotBeRead(String, PathBuf, std::io::Error),
-    #[error("TODO")]
-    PeerPskFileHasInvalidContent(String, PathBuf),
+    #[error(
+        "preshared key file with peer \"{0}\" has invalid content, expected PSK in file \"{1}\": {2}"
+    )]
+    PeerPskFileHasInvalidContent(String, PathBuf, anyhow::Error),
 
     /// TODO: this will most likely be found during parsing, already – or will it?
     #[error("Invalid OSK domain separation configuration for peer \"{0}\": {1}")]
@@ -104,10 +120,57 @@ pub enum Error {
         "the keys exchanged with peer \"{0}\" are configured to be written to file \"{1}\" but that file can not be written to: {2}"
     )]
     PeerOutputToFileNotWritable(String, PathBuf, std::io::Error),
+    #[error(
+        "Invalid OSK domain separation configuration for peer \"{0}\" for output-to-file option: {1}"
+    )]
+    PeerHasInvalidOskDomainSeparatorInOutfile(String, anyhow::Error),
 
     // ========== wireguard ==========
     #[error("peer \"{0}\" uses wireguard device \"{1}\" but that device has not been defined")]
     EnabledPeerWireguardUsesUndefinedDevice(String, String),
+
+    // our WG keypair
+    #[error(
+        "can not read our secret WireGuard key file \"{1}\" used with peer \"{0}\": file does not exist"
+    )]
+    PeerWireguardOurSecretKeyFileDoesNotExist(String, PathBuf),
+    #[error("can not read our secret WireGuard key file \"{1}\" used with peer \"{0}\": {2}")]
+    PeerWireguardOurSecretKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
+    #[error(
+        "our WireGuard secret key used with peer \"{0}\" file has invalid content, expected WireGuard secret key in file \"{1}\": {2}"
+    )]
+    PeerWireguardOurSecretKeyFileHasInvalidContent(String, PathBuf, anyhow::Error),
+
+    #[error(
+        "can not read our WireGuard public key file \"{1}\" used with peer \"{0}\": file does not exist"
+    )]
+    PeerWireguardOurPublicKeyFileDoesNotExist(String, PathBuf),
+    #[error("can not read our WireGuard public key file \"{1}\" used with peer \"{0}\": {2}")]
+    PeerWireguardOurPublicKeyFileCanNotBeRead(String, PathBuf, std::io::Error),
+    #[error(
+        "our WireGuard public key file \"{1}\" used with peer \"{0}\" has invalid content, expected WireGuard public key in file \"{1}\": {2}"
+    )]
+    PeerWireguardOurPublicKeyFileHasInvalidContent(String, PathBuf, anyhow::Error),
+    #[error(
+        "our WireGuard public key (specified as base-encoded string) used with peer \"{0}\" has invalid content, expected WireGuard public key, base64-encoded"
+    )]
+    PeerWireguardOurPublicKeyInlineHasInvalidContent(String, anyhow::Error),
+
+    // their WG public key
+    #[error(
+        "peer \"{0}\" WireGuard public key file \"{1}\" has invalid content, expected WireGuard public key in file \"{1}\": {2}"
+    )]
+    PeerWireguardTheirPublicKeyFileHasInvalidContent(String, PathBuf, anyhow::Error),
+    #[error(
+        "peer \"{0}\"\'s WireGuard public key (specified as base-encoded string) has invalid content, expected WireGuard public key, base64-encoded: {1}"
+    )]
+    PeerWireguardTheirPublicKeyInlineHasInvalidContent(String, anyhow::Error),
+
+    // other WG stuff
+    #[error(
+        "peer \"{0}\" uses {1} and has a wireguard config, but our WireGuard public key is not set"
+    )]
+    PeerNeedsToBindToOurWgPubkey(String, ProtocolVersion),
 
     #[error(
         "a custom wg binary has been specified for peer \"{0}\" but the binary file does not exist: \"{1}\""
@@ -149,39 +212,48 @@ pub enum Error {
 /// error messages.
 #[derive(Error, Debug)]
 pub enum Warning {
+    // ============================== [rosenpass] ==============================
     #[error("secret key file is globally readable: \"{0}\"")]
     OurSecretKeyFileIsGloballyReadable(PathBuf),
 
+    // ============================== [[wireguard-devices]] ==============================
+    #[error("WireGuard device \"{0}\" is disabled")]
+    DeviceIsDisabled(String),
+
     #[error(
-        "device \"{0}\" (managed by rosenpass) has wireguard secret key file which is globally readable \"{1}\""
+        "WireGuard device has very long name ({0} characters while the recommended maximum length is {1} characters): WireGuard device is named \"{0}\""
     )]
-    DeviceIsManagedByRosenpassButSecretKeyFileIsGloballyReadable(String, PathBuf),
+    DeviceHasVeryLongName(String, usize, usize),
+
+    // ============================== [[peers]] ==============================
     #[error(
-        "device \"{0}\" (not managed by rosenpass) has wireguard secret key file which is globally readable \"{1}\""
+        "peer has very long name ({0} characters while the recommended maximum length is {1} characters): peer is named \"{0}\""
     )]
-    DeviceIsNotManagedByRosenpassAndSecretKeyFileIsGloballyReadable(String, PathBuf),
+    PeerHasVeryLongName(String, usize, usize),
 
-    #[error("wireguard secret key file is globally readable: \"{0}\"")]
-    WireguardSecretKeyFileIsGloballyReadable(PathBuf),
+    #[error("peer \"{0}\" is disabled")]
+    PeerIsDisabled(String),
 
-    #[error("preshared key file is globally readable: \"{0}\"")]
-    PresharedKeyFileIsGloballyReadable(PathBuf),
+    #[error("PSK file \"{1}\" with peer \"{0}\" is globally readable")]
+    PeerPskFileIsGloballyReadable(String, PathBuf),
 
+    // ========== output-to-file ==========
+    #[error("peer \"{0}\" has an output-to-file configuration but it is disabled")]
+    PeerOutputToFileIsDisabled(String),
+
+    // ========== wireguard ==========
+    #[error("peer \"{0}\" has a WireGuard configuration but it is disabled")]
+    PeerWireGuardIsDisabled(String),
+
+    #[error("our WireGuard secret key file used with peer \"{0}\" is globally readable: \"{1}\"")]
+    PeerWireguardOurSecretKeyFileIsGloballyReadable(String, PathBuf),
+
+    // ========== other ==========
     #[error(
         "keys will be exchanged with peer \"{0}\" but the keys will not be used
     You should use at least the output-to-file or the wireguard option."
     )]
     PeerHasNoKeyUsage(String),
-
-    #[error(
-        "peer \"{0}\" has wireguard usage disabled, however, it it were enabled, it would use an undefined defined device \"{1}\""
-    )]
-    DisabledPeerUsesUndefinedDevice(String, String),
-
-    #[error("can not check the validity of secret key (not implemented): \"{0}\"")]
-    CanNotCheckValidityOfStaticKemSecretKey(PathBuf),
-    #[error("can not check the validity of public key (not implemented): \"{0}\"")]
-    CanNotCheckValidityOfStaticKemPublicKey(PathBuf),
 }
 
 /// an issue with the contents of a [`RosenpassConfig`]
@@ -194,10 +266,67 @@ pub enum Warning {
 /// ```
 ///
 /// You should use this type if you want to have collections of a mix of errors and warnings.
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum Issue {
-    #[error("error: {0}")]
     Error(Error),
-    #[error("warning: {0}")]
     Warning(Warning),
+}
+
+impl Display for Issue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_style = anstyle::Style::new()
+            .fg_color(Some(AnsiColor::Red.into()))
+            .bold();
+        let warning_style = anstyle::Style::new()
+            .fg_color(Some(AnsiColor::Yellow.into()))
+            .bold();
+        match &self {
+            Self::Error(e) => {
+                write!(f, "{error_style}error: {error_style:#}")?;
+                writeln!(f, "{e}")?;
+            }
+            Self::Warning(w) => {
+                write!(f, "{warning_style}warning: {warning_style:#}")?;
+                writeln!(f, "{w}")?;
+            }
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for Issue {}
+impl From<Error> for Issue {
+    fn from(value: Error) -> Self {
+        Self::Error(value)
+    }
+}
+impl From<Warning> for Issue {
+    fn from(value: Warning) -> Self {
+        Self::Warning(value)
+    }
+}
+impl Issue {
+    pub fn as_error(&self) -> Option<&Error> {
+        match &self {
+            Self::Warning(_) => None,
+            Self::Error(e) => Some(e),
+        }
+    }
+    pub fn to_error(self) -> Option<Error> {
+        match self {
+            Self::Warning(_) => None,
+            Self::Error(e) => Some(e),
+        }
+    }
+    pub fn as_warning(&self) -> Option<&Warning> {
+        match &self {
+            Self::Warning(w) => Some(w),
+            Self::Error(_) => None,
+        }
+    }
+    pub fn to_warning(self) -> Option<Warning> {
+        match self {
+            Self::Warning(w) => Some(w),
+            Self::Error(_) => None,
+        }
+    }
 }

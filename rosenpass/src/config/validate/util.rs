@@ -4,8 +4,11 @@
 //! - [`AttemptRead`]: a trait implemented for [`std::path::PathBuf`] check certains properties on a file (e.g. whether it is readable)
 //! - [`validate_keypair`]: a macro to run certain checks on a keypair (e.g. whether it is readable from disk)
 
+use std::path::{Path, PathBuf};
+
 use anyhow::anyhow;
 use rustix::path::Arg;
+use super::{Issue,ValidationRecipe};
 
 /// - TODO: rename trait?
 pub trait AttemptRead {
@@ -208,6 +211,46 @@ impl AttemptRead for std::path::PathBuf {
     }
 }
 
+
+pub fn check_key_file(
+    issues: &mut Vec<Issue>,
+    recipe: ValidationRecipe,
+    path: &Path,
+    key_file_does_not_exist: impl Fn(PathBuf) -> Issue,
+    key_file_can_not_be_read: impl Fn(PathBuf, std::io::Error) -> Issue,
+    key_file_is_globally_readable: impl Fn(PathBuf) -> Option<Issue>,
+    check_key_file_content: impl Fn(PathBuf) -> Option<Issue>,
+) {
+    let path = path.to_path_buf(); // we are going to clone it on every error anyways...
+    if !path.is_file() {
+        if recipe.check_whether_files_exist {
+            issues.push(key_file_does_not_exist(path.clone()));
+        }
+    } else {
+        // key file exists
+        if let Err(err) = path.attempt_read() {
+            if recipe.check_file_permissions {
+                issues.push(key_file_can_not_be_read(path.clone(), err));
+            }
+        } else {
+            // key file exists and is readable
+            if recipe.check_file_permissions
+                && let Some(true) = path.is_world_readable()
+            {
+                if let Some(issue) = key_file_is_globally_readable(path.clone()) {
+                    issues.push(issue);
+                }
+            }
+            if recipe.check_key_file_contents {
+                if let Some(issue) = check_key_file_content(path.clone()) {
+                    issues.push(issue);
+                }
+            }
+        }
+    }
+}
+
+// TODO: delete this macro
 macro_rules! validate_keypair {
     ($secret_path: expr, $public_path: expr, $warnings: ident, $errors: ident, $recipe: ident,
         $context: expr,

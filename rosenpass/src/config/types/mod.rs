@@ -427,10 +427,16 @@ pub enum OurWireguardKeypair {
     EntireKeypair(WgKeypairSource),
 }
 impl OurWireguardKeypair {
-    pub fn get_pubkey(&self) -> &PublicWgKeySource {
+    pub fn get_public_key(&self) -> &PublicWgKeySource {
         match &self {
             Self::EntireKeypair(pair) => &pair.public_key_source,
             Self::PublicKeyOnly(pubkey) => pubkey,
+        }
+    }
+    pub fn get_secret_key(&self) -> Option<&SecretWgKeySource> {
+        match &self {
+            Self::EntireKeypair(pair) => Some(&pair.secret_key_source),
+            Self::PublicKeyOnly(_) => None,
         }
     }
 }
