@@ -159,6 +159,7 @@ impl<'fd> AllocationCode<'fd> {
         self.harden_file_descriptor()?;
         self.allocate_guard_page()?;
         self.allocate_data_page()?;
+        self.seal_file_descriptor_against_future_writes()?;
         self.harden_mapped_segment()?;
 
         Ok(self.segment.take_data_page().unwrap())
@@ -506,6 +507,41 @@ impl<'fd> AllocationCode<'fd> {
         if current_seals.contains(SSEAL) && !missing.is_empty() {
             Err(MemfdCreateSealError::PresealedWithMissingSeals)?;
         }
+
+        Ok(())
+    }
+
+    /// Seal the underlying file descriptor with F_SEAL_FUTURE_WRITE unless
+    /// disabled through [MappingConfig::without_future_write_seal]
+    ///
+    /// Must run after [Self::allocate_data_page]: the seal only prevents
+    /// *new* writable mappings. No-op outside Linux.
+    fn seal_file_descriptor_against_future_writes(&mut self) -> Result<(), MMapError> {
+        cfg_select! {
+            target_os = "linux" => self.seal_file_descriptor_against_future_writes_linux(),
+            _ => Ok(()),
+        }
+    }
+
+    /// Linux implementation of [Self::seal_file_descriptor_against_future_writes()]
+    #[cfg(target_os = "linux")]
+    fn seal_file_descriptor_against_future_writes_linux(&mut self) -> Result<(), MMapError> {
+        use crate::internal::util::rustix::AddSealsError;
+
+        if self.config().disable_future_write_seal || self.is_memfd_secret()? {
+            return Ok(());
+        }
+
+        let Some(fd) = self.fd() else { return Ok(()) };
+
+        // F_SEAL_FUTURE_WRITE needs Linux 5.1; older kernels report EINVAL.
+        // The seal is defense in depth, so its absence is tolerated here;
+        // [Mappable::seal_future_write] propagates all errors.
+        match fd.add_seals(SealFlags::FUTURE_WRITE) {
+            Ok(()) => {}
+            Err(AddSealsError::SystemError(Errno::INVAL)) => {} // Not supported, ignore
+            Err(e) => Err(e)?,
+        };
 
         Ok(())
     }
