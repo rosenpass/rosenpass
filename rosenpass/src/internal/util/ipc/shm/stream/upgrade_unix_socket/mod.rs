@@ -2,3 +2,6 @@
 
 mod manually;
 pub use manually::*;
+
+mod upgradable_socket;
+pub use upgradable_socket::*;
