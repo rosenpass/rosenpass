@@ -134,7 +134,7 @@ impl CliCommand {
                     .map_err(|e| anyhow!(e).context("can not copy rosenpass public key"));
 
                 // generate the WG public key
-                // use a command like this: `wg pubkey $SECRET_FILE  >  $PUBLIC_FILE`
+                // use a command like this: `wg pubkey  <  $SECRET_FILE  >  $PUBLIC_FILE`
                 let wg_keypair = WgKeypairSource {
                     secret_key_source: KeyFromDisk::new(KeyFromDiskInner::Directory(
                         parameters.secret_keys_directory.clone(),
@@ -157,9 +157,11 @@ impl CliCommand {
                 );
                 let outfile = File::create(wg_outfile)
                     .map_err(|e| anyhow!(e).context("can not create wg public key file"))?;
+                let infile = File::open(wg_keypair.secret_key_source.get_key_path())
+                    .map_err(|e| anyhow!(e).context("can not open wg secret key file"))?;
                 let exit_code = Command::new("wg")
                     .arg("pubkey")
-                    .arg(wg_keypair.secret_key_source.get_key_path())
+                    .stdin(Stdio::from(infile))
                     .stdout(Stdio::from(outfile))
                     .status()
                     .map_err(|e| {
