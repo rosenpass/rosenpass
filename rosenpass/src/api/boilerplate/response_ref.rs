@@ -71,6 +71,7 @@ impl<B: SplitByteSlice> ResponseRef<B> {
             Self::SupplyKeypair(_) => ResponseMsgType::SupplyKeypair,
             Self::AddListenSocket(_) => ResponseMsgType::AddListenSocket,
             Self::AddPskBroker(_) => ResponseMsgType::AddPskBroker,
+            Self::UpgradeTransport(_) => ResponseMsgType::UpgradeTransport,
         }
     }
 }
@@ -99,6 +100,12 @@ impl<B> From<Ref<B, super::AddPskBrokerResponse>> for ResponseRef<B> {
     }
 }
 
+impl<B> From<Ref<B, super::UpgradeTransportResponse>> for ResponseRef<B> {
+    fn from(v: Ref<B, super::UpgradeTransportResponse>) -> Self {
+        Self::UpgradeTransport(v)
+    }
+}
+
 impl<B: SplitByteSlice> ResponseRefMaker<B> {
     fn new(buf: B) -> anyhow::Result<Self> {
         let msg_type = buf.deref().response_msg_type_from_prefix()?;
@@ -120,6 +127,9 @@ impl<B: SplitByteSlice> ResponseRefMaker<B> {
             }
             ResponseMsgType::AddPskBroker => {
                 ResponseRef::AddPskBroker(self.buf.add_psk_broker_response()?)
+            }
+            ResponseMsgType::UpgradeTransport => {
+                ResponseRef::UpgradeTransport(self.buf.upgrade_transport_response()?)
             }
         })
     }
@@ -163,6 +173,7 @@ pub enum ResponseRef<B> {
     SupplyKeypair(Ref<B, super::SupplyKeypairResponse>),
     AddListenSocket(Ref<B, super::AddListenSocketResponse>),
     AddPskBroker(Ref<B, super::AddPskBrokerResponse>),
+    UpgradeTransport(Ref<B, super::UpgradeTransportResponse>),
 }
 
 impl<B> ResponseRef<B>
@@ -180,6 +191,7 @@ where
             Self::SupplyKeypair(r) => Ref::bytes(r),
             Self::AddListenSocket(r) => Ref::bytes(r),
             Self::AddPskBroker(r) => Ref::bytes(r),
+            Self::UpgradeTransport(r) => Ref::bytes(r),
         }
     }
 }
@@ -195,6 +207,7 @@ where
             Self::SupplyKeypair(r) => Ref::bytes_mut(r),
             Self::AddListenSocket(r) => Ref::bytes_mut(r),
             Self::AddPskBroker(r) => Ref::bytes_mut(r),
+            Self::UpgradeTransport(r) => Ref::bytes_mut(r),
         }
     }
 }

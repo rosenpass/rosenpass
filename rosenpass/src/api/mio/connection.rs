@@ -3,6 +3,10 @@ use std::collections::VecDeque;
 use std::os::fd::OwnedFd;
 
 use crate::internal::secret_memory::Secret;
+use crate::internal::util::ipc::shm::stream::{
+    MioFdStream,
+    upgrade_unix_socket::{UpgradableSocket, UpgradeToShmStreamRequest},
+};
 use crate::internal::util::{
     io::{IoResultKindHintExt, TryIoResultKindHintExt, fd_stream::FdStreamReader},
     length_prefix_encoding::{
@@ -18,6 +22,8 @@ use crate::api::MAX_REQUEST_FDS;
 use crate::{api::Server, app_server::AppServer};
 
 use super::super::{ApiHandler, ApiHandlerContext};
+
+type ApiSocket = UpgradableSocket<UnixStream, MioFdStream>;
 
 #[derive(Debug)]
 struct SecretBuffer<const N: usize>(pub Secret<N>);
@@ -56,7 +62,8 @@ struct MioConnectionBuffers {
 /// Includes the necessary buffers, the [ApiHandler],
 /// and the [UnixStream] that is used for communication.
 pub struct MioConnection {
-    io: UnixStream,
+    /// None after a failed transport upgrade consumed the socket
+    io: Option<ApiSocket>,
     mio_token: mio::Token,
     invalid_read: bool,
     buffers: Option<MioConnectionBuffers>,
@@ -84,7 +91,7 @@ impl MioConnection {
         });
         let api_state = ApiHandler::new();
         Ok(Self {
-            io,
+            io: Some(ApiSocket::new(io)),
             mio_token,
             invalid_read,
             buffers,
@@ -105,7 +112,9 @@ impl MioConnection {
 
     /// Close and deregister this particular API connection
     pub fn close(mut self, app_server: &mut AppServer) -> anyhow::Result<()> {
-        app_server.mio_poll.registry().deregister(&mut self.io)?;
+        if let Some(io) = self.io.as_mut() {
+            app_server.mio_poll.registry().deregister(io)?;
+        }
         Ok(())
     }
 
@@ -184,13 +193,14 @@ pub trait MioConnectionContext {
             let conn = self.mio_connection_mut();
             let bufs = conn.buffers.as_mut().unwrap();
 
-            let sock = &conn.io;
+            let sock = conn.io.as_mut().unwrap();
             let write_buf = &mut bufs.write_buffer;
 
             match write_buf.write_to_stdio(sock).io_err_kind_hint() {
                 // Done
                 Ok(Ret { done: true, .. }) => {
                     write_buf.zeroize(); // clear for new message to write
+                    self.finalize_pending_upgrade();
                     break Ok(Some(()));
                 }
 
@@ -226,7 +236,7 @@ pub trait MioConnectionContext {
             let read_buf = &mut bufs.read_buffer;
             let read_fd_buf = &mut bufs.read_fd_buffer;
 
-            let sock = &mut conn.io;
+            let sock = conn.io.as_mut().unwrap();
             let fd_passing_sock = FdStreamReader::new(sock, read_fd_buf, MAX_REQUEST_FDS);
 
             match read_buf
@@ -290,6 +300,28 @@ pub trait MioConnectionContext {
 }
 
 trait MioConnectionContextPrivate: MioConnectionContext {
+    /// Called once a response was written in full; if that response accepted a
+    /// transport upgrade, switch to the shared-memory transport now.
+    fn finalize_pending_upgrade(&mut self) {
+        let conn = self.mio_connection_mut();
+        if !conn.io.as_ref().unwrap().server_upgrade_in_process() {
+            return;
+        }
+
+        // Taken out of the connection so the registry can be borrowed. A failed
+        // upgrade consumes the socket, so it is not put back in that case.
+        let mut io = conn.io.take().unwrap();
+        let mio_token = conn.mio_token;
+        let registry = self.app_server().mio_poll.registry();
+        match io.finalize_upgrade_and_update_mio_registry(registry, mio_token, MIO_RW) {
+            Ok(()) => self.mio_connection_mut().io = Some(io),
+            Err(e) => {
+                log::warn!("Failed to upgrade API connection to shared-memory transport: {e:?}");
+                self.mio_connection_mut().invalid_read = true; // closed later by mio_manager
+            }
+        }
+    }
+
     fn steal_buffers(&mut self) -> MioConnectionBuffers {
         self.mio_connection_mut().buffers.take().unwrap()
     }
@@ -341,5 +373,10 @@ where
 
     fn app_server_mut(&mut self) -> &mut AppServer {
         MioConnectionContext::app_server_mut(self)
+    }
+
+    fn handle_upgrade_request(&mut self, request: UpgradeToShmStreamRequest) -> anyhow::Result<()> {
+        let io = self.mio_connection_mut().io.as_mut().unwrap();
+        io.handle_upgrade_request(request)
     }
 }

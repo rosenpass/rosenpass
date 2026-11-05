@@ -73,6 +73,14 @@ impl ResponseMsg for super::AddPskBrokerResponse {
     type RequestMsg = super::AddPskBrokerRequest;
 }
 
+impl RequestMsg for super::UpgradeTransportRequest {
+    type ResponseMsg = super::UpgradeTransportResponse;
+}
+
+impl ResponseMsg for super::UpgradeTransportResponse {
+    type RequestMsg = super::UpgradeTransportRequest;
+}
+
 /// Request and response for the [crate::api::RequestMsgType::Ping] message type
 pub type PingPair<B1, B2> = (Ref<B1, PingRequest>, Ref<B2, PingResponse>);
 /// Request and response for the [crate::api::RequestMsgType::SupplyKeypair] message type
@@ -91,12 +99,19 @@ pub type AddPskBrokerPair<B1, B2> = (
     Ref<B2, super::AddPskBrokerResponse>,
 );
 
+/// Upgrade request and response references.
+pub type UpgradeTransportPair<B1, B2> = (
+    Ref<B1, super::UpgradeTransportRequest>,
+    Ref<B2, super::UpgradeTransportResponse>,
+);
+
 /// A pair of references to messages; request and response each.
 pub enum RequestResponsePair<B1, B2> {
     Ping(PingPair<B1, B2>),
     SupplyKeypair(SupplyKeypairPair<B1, B2>),
     AddListenSocket(AddListenSocketPair<B1, B2>),
     AddPskBroker(AddPskBrokerPair<B1, B2>),
+    UpgradeTransport(UpgradeTransportPair<B1, B2>),
 }
 
 impl<B1, B2> From<PingPair<B1, B2>> for RequestResponsePair<B1, B2> {
@@ -120,6 +135,12 @@ impl<B1, B2> From<AddListenSocketPair<B1, B2>> for RequestResponsePair<B1, B2> {
 impl<B1, B2> From<AddPskBrokerPair<B1, B2>> for RequestResponsePair<B1, B2> {
     fn from(v: AddPskBrokerPair<B1, B2>) -> Self {
         RequestResponsePair::AddPskBroker(v)
+    }
+}
+
+impl<B1, B2> From<UpgradeTransportPair<B1, B2>> for RequestResponsePair<B1, B2> {
+    fn from(v: UpgradeTransportPair<B1, B2>) -> Self {
+        Self::UpgradeTransport(v)
     }
 }
 
@@ -151,6 +172,10 @@ where
                 let res = ResponseRef::AddPskBroker(res.emancipate());
                 (req, res)
             }
+            Self::UpgradeTransport((req, res)) => (
+                RequestRef::UpgradeTransport(req.emancipate()),
+                ResponseRef::UpgradeTransport(res.emancipate()),
+            ),
         }
     }
 
@@ -193,6 +218,10 @@ where
                 let res = ResponseRef::AddPskBroker(res.emancipate_mut());
                 (req, res)
             }
+            Self::UpgradeTransport((req, res)) => (
+                RequestRef::UpgradeTransport(req.emancipate_mut()),
+                ResponseRef::UpgradeTransport(res.emancipate_mut()),
+            ),
         }
     }
 
