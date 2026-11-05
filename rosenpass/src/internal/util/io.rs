@@ -241,9 +241,29 @@
 //! Ok::<_, anyhow::Error>(())
 //! ```
 
-use std::{borrow::Borrow, io};
+use std::{
+    borrow::Borrow,
+    io,
+    os::fd::{AsFd, BorrowedFd},
+    sync::OnceLock,
+};
 
 use anyhow::ensure;
+
+/// A file descriptor that will forever output zeroes
+pub fn devzero() -> Result<BorrowedFd<'static>, rustix::io::Errno> {
+    use rustix::fd::OwnedFd;
+    use rustix::fs::{Mode, OFlags, open};
+
+    static ZERO: OnceLock<OwnedFd> = OnceLock::new();
+
+    if let Some(zero) = ZERO.get() {
+        return Ok(zero.as_fd());
+    }
+
+    let zero = open("/dev/zero", OFlags::RDONLY | OFlags::CLOEXEC, Mode::empty())?;
+    Ok(ZERO.get_or_init(|| zero).as_fd())
+}
 
 /// Generic trait for accessing [std::io::Error::kind]
 ///

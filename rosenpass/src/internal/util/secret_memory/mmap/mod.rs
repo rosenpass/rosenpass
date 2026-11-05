@@ -16,6 +16,8 @@ use crate::internal::util::secret_memory::fd::{
 
 mod allocation_code;
 
+pub mod populate;
+
 /// Size of the memory mapping for [Mappable]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MMapSizePolicy {
@@ -478,6 +480,23 @@ impl MappedSegment {
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len
+    }
+
+    /// Populate a memory segment with zeros in such a way that failures
+    /// to populate the memory are reported as errors instead of raising
+    /// a signal.
+    ///
+    /// See [populate::populate_pages].
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that zeroing the backing bytes is compatible with
+    /// all live references and concurrent accesses, including through other
+    /// mappings. Ownership of this mapping does not exclude such aliases.
+    pub unsafe fn populate_pages(&self) -> Result<(), populate::PopulateError> {
+        // SAFETY: self owns the live writable data mapping for the duration of
+        // this call; the caller guarantees compatible access through any aliases.
+        unsafe { populate::populate_pages(self.ptr(), self.len()) }
     }
 
     /// Release the memory segment

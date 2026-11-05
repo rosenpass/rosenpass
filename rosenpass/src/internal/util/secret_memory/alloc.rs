@@ -17,18 +17,24 @@ use crate::internal::util::{
     result::{GuaranteedValue, OkExt},
     secret_memory::{
         fd::{SecretMemfdConfig, SecretMemfdConfigValidationError},
-        mmap::{MappedSegment, RawMappedSegment},
+        mmap::{MappedSegment, RawMappedSegment, populate::PopulateError},
     },
 };
 
 /// A configurable memory allocator for secret memory regions
 ///
-/// The allocation proceeds in roughly two phases:
+/// The allocation proceeds in three phases:
 ///
 /// 1. Creating a [crate::internal::util::secret_memory::mmap::Mappable] using
 ///    [SecretMemfdConfig::create()] lazily inside [SecretMemoryAllocator::allocate()]
 /// 2. Allocating this into memory using
 ///    [crate::internal::util::secret_memory::mmap::Mappable::mmap()]
+/// 3. Zero-filling the fresh mapping through [MappedSegment::populate_pages()]
+///    before initializing the sentinel or returning the allocation
+///
+/// Population requires an accessible `/dev/zero`; open or kernel-copy errors
+/// return [AllocError]. It detects some immediate write faults, not every fatal
+/// allocation failure or future loss of accessibility.
 ///
 /// Allocation contents are wiped before unmapping, including storage released
 /// during reallocation.
@@ -113,7 +119,10 @@ struct SentinelMismatch {
 
 #[derive(Debug)]
 enum AllocatorSegment {
-    Mapped(MappedSegment),
+    Mapped {
+        segment: MappedSegment,
+        initialized: bool,
+    },
     ZeroSized(std::ptr::NonNull<u8>),
 }
 
@@ -136,18 +145,20 @@ impl AllocatorSegment {
             .with_config(config)
             .mmap()
             .map_err(log_alloc_err)?
-            .apply(Self::Mapped)
-            // Must not read the sentinel data for verification in the destructor
-            // before it has been initialized by [Self::write_sentinel()].
-            // Also: The allocation validation asserts below are defense in depth;
-            // if they would actually cause a panic, we should assume there is something
-            // seriously wrong with the allocation and probably not try to free it.
-            .apply(ManuallyDrop::new);
+            .apply(|segment| Self::Mapped {
+                segment,
+                initialized: false,
+            });
 
         me.validate_allocation_layout(layout);
+        me.populate_pages().map_err(log_alloc_err)?;
         me.write_sentinel();
 
-        Ok(ManuallyDrop::into_inner(me))
+        if let Some(flag) = me.is_initialized_mut() {
+            *flag = true;
+        }
+
+        Ok(me)
     }
 
     /// Reconstructs the owning segment for an allocation handed out through
@@ -186,7 +197,10 @@ impl AllocatorSegment {
             len,
         };
         let seg = unsafe { MappedSegment::from_raw(seg) };
-        let seg = ManuallyDrop::new(Self::Mapped(seg));
+        let seg = ManuallyDrop::new(Self::Mapped {
+            segment: seg,
+            initialized: true,
+        });
 
         seg.validate_allocation_layout(layout);
 
@@ -199,16 +213,23 @@ impl AllocatorSegment {
     }
 
     fn validate_allocation_layout(&self, layout: std::alloc::Layout) {
-        let guard_len = match self {
-            Self::Mapped(_) => page_size(),
-            Self::ZeroSized(_) => 0,
+        let guard_len = match self.has_segment() {
+            true => page_size(),
+            false => 0,
         };
         assert_eq!(self.front_guard_len(), guard_len);
         assert_eq!(self.back_guard_len(), guard_len);
         assert!(self.sentinel_len() < page_size());
-        assert!(matches!(self, Self::Mapped(_)) && self.data_start().is_multiple_of(page_size()));
+        assert!(self.has_segment() && self.data_start().is_multiple_of(page_size()));
         assert_eq!(self.data_len(), layout.size());
         assert!(self.data_start().is_multiple_of(layout.align()));
+    }
+
+    fn populate_pages(&mut self) -> Result<(), PopulateError> {
+        if let Some(segment) = self.segment_mut() {
+            unsafe { segment.populate_pages() }?;
+        }
+        Ok(())
     }
 
     fn write_sentinel(&mut self) {
@@ -219,11 +240,14 @@ impl AllocatorSegment {
             dest.write_copy_of_slice(src);
             Ok(())
         })
-        .guaranteed()
+        .guaranteed();
     }
 
-    unsafe fn validate_sentinel(&mut self) -> Result<(), SentinelMismatch> {
-        let sentinel: &[u8] = unsafe { self.sentinel_as_init_bytes() };
+    fn validate_sentinel(&mut self) -> Result<(), SentinelMismatch> {
+        let Some(sentinel) = self.sentinel_as_init_bytes() else {
+            return Ok(());
+        };
+
         generate_sentinel(sentinel.len(), |off, expected| {
             let (start, end) = (off, off + expected.len());
             let actual = &sentinel[start..end];
@@ -250,20 +274,27 @@ impl AllocatorSegment {
         unsafe { from_raw_parts_mut(self.sentinel_ptr().as_ptr().cast(), self.sentinel_len()) }
     }
 
-    unsafe fn sentinel_as_init_bytes(&mut self) -> &mut [u8] {
-        unsafe { self.sentinel_as_bytes().assume_init_mut() }
+    fn sentinel_as_init_bytes(&mut self) -> Option<&mut [u8]> {
+        match self.is_initialized() {
+            true => Some(unsafe { self.sentinel_as_bytes().assume_init_mut() }),
+            false => None,
+        }
     }
 
     fn alloc_ptr(&self) -> std::ptr::NonNull<c_void> {
         match self {
-            Self::Mapped(inner) => std::ptr::NonNull::new(inner.raw().alloc_ptr).unwrap(),
+            Self::Mapped { segment, .. } => {
+                std::ptr::NonNull::new(segment.raw().alloc_ptr).unwrap()
+            }
             Self::ZeroSized(ptr) => ptr.cast(),
         }
     }
 
     fn data_ptr(&self) -> std::ptr::NonNull<[u8]> {
         let ptr = match self {
-            Self::Mapped(inner) => inner.raw().ptr.apply(std::ptr::NonNull::new).unwrap(),
+            Self::Mapped { segment, .. } => {
+                segment.raw().ptr.apply(std::ptr::NonNull::new).unwrap()
+            }
             Self::ZeroSized(ptr) => ptr.copy(),
         };
 
@@ -276,16 +307,16 @@ impl AllocatorSegment {
     }
 
     fn alloc_len(&self) -> usize {
-        match self {
-            Self::Mapped(inner) => inner.raw().alloc_len,
-            Self::ZeroSized(_) => 0,
+        match self.segment() {
+            Some(inner) => inner.raw().alloc_len,
+            None => 0,
         }
     }
 
     fn data_len(&self) -> usize {
-        match self {
-            Self::Mapped(inner) => inner.raw().len,
-            Self::ZeroSized(_) => 0,
+        match self.segment() {
+            Some(inner) => inner.raw().len,
+            None => 0,
         }
     }
 
@@ -337,12 +368,51 @@ impl AllocatorSegment {
     fn sentinel_len(&self) -> usize {
         self.sentinel_end() - self.sentinel_start()
     }
+
+    fn segment(&self) -> Option<&MappedSegment> {
+        match self {
+            Self::Mapped { segment, .. } => Some(segment),
+            Self::ZeroSized(_) => None,
+        }
+    }
+
+    fn segment_mut(&mut self) -> Option<&mut MappedSegment> {
+        match self {
+            Self::Mapped { segment, .. } => Some(segment),
+            Self::ZeroSized(_) => None,
+        }
+    }
+
+    fn has_segment(&self) -> bool {
+        self.segment().is_some()
+    }
+
+    fn is_initialized_mut(&mut self) -> Option<&mut bool> {
+        match self {
+            Self::Mapped { initialized, .. } => Some(initialized),
+            Self::ZeroSized(_) => None,
+        }
+    }
+
+    fn is_initialized(&self) -> bool {
+        matches!(
+            self,
+            Self::Mapped {
+                initialized: true,
+                ..
+            }
+        )
+    }
 }
 
 impl Drop for AllocatorSegment {
     fn drop(&mut self) {
+        if !self.is_initialized() {
+            return;
+        }
+
         self.data_as_bytes().zeroize();
-        unsafe { self.validate_sentinel() }
+        self.validate_sentinel()
             .expect("Secret memory sentinel validation failed during deallocation");
     }
 }
