@@ -58,7 +58,7 @@ let
 
         result = anyof [
           (type == "directory")
-          (any (ext: hasSuffix ".${ext}" basename) extensions)
+          (any (ext: hasSuffix ".${ext}" basename || basename == ext) extensions)
           (any (file: file == relative) files)
         ];
       }

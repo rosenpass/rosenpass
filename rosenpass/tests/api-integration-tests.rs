@@ -1,4 +1,6 @@
-use std::{net::ToSocketAddrs, os::unix::net::UnixStream, sync::mpsc, thread::sleep, time::Duration};
+use std::{
+    net::ToSocketAddrs, os::unix::net::UnixStream, sync::mpsc, thread::sleep, time::Duration,
+};
 
 use anyhow::bail;
 use rosenpass::api;

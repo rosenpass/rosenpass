@@ -7,12 +7,7 @@
 //! https://rosenpass.eu/docs/whitepaper
 
 use std::{
-    borrow::Borrow,
-    io::Write,
-    os::unix::net::UnixStream,
-    sync::mpsc,
-    thread::sleep,
-    time::Duration,
+    borrow::Borrow, io::Write, os::unix::net::UnixStream, sync::mpsc, thread::sleep, time::Duration,
 };
 
 use anyhow::bail;
