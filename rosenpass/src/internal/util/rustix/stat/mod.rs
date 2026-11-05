@@ -2,9 +2,9 @@ use std::os::fd::AsFd;
 
 use crate::internal::util::result::OkExt;
 
-#[cfg(target_os = "linux")]
+// The file is called `linux.rs` for historical reasons; the socket
+// inspection extensions in it are POSIX-portable and compiled everywhere.
 mod linux;
-#[cfg(target_os = "linux")]
 pub use linux::*;
 use rustix::io::Errno;
 

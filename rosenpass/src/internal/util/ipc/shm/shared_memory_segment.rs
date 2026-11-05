@@ -456,6 +456,7 @@ impl Borrow<MappedSegment> for SharedMemorySegment {
     }
 }
 
+#[cfg(all(test, target_os = "linux"))]
 #[test]
 fn test_shared_memory_segment() -> anyhow::Result<()> {
     let underscore = [b'_'; 38];
