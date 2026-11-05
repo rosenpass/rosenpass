@@ -65,32 +65,44 @@ impl RosenpassConfig {
         // ============================== [rosenpass] ==============================
         // check our key files
         {
-            check_key_file(
-                &mut issues,
-                recipe,
-                self.our_keypair.secret_key_source.get_key_path().as_path(),
-                |p| Error::OurSecretKeyFileDoesNotExist(p).into(),
-                |p, e| Error::OurSecretKeyFileCanNotBeRead(p, e).into(),
-                |p| Some(Warning::OurSecretKeyFileIsGloballyReadable(p).into()),
-                |p| {
-                    SSk::load(&p)
-                        .map_err(|err| Error::OurSecretKeyFileHasInvalidContent(p, err).into())
-                        .err()
-                },
+            #[cfg(feature = "experiment_api")]
+            let (secret_key_defined, public_key_defined) = (
+                self.our_keypair.secret_key_source.is_defined(),
+                self.our_keypair.public_key_source.is_defined(),
             );
-            check_key_file(
-                &mut issues,
-                recipe,
-                self.our_keypair.public_key_source.get_key_path().as_path(),
-                |p| Error::OurPublicKeyFileDoesNotExist(p).into(),
-                |p, err| Error::OurPublicKeyFileCanNotBeRead(p, err).into(),
-                |p| None,
-                |p| {
-                    SPk::load(&p)
-                        .map_err(|err| Error::OurPublicKeyFileHasInvalidContent(p, err).into())
-                        .err()
-                },
-            );
+            #[cfg(not(feature = "experiment_api"))]
+            let (secret_key_defined, public_key_defined) = (true, true);
+
+            if secret_key_defined {
+                check_key_file(
+                    &mut issues,
+                    recipe,
+                    self.our_keypair.secret_key_source.get_key_path().as_path(),
+                    |p| Error::OurSecretKeyFileDoesNotExist(p).into(),
+                    |p, e| Error::OurSecretKeyFileCanNotBeRead(p, e).into(),
+                    |p| Some(Warning::OurSecretKeyFileIsGloballyReadable(p).into()),
+                    |p| {
+                        SSk::load(&p)
+                            .map_err(|err| Error::OurSecretKeyFileHasInvalidContent(p, err).into())
+                            .err()
+                    },
+                );
+            }
+            if public_key_defined {
+                check_key_file(
+                    &mut issues,
+                    recipe,
+                    self.our_keypair.public_key_source.get_key_path().as_path(),
+                    |p| Error::OurPublicKeyFileDoesNotExist(p).into(),
+                    |p, err| Error::OurPublicKeyFileCanNotBeRead(p, err).into(),
+                    |p| None,
+                    |p| {
+                        SPk::load(&p)
+                            .map_err(|err| Error::OurPublicKeyFileHasInvalidContent(p, err).into())
+                            .err()
+                    },
+                );
+            }
         }
         // ============================== [[device]] ==============================
         // duplicate device names

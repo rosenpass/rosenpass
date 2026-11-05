@@ -59,8 +59,8 @@ pub fn generate_and_save_keypair(
         }
         std::fs::DirBuilder::new()
             .recursive(true) // historically, rp 0.2.3 also creates parent dirs
-            .create(generate_directory.clone())
-            .map_err(|e| anyhow!(e).context("can not create keys directory"));
+            .create(generate_directory)
+            .map_err(|e| anyhow!(e).context("can not create keys directory"))?;
     }
 
     // generate and write secret key and public key

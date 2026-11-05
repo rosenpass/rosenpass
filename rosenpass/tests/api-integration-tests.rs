@@ -1,39 +1,42 @@
-use std::{
-    io::{BufRead, BufReader},
-    net::ToSocketAddrs,
-    os::unix::net::UnixStream,
-    process::Stdio,
-};
+use std::{net::ToSocketAddrs, os::unix::net::UnixStream, sync::mpsc, thread::sleep, time::Duration};
 
-use anyhow::{Context, bail};
+use anyhow::bail;
 use rosenpass::api;
+use rosenpass::app_server::AppServerTest;
 use rosenpass::internal::util::{
     file::LoadValueB64,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
+    zerocopy::ZerocopySliceExt,
 };
-use rosenpass::internal::util::{mem::DiscardResultExt, zerocopy::ZerocopySliceExt};
 use rosenpass_to::{To, ops::copy_slice_least_src};
 use serial_test::serial;
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
-use rosenpass::config::ProtocolVersion;
+use rosenpass::config::{NewFromInner, ProtocolVersion, PublicKeySource};
 use rosenpass::protocol::basic_types::SymKey;
 
-struct KillChild(std::process::Child);
+fn test_helpers(termination_handler: mpsc::Receiver<()>) -> Option<AppServerTest> {
+    Some(AppServerTest {
+        enable_dos_permanently: false,
+        termination_handler: Some(termination_handler),
+        skip_init_logging: true,
+    })
+}
 
-impl Drop for KillChild {
-    fn drop(&mut self) {
-        const TERM: rustix::process::Signal = rustix::process::Signal::TERM;
-        use rustix::process::{Pid, kill_process};
-        let pid = Pid::from_child(&self.0);
-        // We seriously need to start handling signals with signalfd, our current signal handling
-        // system is a bit broken; there is probably a few functions that just restart on EINTR
-        // so the signal is absorbed
-        loop {
-            kill_process(pid, TERM).discard_result();
-            if self.0.try_wait().unwrap().is_some() {
-                break;
+/// wait until Rosenpass writes its output symmetric key to the given file
+fn wait_for_osk(path: &std::path::Path) -> anyhow::Result<SymKey> {
+    let mut attempt = 0;
+    loop {
+        match SymKey::load_b64::<64, _>(path) {
+            Ok(osk) => break Ok(osk),
+            Err(err) => {
+                attempt += 1;
+                assert!(
+                    attempt < 50,
+                    "Peer did not write its output key to {path:?}: {err}"
+                );
+                sleep(Duration::from_millis(200));
             }
         }
     }
@@ -68,141 +71,133 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
 
     use rosenpass::config;
 
-    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
-    let peer_a = config::RosenpassConfig {
-        config_file_path: tempfile!("a.config"),
-        our_keypair: Some(peer_a_keypair.clone()),
-        our_listen_addresses: peer_a_endpoint.to_socket_addrs()?.collect(), // TODO: This could collide by accident
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
-            listen_path: vec![tempfile!("a.sock")],
-            listen_fd: vec![],
-            stream_fd: vec![],
-        },
-        peers: vec![config::RosenpassPeer {
-            public_key: tempfile!("b.pk"),
-            key_out: Some(peer_a_osk.clone()),
-            endpoint: None,
-            pre_shared_key: None,
-            wg: None,
-            protocol_version: protocol_version,
-            osk_domain_separator: Default::default(),
-        }],
+    let peer_a_keypair = config::PqKeypairSource {
+        secret_key_source: config::SecretPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("a.sk"),
+        )),
+        public_key_source: config::PublicPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("a.pk"),
+        )),
     };
+    let mut peer_a = config::RosenpassConfig::new_minimal(
+        Some(peer_a_keypair.secret_key_source.get_key_path()),
+        Some(peer_a_keypair.public_key_source.get_key_path()),
+    );
+    peer_a.our_listen_addresses = peer_a_endpoint.to_socket_addrs()?.collect(); // TODO: This could collide by accident
+    peer_a.api.listen_path = vec![tempfile!("a.sock")];
+    peer_a.verbosity = config::Verbosity::Verbose;
+    peer_a.supported_protocol_versions.clear();
+    peer_a.supported_protocol_versions.insert(protocol_version);
+    let peer_a_api_path = peer_a.api.listen_path[0].clone();
+    peer_a.peers.push(config::PeerConfig {
+        name: "a".to_string(),
+        enabled: true,
+        their_public_key: config::PublicPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("b.pk"),
+        )),
+        endpoint: None,
+        preshared_key: None,
+        osk_domain_separator: Default::default(),
+        output_to_file: Some(config::OutputToFileConfig {
+            enabled: true,
+            output_file_path: peer_a_osk.clone(),
+            osk_domain_separator: Default::default(),
+        }),
+        wireguard: None,
+    });
 
-    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::RosenpassConfig {
-        config_file_path: tempfile!("b.config"),
-        our_keypair: Some(peer_b_keypair.clone()),
-        our_listen_addresses: vec![],
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
-            listen_path: vec![tempfile!("b.sock")],
-            listen_fd: vec![],
-            stream_fd: vec![],
-        },
-        peers: vec![config::RosenpassPeer {
-            public_key: tempfile!("a.pk"),
-            key_out: Some(peer_b_osk.clone()),
-            endpoint: Some(peer_a_endpoint.to_owned()),
-            pre_shared_key: None,
-            wg: None,
-            protocol_version: protocol_version,
-            osk_domain_separator: Default::default(),
-        }],
+    let peer_b_keypair = config::PqKeypairSource {
+        secret_key_source: config::SecretPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("b.sk"),
+        )),
+        public_key_source: config::PublicPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("b.pk"),
+        )),
     };
+    let mut peer_b = config::RosenpassConfig::new_minimal(
+        Some(peer_b_keypair.secret_key_source.get_key_path()),
+        Some(peer_b_keypair.public_key_source.get_key_path()),
+    );
+    peer_b.api.listen_path = vec![tempfile!("b.sock")];
+    peer_b.verbosity = config::Verbosity::Verbose;
+    peer_b.supported_protocol_versions.clear();
+    peer_b.supported_protocol_versions.insert(protocol_version);
+    let peer_b_api_path = peer_b.api.listen_path[0].clone();
+    peer_b.peers.push(config::PeerConfig {
+        name: "b".to_string(),
+        enabled: true,
+        their_public_key: config::PublicPqKeySource::new(config::KeyFromDiskInner::File(
+            tempfile!("a.pk"),
+        )),
+        endpoint: Some(peer_a_endpoint.to_owned()),
+        preshared_key: None,
+        osk_domain_separator: Default::default(),
+        output_to_file: Some(config::OutputToFileConfig {
+            enabled: true,
+            output_file_path: peer_b_osk.clone(),
+            osk_domain_separator: Default::default(),
+        }),
+        wireguard: None,
+    });
 
     // Generate the keys
-    rosenpass::cli::testing::generate_and_save_keypair(
-        peer_a_keypair.secret_key.clone(),
-        peer_a_keypair.public_key.clone(),
+    rosenpass::cli::run::generate_and_save_keypair(
+        None,
+        &peer_a_keypair.secret_key_source.get_key_path(),
+        &peer_a_keypair.public_key_source.get_key_path(),
+        None,
+        true,
     )?;
-    rosenpass::cli::testing::generate_and_save_keypair(
-        peer_b_keypair.secret_key.clone(),
-        peer_b_keypair.public_key.clone(),
+    rosenpass::cli::run::generate_and_save_keypair(
+        None,
+        &peer_b_keypair.secret_key_source.get_key_path(),
+        &peer_b_keypair.public_key_source.get_key_path(),
+        None,
+        true,
     )?;
 
-    // Write the configuration files
-    peer_a.commit()?;
-    peer_b.commit()?;
-
-    // Start peer a
-    let mut proc_a = KillChild(
-        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-            .args([
-                "exchange-config",
-                peer_a.config_file_path.to_str().context("")?,
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn()?,
-    );
-
-    // Start peer b
-    let mut proc_b = KillChild(
-        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-            .args([
-                "exchange-config",
-                peer_b.config_file_path.to_str().context("")?,
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn()?,
-    );
-
-    // Acquire stdout
-    let mut out_a = BufReader::new(proc_a.0.stdout.take().context("")?).lines();
-    let mut out_b = BufReader::new(proc_b.0.stdout.take().context("")?).lines();
+    // Start the peers, each in their own thread
+    let (terminate_peer_a, peer_a_termination_handler) = mpsc::channel();
+    let (terminate_peer_b, peer_b_termination_handler) = mpsc::channel();
+    let peer_a_thread = std::thread::spawn(move || {
+        rosenpass::cli::run::exchange_implementation(
+            &peer_a,
+            None,
+            test_helpers(peer_a_termination_handler),
+        )
+    });
+    let peer_b_thread = std::thread::spawn(move || {
+        rosenpass::cli::run::exchange_implementation(
+            &peer_b,
+            None,
+            test_helpers(peer_b_termination_handler),
+        )
+    });
 
     // Wait for the keys to successfully exchange a key
     let mut attempt = 0;
     loop {
-        let line_a = out_a.next().context("")??;
-        let line_b = out_b.next().context("")??;
+        // Both peers run in threads of this very process, so we can not read their stdout
+        // to learn when the keys have been written; instead, wait for the keys to show up
+        // in the output key files.
+        let osk_a = wait_for_osk(&peer_a_osk)?;
+        let osk_b = wait_for_osk(&peer_b_osk)?;
 
-        let words_a = line_a.split(' ').collect::<Vec<_>>();
-        let words_b = line_b.split(' ').collect::<Vec<_>>();
-
-        // FIXED     FIXED PEER-ID                                      FIXED    FILENAME       STATUS
-        // output-key peer KZqXTZ4l2aNnkJtLPhs4D8JxHTGmRSL9w3Qr+X8JxFk= key-file "client-A-osk" exchanged
-        let peer_a_id = words_b
-            .get(2)
-            .with_context(|| format!("Bad rosenpass output: `{line_b}`"))?;
-        let peer_b_id = words_a
-            .get(2)
-            .with_context(|| format!("Bad rosenpass output: `{line_a}`"))?;
-        assert_eq!(
-            line_a,
-            format!(
-                "output-key peer {peer_b_id} key-file \"{}\" exchanged",
-                peer_a_osk.to_str().context("")?
-            )
-        );
-        assert_eq!(
-            line_b,
-            format!(
-                "output-key peer {peer_a_id} key-file \"{}\" exchanged",
-                peer_b_osk.to_str().context("")?
-            )
-        );
-
-        // Read OSKs
-        let osk_a = SymKey::load_b64::<64, _>(peer_a_osk.clone())?;
-        let osk_b = SymKey::load_b64::<64, _>(peer_b_osk.clone())?;
         match osk_a.secret() == osk_b.secret() {
             true => break,
             false if attempt > 10 => bail!(
                 "Peers did not produce a matching key even after ten attempts. Something is wrong with the key exchange!"
             ),
-            false => {}
+            false => {
+                attempt += 1;
+                sleep(Duration::from_millis(200));
+            }
         };
-
-        attempt += 1;
     }
 
     // Now connect to the peers
-    let api_a = UnixStream::connect(&peer_a.api.listen_path[0])?;
-    let api_b = UnixStream::connect(&peer_b.api.listen_path[0])?;
+    let api_a = UnixStream::connect(&peer_a_api_path)?;
+    let api_b = UnixStream::connect(&peer_b_api_path)?;
 
     for conn in ([api_a, api_b]).iter() {
         let mut echo = [0u8; 256];
@@ -216,6 +211,16 @@ fn api_integration_test(protocol_version: ProtocolVersion) -> anyhow::Result<()>
         let res = res.zk_parse::<api::PingResponse>()?;
         assert_eq!(*res, api::PingResponse::new(echo));
     }
+
+    // Stop the peers
+    terminate_peer_a.send(())?;
+    terminate_peer_b.send(())?;
+    peer_a_thread
+        .join()
+        .map_err(|_| anyhow::anyhow!("peer a thread panicked"))??;
+    peer_b_thread
+        .join()
+        .map_err(|_| anyhow::anyhow!("peer b thread panicked"))??;
 
     Ok(())
 }

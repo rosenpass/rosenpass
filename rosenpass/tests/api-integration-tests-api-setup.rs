@@ -8,52 +8,45 @@
 
 use std::{
     borrow::Borrow,
-    io::{BufRead, BufReader, Write},
+    io::Write,
     os::unix::net::UnixStream,
-    process::Stdio,
+    sync::mpsc,
     thread::sleep,
     time::Duration,
 };
 
-use anyhow::{Context, bail};
-use command_fds::{CommandFdExt, FdMapping};
+use anyhow::bail;
 use hex_literal::hex;
-use rosenpass::api::{
-    self, add_listen_socket_response_status, add_psk_broker_response_status,
-    supply_keypair_response_status,
+use rosenpass::app_server::AppServerTest;
+use rosenpass::config::{
+    KeyFromDiskOrB64EncodedStringInner, ProtocolVersion, PublicKeySource, PublicPqKeySource,
 };
-use rosenpass::config::ProtocolVersion;
 use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
     io::IoErrorKind,
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
-    mem::{DiscardResultExt, MoveExt},
     mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
 use rosenpass::protocol::basic_types::SymKey;
-use std::os::fd::AsFd;
+use rosenpass::{
+    api::{
+        self, add_listen_socket_response_status, add_psk_broker_response_status,
+        supply_keypair_response_status,
+    },
+    config::{KeyFromDiskInner, NewFromInner, PqKeypairSource, SecretPqKeySource},
+};
+use std::os::fd::{AsFd, IntoRawFd};
 use tempfile::TempDir;
 use zerocopy::IntoBytes;
 
-struct KillChild(std::process::Child);
-
-impl Drop for KillChild {
-    fn drop(&mut self) {
-        const TERM: rustix::process::Signal = rustix::process::Signal::TERM;
-        use rustix::process::{Pid, kill_process};
-        let pid = Pid::from_child(&self.0);
-        // We seriously need to start handling signals with signalfd, our current signal handling
-        // system is a bit broken; there is probably a few functions that just restart on EINTR
-        // so the signal is absorbed
-        loop {
-            kill_process(pid, TERM).discard_result();
-            if self.0.try_wait().unwrap().is_some() {
-                break;
-            }
-        }
-    }
+fn test_helpers(termination_handler: mpsc::Receiver<()>) -> Option<AppServerTest> {
+    Some(AppServerTest {
+        enable_dos_permanently: false,
+        termination_handler: Some(termination_handler),
+        skip_init_logging: true,
+    })
 }
 
 #[test]
@@ -82,7 +75,11 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     let peer_a_endpoint = "[::1]:0";
     let peer_a_listen = std::net::UdpSocket::bind(peer_a_endpoint)?;
     let peer_a_endpoint = format!("{}", peer_a_listen.local_addr()?);
-    let peer_a_keypair = config::Keypair::new_from_files(tempfile!("a.pk"), tempfile!("a.sk"));
+    let peer_a_keypair = PqKeypairSource {
+        secret_key_source: SecretPqKeySource::new(KeyFromDiskInner::File(tempfile!("a.sk"))),
+        public_key_source: PublicPqKeySource::new(KeyFromDiskInner::File(tempfile!("a.pk"))),
+    };
+
     // peer a's own WireGuard public key, required since protocol version 3
     let peer_a_wg_peer_id = hex!(
         "
@@ -107,126 +104,157 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         ProtocolVersion::V03 => true,
     };
 
-    use rosenpass::config;
-    let peer_a = config::RosenpassConfig {
-        config_file_path: tempfile!("a.config"),
-        our_keypair: None,
-        our_listen_addresses: vec![], // TODO: This could collide by accident
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
-            listen_path: vec![tempfile!("a.sock")],
-            listen_fd: vec![],
-            stream_fd: vec![],
-        },
-        peers: vec![config::RosenpassPeer {
-            public_key: tempfile!("b.pk"),
-            key_out: None,
-            endpoint: None,
-            pre_shared_key: None,
-            wg: Some(config::WireGuard {
-                device_name: peer_b_wg_device.to_string(),
-                // TODO:
-                // 1. why 8129? That magic number needs explanation.
-                // 2. Was this supposed to be 8192? In that case, please correct.
-                // 3. In any case, it is way too long and could be much shorter(?)
-                // 4. Also fix another occurence further below.
-                peer: format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>()),
-                our_wg_pubkey: use_wg_key_binding
-                    .then(|| format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>())),
-                extra_params: vec![],
-            }),
-            protocol_version: protocol_version,
-            osk_domain_separator: Default::default(),
-        }],
-    };
-
-    let peer_b_keypair = config::Keypair::new_from_files(tempfile!("b.pk"), tempfile!("b.sk"));
-    let peer_b = config::RosenpassConfig {
-        config_file_path: tempfile!("b.config"),
-        our_keypair: Some(peer_b_keypair.clone()),
-        our_listen_addresses: vec![],
-        verbosity: config::Verbosity::Verbose,
-        api: api::config::ApiConfig {
-            listen_path: vec![tempfile!("b.sock")],
-            listen_fd: vec![],
-            stream_fd: vec![],
-        },
-        peers: vec![config::RosenpassPeer {
-            public_key: tempfile!("a.pk"),
-            key_out: Some(peer_b_osk.clone()),
-            endpoint: Some(peer_a_endpoint.to_owned()),
-            pre_shared_key: None,
-            // This was `wg: None` previously, introduced in a huge commit b1a7d942954ce6a41decc5a9f93c95cffafde801 .
-            // We need to clean up and document this test.
-            // https://github.com/rosenpass/rosenpass/issues/1172
-            wg: use_wg_key_binding.then(|| config::WireGuard {
-                device_name: peer_b_wg_device.to_string(),
-                peer: format!("{}", peer_a_wg_peer_id.fmt_b64::<8129>()),
-                our_wg_pubkey: Some(format!("{}", peer_b_wg_peer_id.fmt_b64::<8129>())),
-                extra_params: vec![],
-            }),
-            protocol_version,
-            osk_domain_separator: Default::default(),
-        }],
-    };
-
-    // Generate the keys
-    rosenpass::cli::testing::generate_and_save_keypair(
-        peer_a_keypair.secret_key.clone(),
-        peer_a_keypair.public_key.clone(),
-    )?;
-    rosenpass::cli::testing::generate_and_save_keypair(
-        peer_b_keypair.secret_key.clone(),
-        peer_b_keypair.public_key.clone(),
-    )?;
-
-    // Write the configuration files
-    peer_a.commit()?;
-    peer_b.commit()?;
-
+    // an API connection handed to peer a which will be fed invalid data later; checks that the API
+    // connections are closed when invalid data is received
     let (deliberate_fail_api_client, deliberate_fail_api_server) =
         std::os::unix::net::UnixStream::pair()?;
-    let deliberate_fail_child_fd = 3;
 
-    // Start peer a
-    let _proc_a = KillChild(
-        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-            .args(["--api-stream-fd", &deliberate_fail_child_fd.to_string()])
-            .fd_mappings(vec![FdMapping {
-                parent_fd: deliberate_fail_api_server.move_here().into(),
-                child_fd: 3,
-            }])?
-            .args([
-                "exchange-config",
-                peer_a.config_file_path.to_str().context("")?,
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .spawn()?,
+    use rosenpass::config;
+    let peer_a_api_path = tempfile!("a.sock");
+    // peer a is supplied with its own keypair and its listen socket via the API later
+    let mut peer_a = config::RosenpassConfig::new_minimal(None, None);
+    peer_a.api.listen_path = vec![peer_a_api_path.clone()];
+    peer_a.api.stream_fd = vec![deliberate_fail_api_server.into_raw_fd()];
+    peer_a.verbosity = config::Verbosity::Verbose;
+    peer_a.supported_protocol_versions.clear();
+    peer_a.supported_protocol_versions.insert(protocol_version);
+    peer_a.peers.push(config::PeerConfig {
+        name: "a".to_string(),
+        enabled: true,
+        their_public_key: PublicPqKeySource::new(KeyFromDiskInner::File(tempfile!("b.pk"))),
+        endpoint: None,
+        preshared_key: None,
+        osk_domain_separator: Default::default(),
+        output_to_file: None,
+        wireguard: Some(config::WireguardConfig {
+            enabled: true,
+            device_name: peer_b_wg_device.to_string(),
+            our_wireguard_keypair: use_wg_key_binding.then(|| {
+                config::OurWireguardKeypair::PublicKeyOnly(
+                    config::KeyFromDiskOrB64EncodedString::new(
+                        config::KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(format!(
+                            "{}",
+                            peer_a_wg_peer_id.fmt_b64::<8129>()
+                        )),
+                    ),
+                )
+            }),
+            // TODO:
+            // 1. why 8129? That magic number needs explanation.
+            // 2. Was this supposed to be 8192? In that case, please correct.
+            // 3. In any case, it is way too long and could be much shorter(?)
+            // 4. Also fix another occurence further below.
+            their_wireguard_public_key: config::PublicWgKeySource::new(
+                KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(format!(
+                    "{}",
+                    peer_b_wg_peer_id.fmt_b64::<8129>()
+                )),
+            ),
+            wireguard_options: Default::default(),
+            exchange_command: None,
+            osk_domain_separator: Default::default(),
+        }),
+    });
+
+    let peer_b_keypair = PqKeypairSource {
+        secret_key_source: SecretPqKeySource::new(KeyFromDiskInner::File(tempfile!("b.sk"))),
+        public_key_source: PublicPqKeySource::new(KeyFromDiskInner::File(tempfile!("b.pk"))),
+    };
+    let mut peer_b = config::RosenpassConfig::new_minimal(
+        Some(peer_b_keypair.secret_key_source.get_key_path()),
+        Some(peer_b_keypair.public_key_source.get_key_path()),
     );
+    peer_b.api.listen_path = vec![tempfile!("b.sock")];
+    peer_b.verbosity = config::Verbosity::Verbose;
+    peer_b.supported_protocol_versions.clear();
+    peer_b.supported_protocol_versions.insert(protocol_version);
+    peer_b.peers.push(config::PeerConfig {
+        name: "b".to_string(),
+        enabled: true,
+        their_public_key: PublicPqKeySource::new(KeyFromDiskInner::File(tempfile!("a.pk"))),
+        endpoint: Some(peer_a_endpoint.to_owned()),
+        preshared_key: None,
+        osk_domain_separator: Default::default(),
+        output_to_file: Some(config::OutputToFileConfig {
+            enabled: true,
+            output_file_path: peer_b_osk.clone(),
+            osk_domain_separator: Default::default(),
+        }),
+        // This was `wg: None` previously, introduced in a huge commit b1a7d942954ce6a41decc5a9f93c95cffafde801 .
+        // We need to clean up and document this test.
+        // https://github.com/rosenpass/rosenpass/issues/1172
+        wireguard: Some(config::WireguardConfig {
+            enabled: true,
+            device_name: peer_b_wg_device.to_string(),
+            our_wireguard_keypair: use_wg_key_binding.then(|| {
+                config::OurWireguardKeypair::PublicKeyOnly(
+                    config::KeyFromDiskOrB64EncodedString::new(
+                        config::KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(format!(
+                            "{}",
+                            peer_b_wg_peer_id.fmt_b64::<8129>()
+                        )),
+                    ),
+                )
+            }),
+            // TODO:
+            // 1. why 8129? That magic number needs explanation.
+            // 2. Was this supposed to be 8192? In that case, please correct.
+            // 3. In any case, it is way too long and could be much shorter(?)
+            // 4. Also fix another occurence further below.
+            their_wireguard_public_key: config::PublicWgKeySource::new(
+                KeyFromDiskOrB64EncodedStringInner::Base64EncodedString(format!(
+                    "{}",
+                    peer_a_wg_peer_id.fmt_b64::<8129>()
+                )),
+            ),
+            wireguard_options: Default::default(),
+            exchange_command: None,
+            osk_domain_separator: Default::default(),
+        }),
+    });
 
-    // Start peer b
-    let mut proc_b = KillChild(
-        std::process::Command::new(env!("CARGO_BIN_EXE_rosenpass"))
-            .args([
-                "exchange-config",
-                peer_b.config_file_path.to_str().context("")?,
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .spawn()?,
-    );
+    // Generate the keys
+    rosenpass::cli::run::generate_and_save_keypair(
+        None,
+        &peer_a_keypair.secret_key_source.get_key_path(),
+        &peer_a_keypair.public_key_source.get_key_path(),
+        None,
+        true,
+    )?;
+    rosenpass::cli::run::generate_and_save_keypair(
+        None,
+        &peer_b_keypair.secret_key_source.get_key_path(),
+        &peer_b_keypair.public_key_source.get_key_path(),
+        None,
+        true,
+    )?;
 
-    // Acquire stdout
-    let mut out_b = BufReader::new(proc_b.0.stdout.take().context("")?).lines();
+    // Start the peers, each in their own thread
+    let (terminate_peer_a, peer_a_termination_handler) = mpsc::channel();
+    let (terminate_peer_b, peer_b_termination_handler) = mpsc::channel();
+    let peer_a_thread = std::thread::spawn(move || {
+        rosenpass::cli::run::exchange_implementation(
+            &peer_a,
+            None,
+            test_helpers(peer_a_termination_handler),
+        )
+    });
+    let peer_b_thread = std::thread::spawn(move || {
+        rosenpass::cli::run::exchange_implementation(
+            &peer_b,
+            None,
+            test_helpers(peer_b_termination_handler),
+        )
+    });
 
     // Now connect to the peers
-    let api_path = peer_a.api.listen_path[0].as_path();
+    let api_path = peer_a_api_path.as_path();
 
     // Wait for the socket to be created
-    let attempt = 0;
+    let mut attempt = 0;
     while !api_path.exists() {
-        sleep(Duration::from_millis(200));
+        sleep(Duration::from_millis(1000));
+        attempt += 1;
         assert!(
             attempt < 50,
             "Api failed to be created even after 50 seconds"
@@ -306,8 +334,16 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     // Send `SupplyKeyPairRequest`
     {
         use rustix::fs::{Mode, OFlags, open};
-        let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
-        let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
+        let sk = open(
+            peer_a_keypair.secret_key_source.get_key_path(),
+            OFlags::RDONLY,
+            Mode::empty(),
+        )?;
+        let pk = open(
+            peer_a_keypair.public_key_source.get_key_path(),
+            OFlags::RDONLY,
+            Mode::empty(),
+        )?;
 
         let mut fds = vec![&sk, &pk].into();
 
@@ -362,23 +398,20 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
 
         // Read OSK generated by B
         let osk_b = {
-            let line = out_b.next().context("")??;
-            let words = line.split(' ').collect::<Vec<_>>();
-
-            // FIXED     FIXED PEER-ID                                      FIXED    FILENAME       STATUS
-            // output-key peer KZqXTZ4l2aNnkJtLPhs4D8JxHTGmRSL9w3Qr+X8JxFk= key-file "client-A-osk" exchanged
-            let peer_id = words
-                .get(2)
-                .with_context(|| format!("Bad rosenpass output: `{line}`"))?;
-            assert_eq!(
-                line,
-                format!(
-                    "output-key peer {peer_id} key-file \"{}\" exchanged",
-                    peer_b_osk.to_str().context("")?
-                )
-            );
-
-            SymKey::load_b64::<64, _>(peer_b_osk.clone())?
+            let mut attempt = 0;
+            loop {
+                match SymKey::load_b64::<64, _>(&peer_b_osk) {
+                    Ok(osk) => break osk,
+                    Err(err) => {
+                        attempt += 1;
+                        assert!(
+                            attempt < 50,
+                            "Peer b did not write its output key to {peer_b_osk:?}: {err}"
+                        );
+                        sleep(Duration::from_millis(200));
+                    }
+                }
+            }
         };
 
         // TODO: This may be flaky. Both rosenpass instances are not guaranteed to produce
@@ -395,6 +428,16 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
 
         attempt += 1;
     }
+
+    // Stop the peers
+    terminate_peer_a.send(())?;
+    terminate_peer_b.send(())?;
+    peer_a_thread
+        .join()
+        .map_err(|_| anyhow::anyhow!("peer a thread panicked"))??;
+    peer_b_thread
+        .join()
+        .map_err(|_| anyhow::anyhow!("peer b thread panicked"))??;
 
     Ok(())
 }
