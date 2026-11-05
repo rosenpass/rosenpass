@@ -250,6 +250,8 @@ use std::{
 
 use anyhow::ensure;
 
+pub mod fd_stream;
+
 /// A file descriptor that will forever output zeroes
 pub fn devzero() -> Result<BorrowedFd<'static>, rustix::io::Errno> {
     use rustix::fd::OwnedFd;

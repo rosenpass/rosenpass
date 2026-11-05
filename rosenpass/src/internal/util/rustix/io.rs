@@ -6,6 +6,19 @@ use rustix::io::Errno;
 
 use crate::internal::util::{convert::IntoTypeExt, rustix::SyscallResult};
 
+/// Flags suppressing SIGPIPE on send(2)/sendmsg(2) where the platform
+/// supports MSG_NOSIGNAL.
+pub const SENDFLAGS_NOSIGNAL: rustix::net::SendFlags = cfg_select! {
+    // Verbatim the same condition as used in rustix
+    any(
+        target_vendor = "apple",
+        windows,
+        target_os = "redox",
+        target_os = "vita",
+    ) => rustix::net::SendFlags::empty(),
+    _ => rustix::net::SendFlags::NOSIGNAL,
+};
+
 /// Raw (pointer-based) access to the read(2) system call
 ///
 /// This is a thin wrapper around [libc::read] with extra platform compatibility features
