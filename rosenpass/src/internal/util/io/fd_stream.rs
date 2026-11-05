@@ -4,6 +4,7 @@
 //! file descriptor passing directly on unix sockets.
 
 use std::{
+    collections::VecDeque,
     io,
     mem::MaybeUninit,
     os::fd::{AsFd, BorrowedFd, OwnedFd},
@@ -205,4 +206,232 @@ pub fn send_fd_msg<Fd: AsFd>(
     }
 
     Ok(bytes_written)
+}
+
+/// A byte stream that receives and sends owned file descriptors alongside bytes.
+pub trait FdPassingStream {
+    /// Failure type of [Self::read_with_fds].
+    type ReadError;
+
+    /// Failure type of [Self::write_with_fds].
+    type WriteError;
+
+    /// Per-call options for [Self::read_with_fds_config].
+    type ReadConfig: Default;
+
+    /// Per-call options for [Self::write_with_fds_config].
+    type WriteConfig: Default;
+
+    /// Read bytes and all newly received descriptors.
+    ///
+    /// New descriptors attach to the first returned byte; reads do not cross a
+    /// later descriptor attachment position. Reception is bounded by
+    /// `max_new_fds`. Callers must inspect [ReadWithFdsResult::fds_truncated]
+    /// before relying on the returned descriptors. On error no descriptors are
+    /// returned and implementations must close any rights they received.
+    /// Empty destinations do no IO; zero bytes for a nonempty destination means EOF.
+    fn read_with_fds(
+        &mut self,
+        dst: &mut [u8],
+        max_new_fds: usize,
+    ) -> Result<ReadWithFdsResult, Self::ReadError> {
+        self.read_with_fds_config(dst, max_new_fds, Default::default())
+    }
+
+    /// [Self::read_with_fds] with explicit per-call options.
+    fn read_with_fds_config(
+        &mut self,
+        dst: &mut [u8],
+        max_new_fds: usize,
+        config: Self::ReadConfig,
+    ) -> Result<ReadWithFdsResult, Self::ReadError>;
+
+    /// Send bytes with all given descriptors attached to the first byte.
+    /// Empty sources do no IO and send no descriptors. Implementations attach
+    /// every supplied descriptor or fail, so after positive progress the caller
+    /// may remove all of them. Success implies positive progress: a zero-byte
+    /// result for a nonempty source is an error. Supplying more than
+    /// [MAX_SENDMSG_FDS] descriptors is a caller error.
+    fn write_with_fds(
+        &mut self,
+        src: &[u8],
+        fds: &[BorrowedFd<'_>],
+    ) -> Result<usize, Self::WriteError> {
+        self.write_with_fds_config(src, fds, Default::default())
+    }
+
+    /// [Self::write_with_fds] with explicit per-call options.
+    fn write_with_fds_config(
+        &mut self,
+        src: &[u8],
+        fds: &[BorrowedFd<'_>],
+        config: Self::WriteConfig,
+    ) -> Result<usize, Self::WriteError>;
+}
+
+/// [FdPassingStream::ReadConfig] for unix sockets: extra [recv_fd_msg] flags.
+#[derive(Debug, Clone, Copy)]
+pub struct UnixReadConfig(pub RecvFlags);
+
+impl Default for UnixReadConfig {
+    fn default() -> Self {
+        Self(RecvFlags::empty())
+    }
+}
+
+/// [FdPassingStream::WriteConfig] for unix sockets: extra [send_fd_msg] flags.
+#[derive(Debug, Clone, Copy)]
+pub struct UnixWriteConfig(pub SendFlags);
+
+impl Default for UnixWriteConfig {
+    fn default() -> Self {
+        Self(SendFlags::empty())
+    }
+}
+
+impl FdPassingStream for std::os::unix::net::UnixStream {
+    type ReadError = rustix::io::Errno;
+    type WriteError = rustix::io::Errno;
+    type ReadConfig = UnixReadConfig;
+    type WriteConfig = UnixWriteConfig;
+
+    fn read_with_fds_config(
+        &mut self,
+        dst: &mut [u8],
+        max_new_fds: usize,
+        config: Self::ReadConfig,
+    ) -> Result<ReadWithFdsResult, Self::ReadError> {
+        recv_fd_msg(self.as_fd(), dst, max_new_fds, config.0)
+    }
+
+    fn write_with_fds_config(
+        &mut self,
+        src: &[u8],
+        fds: &[BorrowedFd<'_>],
+        config: Self::WriteConfig,
+    ) -> Result<usize, Self::WriteError> {
+        send_fd_msg(self.as_fd(), src, fds, config.0)
+    }
+}
+
+impl FdPassingStream for mio::net::UnixStream {
+    type ReadError = rustix::io::Errno;
+    type WriteError = rustix::io::Errno;
+    type ReadConfig = UnixReadConfig;
+    type WriteConfig = UnixWriteConfig;
+
+    fn read_with_fds_config(
+        &mut self,
+        dst: &mut [u8],
+        max_new_fds: usize,
+        config: Self::ReadConfig,
+    ) -> Result<ReadWithFdsResult, Self::ReadError> {
+        recv_fd_msg(self.as_fd(), dst, max_new_fds, config.0)
+    }
+
+    fn write_with_fds_config(
+        &mut self,
+        src: &[u8],
+        fds: &[BorrowedFd<'_>],
+        config: Self::WriteConfig,
+    ) -> Result<usize, Self::WriteError> {
+        send_fd_msg(self.as_fd(), src, fds, config.0)
+    }
+}
+
+/// An [`io::Read`] adapter that also reads file descriptors via [FdPassingStream].
+///
+/// Calls to [std::io::Read::read] attach any file descriptors to the
+/// given file descriptor buffers behind the scenes.
+pub struct FdStreamReader<'a, S: ?Sized> {
+    stream: &'a mut S,
+    fds: &'a mut VecDeque<OwnedFd>,
+    max_fds_per_message: usize,
+}
+
+impl<'a, S: ?Sized> FdStreamReader<'a, S> {
+    /// Constructor
+    pub fn new(
+        stream: &'a mut S,
+        fds: &'a mut VecDeque<OwnedFd>,
+        max_fds_per_message: usize,
+    ) -> Self {
+        Self {
+            stream,
+            fds,
+            max_fds_per_message,
+        }
+    }
+}
+
+impl<S: FdPassingStream + ?Sized> io::Read for FdStreamReader<'_, S>
+where
+    S::ReadError: Into<io::Error>,
+{
+    fn read(&mut self, dst: &mut [u8]) -> io::Result<usize> {
+        let max_new_fds = self.max_fds_per_message.saturating_sub(self.fds.len());
+        let result = self
+            .stream
+            .read_with_fds(dst, max_new_fds)
+            .map_err(Into::into)?;
+        if result.fds_truncated {
+            return Err(io::Error::other("Received ancillary data was truncated"));
+        }
+        self.fds.extend(result.fds);
+        Ok(result.data_read)
+    }
+}
+
+/// An [`io::Write`] adapter that also writes file descriptors via [FdPassingStream].
+///
+/// The given file descriptors are sent with the first successful
+/// [std::io::Write::write()].
+pub struct FdStreamWriter<'a, S: ?Sized> {
+    stream: &'a mut S,
+    fds: &'a [BorrowedFd<'a>],
+}
+
+impl<'a, S: ?Sized> FdStreamWriter<'a, S> {
+    /// Constructor
+    pub fn new(stream: &'a mut S, fds: &'a [BorrowedFd<'a>]) -> Self {
+        Self { stream, fds }
+    }
+}
+
+impl<S: FdPassingStream + ?Sized> io::Write for FdStreamWriter<'_, S>
+where
+    S::WriteError: Into<io::Error>,
+{
+    fn write(&mut self, src: &[u8]) -> io::Result<usize> {
+        if src.is_empty() {
+            return Ok(0);
+        }
+
+        // All queued descriptors go out with the first byte, and one sendmsg()
+        // carries at most MAX_SENDMSG_FDS rights.
+        if self.fds.len() > MAX_SENDMSG_FDS {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "too many file descriptors for one fd-passing write",
+            ));
+        }
+
+        let written = self
+            .stream
+            .write_with_fds(src, self.fds)
+            .map_err(Into::into)?;
+
+        // Success means the first byte and every offered descriptor went out.
+        if written == 0 {
+            return Err(io::ErrorKind::WriteZero.into());
+        }
+
+        self.fds = &[];
+
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
