@@ -225,10 +225,9 @@
 //!     r
 //! };
 //!
-//! assert_eq!(Ok(Some(42)), handle_interrupted(&mut simulate_io));
+//! assert_eq!(Ok(42), handle_interrupted(&mut simulate_io));
 //! assert_eq!(Err(MyErrnoOrBlue::FeelingBlue), handle_interrupted(&mut simulate_io));
 //! assert_eq!(Err(MyErrnoOrBlue::WouldBlock), handle_interrupted(&mut simulate_io));
-//! // never returns None
 //!
 //! // nonblocking_handle_io_errors performs the same job, except that
 //! // WouldBlock is substituted with Ok(None)
@@ -260,9 +259,15 @@ pub trait IoErrorKind {
     fn io_error_kind(&self) -> io::ErrorKind;
 }
 
-impl<T: Borrow<io::Error>> IoErrorKind for T {
+impl IoErrorKind for io::Error {
     fn io_error_kind(&self) -> io::ErrorKind {
-        self.borrow().kind()
+        self.kind()
+    }
+}
+
+impl IoErrorKind for rustix::io::Errno {
+    fn io_error_kind(&self) -> std::io::ErrorKind {
+        std::io::Error::from_raw_os_error(self.raw_os_error()).kind()
     }
 }
 
@@ -430,14 +435,14 @@ impl<T, E: TryIoErrorKind> SubstituteForIoErrorKindExt<T> for Result<T, E> {
 
 /// Automatically handles `std::io::ErrorKind::Interrupted`.
 ///
-/// - If there is no error (i.e. on `Ok(r)`), the function will return `Ok(Some(r))`
+/// - If there is no error (i.e. on `Ok(r)`), the function will return `Ok(r)`
 /// - `Interrupted` is handled internally, by retrying the IO operation
 /// - Other errors are returned as is
 ///
 /// # Examples
 ///
 /// See [tutorial in the module](self).
-pub fn handle_interrupted<R, E, F>(mut iofn: F) -> Result<Option<R>, E>
+pub fn handle_interrupted<R, E, F>(mut iofn: F) -> Result<R, E>
 where
     E: TryIoErrorKind,
     F: FnMut() -> Result<R, E>,
@@ -445,7 +450,7 @@ where
     use io::ErrorKind as E;
     loop {
         match iofn().try_io_err_kind_hint() {
-            Ok(v) => return Ok(Some(v)),
+            Ok(v) => return Ok(v),
             Err((_, Some(E::Interrupted))) => continue, // try again
             Err((e, _)) => return Err(e),
         };
