@@ -160,9 +160,16 @@ pub trait MioManagerContext {
         }
 
         let mut conn = MioConnectionFocus::new(self, idx);
-        conn.poll()?;
+        // A connection-local failure closes this connection only; the others keep being served
+        let poll_failed = match conn.poll() {
+            Ok(_) => false,
+            Err(e) => {
+                log::warn!("Closing API connection after error: {e:?}");
+                true
+            }
+        };
 
-        if conn.should_close() {
+        if poll_failed || conn.should_close() {
             let conn = self.mio_manager_mut().connections[idx].take().unwrap();
             let mio_token = conn.mio_token();
             if let Err(e) = conn.close(self.app_server_mut()) {
