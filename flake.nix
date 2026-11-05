@@ -140,6 +140,10 @@
             fullEnv = pkgs.mkShell {
               inherit (pkgs.proof-proverif) CRYPTOVERIF_LIB;
               inputsFrom = [ pkgs.rosenpass ];
+              # liboqs (McEliece keygen) requires several MiB of stack; keep
+              # parity with the nix build check phase (pkgs/rosenpass.nix) and
+              # coverage_report.sh, so bare `cargo test` works in this shell.
+              RUST_MIN_STACK = "8388608";
               nativeBuildInputs = with pkgs; [
                 cargo-audit
                 cargo-deny
