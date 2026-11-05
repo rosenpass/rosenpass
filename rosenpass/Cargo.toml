@@ -54,6 +54,11 @@ required-features = ["experiment_api", "expose_internal_modules"]
 
 # ============================== tests ==============================
 [[test]]
+name = "api-client-endpoint-coverage"
+path = "tests/api-client-endpoint-coverage.rs"
+required-features = ["experiment_api", "internal_testing"]
+
+[[test]]
 name = "api-integration-tests-api-setup"
 required-features = ["experiment_api", "internal_testing"]
 
