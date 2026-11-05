@@ -1,6 +1,6 @@
 //! Utilities for working with memory-based file descriptors
 
-use std::os::fd::OwnedFd;
+use std::os::fd::{AsFd, OwnedFd};
 
 use rustix::io::Errno;
 use rustix::path::Arg as Path;
@@ -9,6 +9,8 @@ use bitflags::bitflags;
 
 #[cfg(target_os = "linux")]
 pub use rustix::fs::MemfdFlags;
+
+use crate::internal::util::result::OkExt;
 
 #[cfg(not(target_os = "linux"))]
 bitflags! {
@@ -25,6 +27,29 @@ bitflags! {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
+bitflags! {
+    // SealFlags on any platform; these are just used so we can express sealing logic
+    // at runtime and detect unavailability of seals at runtime, instead of having to use
+    // compile-time conditionals
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct SealFlagsPortable: std::ffi::c_uint {
+        const SEAL = 0x0001;
+        const SHRINK = 0x0002;
+        const GROW = 0x0004;
+        const WRITE = 0x0008;
+        const FUTURE_WRITE = 0x0010;
+        const EXEC = 0x0020;
+    }
+}
+
+/// File seal flags (`F_SEAL_*`)
+pub type SealFlags = cfg_select! {
+    target_os = "linux" => rustix::fs::SealFlags,
+    _ => SealFlagsPortable,
+};
+
 /// Create an anonymous file
 /// using the memfd_create(2) syscall
 ///
@@ -38,6 +63,150 @@ pub fn memfd_create<P: Path>(name: P, flags: MemfdFlags) -> rustix::io::Result<O
             let _ = (name, flags);
             Err(Errno::NOSYS)?
         }
+    }
+}
+
+/// Errors for adding file seals (F_ADD_SEALS) to a file descriptor
+///
+/// Adding seals is retried a bounded number of times, because adding seals
+/// can race with another party sealing the same file descriptor
+#[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
+pub enum AddSealsError {
+    /// Adding the seals was retried many times, but never succeeded
+    #[error(
+        "Tried to add file seals to the file descriptor many times, but we never succeeded. This likely is a bug"
+    )]
+    TooManyRetries,
+    /// One of the fcntl(2) system calls used for sealing failed
+    #[error(
+        "Tried to add file seals to the file descriptor, but one of the fcntl(2) system calls failed: {0}"
+    )]
+    SystemError(#[from] rustix::io::Errno),
+    /// The file descriptor is already sealed against adding further seals while
+    /// still missing seals we need to add
+    #[error(
+        "Tried to add file seals to the file descriptor, but the file descriptor already carried F_SEAL_SEAL, so the seals could not be added."
+    )]
+    CannotAddFurtherSeals,
+}
+
+/// (F_SEAL_SEAL): Never installed; used only to detect file
+/// descriptors that are already sealed against adding further seals
+///
+/// Not installing it keeps the seal set open for later seals (e.g.
+/// F_SEAL_FUTURE_WRITE); third parties can only add seals, never remove ours.
+pub const SSEAL: SealFlags = SealFlags::SEAL;
+
+/// Inspect and add the file seals (`F_SEAL_*`) of a file descriptor.
+///
+/// Seals belong to the file, so duplicated descriptors observe the same
+/// seals; they can only be added, never removed. Sealing must be enabled at
+/// creation (e.g. `memfd_create` with `MFD_ALLOW_SEALING`).
+///
+/// Linux only; on other platforms every operation fails with ENOSYS.
+pub trait FileSealsExt {
+    /// The file's current seals.
+    fn seals(&self) -> rustix::io::Result<SealFlags>;
+    /// Add the given seals to the file.
+    fn add_seals(&self, seals: SealFlags) -> Result<(), AddSealsError>;
+    /// Whether all of the given seals are set on the file.
+    fn has_all_of_these_seals(&self, required: SealFlags) -> rustix::io::Result<bool>;
+    /// Whether any of the given seals are set on the file.
+    fn has_any_of_these_seals(&self, mask: SealFlags) -> rustix::io::Result<bool>;
+}
+
+impl<T> FileSealsExt for T
+where
+    T: AsFd,
+{
+    fn seals(&self) -> rustix::io::Result<SealFlags> {
+        cfg_select! {
+            target_os = "linux" => rustix::fs::fcntl_get_seals(self),
+            _ => Err(Errno::NOSYS),
+        }
+    }
+
+    fn add_seals(&self, seals: SealFlags) -> Result<(), AddSealsError> {
+        cfg_select! {
+            target_os = "linux" => add_seals_impl(self, seals),
+            _ => {
+                let _ = seals;
+                Err(AddSealsError::SystemError(Errno::NOSYS))
+            }
+        }
+    }
+
+    fn has_all_of_these_seals(&self, required: SealFlags) -> rustix::io::Result<bool> {
+        self.seals()?.contains(required).ok()
+    }
+
+    fn has_any_of_these_seals(&self, mask: SealFlags) -> rustix::io::Result<bool> {
+        self.seals()?.intersects(mask).ok()
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn add_seals_impl<Fd>(fd: Fd, seals: SealFlags) -> Result<(), AddSealsError>
+where
+    Fd: FileSealsExt + AsFd,
+{
+    use AddSealsError as E;
+
+    let mut seal_ctr: usize = usize::MAX;
+    let mut prev_seals: Option<SealFlags> = None;
+    loop {
+        // Increment the loop counter
+        seal_ctr = seal_ctr.overflowing_add(1).0;
+
+        // Abort this loop after too many failed attempts just to be safe
+        if seal_ctr >= 16 {
+            Err(E::TooManyRetries)?;
+        }
+
+        // Add the seals
+        //
+        // The call succeeding and failing with permission denied are both
+        // handled the same way: fetch the list of seals below and check
+        // what seals we actually got
+        //
+        // Permission denied could happen because F_SEAL_SEAL raced in
+        // concurrently (detected via the seal set below and reported as
+        // CannotAddFurtherSeals), or because the file descriptor is
+        // not writable — adding seals requires a writable file descriptor;
+        // that case can never make progress and is detected by the
+        // no-progress check below
+        let add_denied = match rustix::fs::fcntl_add_seals(&fd, seals) {
+            Ok(()) => false,
+            Err(Errno::PERM) => true,
+            // Other error; just propagate this error to the function caller
+            Err(errno) => return Err(E::SystemError(errno))?,
+        };
+
+        // Figure out what seals are set and which ones we need to add
+        let current_seals = fd.seals().map_err(E::SystemError)?;
+        let missing = seals.difference(current_seals);
+
+        // Unable to add the missing seals, FD is already sealed against adding further seals
+        if current_seals.contains(SSEAL) && !missing.is_empty() {
+            Err(E::CannotAddFurtherSeals)?;
+        }
+
+        // Adding seals was denied and the seal set did not change since the
+        // last attempt: no progress is possible (e.g. the file descriptor
+        // is not writable), so retrying would merely spin until the retry
+        // limit; report the persistent permission error instead
+        if add_denied && prev_seals == Some(current_seals) {
+            Err(E::SystemError(Errno::PERM))?;
+        }
+        prev_seals = Some(current_seals);
+
+        // Missing seals, but not sealed against further seals. Try to add the seals we need.
+        if !missing.is_empty() {
+            continue;
+        }
+
+        // Sealing successful; now aborting
+        return Ok(());
     }
 }
 
@@ -160,5 +329,35 @@ mod tests {
         // Now, the close-on-exec flag must be set on the new file descriptor
         let fdflags = fd.fd_flags().expect("fcntl(F_GETFD) failed");
         assert!(fdflags.contains(rustix::io::FdFlags::CLOEXEC));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_seal_flags_ext() -> anyhow::Result<()> {
+        use rustix::fs::SealFlags;
+
+        let fd = memfd_create(c"seal-ext-test", MemfdFlags::ALLOW_SEALING)?;
+
+        // A fresh memfd created with ALLOW_SEALING does not carry any seals yet
+        assert!(fd.seals()?.is_empty());
+
+        // Seals accumulate and can never be removed again
+        fd.add_seals(SealFlags::GROW | SealFlags::SHRINK)?;
+        assert!(fd.has_all_of_these_seals(SealFlags::GROW | SealFlags::SHRINK)?);
+        assert!(!fd.has_any_of_these_seals(SealFlags::WRITE)?);
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_seal_flags_ext_unsealable_socket() {
+        let (socket, _peer) = std::os::unix::net::UnixStream::pair().unwrap();
+
+        // Sockets do not support sealing
+        let err = socket
+            .seals()
+            .expect_err("seal_flags() on a socket must fail");
+        assert_eq!(err, Errno::INVAL);
     }
 }

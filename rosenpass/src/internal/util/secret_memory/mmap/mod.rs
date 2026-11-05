@@ -9,6 +9,7 @@ use std::mem::ManuallyDrop;
 use std::os::fd::AsFd;
 
 use crate::internal::util::mem::CopyExt;
+use crate::internal::util::rustix::AddSealsError;
 
 use crate::internal::util::secret_memory::fd::{
     SecretMemfdConfig, SecretMemfdConfigValidationError,
@@ -190,11 +191,6 @@ pub enum MemfdCreateSealError {
         "Tried to seal the underlying file descriptor against being grown/shrunken, but one of the fcntl(2) system calls failed: {0}"
     )]
     SystemError(rustix::io::Errno),
-    /// Adding the seals was retried many times, but never succeeded
-    #[error(
-        "Tried to seal the underlying file descriptor against being grown/shrunken many times, but we never succeeded. This likely is a bug"
-    )]
-    RetriesAborted,
 }
 
 /// Error returned by Mappable::mmap
@@ -272,6 +268,9 @@ pub enum MMapError {
         "Tried to seal file descriptor against being grown/shrunken before mapping into memory: {0}"
     )]
     SealError(#[from] MemfdCreateSealError),
+    /// Adding file seals to the backing file descriptor failed; see [AddSealsError]
+    #[error("Tried to add file seals to the underlying file descriptor: {0}")]
+    CouldNotAddSeals(#[from] AddSealsError),
     /// `madvise(…, MADV_DONTFORK)` failed
     #[error("Tried to protect the allocated memory region against forking using madvise(2) with MADV_DONTFORK, but got following error instead: {}", .0)]
     CouldNotProtectAgainstForks(rustix::io::Errno),
