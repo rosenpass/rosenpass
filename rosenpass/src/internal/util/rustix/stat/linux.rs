@@ -36,6 +36,31 @@ where
     }
 }
 
+/// Check whether a socket is connected to a peer
+pub trait GetSocketConnectedness {
+    /// Error type returned by operations in this trait
+    type Error;
+    /// Whether the socket is connected to a peer
+    ///
+    /// Returns `Ok(false)` for an unconnected socket; other errors propagate.
+    fn is_connected(&self) -> Result<bool, Self::Error>;
+}
+
+impl<T> GetSocketConnectedness for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    fn is_connected(&self) -> Result<bool, Self::Error> {
+        match rustix::net::getpeername(self) {
+            Ok(_) => Ok(true),
+            Err(rustix::io::Errno::NOTCONN) => Ok(false),
+            Err(error) => Err(error),
+        }
+    }
+}
+
 /// Distinguish different types of unix sockets
 pub trait GetUnixSocketType {
     /// Error type returned by operations in this trait

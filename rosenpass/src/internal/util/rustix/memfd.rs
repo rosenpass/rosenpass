@@ -137,6 +137,7 @@ pub fn memfd_secret(flags: MemfdSecretFlags) -> Result<rustix::fd::OwnedFd, Memf
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::internal::util::rustix::DescriptorFlagsExt;
 
     #[test]
     fn test_memfd_secret_cloexec() {
@@ -149,7 +150,7 @@ mod tests {
         };
 
         // This yields a file descriptor without the close on exec flag set
-        let fdflags = rustix::io::fcntl_getfd(&fd).expect("fcntl(F_GETFD) failed");
+        let fdflags = fd.fd_flags().expect("fcntl(F_GETFD) failed");
         assert!(!fdflags.contains(rustix::io::FdFlags::CLOEXEC));
 
         // Creating a secret memfd with CLOEXEC set must also succeed
@@ -157,7 +158,7 @@ mod tests {
             .expect("memfd_secret(2) with CLOEXEC failed although the probe succeeded");
 
         // Now, the close-on-exec flag must be set on the new file descriptor
-        let fdflags = rustix::io::fcntl_getfd(&fd).expect("fcntl(F_GETFD) failed");
+        let fdflags = fd.fd_flags().expect("fcntl(F_GETFD) failed");
         assert!(fdflags.contains(rustix::io::FdFlags::CLOEXEC));
     }
 }
