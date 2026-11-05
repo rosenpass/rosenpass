@@ -248,8 +248,16 @@ where
             let sock = req_fds
                 .pop_front()
                 .context("Invalid request – socket missing.")?;
-            // TODO: We need to have this outside linux
-            #[cfg(target_os = "linux")]
+            // SO_PROTOCOL is unavailable elsewhere; same gate as GetSocketProtocol
+            #[cfg(any(
+                target_os = "linux",
+                target_os = "android",
+                target_os = "freebsd",
+                target_os = "fuchsia",
+                target_os = "openbsd",
+                target_os = "redox",
+                target_env = "newlib"
+            ))]
             crate::internal::util::rustix::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
