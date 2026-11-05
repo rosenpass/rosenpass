@@ -221,9 +221,15 @@ where
         }
     }
 
+    /// The upgrade is supported on Linux and FreeBSD.
+    ///
+    /// FreeBSD has neither memfd_secret(2) nor F_SEAL_FUTURE_WRITE (and refuses
+    /// F_SEAL_WRITE while the buffer is mapped writable), so there the buffer is
+    /// a plain memfd sealed only against resizing; see
+    /// [UpgradePendingClient::validate_seals]
     fn ensure_upgrade_supported(&self) -> anyhow::Result<()> {
         cfg_select! {
-            target_os = "linux" => Ok(()),
+            any(target_os = "linux", target_os = "freebsd") => Ok(()),
             _ => {
                 rustix::io::Errno::NOSYS
                     .apply(anyhow::Error::new)

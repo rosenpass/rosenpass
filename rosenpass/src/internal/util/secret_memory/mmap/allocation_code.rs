@@ -10,14 +10,14 @@ use std::{
     ptr::null_mut,
 };
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use rustix::fs::SealFlags;
 use rustix::io::Errno;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::internal::util::rustix::FileSealsExt;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use super::MemfdCreateSealError;
 
 use crate::internal::util::{
@@ -37,7 +37,7 @@ use crate::internal::util::{
 /// needed to prevent adversarial users in shared memory from
 /// triggering SIGSEGV/SIGBUS (invalid memory access) by truncating
 /// the shared file descriptor
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 const SRESIZE: SealFlags = SealFlags::SHRINK.union(SealFlags::GROW);
 
 /// Lifecycle of the mapping being assembled by [AllocationCode]
@@ -445,10 +445,10 @@ impl<'fd> AllocationCode<'fd> {
     /// [super::MemfdCreateSealError] (resize race) for the failure modes
     /// reported to the caller
     ///
-    /// File sealing only exists on Linux. On other operating systems the
-    /// sizing steps above are still performed, but the file descriptor is not
-    /// sealed and thus not protected against hostile resizing by another
-    /// party holding the same file descriptor.
+    /// File sealing is only used on Linux and FreeBSD. On other operating
+    /// systems the sizing steps above are still performed, but the file
+    /// descriptor is not sealed and thus not protected against hostile
+    /// resizing by another party holding the same file descriptor.
     fn appropriately_size_and_seal_fd(&mut self) -> Result<(), MMapError> {
         if self.fd().is_none() {
             return Ok(());
@@ -484,12 +484,14 @@ impl<'fd> AllocationCode<'fd> {
     /// either allows for adding resizing seals or has them already installed
     fn check_for_seal_misconfiguration(&mut self) -> Result<(), MMapError> {
         cfg_select! {
-            target_os = "linux" => self.check_for_seal_misconfiguration_linux(),
+            any(target_os = "linux", target_os = "freebsd") => {
+                self.check_for_seal_misconfiguration_linux()
+            }
             _ => Ok(())
         }
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     fn check_for_seal_misconfiguration_linux(&mut self) -> Result<(), MMapError> {
         use crate::internal::util::rustix::SSEAL;
 
@@ -549,13 +551,15 @@ impl<'fd> AllocationCode<'fd> {
     /// Seal the underlying file descriptor against resizing
     fn seal_file_descriptor_against_resizing(&mut self) -> Result<(), MMapError> {
         cfg_select! {
-            target_os = "linux" => self.seal_file_descriptor_against_resizing_linux(),
+            any(target_os = "linux", target_os = "freebsd") => {
+                self.seal_file_descriptor_against_resizing_linux()
+            }
             _ => Ok(())
         }
     }
 
-    /// Linux implementation of [Self::seal_file_descriptor_against_resizing()]
-    #[cfg(target_os = "linux")]
+    /// Linux and FreeBSD implementation of [Self::seal_file_descriptor_against_resizing()]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     fn seal_file_descriptor_against_resizing_linux(&mut self) -> Result<(), MMapError> {
         // No active steps needed to protect memfd_secret based file descriptors
         // against resizing

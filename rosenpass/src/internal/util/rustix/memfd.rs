@@ -7,12 +7,12 @@ use rustix::path::Arg as Path;
 
 use bitflags::bitflags;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub use rustix::fs::MemfdFlags;
 
 use crate::internal::util::result::OkExt;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 bitflags! {
     /// Linux memfd_create(2) flags accepted by the unsupported-platform stub.
     #[repr(transparent)]
@@ -27,7 +27,7 @@ bitflags! {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 bitflags! {
     // SealFlags on any platform; these are just used so we can express sealing logic
     // at runtime and detect unavailability of seals at runtime, instead of having to use
@@ -46,19 +46,19 @@ bitflags! {
 
 /// File seal flags (`F_SEAL_*`)
 pub type SealFlags = cfg_select! {
-    target_os = "linux" => rustix::fs::SealFlags,
+    any(target_os = "linux", target_os = "freebsd") => rustix::fs::SealFlags,
     _ => SealFlagsPortable,
 };
 
 /// Create an anonymous file
 /// using the memfd_create(2) syscall
 ///
-/// On Linux, forwards to [rustix::fs::memfd_create]
+/// On Linux and FreeBSD, forwards to [rustix::fs::memfd_create]
 ///
 /// On all other platforms, returns ENOSYS without calling the kernel
 pub fn memfd_create<P: Path>(name: P, flags: MemfdFlags) -> rustix::io::Result<OwnedFd> {
     cfg_select! {
-        target_os = "linux" => rustix::fs::memfd_create(name, flags),
+        any(target_os = "linux", target_os = "freebsd") => rustix::fs::memfd_create(name, flags),
         _ => {
             let _ = (name, flags);
             Err(Errno::NOSYS)?
@@ -103,7 +103,7 @@ pub const SSEAL: SealFlags = SealFlags::SEAL;
 /// seals; they can only be added, never removed. Sealing must be enabled at
 /// creation (e.g. `memfd_create` with `MFD_ALLOW_SEALING`).
 ///
-/// Linux only; on other platforms every operation fails with ENOSYS.
+/// Linux and FreeBSD only; on other platforms every operation fails with ENOSYS.
 pub trait FileSealsExt {
     /// The file's current seals.
     fn seals(&self) -> rustix::io::Result<SealFlags>;
@@ -121,14 +121,14 @@ where
 {
     fn seals(&self) -> rustix::io::Result<SealFlags> {
         cfg_select! {
-            target_os = "linux" => rustix::fs::fcntl_get_seals(self),
+            any(target_os = "linux", target_os = "freebsd") => rustix::fs::fcntl_get_seals(self),
             _ => Err(Errno::NOSYS),
         }
     }
 
     fn add_seals(&self, seals: SealFlags) -> Result<(), AddSealsError> {
         cfg_select! {
-            target_os = "linux" => add_seals_impl(self, seals),
+            any(target_os = "linux", target_os = "freebsd") => add_seals_impl(self, seals),
             _ => {
                 let _ = seals;
                 Err(AddSealsError::SystemError(Errno::NOSYS))
@@ -145,7 +145,7 @@ where
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 fn add_seals_impl<Fd>(fd: Fd, seals: SealFlags) -> Result<(), AddSealsError>
 where
     Fd: FileSealsExt + AsFd,

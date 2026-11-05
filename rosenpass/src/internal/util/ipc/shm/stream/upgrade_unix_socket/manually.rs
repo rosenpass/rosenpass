@@ -164,8 +164,16 @@ impl UpgradePendingClient {
     /// Check that the server sealed the buffer with F_SEAL_FUTURE_WRITE, so no
     /// further writable mappings can be created; memfd_secret(2) buffers are
     /// exempt.
+    ///
+    /// FreeBSD lacks F_SEAL_FUTURE_WRITE, so nothing is required there: the
+    /// buffer is only sealed against resizing (when either side maps it), and
+    /// anyone holding the descriptor can still write(2) to it or map it
+    /// writable.
     pub fn validate_seals(&self) -> anyhow::Result<()> {
-        const WANTED: SealFlags = SealFlags::FUTURE_WRITE;
+        const WANTED: SealFlags = cfg_select! {
+            target_os = "linux" => SealFlags::FUTURE_WRITE,
+            _ => SealFlags::empty(),
+        };
         if self.buffer_fd.is_memfd_secret()? {
             return Ok(());
         }

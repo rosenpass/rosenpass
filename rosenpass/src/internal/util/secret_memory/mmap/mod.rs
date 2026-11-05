@@ -384,8 +384,8 @@ impl<Fd: AsFd> Mappable<Fd> {
     ///
     /// This is a no-op for anonymous mappings (no file descriptor) and for
     /// memfd_secret(2) file descriptors, which the kernel protects against
-    /// resizing. On operating systems other than Linux, where file sealing
-    /// does not exist, this is a no-op as well.
+    /// resizing. On operating systems other than Linux, where
+    /// F_SEAL_FUTURE_WRITE does not exist, this is a no-op as well.
     ///
     /// Unlike the automatic sealing in [Self::mmap], errors are always
     /// propagated; kernels predating Linux 5.1 report

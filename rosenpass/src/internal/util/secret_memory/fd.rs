@@ -387,6 +387,7 @@ impl SecretMemfdConfig {
             let flags = F::CLOEXEC | F::ALLOW_SEALING;
 
             // memfd_secret(2) appears to be unsupported; fall back to memfd_create(2)
+            #[cfg(target_os = "linux")] // MFD_NOEXEC_SEAL is Linux-only
             match memfd_create(name, flags | F::NOEXEC_SEAL) {
                 // Invalid call; probably means that NOEXEC_SEAL is not supported on this kernel
                 Err(Errno::INVAL) => (),
