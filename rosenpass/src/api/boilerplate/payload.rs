@@ -8,7 +8,10 @@ pub const MAX_REQUEST_LEN: usize = 2500; // TODO fix this
 /// Size required to fit any response message in binary form
 pub const MAX_RESPONSE_LEN: usize = 2500; // TODO fix this
 /// Maximum number of file descriptors that can be sent in a request.
-pub const MAX_REQUEST_FDS: usize = 2;
+///
+/// Requests carry at most two (SupplyKeypair, UpgradeTransport); the headroom lets surplus
+/// descriptors reach the request handler instead of a truncated read closing the connection.
+pub const MAX_REQUEST_FDS: usize = 5;
 
 /// Message envelope for API messages
 #[repr(packed)]

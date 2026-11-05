@@ -171,9 +171,6 @@ rustix = { version = "1.1.4", features = [
   "mm",
   "param",
 ] } # Broker dependencies (might need cleanup or changes)
-uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
-  "mio_1xx",
-] }
 libcrux-test-utils = { version = "0.0.3", optional = true }
 assert_tv = { version = "0.6" } #Dev dependencies
 base64 = { version = "0.23.0" }
@@ -251,7 +248,6 @@ base64ct = { version = "1.6.0", default-features = false }
 experiment_cookie_dos_mitigation = []
 experiment_api = [
   "dep:hex-literal",
-  "dep:uds",
   "dep:command-fds",
   "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
   "dep:wireguard-uapi",                 # Netlink broker (Linux only)
@@ -275,7 +271,7 @@ rp = [
   "dep:netlink-packet-wireguard",
 ]
 # features of `rosenpass_util`:
-experiment_file_descriptor_passing = ["dep:uds"]
+experiment_file_descriptor_passing = []
 tokio = ["dep:tokio"]
 # features of `rosenpass-ciphers`:
 bench = ["expose_internal_modules"]

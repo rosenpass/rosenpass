@@ -34,9 +34,6 @@ audit-as-crates-io = true
 [policy.rosenpass]
 audit-as-crates-io = false
 
-[policy.uds]
-audit-as-crates-io = true
-
 [[exemptions.aead]]
 version = "0.5.2"
 criteria = "safe-to-deploy"
@@ -807,10 +804,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.20.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.uds]]
-version = "0.4.2@git:b47934fe52422e559f7278938875f9105f91c5a2"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]

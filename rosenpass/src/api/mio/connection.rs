@@ -3,9 +3,8 @@ use std::collections::VecDeque;
 use std::os::fd::OwnedFd;
 
 use crate::internal::secret_memory::Secret;
-use crate::internal::util::mio::ReadWithFileDescriptors;
 use crate::internal::util::{
-    io::{IoResultKindHintExt, TryIoResultKindHintExt},
+    io::{IoResultKindHintExt, TryIoResultKindHintExt, fd_stream::FdStreamReader},
     length_prefix_encoding::{
         decoder::{self as lpe_decoder, LengthPrefixDecoder},
         encoder::{self as lpe_encoder, LengthPrefixEncoder},
@@ -227,11 +226,8 @@ pub trait MioConnectionContext {
             let read_buf = &mut bufs.read_buffer;
             let read_fd_buf = &mut bufs.read_fd_buffer;
 
-            let sock = &conn.io;
-            let fd_passing_sock = ReadWithFileDescriptors::<MAX_REQUEST_FDS, UnixStream, _, _>::new(
-                sock,
-                read_fd_buf,
-            );
+            let sock = &mut conn.io;
+            let fd_passing_sock = FdStreamReader::new(sock, read_fd_buf, MAX_REQUEST_FDS);
 
             match read_buf
                 .read_from_stdio(fd_passing_sock)
