@@ -271,17 +271,16 @@ impl RosenpassConfig {
                         // rp _always creates_ the WG device, it never uses an existing one
                         created_by: WgDeviceCreateOptions::Create(DeviceWireguardOptions {
                             // TODO: these parameters are not supported by `rp`:
-                            // - wg_listen_port
                             // - wg_fwmark
-                            wg_listen_port: None,
-                            wg_fwmark: None,
-                            set_ip_addr: addr,
+
                             // set WG device port to rosenpass' port + 1 (of `listen` parameter
                             // is set at all)
-                            set_listen_port: our_listen_address.get().map(|a| a.port() + 1),
+                            wg_listen_port: our_listen_address.get().map(|a| a.port() + 1),
+                            wg_fwmark: None,
+                            set_ip_addr: addr,
                             // rp _always_ sets the WG secret key as the device is _always_
                             // created by rp.
-                            set_secret_key: Some(SecretWgKeySource::new(
+                            wg_secret_key: Some(SecretWgKeySource::new(
                                 KeyFromDiskInner::Directory(secret_keys_dir.clone()),
                             )),
                         }),

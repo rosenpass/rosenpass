@@ -6,9 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
+use super::{Issue, ValidationRecipe};
 use anyhow::anyhow;
 use rustix::path::Arg;
-use super::{Issue,ValidationRecipe};
 
 /// - TODO: rename trait?
 pub trait AttemptRead {
@@ -210,7 +210,6 @@ impl AttemptRead for std::path::PathBuf {
         implementation().is_ok() // TODO: return error?
     }
 }
-
 
 pub fn check_key_file(
     issues: &mut Vec<Issue>,

@@ -27,13 +27,15 @@ fn rename_rules(rule: &Rule) -> String {
         Rule::tool_name => "the tool's name".into(),
         Rule::command_line => "command line".into(),
 
-        Rule::subcommand | Rule::subcommand_normal | Rule::subcommand_not_help => "a subcommand".into(),
+        Rule::subcommand | Rule::subcommand_normal | Rule::subcommand_not_help => {
+            "a subcommand".into()
+        }
         Rule::subcommand_help => "the subcommand \"--help\"".into(),
         Rule::subcommand_exchange_config => "the subcommand \"exchange-config\"".into(),
         Rule::subcommand_exchange => "the subcommand \"exchange\"".into(),
         Rule::subcommand_gen_config => "the subcommand \"gen-config\"".into(),
         // TODO: rename all rules
-        name => name.name().into()
+        name => name.name().into(),
     }
 }
 

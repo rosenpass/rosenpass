@@ -69,7 +69,7 @@ impl ValidationRecipe {
             check_file_permissions: false,
             check_whether_external_binaries_behave: false,
             check_key_file_contents: false,
-            look_up_hostnames: false
+            look_up_hostnames: false,
         }
     }
     pub fn all() -> ValidationRecipe {
@@ -80,7 +80,7 @@ impl ValidationRecipe {
             check_file_permissions: true,
             check_whether_external_binaries_behave: true,
             check_key_file_contents: true,
-            look_up_hostnames: true
+            look_up_hostnames: true,
         }
     }
 }

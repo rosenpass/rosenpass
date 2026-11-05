@@ -92,8 +92,7 @@ fn read_full_config_with_version_0_2_keys() -> Result<(), anyhow::Error> {
             wg_fwmark,
             // TODO: the following parameters should also be read from TOML config files eventually
             set_ip_addr: None,
-            set_listen_port: None,
-            set_secret_key: None,
+            wg_secret_key: None,
         }) => {
             assert_eq!(*wg_listen_port, Some(1234));
             assert_eq!(*wg_fwmark, Some(0x1234));

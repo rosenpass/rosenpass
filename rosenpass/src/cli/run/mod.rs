@@ -1,10 +1,17 @@
-use super::{
-    CliCommand, FlatCliCommand, GenKeysPathsSource,
-    parse::{
-        exchange, exchange_config, generate_config, generate_manpage, genkeys, genpubkeys, validate,
+use super::{CliCommand, FlatCliCommand, GenKeysPathsSource, parse};
+use crate::{
+    app_server::AppServerTest,
+    config::{
+        KeyFromDisk, KeyFromDiskInner, KeyFromDiskOrB64EncodedString,
+        KeyFromDiskOrB64EncodedStringInner, NewFromInner, PublicKeySource, PublicPqKeySource,
+        RosenpassConfig, WgKeypairSource, validate::ValidationRecipe,
     },
-    psk_broker::create_broker,
+    internal::{
+        cipher_traits::primitives::Kem, ciphers::StaticKem, secret_memory::file::StoreSecret,
+        util::file::StoreValue,
+    },
 };
+use anyhow::{anyhow, bail, ensure};
 use std::{
     fmt::{self, Display},
     fs::File,
@@ -12,31 +19,11 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
-// #[cfg(feature = "experiment_api")]
-use super::BrokerInterface;
-use crate::{
-    app_server::{AppServer, AppServerTest, BrokerPeer},
-    config::{
-        KeyFromDisk, KeyFromDiskInner, KeyFromDiskOrB64EncodedString,
-        KeyFromDiskOrB64EncodedStringInner, NewFromInner, PublicKeySource, PublicPqKeySource,
-        RosenpassConfig, WgKeypairSource, decode_wg_pubkey_b64, validate::ValidationRecipe,
-    },
-    internal::{
-        cipher_traits::primitives::Kem,
-        ciphers::StaticKem,
-        secret_memory::file::StoreSecret,
-        util::file::{LoadValue, LoadValueB64, StoreValue},
-        wireguard_broker::brokers::native_unix::{
-            NativeUnixBrokerConfigBaseBuilder, NativeUnixBrokerConfigBaseBuilderError,
-        },
-    },
-    protocol::{
-        ProtocolVersion,
-        basic_types::{SPk, SSk, SymKey},
-        protocol_context::WireGuardKeyBinding,
-    },
-};
-use anyhow::{anyhow, bail, ensure};
+
+pub mod exchange;
+pub use exchange::exchange_implementation;
+pub mod generate_keys;
+pub use generate_keys::generate_and_save_keypair;
 
 impl CliCommand {
     pub fn run(
@@ -262,19 +249,25 @@ impl CliCommand {
                 let bold = anstyle::Style::new().bold();
                 let help: Box<dyn Display> = match subcommand {
                     Some(FlatCliCommand::ExchangeConfig) => {
-                        Box::new(exchange_config::help(INDENT, *grammar))
+                        Box::new(parse::exchange_config::help(INDENT, *grammar))
                     }
-                    Some(FlatCliCommand::Exchange) => Box::new(exchange::help(INDENT, *grammar)),
+                    Some(FlatCliCommand::Exchange) => {
+                        Box::new(parse::exchange::help(INDENT, *grammar))
+                    }
                     Some(FlatCliCommand::GenConfig) => {
-                        Box::new(generate_config::help(INDENT, *grammar)?)
+                        Box::new(parse::generate_config::help(INDENT, *grammar)?)
                     }
-                    Some(FlatCliCommand::GenKeys) => Box::new(genkeys::help(INDENT, *grammar)),
+                    Some(FlatCliCommand::GenKeys) => {
+                        Box::new(parse::genkeys::help(INDENT, *grammar))
+                    }
                     Some(FlatCliCommand::GenPubKeys) => {
-                        Box::new(genpubkeys::help(INDENT, *grammar)?)
+                        Box::new(parse::genpubkeys::help(INDENT, *grammar)?)
                     }
-                    Some(FlatCliCommand::Validate) => Box::new(validate::help(INDENT, *grammar)?),
+                    Some(FlatCliCommand::Validate) => {
+                        Box::new(parse::validate::help(INDENT, *grammar)?)
+                    }
                     Some(FlatCliCommand::GenerateManpage) => {
-                        Box::new(generate_manpage::help(INDENT, *grammar))
+                        Box::new(parse::generate_manpage::help(INDENT, *grammar))
                     }
                     Some(FlatCliCommand::GenerateShellCompletion) => {
                         todo!("shell completions are not yet supported");
@@ -301,236 +294,4 @@ pub fn help<'a>(indent: &'a str) -> impl Display + 'a {
     fmt::from_fn(move |f| {
         todo!("help message for rosenpass command")
     })
-}
-
-/// generate secret and public keys, store in files according to the paths passed as arguments
-pub fn generate_and_save_keypair(
-    generate_directory: Option<&Path>,
-    secret_key_file: &Path,
-    public_key_file: &Path,
-    wg_secret_key: Option<&Path>,
-    force: bool,
-) -> anyhow::Result<()> {
-    // check that we are not overriding something unintentionally
-    let mut problems = vec![];
-    if !force && public_key_file.exists() {
-        problems.push(format!(
-            "public-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(public_key_file)?,
-        ));
-    }
-    if !force && secret_key_file.exists() {
-        problems.push(format!(
-            "secret-key file {:?} exists, refusing to overwrite",
-            std::fs::canonicalize(secret_key_file)?,
-        ));
-    }
-    if secret_key_file == public_key_file {
-        problems.push("secret key file and public key file have the same path".into());
-    }
-    if !problems.is_empty() {
-        bail!(problems.join("\n"));
-    }
-
-    // TODO: maybe set umask?
-    // https://github.com/rosenpass/rosenpass/issues/1209
-    log::warn!(
-        "creating secret/public keys without setting umask, see {}",
-        "https://github.com/rosenpass/rosenpass/issues/1209"
-    );
-
-    // create directory
-    if let Some(generate_directory) = generate_directory {
-        log::info!("creating directory \"{}\"", generate_directory.display());
-        if generate_directory.exists() {
-            bail!(
-                "can not create key  directory \"{}\" because it already exists",
-                generate_directory.display()
-            );
-        }
-        std::fs::DirBuilder::new()
-            .recursive(true) // historically, rp 0.2.3 also creates parent dirs
-            .create(generate_directory.clone())
-            .map_err(|e| anyhow!(e).context("can not create keys directory"));
-    }
-
-    // generate and write secret key and public key
-    log::info!("generating static keypair");
-    let mut ssk = crate::protocol::basic_types::SSk::random();
-    let mut spk = crate::protocol::basic_types::SPk::random();
-    StaticKem.keygen(ssk.secret_mut(), spk.deref_mut())?;
-    log::info!(
-        "storing static secret key to \"{}\"",
-        secret_key_file.display()
-    );
-    ssk.store_secret(secret_key_file)?;
-    log::info!(
-        "storing static public key to \"{}\"",
-        public_key_file.display()
-    );
-    spk.store(public_key_file)?;
-
-    // generate WireGuard secret key with command line this: `wg genkey > $OUTFILE`
-    if let Some(wg_secret_key) = wg_secret_key {
-        log::info!(
-            "generating WireGuard secret key and writing it to \"{}\"",
-            wg_secret_key.display()
-        );
-        let outfile = File::create(wg_secret_key)
-            .map_err(|e| anyhow!(e).context("can not create wg secret key file"))?;
-        let exit_code = Command::new("wg")
-            .arg("genkey")
-            .stdout(Stdio::from(outfile))
-            .status()
-            .map_err(|e| anyhow!(e).context("can not spawn process \"wg\" to create secret key"))?;
-        if !exit_code.success() {
-            return Err(anyhow!(
-                "\"wg\" returend with {}",
-                exit_code
-                    .code()
-                    .map(|s| format!("exit code {s}"))
-                    .unwrap_or_else(|| "unknown exit code".to_string())
-            )
-            .context("can not create wg secret key"));
-        }
-    }
-
-    // return
-    Ok(())
-}
-
-/// called by [`CliCommand::run`]
-pub fn exchange_implementation(
-    config: &RosenpassConfig,
-    psk_broker_config: Option<BrokerInterface>,
-    test_helpers: Option<AppServerTest>,
-) -> anyhow::Result<()> {
-    // check configuration
-    if !test_helpers
-        .as_ref()
-        .map(|th| th.skip_init_logging)
-        .unwrap_or(false)
-    {
-        config.verbosity.apply();
-    }
-    config.validate_and_print(ValidationRecipe::all())?;
-    config.check_usefullness()?;
-
-    // TODO: allow to set per-peer protocol version
-    // https://github.com/rosenpass/rosenpass/issues/1196
-    let protocol_version = config
-        .supported_protocol_versions
-        .first()
-        .copied()
-        .unwrap_or_default();
-
-    const MAX_PSK_SIZE: usize = 1000;
-
-    // load own keys
-    #[cfg(not(feature = "experiment_api"))]
-    let keypair = Some((
-        SSk::load(config.our_keypair.secret_key_source.get_key_path())?,
-        SPk::load(config.our_keypair.public_key_source.get_key_path())?,
-    ));
-    #[cfg(feature = "experiment_api")]
-    let keypair = {
-        let secret = config
-            .our_keypair
-            .secret_key_source
-            .is_defined()
-            .then(|| SSk::load(config.our_keypair.secret_key_source.get_key_path()))
-            .transpose()?;
-        let public = config
-            .our_keypair
-            .public_key_source
-            .is_defined()
-            .then(|| SPk::load(config.our_keypair.public_key_source.get_key_path()))
-            .transpose()?;
-        match (secret, public) {
-            (None, None) => None,
-            (Some(secret), Some(public)) => Some((secret, public)),
-            _ => bail!("specify either both our secret and public key or none"),
-        }
-    };
-
-    // start an application server
-    let mut srv = std::boxed::Box::<AppServer>::new(AppServer::new(
-        keypair,
-        config.our_listen_addresses.clone(),
-        config.verbosity,
-        test_helpers,
-    )?);
-
-    config.apply_to_app_server(&mut srv)?;
-
-    let broker = create_broker(psk_broker_config)?;
-    let broker_store_ptr = srv.register_broker(broker)?;
-
-    fn cfg_err_map(e: NativeUnixBrokerConfigBaseBuilderError) -> anyhow::Error {
-        anyhow::Error::msg(format!("NativeUnixBrokerConfigBaseBuilderError: {:?}", e))
-    }
-
-    for cfg_peer in config.peers.iter() {
-        let (broker_peer, wg_key_binding) = match &cfg_peer.wireguard {
-            Some(wg) => {
-                let our_wg_pubkey = wg.our_wireguard_keypair.as_ref()
-                .map(|our|our.get_public_key())
-                .map(|key| key.get_inline_key().expect("not yet implemented: read WireGuard keypair from other sources than inline base64-encoded"));
-                let their_wg_pubkey = wg.their_wireguard_public_key.get_inline_key().ok_or_else(
-                    || {
-                        todo!(
-                            "read WireGuard keypair from other sources than inline base64-encoded"
-                        )
-                    },
-                )?;
-                let peer_cfg = NativeUnixBrokerConfigBaseBuilder::default()
-                    .peer_id_b64(&their_wg_pubkey)?
-                    .interface(wg.device_name.clone())
-                    .extra_params_ser(&wg.wireguard_options.to_cli_parameters())?
-                    .build()
-                    .map_err(cfg_err_map)?;
-                let broker_peer = BrokerPeer::new(broker_store_ptr.clone(), Box::new(peer_cfg));
-
-                let wg_key_binding = match (protocol_version, &our_wg_pubkey) {
-                    (ProtocolVersion::V03, Some(our_wg_pubkey)) => Some(WireGuardKeyBinding {
-                        our_wg_pubkey: decode_wg_pubkey_b64(our_wg_pubkey)?,
-                        peer_wg_pubkey: decode_wg_pubkey_b64(&their_wg_pubkey)?,
-                    }),
-                    (ProtocolVersion::V03, None) => {
-                        unreachable!(
-                            "{} – {}",
-                            "protocol version 03 but our_wg_pubkey is None",
-                            "this should be unreachable because config::validate should have caught this case"
-                        );
-                    }
-                    _ => None,
-                };
-
-                (Some(broker_peer), wg_key_binding)
-            }
-            None => (None, None),
-        };
-
-        srv.add_peer(
-            // psk, pk, outfile, outwg, tx_addr
-            cfg_peer
-                .preshared_key
-                .as_ref()
-                .map(|psk| psk.get_key_file_path())
-                .map(SymKey::load_b64::<MAX_PSK_SIZE, _>)
-                .transpose()?,
-            SPk::load(cfg_peer.their_public_key.get_key_path())?,
-            cfg_peer
-                .output_to_file
-                .as_ref()
-                .and_then(|o| o.enabled.then(|| o.output_file_path.clone())),
-            broker_peer,
-            cfg_peer.endpoint.clone(),
-            protocol_version,
-            cfg_peer.osk_domain_separator.clone().try_into()?,
-            wg_key_binding,
-        )?;
-    }
-
-    srv.event_loop()
 }

@@ -177,10 +177,7 @@ fn run_server_client_exchange(
     // surface child thread failures instead of hiding them behind a SendError
     server_handle.join().expect("server thread panicked");
     client_handle.join().expect("client thread panicked");
-    assert!(
-        exchanged,
-        "key exchange did not complete within 30 seconds"
-    );
+    assert!(exchanged, "key exchange did not complete within 30 seconds");
 }
 
 // verify that EXAMPLE_CONFIG is correct

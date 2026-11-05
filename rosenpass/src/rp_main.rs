@@ -24,6 +24,7 @@ mod rp_old;
 /// parses command line, catches errors, prints them through the logger, then exits
 ///
 /// The bulk of the command line logic is handled inside [crate::cli::CliCommand::run].
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub fn main() {
     // DO NOT set logging here. Logging is set differently per subcommand.
     // I.e. the exchange command reads it from the command line, the exchange-config command
@@ -39,9 +40,7 @@ pub fn main() {
     }
 }
 
-// - TODO: what to do with this legacy code?
-//
-// #[tokio::main]
-// pub async fn main() -> anyhow::Result<()> {
-//     ensure_janitor(async move { main_impl().await }).await
-// }
+#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
+compile_error!(
+    "Unfortunately, the rp command is currently not supported on your platform. See https://github.com/rosenpass/rosenpass/issues/689 for more information and discussion."
+);

@@ -193,7 +193,12 @@ enum FlatWgDeviceCreateOptions {
 /// device's WireGuard options if the device is created
 #[derive(Debug, Default, PartialEq)]
 pub struct DeviceWireguardOptions {
+    /// this port shall be set on the Wireguard device like
+    /// ```sh,ignore
+    /// wg set <DEVICE> listen-port <PORT>
+    /// ```
     pub wg_listen_port: Option<u16>,
+
     pub wg_fwmark: Option<u16>,
 
     /// this IP address shall be set when creating the device like
@@ -204,17 +209,11 @@ pub struct DeviceWireguardOptions {
     /// This is typically the public IP address of the interface and the user might want to set it.
     pub set_ip_addr: Option<IpAddr>,
 
-    /// this port shall be set on the Wireguard device like
-    /// ```sh,ignore
-    /// wg set <DEVICE> listen-port <PORT>
-    /// ```
-    pub set_listen_port: Option<u16>,
-
     /// this secret key shall be supplied to WireGuard like
     /// ```sh,ignore
     /// wg set <DEVICE> private-key <FILE>
     /// ```
-    pub set_secret_key: Option<SecretWgKeySource>,
+    pub wg_secret_key: Option<SecretWgKeySource>,
 }
 
 // ============================== [[peers]] ==============================
