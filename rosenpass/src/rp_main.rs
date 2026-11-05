@@ -18,9 +18,6 @@ mod protocol;
 use crate::cli::{CliCommand, CliGrammar};
 pub use error::RosenpassError;
 
-// TODO: remove rp_old
-mod rp_old;
-
 /// parses command line, catches errors, prints them through the logger, then exits
 ///
 /// The bulk of the command line logic is handled inside [crate::cli::CliCommand::run].
