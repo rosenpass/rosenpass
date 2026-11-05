@@ -96,7 +96,7 @@ pub trait MioManagerContext {
             .unwrap_or(conns.len());
         conns.insert(idx, Some(connection));
         let io_source = idx
-            .apply(MioManagerIoSource::Listener)
+            .apply(MioManagerIoSource::Connection)
             .apply(AppServerIoSource::MioManager);
         self.app_server_mut()
             .register_io_source(mio_token, io_source);
