@@ -91,10 +91,13 @@ pub trait MioManagerContext {
         let idx = conns
             .iter_mut()
             .enumerate()
-            .find(|(_, slot)| slot.is_some())
+            .find(|(_, slot)| slot.is_none())
             .map(|(idx, _)| idx)
             .unwrap_or(conns.len());
-        conns.insert(idx, Some(connection));
+        if idx == conns.len() {
+            conns.push(None);
+        }
+        conns[idx] = Some(connection);
         let io_source = idx
             .apply(MioManagerIoSource::Connection)
             .apply(AppServerIoSource::MioManager);
