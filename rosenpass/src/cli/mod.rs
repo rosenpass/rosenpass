@@ -1,6 +1,6 @@
 //! Contains the code used to parse command line parameters for rosenpass.
 //!
-//! [CliArgs::run] is called by the rosenpass main function and contains the
+//! [CliCommand::run] is called by the rosenpass main function and contains the
 //! bulk of our boostrapping code while the main function just sets up the basic environment
 
 use crate::app_server::AppServerTest;

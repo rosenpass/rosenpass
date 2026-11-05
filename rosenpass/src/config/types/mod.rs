@@ -38,10 +38,6 @@ pub use paths::ResolvePathRelativeToConfig;
 #[doc = include_str!("../../../tests/config_rosenpass_load_from_file.rs")]
 /// ```
 ///
-/// ## TODO
-/// - get rid of [`Serialize`] so that [`RosenpassConfig::store`] can use [`toml_edit`] introduced
-///   in https://github.com/rosenpass/rosenpass/pull/1021
-///
 #[derive(Debug, PartialEq)]
 pub struct RosenpassConfig {
     /// list of [`SocketAddr`] to listen on
@@ -62,7 +58,7 @@ pub struct RosenpassConfig {
     /// all protocol versions supported by this Rosenpass instance
     ///
     /// This setting is currently true for all peers. A per-peer configuration might be introduced
-    /// in the future, see https://github.com/rosenpass/rosenpass/issues/1181
+    /// in the future, see <https://github.com/rosenpass/rosenpass/issues/1181>
     pub supported_protocol_versions: IndexSet<ProtocolVersion>,
 
     /// Location of the API listen sockets
@@ -244,7 +240,7 @@ pub struct PeerConfig {
     /// NOTE: This is the _legacy_ OSK domain separator defined per peer. In the future, the user
     /// should define their OSK domain separator per key usage (see [`PeerConfig::output_to_file`]
     /// and [`PeerConfig::wireguard`]).
-    /// Tracking issue: https://github.com/rosenpass/rosenpass/issues/1182
+    /// Tracking issue: <https://github.com/rosenpass/rosenpass/issues/1182>
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 
     /// output key usage: write it to a file
@@ -366,11 +362,11 @@ pub struct WireguardConfig {
 
     pub wireguard_options: PeerWireguardOptions,
 
-    /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1184
+    /// deprecated, will be dropped in <https://github.com/rosenpass/rosenpass/issues/1184>
     pub exchange_command: Option<Vec<String>>,
 
-    // TODO: use this custom OSK here
-    // Tracking issue: https://github.com/rosenpass/rosenpass/issues/1182
+    /// TODO: use this custom OSK here
+    /// Tracking issue: <https://github.com/rosenpass/rosenpass/issues/1182>
     pub osk_domain_separator: RosenpassPeerOskDomainSeparator,
 }
 
@@ -393,7 +389,7 @@ pub struct PeerWireguardOptions {
     /// This can be a list of addresses or networks.
     pub allowed_ips: Option<Vec<IpCidr>>,
 
-    /// deprecated, will be dropped in https://github.com/rosenpass/rosenpass/issues/1183
+    /// deprecated, will be dropped in <https://github.com/rosenpass/rosenpass/issues/1183>
     pub wg_extra_arguments: Vec<String>,
 }
 

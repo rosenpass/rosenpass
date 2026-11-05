@@ -2,15 +2,12 @@
 //!
 //! This module is split up into the follow submodules:
 //! - [`types`]: contains the [`RosenpassConfig`] type and all associated types
-//! - [`parse_from_cli`]: implements the function [`RosenpassConfig::parse_from_cli`]
+//! - [`parse_from_cli`]: implements the function [`RosenpassConfig::parse_from_cli_parameters`]
 //! - [`parse_from_toml`]: implements the function [`RosenpassConfig::parse_from_toml`]
 //! - [`validate`]: implements the function [`RosenpassConfig::validate`]
-//! - [`tests`]: contains unit tests
+//! - `tests`: contains unit tests
 //!
-//! Configuration readable from a config file.
-//!
-//! Rosenpass supports reading its configuration from a TOML file. This module contains a struct
-//! [`Rosenpass`] which holds such a configuration.
+//! Configuration [`RosenpassConfig`] readable from a config file or via exchange subcommand.
 //!
 //! ## TODO
 //! - TODO: support `~` in <https://github.com/rosenpass/rosenpass/issues/237>
@@ -273,7 +270,7 @@ impl RosenpassConfig {
     ///
     /// # TODO
     /// This does not take advantage of [`toml_edit`] newly introduced in
-    /// https://github.com/rosenpass/rosenpass/pull/1021
+    /// <https://github.com/rosenpass/rosenpass/pull/1021>
     pub fn store<P: AsRef<Path>>(&self, p: P) -> anyhow::Result<()> {
         todo!("this is currently not implemented as it is not part of the app logic anyways");
         #[cfg(none)]

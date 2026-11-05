@@ -1,5 +1,3 @@
-use std::{ffi::OsString, fmt::Debug};
-
 use crate::{
     app_server::{AppServer, AppServerTest, BrokerPeer},
     cli::{BrokerInterface, psk_broker::create_broker},
@@ -22,6 +20,12 @@ use crate::{
 };
 use anyhow::{anyhow, bail};
 use base64ct::Encoding;
+use std::{ffi::OsString, fmt::Debug};
+
+// used by doccomments
+#[allow(unused_imports)]
+use super::CliCommand;
+
 /// a simple type which only implements [`Drop`] to ensure that the WireGuard device is destroyed
 /// on program exit
 pub struct RunningWireGuardDevice {
@@ -308,7 +312,6 @@ pub fn read_wg_pubkey(key: &PublicWgKeySource) -> anyhow::Result<PublicSymKey> {
         }
     }
 }
-
 /// called by [`CliCommand::run`]
 pub fn exchange_implementation(
     config: &RosenpassConfig,

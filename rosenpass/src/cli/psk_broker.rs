@@ -28,7 +28,7 @@ use {
 /// fields.
 ///
 /// If the `experiment_api`
-/// feature flag is not set, then this returns a [NativeUnixBroker],
+/// feature flag is not set, then this returns a `NativeUnixBroker`,
 /// sending pre-shared keys directly to WireGuard from within this
 /// process.
 #[cfg(feature = "experiment_api")]
@@ -58,7 +58,7 @@ pub fn create_broker(
 /// fields.
 ///
 /// If the `experiment_api`
-/// feature flag is not set, then this returns a [NativeUnixBroker],
+/// feature flag is not set, then this returns a `NativeUnixBroker`,
 /// sending pre-shared keys directly to WireGuard from within this
 /// process.
 #[cfg(not(feature = "experiment_api"))]

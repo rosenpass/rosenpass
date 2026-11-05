@@ -12,7 +12,7 @@
 
 pub mod error;
 pub mod implementation;
-mod util;
+pub mod util;
 
 pub use error::{Error, Issue, Warning};
 

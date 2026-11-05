@@ -468,10 +468,10 @@ impl RosenpassConfig {
     /// and the configuration values.
     ///
     /// This was introduced when we introduced a unix-socket API feature allowing the server
-    /// keypair to be supplied via the API; in this process we also made [Self::keypair] optional.
-    /// With respect to this particular feature, this function ensures that [Self::keypair] is set
+    /// keypair to be supplied via the API; in this process we also made [Self::our_keypair] optional.
+    /// With respect to this particular feature, this function ensures that [Self::our_keypair] is set
     /// when Rosenpass is compiles without the `experiment_api` flag. When `experiment_api` is
-    /// used, the function ensures that [Self::keypair] is only `None`, if the Rosenpass API is
+    /// used, the function ensures that [Self::our_keypair] is only `None`, if the Rosenpass API is
     /// enabled in the configuration.
     ///
     /// # Examples

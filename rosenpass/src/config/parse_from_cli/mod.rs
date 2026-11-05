@@ -91,7 +91,7 @@ impl RosenpassConfig {
     ///
     /// **NOTE:** do not pass the entire command line but only the part after `{tool_name} exchange`.
     /// For a convenience wrapper which uses the entire command line, see
-    /// [`RosenpassConfig::parse_from_entire_cli`]
+    /// `RosenpassConfig::parse_from_entire_cli`
     ///
     /// **NOTE:** pass a command line with `'\0'`-separated arguments. Do not pass `' '`-separated
     /// arguments.

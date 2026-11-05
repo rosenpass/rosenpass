@@ -1,8 +1,8 @@
-//! This module contains [`Error`], [`Warning`] and [`Issue`] which represent errors and warnings
+//! This module contains [`enum@Error`], [`Warning`] and [`Issue`] which represent errors and warnings
 //! about a certain Rosenpass configuration. They implement the [`std::error::Error`] trait using
 //! the [`thiserror::Error`] derive macro.
 //!
-//! [`Issue`] is a simple sum type (enum) which can either hold an [`Error`] or a [`Warning`].
+//! [`Issue`] is a simple sum type (enum) which can either hold an [`enum@Error`] or a [`Warning`].
 
 use crate::protocol::ProtocolVersion;
 use anstyle::AnsiColor;
@@ -258,7 +258,7 @@ pub enum Warning {
 
 /// an issue with the contents of a [`RosenpassConfig`]
 ///
-/// This can either be a hard error (variant `Error`, containting an [`Error`]) or just a warning
+/// This can either be a hard error (variant `Error`, containting an [`enum@Error`]) or just a warning
 /// (variant `Warning`, containing a [`Warning`]). The type implements the [`std::error::Error`]
 /// trait using [`thiserror`] and outputs something like this:
 /// ```text
