@@ -121,7 +121,7 @@ pub fn memfd_secret(flags: MemfdSecretFlags) -> Result<rustix::fd::OwnedFd, Memf
             let res = unsafe {
                 use libc::{SYS_memfd_secret, syscall};
                 syscall(SYS_memfd_secret, flags)
-                    .into_type::<SyscallResult>()
+                    .into_type::<SyscallResult<_>>()
                     .claim_fd()
             };
 
