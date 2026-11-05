@@ -255,8 +255,13 @@ pub trait MioConnectionContext {
                     break Ok(None);
                 }
 
+                // Connection closed by the client
+                Ok(Ret { bytes_read: 0, .. }) => {
+                    conn.invalid_read = true; // closed later by mio_manager
+                    break Ok(None);
+                }
+
                 // Would block
-                Ok(Ret { bytes_read: 0, .. }) => break Ok(None),
                 Err((_, Some(K::WouldBlock))) => break Ok(None),
 
                 // Just keep going
