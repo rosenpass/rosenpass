@@ -131,6 +131,8 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
+      - name: install wireguard-tools (required by rp command)
+        run: sudo apt-get install -y wireguard-tools
       - uses: actions/cache@v6
         with:
           path: |
@@ -216,6 +218,8 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v7
+      - name: install wireguard-tools (required by rp command)
+        run: sudo apt-get install -y wireguard-tools
       - uses: actions/cache@v6
         with:
           path: |

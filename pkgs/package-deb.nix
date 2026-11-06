@@ -16,7 +16,7 @@ runCommand "rosenpass-${version}.deb" { } ''
   Version: ${version}
   Architecture: all
   Maintainer: Jacek Galowicz <jacek@galowicz.de>
-  Depends:
+  Depends: wireguard-tools
   Description: Post-quantum-secure VPN tool Rosenpass
     Rosenpass is a post-quantum-secure VPN
     that uses WireGuard to transport the actual data.

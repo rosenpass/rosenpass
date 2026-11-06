@@ -7,6 +7,7 @@
   mandoc,
   removeReferencesTo,
   bash,
+  wireguard-tools,
   package ? "rosenpass",
 }:
 
@@ -111,6 +112,11 @@ rustPlatform.buildRustPackage {
     buildPackages.rustPlatform.bindgenHook # for C-bindings in the crypto libs
   ];
   buildInputs = [ bash ];
+
+  nativeCheckInputs = [
+    # required by `rp`:
+    wireguard-tools
+  ];
 
   hardeningDisable = lib.optional isStatic "fortify";
 

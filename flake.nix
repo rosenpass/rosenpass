@@ -151,6 +151,8 @@
                 proverif-patched
                 pkgs.cargo-llvm-cov
                 pkgs.grcov
+                # required by `rp` command:
+                wireguard-tools
               ];
             };
             treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
@@ -186,6 +188,8 @@
                 nativeBuildInputs = [
                   pkgs.cargo-llvm-cov
                   pkgs.grcov
+                  # required by `rp` command:
+                  pkgs.wireguard-tools
                 ];
                 env = {
                   LLVM_COV = "${pkgs.rosenpass-rust-toolchain}/lib/rustlib/${pkgs.stdenv.buildPlatform.rust.rustcTarget}/bin/llvm-cov";
