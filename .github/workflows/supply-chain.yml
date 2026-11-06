@@ -52,6 +52,8 @@ jobs:
     runs-on: ubicloud-standard-2
     permissions:
       contents: write
+    env:
+      CARGO_VET_VERSION: "0.10.3"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,18 +65,18 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
           key: cargo-vet-cache
-      - name: Install nightly toolchain
+      - name: Install stable toolchain
         run: |
-          rustup toolchain install nightly
-          rustup override set nightly
+          rustup toolchain install stable
+          rustup override set stable
       - uses: actions/cache@v6
         with:
           path: ${{ runner.tool_cache }}/cargo-vet
-          key: cargo-vet-bin
+          key: cargo-vet-bin-${{ env.CARGO_VET_VERSION }}
       - name: Add the tool cache directory to the search path
         run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
       - name: Ensure that the tool cache is populated with the cargo-vet binary
-        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet cargo-vet
+        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet --version "$CARGO_VET_VERSION" cargo-vet
       - name: Check which event triggered this CI run, a push or a pull request.
         run: |
           EVENT_NAME="${{ github.event_name }}"
