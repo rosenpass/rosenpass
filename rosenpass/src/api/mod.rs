@@ -8,9 +8,11 @@
 
 mod api_handler;
 mod boilerplate;
+mod client;
 
 pub use api_handler::*;
 pub use boilerplate::*;
+pub use client::ApiClient;
 
 pub mod cli;
 pub mod config;

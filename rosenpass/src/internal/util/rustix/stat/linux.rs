@@ -32,7 +32,55 @@ where
     type Error = rustix::io::Errno;
 
     fn socket_domain(&self) -> Result<rustix::net::AddressFamily, Self::Error> {
-        rustix::net::sockopt::socket_domain(self)
+        cfg_select! {
+            // rustix::net::sockopt::socket_domain (getsockopt(2) with
+            // SO_DOMAIN) does not exist on these targets; getsockname(2)
+            // reports the address family of any socket there, even of an
+            // unbound one.
+            //
+            // This list is directly taken from rustix
+            any(
+                target_vendor = "apple",
+                windows,
+                target_os = "aix",
+                target_os = "cygwin",
+                target_os = "dragonfly",
+                target_os = "emscripten",
+                target_os = "espidf",
+                target_os = "haiku",
+                target_os = "horizon",
+                target_os = "hurd",
+                target_os = "netbsd",
+                target_os = "nto",
+                target_os = "vita",
+            ) => Ok(rustix::net::getsockname(self)?.address_family()),
+            _ => rustix::net::sockopt::socket_domain(self),
+        }
+    }
+}
+
+/// Check whether a socket is connected to a peer
+pub trait GetSocketConnectedness {
+    /// Error type returned by operations in this trait
+    type Error;
+    /// Whether the socket is connected to a peer
+    ///
+    /// Returns `Ok(false)` for an unconnected socket; other errors propagate.
+    fn is_connected(&self) -> Result<bool, Self::Error>;
+}
+
+impl<T> GetSocketConnectedness for T
+where
+    T: AsFd,
+{
+    type Error = rustix::io::Errno;
+
+    fn is_connected(&self) -> Result<bool, Self::Error> {
+        match rustix::net::getpeername(self) {
+            Ok(_) => Ok(true),
+            Err(rustix::io::Errno::NOTCONN) => Ok(false),
+            Err(error) => Err(error),
+        }
     }
 }
 
@@ -131,6 +179,18 @@ where
 }
 
 /// Distinguish between different network socket protocols (e.g. tcp, udp)
+///
+/// Available only where [rustix::net::sockopt::socket_protocol] (SO_PROTOCOL)
+/// exists; the cfg check below is taken from rustix
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "openbsd",
+    target_os = "redox",
+    target_env = "newlib"
+))]
 pub trait GetSocketProtocol {
     /// Retrieves the socket's protocol.
     ///
@@ -206,6 +266,15 @@ pub trait GetSocketProtocol {
     }
 }
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "openbsd",
+    target_os = "redox",
+    target_env = "newlib"
+))]
 impl<T> GetSocketProtocol for T
 where
     T: AsFd,

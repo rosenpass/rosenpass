@@ -141,6 +141,17 @@ pub trait Server {
         res: &mut super::AddPskBrokerResponse,
     ) -> anyhow::Result<()>;
 
+    /// Upgrade this API connection to the shared-memory transport.
+    ///
+    /// The response is still sent over the current transport; the switch
+    /// happens once it was written in full.
+    fn upgrade_transport(
+        &mut self,
+        req: &super::UpgradeTransportRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::UpgradeTransportResponse,
+    ) -> anyhow::Result<()>;
+
     /// Similar to [Self::handle_message], but takes a [RequestResponsePair]
     /// instead of taking to separate byte buffers.
     ///
@@ -164,6 +175,9 @@ pub trait Server {
                 self.add_listen_socket(req, req_fds, res)
             }
             RequestResponsePair::AddPskBroker((req, res)) => self.add_psk_broker(req, req_fds, res),
+            RequestResponsePair::UpgradeTransport((req, res)) => {
+                self.upgrade_transport(req, req_fds, res)
+            }
         }
     }
 
@@ -207,6 +221,11 @@ pub trait Server {
                 let mut res = res.add_psk_broker_response_from_prefix()?;
                 res.init();
                 RequestResponsePair::AddPskBroker((req, res))
+            }
+            RequestRef::UpgradeTransport(req) => {
+                let mut res = res.upgrade_transport_response_from_prefix()?;
+                res.init();
+                RequestResponsePair::UpgradeTransport((req, res))
             }
         };
         self.dispatch(&mut pair, req_fds)?;

@@ -88,9 +88,6 @@ rustPlatform.buildRustPackage {
 
   cargoLock = {
     lockFile = src + "/Cargo.lock";
-    outputHashes = {
-      "uds-0.4.2" = "sha256-qlxr/iJt2AV4WryePIvqm/8/MK/iqtzegztNliR93W8=";
-    };
   };
 
   nativeBuildInputs = [

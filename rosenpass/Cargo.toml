@@ -54,6 +54,11 @@ required-features = ["experiment_api", "expose_internal_modules"]
 
 # ============================== tests ==============================
 [[test]]
+name = "api-client-endpoint-coverage"
+path = "tests/api-client-endpoint-coverage.rs"
+required-features = ["experiment_api", "internal_testing"]
+
+[[test]]
 name = "api-integration-tests-api-setup"
 required-features = ["experiment_api", "internal_testing"]
 
@@ -171,9 +176,6 @@ rustix = { version = "1.1.4", features = [
   "mm",
   "param",
 ] } # Broker dependencies (might need cleanup or changes)
-uds = { git = "https://github.com/rosenpass/uds", optional = true, features = [
-  "mio_1xx",
-] }
 libcrux-test-utils = { version = "0.0.3", optional = true }
 assert_tv = { version = "0.6" } #Dev dependencies
 base64 = { version = "0.23.0" }
@@ -192,6 +194,7 @@ base64ct = { version = "1.6.0", default-features = false }
 typenum = { version = "1.17.0" }
 bitflags = { version = "2.9.3" }
 tinyvec = { version = "1.10.0" }
+arrayvec = { version = "0.7" }
 num-traits = { version = "0.2.19" }
 # dependencies of `rosenpass-ciphers`, now `rosenpass::internal::ciphers`
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
@@ -224,6 +227,13 @@ ml-kem = { version = "0.3", default-features = false, features = ["zeroize"] }
 x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
 futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", optional = true }
+derive_more = { version = "2.1.1", features = [
+  "constructor",
+  "from",
+  "is_variant",
+  "try_unwrap",
+] }
+strum = { version = "0.28.0", features = ["derive"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies] # from `rp`
 ctrlc = { version = "3.2", optional = true }
@@ -250,7 +260,6 @@ base64ct = { version = "1.6.0", default-features = false }
 experiment_cookie_dos_mitigation = []
 experiment_api = [
   "dep:hex-literal",
-  "dep:uds",
   "dep:command-fds",
   "dep:tokio",                          # From `rosenpass-wireguard-broker-socket-handler`
   "dep:wireguard-uapi",                 # Netlink broker (Linux only)
@@ -274,7 +283,7 @@ rp = [
   "dep:netlink-packet-wireguard",
 ]
 # features of `rosenpass_util`:
-experiment_file_descriptor_passing = ["dep:uds"]
+experiment_file_descriptor_passing = []
 tokio = ["dep:tokio"]
 # features of `rosenpass-ciphers`:
 bench = ["expose_internal_modules"]

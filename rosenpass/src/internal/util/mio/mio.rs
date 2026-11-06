@@ -93,7 +93,6 @@ pub trait UnixStreamExt: Sized {
 impl UnixStreamExt for UnixStream {
     fn from_fd(fd: OwnedFd) -> anyhow::Result<Self> {
         use std::os::unix::net::UnixStream as StdUnixStream;
-        #[cfg(target_os = "linux")] // TODO: We should support this on other plattforms
         crate::internal::util::rustix::GetUnixSocketType::demand_unix_stream_socket(&fd)?;
         let sock = StdUnixStream::from(fd);
         sock.set_nonblocking(true)?;

@@ -445,88 +445,6 @@ impl<T: PartialEq> Diff<T> {
     }
 }
 
-/// Represents a differential over two [RingBufferScheduler]s
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RingBufferSchedulerDiff {
-    /// How [RingBufferScheduler::buf_len()] changed
-    pub buf_len: Diff<u64>,
-    /// How [RingBufferScheduler::items_read()] changed
-    pub items_read: Diff<u64>,
-    /// How [RingBufferScheduler::items_written()] changed
-    pub items_written: Diff<u64>,
-}
-
-/// Returned by [RingBufferSchedulerDiff::expect_read_only()]
-#[derive(thiserror::Error, Debug)]
-#[error(
-    "Expected ring buffer scheduler diff to only contain a change in the number of items read, but the actual diff is: {diff:?}"
-)]
-pub struct RingBufferSchedulerDiffExpectReadOnlyError {
-    /// Full differential
-    pub diff: RingBufferSchedulerDiff,
-}
-
-/// Returned by [RingBufferSchedulerDiff::expect_write_only()]
-#[derive(thiserror::Error, Debug)]
-#[error(
-    "Expected ring buffer scheduler diff to only contain a change in the number of items written, but the actual diff is: {diff:?}"
-)]
-pub struct RingBufferSchedulerDiffExpectWriteOnlyError {
-    /// Full differential
-    pub diff: RingBufferSchedulerDiff,
-}
-
-/// Returned by [RingBufferSchedulerDiff::expect_op_only()]
-#[derive(thiserror::Error, Debug)]
-pub enum RingBufferSchedulerDiffExpectOpOnlyError {
-    /// Expands into [RingBufferSchedulerDiffExpectReadOnlyError]
-    #[error("{:?}", 0)]
-    ReadOnlyError(#[from] RingBufferSchedulerDiffExpectReadOnlyError),
-    /// Expands into [RingBufferSchedulerDiffExpectWriteOnlyError]
-    #[error("{:?}", 0)]
-    WriteOnlyError(#[from] RingBufferSchedulerDiffExpectWriteOnlyError),
-}
-
-impl RingBufferSchedulerDiff {
-    /// Constructor
-    pub fn new(a: RingBufferScheduler, b: RingBufferScheduler) -> Self {
-        Self {
-            buf_len: Diff::new(a.buf_len(), b.buf_len()),
-            items_read: Diff::new(a.items_read(), b.items_read()),
-            items_written: Diff::new(a.items_written(), b.items_written()),
-        }
-    }
-
-    /// Ensure that only the number of items read has changed and return the value
-    pub fn expect_read_only(self) -> Result<Diff<u64>, RingBufferSchedulerDiffExpectReadOnlyError> {
-        (self.buf_len.is_same() && self.items_written.is_same())
-            .then_some(())
-            .ok_or(RingBufferSchedulerDiffExpectReadOnlyError { diff: self })?;
-        Ok(self.items_read)
-    }
-
-    /// Ensure that only the number of items written has changed and return the value
-    pub fn expect_write_only(
-        self,
-    ) -> Result<Diff<u64>, RingBufferSchedulerDiffExpectWriteOnlyError> {
-        (self.buf_len.is_same() && self.items_read.is_same())
-            .then_some(())
-            .ok_or(RingBufferSchedulerDiffExpectWriteOnlyError { diff: self })?;
-        Ok(self.items_written)
-    }
-
-    /// Call [Self::expect_read_only]/[Self::expect_write_only] as indicated by the operation type
-    pub fn expect_op_only(
-        self,
-        op: OperationType,
-    ) -> Result<Diff<u64>, RingBufferSchedulerDiffExpectOpOnlyError> {
-        match op {
-            OperationType::Read => self.expect_read_only()?.ok(),
-            OperationType::Write => self.expect_write_only()?.ok(),
-        }
-    }
-}
-
 /// Handles the math involved in treating a linear slice of memory as a ring buffer.
 ///
 /// The implementation supports buffers up to [Self::MAX_BUF_LEN] in size and handles arbitrarily
@@ -905,11 +823,6 @@ impl RingBufferScheduler {
     /// [RingBufferFromCountersError].
     pub fn from_counters(buf_len: u64, items_written: u64, items_read: u64) -> Self {
         Self::try_from_counters(buf_len, items_written, items_read).unwrap()
-    }
-
-    /// Create a differential over two ring buffer schedulers
-    pub fn diff_old(&self, old: &Self) -> RingBufferSchedulerDiff {
-        RingBufferSchedulerDiff::new(old.copy(), self.copy())
     }
 
     /// Notify the ring buffer about a read having been made

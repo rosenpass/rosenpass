@@ -67,6 +67,7 @@ impl<B: SplitByteSlice> RequestRef<B> {
             Self::SupplyKeypair(_) => RequestMsgType::SupplyKeypair,
             Self::AddListenSocket(_) => RequestMsgType::AddListenSocket,
             Self::AddPskBroker(_) => RequestMsgType::AddPskBroker,
+            Self::UpgradeTransport(_) => RequestMsgType::UpgradeTransport,
         }
     }
 }
@@ -95,6 +96,12 @@ impl<B> From<Ref<B, super::AddPskBrokerRequest>> for RequestRef<B> {
     }
 }
 
+impl<B> From<Ref<B, super::UpgradeTransportRequest>> for RequestRef<B> {
+    fn from(v: Ref<B, super::UpgradeTransportRequest>) -> Self {
+        Self::UpgradeTransport(v)
+    }
+}
+
 impl<B: SplitByteSlice> RequestRefMaker<B> {
     fn new(buf: B) -> anyhow::Result<Self> {
         let msg_type = buf.deref().request_msg_type_from_prefix()?;
@@ -116,6 +123,9 @@ impl<B: SplitByteSlice> RequestRefMaker<B> {
             }
             RequestMsgType::AddPskBroker => {
                 RequestRef::AddPskBroker(self.buf.add_psk_broker_request()?)
+            }
+            RequestMsgType::UpgradeTransport => {
+                RequestRef::UpgradeTransport(self.buf.upgrade_transport_request()?)
             }
         })
     }
@@ -159,6 +169,7 @@ pub enum RequestRef<B> {
     SupplyKeypair(Ref<B, super::SupplyKeypairRequest>),
     AddListenSocket(Ref<B, super::AddListenSocketRequest>),
     AddPskBroker(Ref<B, super::AddPskBrokerRequest>),
+    UpgradeTransport(Ref<B, super::UpgradeTransportRequest>),
 }
 
 impl<B> RequestRef<B>
@@ -176,6 +187,7 @@ where
             Self::SupplyKeypair(r) => Ref::bytes(r),
             Self::AddListenSocket(r) => Ref::bytes(r),
             Self::AddPskBroker(r) => Ref::bytes(r),
+            Self::UpgradeTransport(r) => Ref::bytes(r),
         }
     }
 }
@@ -191,6 +203,7 @@ where
             Self::SupplyKeypair(r) => Ref::bytes_mut(r),
             Self::AddListenSocket(r) => Ref::bytes_mut(r),
             Self::AddPskBroker(r) => Ref::bytes_mut(r),
+            Self::UpgradeTransport(r) => Ref::bytes_mut(r),
         }
     }
 }

@@ -90,6 +90,8 @@ fn main() -> Result<()> {
                 Tree::Leaf("Add Listen Socket Response".to_owned()),
                 Tree::Leaf("Add Psk Broker Request".to_owned()),
                 Tree::Leaf("Add Psk Broker Response".to_owned()),
+                Tree::Leaf("Upgrade Transport Request".to_owned()),
+                Tree::Leaf("Upgrade Transport Response".to_owned()),
             ],
         )],
     );

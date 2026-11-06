@@ -3,6 +3,7 @@
 
 use std::{borrow::BorrowMut, collections::VecDeque, os::fd::OwnedFd};
 
+use crate::internal::util::ipc::shm::stream::upgrade_unix_socket::UpgradeToShmStreamRequest;
 use crate::internal::util::{
     functional::{ApplyExt, run},
     io::ReadExt,
@@ -16,7 +17,10 @@ use anyhow::Context;
 use rosenpass_to::{To, ops::copy_slice};
 
 use crate::{
-    api::{add_listen_socket_response_status, add_psk_broker_response_status},
+    api::{
+        add_listen_socket_response_status, add_psk_broker_response_status,
+        upgrade_transport_response_status,
+    },
     app_server::AppServer,
     protocol::BuildCryptoServer,
 };
@@ -67,6 +71,9 @@ pub trait ApiHandlerContext {
     fn api_handler_mut(&mut self) -> &mut ApiHandler;
     /// Retrieve the [AppServer]
     fn app_server_mut(&mut self) -> &mut AppServer;
+    /// Start upgrading the API connection to the shared-memory transport;
+    /// the connection finalizes the upgrade once the response was sent.
+    fn handle_upgrade_request(&mut self, request: UpgradeToShmStreamRequest) -> anyhow::Result<()>;
 }
 
 /// This is the Error raised by [ApiServer::supply_keypair]; it contains both
@@ -241,8 +248,16 @@ where
             let sock = req_fds
                 .pop_front()
                 .context("Invalid request – socket missing.")?;
-            // TODO: We need to have this outside linux
-            #[cfg(target_os = "linux")]
+            // SO_PROTOCOL is unavailable elsewhere; same gate as GetSocketProtocol
+            #[cfg(any(
+                target_os = "linux",
+                target_os = "android",
+                target_os = "freebsd",
+                target_os = "fuchsia",
+                target_os = "openbsd",
+                target_os = "redox",
+                target_env = "newlib"
+            ))]
             crate::internal::util::rustix::GetSocketProtocol::demand_udp_socket(&sock)?;
             let sock = std::net::UdpSocket::from(sock);
             sock.set_nonblocking(true)?;
@@ -336,6 +351,36 @@ where
         }
 
         res.payload.status = add_psk_broker_response_status::OK;
+        Ok(())
+    }
+
+    fn upgrade_transport(
+        &mut self,
+        _req: &super::UpgradeTransportRequest,
+        req_fds: &mut VecDeque<OwnedFd>,
+        res: &mut super::UpgradeTransportResponse,
+    ) -> anyhow::Result<()> {
+        let upgrade_res = run(|| {
+            let (Some(buffer_fd), Some(srv_send_nsock_fd), None) = (
+                req_fds.pop_front(),
+                req_fds.pop_front(),
+                req_fds.pop_front(),
+            ) else {
+                anyhow::bail!("Invalid request – expected exactly two file descriptors.");
+            };
+            let request = UpgradeToShmStreamRequest::new(buffer_fd, srv_send_nsock_fd);
+            self.handle_upgrade_request(request)
+        });
+
+        if let Err(e) = upgrade_res {
+            log::debug!(
+                "Request found to be invalid while processing UpgradeTransport API request: {e:?}"
+            );
+            res.payload.status = upgrade_transport_response_status::INVALID_REQUEST;
+            return Ok(());
+        }
+
+        res.payload.status = upgrade_transport_response_status::OK;
         Ok(())
     }
 }

@@ -6,7 +6,7 @@ use rustix::io::fcntl_dupfd_cloexec;
 
 use super::IntoStdioErr;
 
-use crate::internal::util::mem::Forgetting;
+use crate::internal::util::{mem::Forgetting, result::OkExt};
 
 /// Prepare a file descriptor for use in Rust code.
 ///
@@ -174,6 +174,82 @@ pub fn open_nullfd() -> rustix::io::Result<OwnedFd> {
     use rustix::fs::{Mode, OFlags, open};
     // TODO: Add tests showing that this will throw errors on use
     open("/dev/null", OFlags::CLOEXEC, Mode::empty())
+}
+
+/// Inspect and change the file status flags of an open file description (fcntl_getfl)
+pub trait FileStatusFlagsExt {
+    /// The open file description's file-status flags, including the access
+    /// mode (`O_RDONLY`/`O_RDWR`) and other bits `fcntl_setfl` cannot change.
+    #[allow(dead_code)] // kept on human request (unused for now)
+    fn file_status_flags(&self) -> rustix::io::Result<rustix::fs::OFlags>;
+    /// Replace the status flags; bits `fcntl_setfl` cannot change, such as the
+    /// access mode, are ignored.
+    #[allow(dead_code)] // kept on human request (unused for now)
+    fn set_file_status_flags(&self, flags: rustix::fs::OFlags) -> rustix::io::Result<()>;
+    /// Whether the descriptor operates in nonblocking mode (`O_NONBLOCK`).
+    #[allow(dead_code)] // kept on human request (unused for now)
+    fn is_nonblocking(&self) -> rustix::io::Result<bool>;
+    /// Enable nonblocking mode (`O_NONBLOCK`) via `ioctl(FIONBIO)`, leaving
+    /// other flags unchanged.
+    fn set_nonblocking(&self) -> rustix::io::Result<()>;
+}
+
+impl<T> FileStatusFlagsExt for T
+where
+    T: AsFd,
+{
+    fn file_status_flags(&self) -> rustix::io::Result<rustix::fs::OFlags> {
+        rustix::fs::fcntl_getfl(self)
+    }
+
+    fn set_file_status_flags(&self, flags: rustix::fs::OFlags) -> rustix::io::Result<()> {
+        rustix::fs::fcntl_setfl(self, flags)
+    }
+
+    fn is_nonblocking(&self) -> rustix::io::Result<bool> {
+        self.file_status_flags()?
+            .contains(rustix::fs::OFlags::NONBLOCK)
+            .ok()
+    }
+
+    fn set_nonblocking(&self) -> rustix::io::Result<()> {
+        rustix::io::ioctl_fionbio(self, true)
+    }
+}
+
+/// Inspect and change the per-descriptor flags of a file descriptor (fcntl_getfd)
+pub trait DescriptorFlagsExt {
+    /// The descriptor's own flags
+    fn fd_flags(&self) -> rustix::io::Result<rustix::io::FdFlags>;
+    /// Replace the descriptor's flags.
+    fn set_fd_flags(&self, flags: rustix::io::FdFlags) -> rustix::io::Result<()>;
+    /// Set the close-on-exec flag (`FD_CLOEXEC`)
+    fn set_cloexec(&self) -> rustix::io::Result<()>;
+}
+
+impl<T> DescriptorFlagsExt for T
+where
+    T: AsFd,
+{
+    fn fd_flags(&self) -> rustix::io::Result<rustix::io::FdFlags> {
+        rustix::io::fcntl_getfd(self)
+    }
+
+    fn set_fd_flags(&self, flags: rustix::io::FdFlags) -> rustix::io::Result<()> {
+        rustix::io::fcntl_setfd(self, flags)
+    }
+
+    fn set_cloexec(&self) -> rustix::io::Result<()> {
+        cfg_select! {
+            any(target_os = "linux", target_os = "android", target_vendor = "apple") => {
+                rustix::io::ioctl_fioclex(self)
+            },
+            not(any(target_os = "linux", target_os = "android", target_vendor = "apple")) => {
+                // This is the only defined FdFlag, so it should be fine
+                self.set_fd_flags(rustix::io::FdFlags::CLOEXEC)
+            },
+        }
+    }
 }
 
 /// Read and write directly from a file descriptor

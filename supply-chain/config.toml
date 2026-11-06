@@ -34,9 +34,6 @@ audit-as-crates-io = true
 [policy.rosenpass]
 audit-as-crates-io = false
 
-[policy.uds]
-audit-as-crates-io = true
-
 [[exemptions.aead]]
 version = "0.5.2"
 criteria = "safe-to-deploy"
@@ -75,6 +72,10 @@ criteria = "safe-to-run"
 
 [[exemptions.arbitrary]]
 version = "1.5.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.arrayvec]]
+version = "0.7.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.assert_tv]]
@@ -179,6 +180,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.command-fds]]
 version = "0.3.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.convert_case]]
+version = "0.10.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.cpufeatures]]
@@ -287,6 +292,14 @@ criteria = "safe-to-deploy"
 
 [[exemptions.derive_builder_macro]]
 version = "0.20.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.derive_more]]
+version = "2.1.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.derive_more-impl]]
+version = "2.1.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
@@ -749,6 +762,14 @@ criteria = "safe-to-deploy"
 version = "0.1.25"
 criteria = "safe-to-run"
 
+[[exemptions.strum]]
+version = "0.28.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.strum_macros]]
+version = "0.28.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.syn]]
 version = "1.0.109"
 criteria = "safe-to-deploy"
@@ -807,10 +828,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.typenum]]
 version = "1.20.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.uds]]
-version = "0.4.2@git:b47934fe52422e559f7278938875f9105f91c5a2"
 criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]

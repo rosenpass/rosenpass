@@ -9,10 +9,11 @@ pub use fd::*;
 mod stat;
 pub use stat::*;
 
-#[cfg(target_os = "linux")]
 mod syscall;
-#[cfg(target_os = "linux")]
 pub use syscall::*;
 
 mod memfd;
 pub use memfd::*;
+
+mod io;
+pub use io::*;

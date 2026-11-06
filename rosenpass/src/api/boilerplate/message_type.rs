@@ -35,6 +35,13 @@ const ADD_PSK_BROKER_REQUEST: RawMsgType =
 const ADD_PSK_BROKER_RESPONSE: RawMsgType =
     RawMsgType::from_le_bytes(hex!("bd25 e418 ffb0 6930    248b 217e 2fae e353"));
 
+// Blake2b: Rosenpass IPC API -> Rosenpass Protocol Server -> Upgrade Transport Request
+const UPGRADE_TRANSPORT_REQUEST: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("b3d2 8ab6 ed19 0f9d    8b68 9378 ff90 82c2"));
+// Blake2b: Rosenpass IPC API -> Rosenpass Protocol Server -> Upgrade Transport Response
+const UPGRADE_TRANSPORT_RESPONSE: RawMsgType =
+    RawMsgType::from_le_bytes(hex!("f365 65fb 7fee fe5e    915c a46d e167 2d22"));
+
 /// Message properties global to the message type
 pub trait MessageAttributes {
     /// Get the size of the message
@@ -50,6 +57,7 @@ pub enum RequestMsgType {
     SupplyKeypair,
     AddListenSocket,
     AddPskBroker,
+    UpgradeTransport,
 }
 
 /// API response messages types as an enum
@@ -59,6 +67,7 @@ pub enum ResponseMsgType {
     SupplyKeypair,
     AddListenSocket,
     AddPskBroker,
+    UpgradeTransport,
 }
 
 impl MessageAttributes for RequestMsgType {
@@ -68,6 +77,7 @@ impl MessageAttributes for RequestMsgType {
             Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairRequest>(),
             Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketRequest>(),
             Self::AddPskBroker => std::mem::size_of::<super::AddPskBrokerRequest>(),
+            Self::UpgradeTransport => std::mem::size_of::<super::UpgradeTransportRequest>(),
         }
     }
 }
@@ -79,6 +89,7 @@ impl MessageAttributes for ResponseMsgType {
             Self::SupplyKeypair => std::mem::size_of::<super::SupplyKeypairResponse>(),
             Self::AddListenSocket => std::mem::size_of::<super::AddListenSocketResponse>(),
             Self::AddPskBroker => std::mem::size_of::<super::AddPskBrokerResponse>(),
+            Self::UpgradeTransport => std::mem::size_of::<super::UpgradeTransportResponse>(),
         }
     }
 }
@@ -93,6 +104,7 @@ impl TryFrom<RawMsgType> for RequestMsgType {
             self::SUPPLY_KEYPAIR_REQUEST => E::SupplyKeypair,
             self::ADD_LISTEN_SOCKET_REQUEST => E::AddListenSocket,
             self::ADD_PSK_BROKER_REQUEST => E::AddPskBroker,
+            self::UPGRADE_TRANSPORT_REQUEST => E::UpgradeTransport,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -106,6 +118,7 @@ impl From<RequestMsgType> for RawMsgType {
             E::SupplyKeypair => self::SUPPLY_KEYPAIR_REQUEST,
             E::AddListenSocket => self::ADD_LISTEN_SOCKET_REQUEST,
             E::AddPskBroker => self::ADD_PSK_BROKER_REQUEST,
+            E::UpgradeTransport => self::UPGRADE_TRANSPORT_REQUEST,
         }
     }
 }
@@ -120,6 +133,7 @@ impl TryFrom<RawMsgType> for ResponseMsgType {
             self::SUPPLY_KEYPAIR_RESPONSE => E::SupplyKeypair,
             self::ADD_LISTEN_SOCKET_RESPONSE => E::AddListenSocket,
             self::ADD_PSK_BROKER_RESPONSE => E::AddPskBroker,
+            self::UPGRADE_TRANSPORT_RESPONSE => E::UpgradeTransport,
             _ => return Err(InvalidApiMessageType(value)),
         })
     }
@@ -133,6 +147,7 @@ impl From<ResponseMsgType> for RawMsgType {
             E::SupplyKeypair => self::SUPPLY_KEYPAIR_RESPONSE,
             E::AddListenSocket => self::ADD_LISTEN_SOCKET_RESPONSE,
             E::AddPskBroker => self::ADD_PSK_BROKER_RESPONSE,
+            E::UpgradeTransport => self::UPGRADE_TRANSPORT_RESPONSE,
         }
     }
 }

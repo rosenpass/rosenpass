@@ -40,6 +40,7 @@ impl SharedMemorySegmentBuilder {
         let map_fd_cfg = secret_memfd_cfg
             .map_fd_config()?
             .set_shared()
+            .without_future_write_seal()
             .resize_on_mmap(usize_to_u64(len));
         Ok(Self {
             secret_memfd_cfg,
@@ -349,6 +350,7 @@ impl SharedMemorySegment {
     pub unsafe fn from_fd<Fd: AsFd>(fd: Fd, size: usize) -> Result<Self, MMapError> {
         let cfg = MappingConfig::new()
             .set_shared()
+            .without_future_write_seal()
             .expected_size(usize_to_u64(size));
         unsafe { Self::from_fd_with_config(fd, cfg) }
     }
@@ -454,6 +456,7 @@ impl Borrow<MappedSegment> for SharedMemorySegment {
     }
 }
 
+#[cfg(all(test, target_os = "linux"))]
 #[test]
 fn test_shared_memory_segment() -> anyhow::Result<()> {
     let underscore = [b'_'; 38];

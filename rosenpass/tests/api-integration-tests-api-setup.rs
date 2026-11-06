@@ -26,10 +26,9 @@ use rosenpass::config::ProtocolVersion;
 use rosenpass::internal::util::{
     b64::B64Display,
     file::LoadValueB64,
-    io::IoErrorKind,
+    io::{IoErrorKind, fd_stream::FdStreamWriter},
     length_prefix_encoding::{decoder::LengthPrefixDecoder, encoder::LengthPrefixEncoder},
     mem::{DiscardResultExt, MoveExt},
-    mio::WriteWithFileDescriptors,
     zerocopy::ZerocopySliceExt,
 };
 use rosenpass::protocol::basic_types::SymKey;
@@ -233,18 +232,15 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         );
     }
 
-    let api = UnixStream::connect(api_path)?;
+    let mut api = UnixStream::connect(api_path)?;
     let (psk_broker_sock, psk_broker_server_sock) = UnixStream::pair()?;
 
     // Send AddListenSocket request
     {
-        let fd = peer_a_listen.as_fd();
-
-        let mut fds = vec![&fd].into();
-        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        let fds = [peer_a_listen.as_fd()];
+        let mut writer = FdStreamWriter::new(&mut api, &fds);
         LengthPrefixEncoder::from_message(api::AddListenSocketRequest::new().as_bytes())
-            .write_all_to_stdio(&mut api)?;
-        assert!(fds.is_empty(), "Failed to write all file descriptors");
+            .write_all_to_stdio(&mut writer)?;
         std::mem::forget(peer_a_listen);
     }
 
@@ -285,11 +281,10 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
     // an exchange that completes early would deliver the first key through
     // the startup (native unix) broker and it would be lost to this test.
     {
-        let mut fds = vec![psk_broker_server_sock.as_fd()].into();
-        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        let fds = [psk_broker_server_sock.as_fd()];
+        let mut writer = FdStreamWriter::new(&mut api, &fds);
         LengthPrefixEncoder::from_message(api::AddPskBrokerRequest::new().as_bytes())
-            .write_all_to_stdio(&mut api)?;
-        assert!(fds.is_empty(), "Failed to write all file descriptors");
+            .write_all_to_stdio(&mut writer)?;
     }
 
     // Read response
@@ -309,12 +304,10 @@ fn api_integration_api_setup(protocol_version: ProtocolVersion) -> anyhow::Resul
         let sk = open(peer_a_keypair.secret_key, OFlags::RDONLY, Mode::empty())?;
         let pk = open(peer_a_keypair.public_key, OFlags::RDONLY, Mode::empty())?;
 
-        let mut fds = vec![&sk, &pk].into();
-
-        let mut api = WriteWithFileDescriptors::<UnixStream, _, _, _>::new(&api, &mut fds);
+        let fds = [sk.as_fd(), pk.as_fd()];
+        let mut writer = FdStreamWriter::new(&mut api, &fds);
         LengthPrefixEncoder::from_message(api::SupplyKeypairRequest::new().as_bytes())
-            .write_all_to_stdio(&mut api)?;
-        assert!(fds.is_empty(), "Failed to write all file descriptors");
+            .write_all_to_stdio(&mut writer)?;
     }
 
     // Read response

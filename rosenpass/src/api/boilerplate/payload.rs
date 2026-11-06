@@ -8,7 +8,10 @@ pub const MAX_REQUEST_LEN: usize = 2500; // TODO fix this
 /// Size required to fit any response message in binary form
 pub const MAX_RESPONSE_LEN: usize = 2500; // TODO fix this
 /// Maximum number of file descriptors that can be sent in a request.
-pub const MAX_REQUEST_FDS: usize = 2;
+///
+/// Requests carry at most two (SupplyKeypair, UpgradeTransport); the headroom lets surplus
+/// descriptors reach the request handler instead of a truncated read closing the connection.
+pub const MAX_REQUEST_FDS: usize = 5;
 
 /// Message envelope for API messages
 #[repr(packed)]
@@ -378,6 +381,96 @@ impl Message for AddPskBrokerResponse {
     type Payload = AddPskBrokerResponsePayload;
     type MessageClass = ResponseMsgType;
     const MESSAGE_TYPE: Self::MessageClass = ResponseMsgType::AddPskBroker;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
+
+/// Empty payload; the received backing descriptor determines the buffer size.
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
+pub struct UpgradeTransportRequestPayload {}
+
+/// Request to switch the current connection to shared memory.
+pub type UpgradeTransportRequest = RequestEnvelope<UpgradeTransportRequestPayload>;
+
+impl UpgradeTransportRequest {
+    /// Construct an upgrade request. Attach exactly two descriptors in order:
+    /// the backing buffer, then the server-send notification socket.
+    pub fn new() -> Self {
+        Self::from_payload(UpgradeTransportRequestPayload {})
+    }
+}
+
+impl Message for UpgradeTransportRequest {
+    type Payload = UpgradeTransportRequestPayload;
+    type MessageClass = RequestMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = RequestMsgType::UpgradeTransport;
+
+    fn from_payload(payload: Self::Payload) -> Self {
+        Self {
+            msg_type: Self::MESSAGE_TYPE.into(),
+            payload,
+        }
+    }
+
+    fn setup<B: ByteSliceMut>(buf: B) -> anyhow::Result<Ref<B, Self>> {
+        let mut r: Ref<B, Self> = buf.zk_zeroized()?;
+        r.init();
+        Ok(r)
+    }
+
+    fn init(&mut self) {
+        self.msg_type = Self::MESSAGE_TYPE.into();
+    }
+}
+
+/// Upgrade outcome. Only OK switches the connection.
+pub mod upgrade_transport_response_status {
+    /// Upgrade accepted.
+    pub const OK: u128 = 0;
+    /// Invalid size, backing, descriptors, or repeated upgrade.
+    pub const INVALID_REQUEST: u128 = 1;
+    /// Local admission or preparation failed.
+    pub const INTERNAL_ERROR: u128 = 2;
+}
+
+/// Fixed upgrade outcome payload.
+#[repr(packed)]
+#[derive(Debug, Copy, Clone, Hash, IntoBytes, FromBytes, Immutable, PartialEq, Eq)]
+pub struct UpgradeTransportResponsePayload {
+    /// One of [`upgrade_transport_response_status`].
+    pub status: u128,
+}
+
+/// Response to an upgrade request, sent fully over the previous transport
+pub type UpgradeTransportResponse = ResponseEnvelope<UpgradeTransportResponsePayload>;
+
+impl UpgradeTransportResponse {
+    /// Construct an upgrade response.
+    pub fn new(status: u128) -> Self {
+        Self::from_payload(UpgradeTransportResponsePayload { status })
+    }
+}
+
+impl Message for UpgradeTransportResponse {
+    type Payload = UpgradeTransportResponsePayload;
+    type MessageClass = ResponseMsgType;
+    const MESSAGE_TYPE: Self::MessageClass = ResponseMsgType::UpgradeTransport;
 
     fn from_payload(payload: Self::Payload) -> Self {
         Self {

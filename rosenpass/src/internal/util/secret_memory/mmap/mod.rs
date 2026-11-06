@@ -9,12 +9,15 @@ use std::mem::ManuallyDrop;
 use std::os::fd::AsFd;
 
 use crate::internal::util::mem::CopyExt;
+use crate::internal::util::rustix::AddSealsError;
 
 use crate::internal::util::secret_memory::fd::{
     SecretMemfdConfig, SecretMemfdConfigValidationError,
 };
 
 mod allocation_code;
+
+pub mod populate;
 
 /// Size of the memory mapping for [Mappable]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -39,7 +42,7 @@ impl MMapSizePolicy {
 }
 
 /// Configuration for [Mappable::mmap]
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MappingConfig {
     /// The memory region is shared-memory; other mappings of the same
     /// region within and outside this process can see the modifications
@@ -54,11 +57,26 @@ pub struct MappingConfig {
     ///
     /// When using [SecretMemfdConfig::create()], this flag is configured automatically.
     pub shared: bool,
+    /// Whether [Mappable::mmap] skips sealing the backing file descriptor
+    /// with F_SEAL_FUTURE_WRITE after the data page has been mapped (Linux only)
+    ///
+    /// By default, the seal is installed.
+    ///
+    /// This seal prevents any other processes holding the file descriptor from punching
+    /// holes into the middle of the file (`fallocate(FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE)`),
+    /// thereby invalidating our mapping leading to SIGBUS.
+    disable_future_write_seal: bool,
     /// How [Mappable::mmap] will determine the size to be used for the mapping
     ///
     /// You should usually set this value through [Self::set_size_policy],
     /// [Self::expected_size], or [Self::resize_on_mmap].
     pub size_policy: Option<MMapSizePolicy>,
+}
+
+impl Default for MappingConfig {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MappingConfig {
@@ -69,6 +87,7 @@ impl MappingConfig {
     pub const fn new() -> Self {
         MappingConfig {
             shared: false,
+            disable_future_write_seal: false,
             size_policy: None,
         }
     }
@@ -86,9 +105,25 @@ impl MappingConfig {
     }
 
     /// Set the [Self::shared] flag
+    ///
+    /// Does not disable the future-write seal; buffers that other parties
+    /// must map writably also need [Self::without_future_write_seal].
     pub const fn set_shared(&self) -> Self {
         let mut r = *self;
         r.shared = true;
+        r
+    }
+
+    /// Disable the future-write seal policy. By default, [Mappable::mmap] seals the
+    /// backing file descriptor with F_SEAL_FUTURE_WRITE once our own
+    /// writable mapping has been established (Linux only)
+    ///
+    /// This seal prevents any other processes holding the file descriptor from punching
+    /// holes into the middle of the file (`fallocate(FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE)`),
+    /// thereby invalidating our mapping leading to SIGBUS.
+    pub const fn without_future_write_seal(&self) -> Self {
+        let mut r = *self;
+        r.disable_future_write_seal = true;
         r
     }
 
@@ -188,11 +223,6 @@ pub enum MemfdCreateSealError {
         "Tried to seal the underlying file descriptor against being grown/shrunken, but one of the fcntl(2) system calls failed: {0}"
     )]
     SystemError(rustix::io::Errno),
-    /// Adding the seals was retried many times, but never succeeded
-    #[error(
-        "Tried to seal the underlying file descriptor against being grown/shrunken many times, but we never succeeded. This likely is a bug"
-    )]
-    RetriesAborted,
 }
 
 /// Error returned by Mappable::mmap
@@ -270,6 +300,9 @@ pub enum MMapError {
         "Tried to seal file descriptor against being grown/shrunken before mapping into memory: {0}"
     )]
     SealError(#[from] MemfdCreateSealError),
+    /// Adding file seals to the backing file descriptor failed; see [AddSealsError]
+    #[error("Tried to add file seals to the underlying file descriptor: {0}")]
+    CouldNotAddSeals(#[from] AddSealsError),
     /// `madvise(…, MADV_DONTFORK)` failed
     #[error("Tried to protect the allocated memory region against forking using madvise(2) with MADV_DONTFORK, but got following error instead: {}", .0)]
     CouldNotProtectAgainstForks(rustix::io::Errno),
@@ -336,6 +369,57 @@ impl<Fd: AsFd> Mappable<Fd> {
         self
     }
 
+    /// Change the config through a function
+    pub fn adjust_config<F: FnOnce(MappingConfig) -> MappingConfig>(self, f: F) -> Self {
+        let cfg = f(self.config());
+        self.with_config(cfg)
+    }
+
+    /// Seal the underlying file descriptor against future writes using
+    /// F_SEAL_FUTURE_WRITE (Linux only)
+    ///
+    /// Once the seal is installed, write(2) calls on the file fail and no new
+    /// writable memory mappings of the file can be established; memory
+    /// mappings created before the seal was installed remain writable.
+    ///
+    /// This is a no-op for anonymous mappings (no file descriptor) and for
+    /// memfd_secret(2) file descriptors, which the kernel protects against
+    /// resizing. On operating systems other than Linux, where
+    /// F_SEAL_FUTURE_WRITE does not exist, this is a no-op as well.
+    ///
+    /// Unlike the automatic sealing in [Self::mmap], errors are always
+    /// propagated; kernels predating Linux 5.1 report
+    /// [AddSealsError::SystemError] with [rustix::io::Errno::INVAL].
+    pub fn seal_future_write(&self) -> Result<(), MMapError> {
+        cfg_select! {
+            target_os = "linux" => self.seal_future_write_linux(),
+            _ => Ok(()),
+        }
+    }
+
+    /// Linux implementation of [Self::seal_future_write]
+    #[cfg(target_os = "linux")]
+    fn seal_future_write_linux(&self) -> Result<(), MMapError> {
+        use crate::internal::util::rustix::{FileSealsExt, TryStatFsExt};
+        use rustix::fs::SealFlags;
+
+        // Anonymous mappings have no file descriptor to seal
+        let Some(fd) = self.fd.as_ref().map(AsFd::as_fd) else {
+            return Ok(());
+        };
+
+        // memfd_secret(2) file descriptors do not support sealing
+        if fd
+            .is_memfd_secret()
+            .map_err(MMapError::CouldNotDetermineFileDescriptorInfo)?
+        {
+            return Ok(());
+        }
+
+        fd.add_seals(SealFlags::FUTURE_WRITE)
+            .map_err(MMapError::CouldNotAddSeals)
+    }
+
     /// Map the file into memory
     ///
     /// # Determining the size of the mapping
@@ -383,6 +467,12 @@ impl<Fd: AsFd> Mappable<Fd> {
     /// mapping would extend beyond the reserved region and overwrite adjacent
     /// memory.
     ///
+    /// # Sealing against future writes
+    ///
+    /// On Linux, unless disabled through [MappingConfig::without_future_write_seal],
+    /// the file descriptor is sealed after mapping; see [Self::seal_future_write].
+    /// On kernels predating Linux 5.1, this step is skipped silently.
+    ///
     /// # fork(2)
     ///
     /// The pages allocated here must not be accessed after the process has been forked.
@@ -391,8 +481,9 @@ impl<Fd: AsFd> Mappable<Fd> {
     ///
     /// # Portability
     ///
-    /// Resizing protection through memfd sealing (fcntl(2)) and the
-    /// MADV_DONTFORK/MADV_DONTDUMP advice are only available on Linux. On
+    /// Resizing and future-write protection through memfd sealing (fcntl(2))
+    /// and the MADV_DONTFORK/MADV_DONTDUMP advice are only available on
+    /// Linux. On
     /// other operating systems, the mappings created here still perform file
     /// descriptor sizing, guard pages, and mlock(2), but an externally
     /// supplied file descriptor is not protected against hostile resizing by
@@ -478,6 +569,23 @@ impl MappedSegment {
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len
+    }
+
+    /// Populate a memory segment with zeros in such a way that failures
+    /// to populate the memory are reported as errors instead of raising
+    /// a signal.
+    ///
+    /// See [populate::populate_pages].
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that zeroing the backing bytes is compatible with
+    /// all live references and concurrent accesses, including through other
+    /// mappings. Ownership of this mapping does not exclude such aliases.
+    pub unsafe fn populate_pages(&self) -> Result<(), populate::PopulateError> {
+        // SAFETY: self owns the live writable data mapping for the duration of
+        // this call; the caller guarantees compatible access through any aliases.
+        unsafe { populate::populate_pages(self.ptr(), self.len()) }
     }
 
     /// Release the memory segment

@@ -257,6 +257,58 @@ pub trait ByteSliceRefExt: SplitByteSlice {
     ) -> anyhow::Result<Ref<Self, super::AddPskBrokerResponse>> {
         self.zk_parse_suffix()
     }
+
+    /// Make a typed upgrade request reference.
+    fn upgrade_transport_request_maker(self) -> RefMaker<Self, super::UpgradeTransportRequest> {
+        self.zk_ref_maker()
+    }
+
+    /// Parse an upgrade request.
+    fn upgrade_transport_request(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportRequest>> {
+        self.zk_parse()
+    }
+
+    /// Parse an upgrade request from a buffer prefix.
+    fn upgrade_transport_request_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportRequest>> {
+        self.zk_parse_prefix()
+    }
+
+    /// Parse an upgrade request from a buffer suffix.
+    fn upgrade_transport_request_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportRequest>> {
+        self.zk_parse_suffix()
+    }
+
+    /// Make a typed upgrade response reference.
+    fn upgrade_transport_response_maker(self) -> RefMaker<Self, super::UpgradeTransportResponse> {
+        self.zk_ref_maker()
+    }
+
+    /// Parse an upgrade response.
+    fn upgrade_transport_response(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportResponse>> {
+        self.zk_parse()
+    }
+
+    /// Parse an upgrade response from a buffer prefix.
+    fn upgrade_transport_response_from_prefix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportResponse>> {
+        self.zk_parse_prefix()
+    }
+
+    /// Parse an upgrade response from a buffer suffix.
+    fn upgrade_transport_response_from_suffix(
+        self,
+    ) -> anyhow::Result<Ref<Self, super::UpgradeTransportResponse>> {
+        self.zk_parse_suffix()
+    }
 }
 
 impl<B: SplitByteSlice> ByteSliceRefExt for B {}
