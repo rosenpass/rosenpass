@@ -37,7 +37,7 @@ impl ResolvePathRelativeToConfig for RosenpassConfig {
 ///
 /// ## Example
 /// ```
-/// use rosenpass::config::util::resolve_path_with_tilde;
+/// use rosenpass::config::types::paths::resolve_path_with_tilde;
 /// let home = home::home_dir().unwrap();
 /// let mut path = std::path::PathBuf::from("~/foo.toml");
 /// resolve_path_with_tilde(&mut path);
@@ -64,7 +64,7 @@ pub fn resolve_path_with_tilde(path: &mut PathBuf) {
 /// Note: `working_diretory` may not start with a tilde.
 ///
 /// ```
-/// use rosenpass::config::util::resolve_relative_path_with_tilde;
+/// use rosenpass::config::types::paths::resolve_relative_path_with_tilde;
 /// let path = std::path::PathBuf::from("foo.toml");
 /// let working_directory = std::path::PathBuf::from("some_dir");
 /// let resolved_path = resolve_relative_path_with_tilde(&path, &working_directory);

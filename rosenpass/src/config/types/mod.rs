@@ -373,7 +373,7 @@ pub struct WireguardConfig {
 /// These are extra options supplied to the `wg` binary when configuring a peer
 ///
 /// from wg's help:
-/// ```
+/// ```text
 /// [endpoint <ip>:<port>]
 /// [persistent-keepalive <interval seconds>]
 /// [allowed-ips [+|-]<ip1>/<cidr1>[,[+|-]<ip2>/<cidr2>]...]
