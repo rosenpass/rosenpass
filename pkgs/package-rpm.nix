@@ -22,6 +22,8 @@ runCommand "rosenpass-${version}.rpm" { } ''
   Version:        ${version}
   Summary:        Post-quantum-secure VPN key exchange
   License:        Apache-2.0
+  # rosenpass spawns the `wg` command at runtime
+  Requires:       wireguard-tools
 
   %description
   Post-quantum-secure VPN tool Rosenpass

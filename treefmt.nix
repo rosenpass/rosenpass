@@ -23,6 +23,12 @@
     includes = [
       "*.toml"
     ];
+    # TOML config files are written in TOML 1.1 but the formatter only supports TOML 1.0
+    # https://github.com/tamasfe/taplo/issues/332
+    excludes = [
+      "rosenpass/src/config/tests/data/configs/full.toml"
+      "rosenpass/src/config/tests/data/configs/full-raw.toml"
+    ];
   };
   programs.rustfmt = {
     enable = true;

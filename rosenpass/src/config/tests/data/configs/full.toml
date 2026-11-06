@@ -1,0 +1,102 @@
+[rosenpass]
+listen = ["0.0.0.0:9999"]
+verbosity = "Verbose" # options: "Quiet", "Verbose"
+our-keypair = { secret-key-file = "../keys/alice-0.2-public/pqsk", public-key-file = "path/to/our.pqpk" }
+supported-protocol-versions = ["2", "3"]
+config-file-version = "1" # only supported option: "1"
+
+
+[[wireguard-devices]]
+name = "wg0"
+enabled = true # defaults to true
+create = true
+# NOTE: these options can _not_ be overriden by a peer's wireguard options
+# because they are true for the entire device, not just one peer.
+wireguard-options = {
+    # TODO: support WireGuard's device-specific options
+    listen-port = 1234,
+    fwmark = "TODO",
+}
+
+
+[[peers]]
+name = "bob"
+enabled = true # defaults to true
+their-keypair = {
+    public-key-file = "path/to/their.pqpk", # TODO: throw error if `secret-key-file` is set
+    public-key-directory = "some/path/", # alternative – downwards-compatible to v0.2.3
+}
+endpoint = "1.2.3.4:9999" # optional
+preshared-key = { # PSK is optional
+    file = "path/to/preshared-key.psk",
+    directory = "some/path/", # alternative to `file`
+    # preshared-key = "foobar" # TODO: throw error if key is set inline
+}
+# for later: `allowed-protocols`
+# https://github.com/rosenpass/rosenpass/issues/1181
+# allowed-protocols = ["3"]
+
+# legacy OSK domain separator defined per peer, not per key usage
+osk-domain-separator = {
+    # TODO: currently all output options need to have the same osk-domain-separator
+    # https://github.com/rosenpass/rosenpass/issues/1182
+    organization = "my.org",
+    labels = ["My App"],
+}
+key-out = { # writes key to text file
+    enabled = true, # defaults to true
+    file = "path/to/optional-output-file.txt",
+    osk-domain-separator = {
+        # TODO: currently all output options need to have the same osk-domain-separator
+        # https://github.com/rosenpass/rosenpass/issues/1182
+        organization = "my.org",
+        labels = ["My App"],
+    }
+}
+wireguard = { # uses key to secure wireguard
+    enabled = true, # defaults to true
+    device = "wg0", # references a device from the [[device]] section above
+    our-wireguard-keypair = {
+        secret-key-file = "path/to/our-wireguard.sk",
+        public-key-file = "path/to/our-wireguard.pk",
+        public-key = "inline-wg-pubkey", # alternative to public-key-file
+    },
+    their-wireguard-keypair = {
+        # Fehler werfen, falls `secret-key-file` vorhanden ist
+        public-key-file = "path/to/their.pk",
+        public-key = "inline-pubkey" # alternative to public-key-file
+    },
+    # TODO: use the following only if the device is _created_ by rosenpass or always?
+    wireguard-options = {
+        preshared-key = {
+            file = "path/to/wg-preshared-key.txt",
+        },
+        endpoint = "1.2.3.4:1234",
+        persistent-keepalive = 25,
+        allowed-ips = ["1.2.3.0/24"],
+        # TODO: deprecate option wg-extra-arguments
+        wg-extra-arguments = ["TODO"],
+    },
+
+    # TODO: deprecate `exchange_command`
+    exchange_command = [
+        "wg",
+        "set",
+        "wg0",
+        "peer",
+        "<PEER_ID>",
+        "preshared-key",
+        "/dev/stdin",
+    ],
+
+    # TODO: currently all output options need to have the same osk-domain-separator
+    # https://github.com/rosenpass/rosenpass/issues/1182
+    osk-domain-separator = {
+        organization = "my.org",
+        labels = ["My App"],
+    }
+}
+
+
+# [[peer]]
+# ...

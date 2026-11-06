@@ -25,6 +25,9 @@ rosenpass help
 
 Follow [quick start instructions](https://rosenpass.eu/docs/rosenpass-tool/guides/) to get a VPN up and running.
 
+There is also a [detailed description of the configuration file](rosenpass/src/config/parse_from_toml/README.md)
+and the [command line interface](rosenpass/src/config/parse_from_cli/README.md).
+
 ## Contributing
 
 Contributions are generally welcome. Join our [Matrix Chat](https://matrix.to/#/#rosenpass:matrix.org) if you are looking for guidance on how to contribute or for people to collaborate with.

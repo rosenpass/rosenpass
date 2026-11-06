@@ -7,6 +7,7 @@
   mandoc,
   removeReferencesTo,
   bash,
+  wireguard-tools,
   package ? "rosenpass",
 }:
 
@@ -21,16 +22,24 @@ let
     # File suffices to include
     extensions = [
       "lock"
+      "pest"
       "rs"
       "service"
       "target"
       "toml"
       "zstd" # used for offloaded test vector values
+      # key material used by tests
+      "pqpk"
+      "pqsk"
+      "psk"
+      "wgpk"
+      "wgsk"
     ];
     # Files to explicitly include
     files = [
       "to/README.md"
       "rosenpass/src/internal/README.md"
+      "rosenpass/src/config/tests/README.md"
     ];
 
     src = ../.;
@@ -50,7 +59,7 @@ let
 
         result = anyof [
           (type == "directory")
-          (any (ext: hasSuffix ".${ext}" basename) extensions)
+          (any (ext: hasSuffix ".${ext}" basename || basename == ext) extensions)
           (any (file: file == relative) files)
         ];
       }
@@ -90,6 +99,8 @@ rustPlatform.buildRustPackage {
     lockFile = src + "/Cargo.lock";
     outputHashes = {
       "uds-0.4.2" = "sha256-qlxr/iJt2AV4WryePIvqm/8/MK/iqtzegztNliR93W8=";
+      # Ilka's backported fix from https://github.com/ilka-schulz/pest-typed/tree/fix-backport
+      "pest_typed-0.20.11" = "sha256-WkP6q5tbptReSN0X9eTObnck/nrRsEXstOH4NT+J9ss=";
     };
   };
 
@@ -101,6 +112,11 @@ rustPlatform.buildRustPackage {
     buildPackages.rustPlatform.bindgenHook # for C-bindings in the crypto libs
   ];
   buildInputs = [ bash ];
+
+  nativeCheckInputs = [
+    # required by `rp`:
+    wireguard-tools
+  ];
 
   hardeningDisable = lib.optional isStatic "fortify";
 

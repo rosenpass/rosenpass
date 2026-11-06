@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::internal::util::mem::{DiscardResultExt, SwapWithDefaultExt};
 use crate::internal::util::{build::Build, result::ensure_or};
 
-use crate::config::ProtocolVersion;
+use crate::protocol::ProtocolVersion;
 use crate::protocol::protocol_context::WireGuardKeyBinding;
 
 use super::basic_types::{SPk, SSk, SymKey};

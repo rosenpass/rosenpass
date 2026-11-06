@@ -146,9 +146,9 @@ in
     # put config keys into the config files (key paths, ports, etc.)
     machine.succeed("${adaptServerConfig}")
     machine.succeed("${adaptClientConfig}")
-    # pin the legacy protocol version explicitly in both configs.
-    machine.succeed("sed -i '/^key_out = /a protocol_version = \"V02\"' /root/server.toml")
-    machine.succeed("sed -i '/^key_out = /a protocol_version = \"V02\"' /root/client.toml")
+    # pin the legacy protocol version explicitly in both configs
+    machine.succeed("sed -i '1i supported-protocol-versions = [\"2\"]' /root/server.toml")
+    machine.succeed("sed -i '1i supported-protocol-versions = [\"2\"]' /root/client.toml")
     # print final config files
     machine.succeed("echo server config:")
     machine.succeed("cat /root/server.toml")

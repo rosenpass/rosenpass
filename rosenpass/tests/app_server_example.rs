@@ -9,7 +9,7 @@ use rosenpass::internal::util::{
 
 use rosenpass::app_server::{AppServer, AppServerTest, MAX_B64_KEY_SIZE};
 use rosenpass::protocol::basic_types::{SPk, SSk, SymKey};
-use rosenpass::{config::ProtocolVersion, protocol::osk_domain_separator::OskDomainSeparator};
+use rosenpass::{protocol::ProtocolVersion, protocol::osk_domain_separator::OskDomainSeparator};
 
 #[test]
 #[cfg_attr(miri, ignore)] // unsupported operation: can't call foreign function `mprotect` on OS `linux`
@@ -123,6 +123,7 @@ impl TestServer {
         let test_helpers = Some(AppServerTest {
             enable_dos_permanently: false,
             termination_handler: Some(termination_queue),
+            skip_init_logging: false,
         });
 
         let app_srv = AppServer::new(keypair, addrs, verbosity, test_helpers)?;
