@@ -114,7 +114,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
-      - run: rustup component add clippy
       # `--no-deps` used as a workaround for a rust compiler bug. See:
       # - https://github.com/rosenpass/rosenpass/issues/62
       # - https://github.com/rust-lang/rust/issues/108378
