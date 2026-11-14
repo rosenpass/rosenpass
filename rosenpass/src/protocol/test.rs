@@ -892,3 +892,123 @@ fn init_conf_retransmission(protocol_version: ProtocolVersion) -> anyhow::Result
     })?;
     Ok(())
 }
+
+/// Regression for #1227: corrupted InitConf MAC must not commit biscuit/session.
+#[test]
+#[serial]
+#[cfg_attr(miri, ignore)]
+fn seal_before_handler_corrupt_initconf_mac_rejects_cleanly() {
+    use crate::msgs::{COOKIE_SIZE, MAC_SIZE};
+    use std::io::Write;
+
+    setup_logging();
+    // Relative / tmp only — never bake host home paths into evidence.
+    let log_path = std::env::var("SEAL_ORDER_EVIDENCE_LOG").unwrap_or_else(|_| {
+        std::env::temp_dir()
+            .join("rosenpass-seal-order-evidence.log")
+            .to_string_lossy()
+            .into_owned()
+    });
+    let mut log = std::fs::File::create(&log_path).expect("create evidence log");
+    macro_rules! both {
+        ($($t:tt)*) => {{
+            let line = format!($($t)*);
+            eprintln!("{line}");
+            writeln!(log, "{line}").unwrap();
+        }};
+    }
+
+    stacker::grow(8 * 1024 * 1024, || {
+        both!("=== seal-before-handler InitConf MAC corruption (V03) ===");
+        both!("note: handle_msg must check_seal before handle_* (#1227)");
+
+        let (mut a, mut b) =
+            make_server_pair_without_key_bindings(ProtocolVersion::V03).unwrap();
+        let mut a_to_b = Public::<MAX_MESSAGE_LEN>::zero();
+        let mut b_to_a = Public::<MAX_MESSAGE_LEN>::zero();
+        let mut scratch = Public::<MAX_MESSAGE_LEN>::zero();
+
+        let ih_len = a.initiate_handshake(PeerPtr(0), &mut *a_to_b).unwrap();
+        both!("1. A→B InitHello len={ih_len}");
+
+        let rh_len = b
+            .handle_msg(&a_to_b.as_slice()[..ih_len], &mut *b_to_a)
+            .unwrap()
+            .resp
+            .unwrap();
+        both!("2. B→A RespHello len={rh_len}");
+
+        let HandleMsgResult {
+            resp,
+            exchanged_with,
+        } = a
+            .handle_msg(&b_to_a[..rh_len], &mut *a_to_b)
+            .unwrap();
+        let ic_len = resp.unwrap();
+        assert_eq!(exchanged_with, Some(PeerPtr(0)));
+        both!("3. A→B InitConf len={ic_len}; initiator exchanged_with={exchanged_with:?}");
+        both!(
+            "   initiator biscuit_used={:02x?}",
+            a.peers[0].biscuit_used.as_slice()
+        );
+        both!(
+            "   responder biscuit_used (before bad IC)={:02x?} session={}",
+            b.peers[0].biscuit_used.as_slice(),
+            b.peers[0].session.is_some()
+        );
+
+        let mut bad = a_to_b.as_slice()[..ic_len].to_vec();
+        let mac_off = ic_len
+            .checked_sub(MAC_SIZE + COOKIE_SIZE)
+            .expect("InitConf long enough for mac+cookie");
+        both!(
+            "4. Flip InitConf mac[0] at offset {mac_off}: {:02x} -> {:02x}",
+            bad[mac_off],
+            bad[mac_off] ^ 1
+        );
+        bad[mac_off] ^= 1;
+
+        let bad_res = b.handle_msg(&bad, &mut *scratch);
+        let after_bad_session = b.peers[0].session.is_some();
+        let after_bad_biscuit = b.peers[0].biscuit_used.as_slice().to_vec();
+        both!("5. B.handle_msg(bad InitConf) => {bad_res:?}");
+        both!(
+            "   responder biscuit_used (after bad IC)={after_bad_biscuit:02x?} session={after_bad_session}"
+        );
+
+        let bad_err = bad_res.expect_err("corrupt mac must not succeed");
+        let bad_s = format!("{bad_err:#}");
+        assert!(
+            bad_s.contains("seal") || bad_s.contains("Seal") || bad_s.contains("Message seal"),
+            "expected seal error, got: {bad_s}"
+        );
+        assert!(!after_bad_session, "session must not be installed when seal fails");
+        assert_eq!(
+            after_bad_biscuit.as_slice(),
+            [0u8; 12].as_slice(),
+            "biscuit_used must stay unset when seal fails"
+        );
+
+        let good_res = b.handle_msg(&a_to_b.as_slice()[..ic_len], &mut *scratch);
+        both!("6. B.handle_msg(good InitConf) => {good_res:?}");
+        both!(
+            "   responder biscuit_used (after good IC)={:02x?} session={}",
+            b.peers[0].biscuit_used.as_slice(),
+            b.peers[0].session.is_some()
+        );
+
+        let HandleMsgResult {
+            exchanged_with,
+            resp,
+        } = good_res.expect("good InitConf must succeed after clean seal reject");
+        assert_eq!(exchanged_with, Some(PeerPtr(0)));
+        assert!(resp.is_some());
+        assert!(b.peers[0].session.is_some());
+        assert_eq!(
+            a.osk(PeerPtr(0)).unwrap().secret(),
+            b.osk(PeerPtr(0)).unwrap().secret()
+        );
+        both!("7. OK: bad IC seal-rejected with no commit; good IC completes exchange.");
+        both!("evidence_log=rosenpass-seal-order-evidence.log");
+    });
+}
