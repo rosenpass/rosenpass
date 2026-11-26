@@ -11,7 +11,7 @@ This repository contains
 
 1. A description of the [Rosenpass protocol](https://rosenpass.eu/docs/rosenpass-project/whitepaper/)
 2. The reference implementation of the protocol – the [rosenpass tool](./rosenpass)
-3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rp)
+3. A frontend integrating Rosenpass and WireGuard to create a vpn – the [rp frontend](./rosenpass/src/rp)
 4. [Security analysis](./analysis) of the protocol using proverif
 
 ## Getting started
@@ -37,7 +37,7 @@ The [rosenpass tool](./rosenpass) is written in Rust and uses liboqs[^liboqs]. T
 
 As with any application a small risk of critical security issues (such as buffer overflows, remote code execution) exists; the Rosenpass application is written in the Rust programming language which is much less prone to such issues. Rosenpass can also write keys to files instead of supplying them to WireGuard With a bit of scripting the stand alone mode of the implementation can be used to run the application in a Container, VM or on another host. This mode can also be used to integrate tools other than WireGuard with Rosenpass.
 
-The [`rp`](./rp) tool written in Rust makes it easy to create a VPN using WireGuard and Rosenpass.
+The [`rp`](./rosenpass/src/rp) tool written in Rust makes it easy to create a VPN using WireGuard and Rosenpass.
 
 `rp` is easy to get started with but has a few drawbacks; it runs as root, demanding access to both WireGuard
 and Rosenpass private keys, takes control of the interface and works with exactly one interface. If you do not feel confident about running Rosenpass as root, you should use the stand-alone mode to create a more secure setup using containers, jails, or virtual machines.
