@@ -2314,45 +2314,18 @@ impl CryptoServer {
                 let msg_in: Ref<&[u8], Envelope<InitHello>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
-                // At this point, we do not know the hash functon used by the peer, thus we try both.
-                // TODO: this code is not dry: https://github.com/rosenpass/rosenpass/issues/1157
-                // first, try SHAKE256
-                let keyed_hash = KeyedHash::keyed_shake256();
-                let ephemeral_kem = derive_ephemeral_kem_from_keyed_hash(keyed_hash.clone());
-                let peer_shake256 = self.handle_init_hello_with_test_vector::<TV>(
+                // Seal before any stateful handler (#1227). Hash/KEM unknown yet:
+                // accept the first choice whose MAC verifies (see also #1157).
+                let (peer_hash_choice, peer_ephemeral_kem_choice) =
+                    self.keyed_hash_and_kem_for_valid_seal(&*msg_in, seal_broken)?;
+                let peer = self.handle_init_hello_with_test_vector::<TV>(
                     &msg_in.payload,
                     &mut msg_out.payload,
-                    keyed_hash.clone(),
-                    ephemeral_kem,
-                );
-                let (peer, peer_hash_choice, peer_ephemeral_kem_choice) = match peer_shake256 {
-                    Ok(peer) => (peer, keyed_hash, ephemeral_kem),
-                    Err(_) => {
-                        // next, try blake2b
-                        let keyed_hash = KeyedHash::incorrect_hmac_blake2b();
-                        let ephemeral_kem =
-                            derive_ephemeral_kem_from_keyed_hash(keyed_hash.clone());
-                        let peer_blake2b = self.handle_init_hello_with_test_vector::<TV>(
-                            &msg_in.payload,
-                            &mut msg_out.payload,
-                            keyed_hash.clone(),
-                            ephemeral_kem,
-                        );
-                        match peer_blake2b {
-                            Ok(peer) => (peer, keyed_hash, ephemeral_kem),
-                            Err(_) => bail!("No valid hash function found for InitHello"),
-                        }
-                    }
-                };
-                // Now, we make sure that the hash function and ephemeral KEM used by the peer are
-                // the same as the ones specified in the local configuration.
-                self.verify_hash_choice_match(peer, peer_hash_choice.clone())?;
+                    peer_hash_choice.clone(),
+                    peer_ephemeral_kem_choice,
+                )?;
+                self.verify_hash_choice_match(peer, peer_hash_choice)?;
                 self.verify_ephemeral_kem_choice_match(peer, peer_ephemeral_kem_choice)?;
-
-                ensure!(
-                    msg_in.check_seal(self, peer_hash_choice, peer_ephemeral_kem_choice)?,
-                    seal_broken
-                );
 
                 len = self.seal_and_commit_msg(peer, MsgType::RespHello, &mut msg_out)?;
                 peer
@@ -2361,17 +2334,12 @@ impl CryptoServer {
                 let msg_in: Ref<&[u8], Envelope<RespHello>> =
                     Ref::from_bytes(rx_buf).map_err(|_| RosenpassError::BufferSizeMismatch)?;
 
+                let (peer_hash_choice, peer_ephemeral_kem_choice) =
+                    self.keyed_hash_and_kem_for_valid_seal(&*msg_in, seal_broken)?;
                 let mut msg_out = truncating_cast_into::<Envelope<InitConf>>(tx_buf)?;
                 let peer = self.handle_resp_hello(&msg_in.payload, &mut msg_out.payload)?;
-                let protocol_version = peer.get(self).protocol_version;
-                ensure!(
-                    msg_in.check_seal(
-                        self,
-                        protocol_version.keyed_hash(),
-                        protocol_version.ephemeral_kem()
-                    )?,
-                    seal_broken
-                );
+                self.verify_hash_choice_match(peer, peer_hash_choice)?;
+                self.verify_ephemeral_kem_choice_match(peer, peer_ephemeral_kem_choice)?;
 
                 len = self.seal_and_commit_msg(peer, MsgType::InitConf, &mut msg_out)?;
                 peer.hs()
@@ -2408,48 +2376,18 @@ impl CryptoServer {
                         peer
                     }
 
-                    // No cached response, actually call cryptographic handler
+                    // No cached response: seal first, then a single handler (#1227).
                     None => {
-                        // At this point, we do not know the hash functon used by the peer, thus we try both.
-                        // TODO: this code is not dry: https://github.com/rosenpass/rosenpass/issues/1157
-                        // first, try SHAKE256
-                        let keyed_hash = KeyedHash::keyed_shake256();
-                        let ephemeral_kem =
-                            derive_ephemeral_kem_from_keyed_hash(keyed_hash.clone());
-                        let peer_shake256 = self.handle_init_conf(
+                        let (peer_hash_choice, peer_ekem_choice) =
+                            self.keyed_hash_and_kem_for_valid_seal(&*msg_in, seal_broken)?;
+                        let peer = self.handle_init_conf(
                             &msg_in.payload,
                             &mut msg_out.payload,
-                            keyed_hash.clone(),
-                            ephemeral_kem,
-                        );
-                        let (peer, peer_hash_choice, peer_ekem_choice) = match peer_shake256 {
-                            Ok(peer) => (peer, keyed_hash, ephemeral_kem),
-                            Err(_) => {
-                                // next, try blake2b
-                                let keyed_hash = KeyedHash::incorrect_hmac_blake2b();
-                                let ephemeral_kem =
-                                    derive_ephemeral_kem_from_keyed_hash(keyed_hash.clone());
-                                let peer_blake2b = self.handle_init_conf(
-                                    &msg_in.payload,
-                                    &mut msg_out.payload,
-                                    keyed_hash.clone(),
-                                    ephemeral_kem,
-                                );
-                                match peer_blake2b {
-                                    Ok(peer) => (peer, keyed_hash, ephemeral_kem),
-                                    Err(_) => bail!("No valid hash function found for InitHello"),
-                                }
-                            }
-                        };
-                        // Now, we make sure that the hash function and ephemeral KEM used by the peer are
-                        // the same as the ones specified in the local configuration.
-                        self.verify_hash_choice_match(peer, peer_hash_choice.clone())?;
-                        self.verify_ephemeral_kem_choice_match(peer, peer_ekem_choice.clone())?;
-
-                        ensure!(
-                            msg_in.check_seal(self, peer_hash_choice, peer_ekem_choice)?,
-                            seal_broken
-                        );
+                            peer_hash_choice.clone(),
+                            peer_ekem_choice,
+                        )?;
+                        self.verify_hash_choice_match(peer, peer_hash_choice)?;
+                        self.verify_ephemeral_kem_choice_match(peer, peer_ekem_choice)?;
 
                         KnownInitConfResponsePtr::insert_for_request_msg(
                             self,
@@ -2485,6 +2423,27 @@ impl CryptoServer {
             exchanged_with: exchanged.then_some(peer),
             resp: if len == 0 { None } else { Some(len) },
         })
+    }
+
+    /// Pick hash + ephemeral KEM whose envelope MAC verifies, without running a
+    /// handshake handler. Used so `check_seal` happens before stateful
+    /// `handle_*` (issue #1227). Tries SHAKE256/ML-KEM then Blake2b/Kyber.
+    fn keyed_hash_and_kem_for_valid_seal<M: IntoBytes + FromBytes + Immutable>(
+        &self,
+        msg: &Envelope<M>,
+        seal_broken: &str,
+    ) -> Result<(KeyedHash, EphemeralKem)> {
+        let shake = KeyedHash::keyed_shake256();
+        let shake_kem = derive_ephemeral_kem_from_keyed_hash(shake.clone());
+        if msg.check_seal(self, shake.clone(), shake_kem)? {
+            return Ok((shake, shake_kem));
+        }
+        let blake = KeyedHash::incorrect_hmac_blake2b();
+        let blake_kem = derive_ephemeral_kem_from_keyed_hash(blake.clone());
+        if msg.check_seal(self, blake.clone(), blake_kem)? {
+            return Ok((blake, blake_kem));
+        }
+        bail!("{seal_broken}");
     }
 
     /// Given a peer and a [KeyedHash] `peer_hash_choice`, this function checks whether the
